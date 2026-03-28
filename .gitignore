@@ -4,6 +4,7 @@ node_modules/
 # Build output
 dist/
 .vite/
+coverage/
 
 # Environment variables — never commit these
 .env
