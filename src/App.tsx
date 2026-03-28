@@ -1,0 +1,207 @@
+import { useState, useCallback, useEffect, useRef } from 'react'
+import { Terminal } from './components/Terminal'
+import { useSplash } from './hooks/useSplash'
+import { useBootSequence } from './hooks/useBootSequence'
+import { TerminalLine, makeLine } from './types/terminal'
+import { GameState } from './types/game'
+import { createInitialState, currentNode } from './engine/state'
+import { resolveCommand } from './engine/commands'
+import { saveGame, loadGame, hasSave, clearSave } from './engine/persistence'
+
+// Nexus Corp operative credentials
+const OPERATIVE_USER = 'ghost'
+const OPERATIVE_PASS = 'nX-2847'
+
+type AppPhase =
+  | 'splash'
+  | 'login_user'
+  | 'login_pass'
+  | 'booting'
+  | 'resume_prompt'
+  | 'playing'
+  | 'burned'
+
+const SUGGESTIONS = ['help', 'status', 'scan', 'map', 'inventory']
+
+export function App() {
+  const { lines: splashLines, done: splashDone } = useSplash()
+  const { lines: bootLines,   done: bootDone   } = useBootSequence()
+
+  const [appPhase, setAppPhase]     = useState<AppPhase>('splash')
+  const [gameState, setGameState]   = useState<GameState | null>(null)
+  const [sessionLines, setSessionLines] = useState<TerminalLine[]>([])
+  const [username, setUsername]     = useState('')
+
+  const bootStarted    = useRef(false)
+  const resumeHandled  = useRef(false)
+
+  // Advance splash → login_user once banner finishes
+  useEffect(() => {
+    if (splashDone && appPhase === 'splash') {
+      setAppPhase('login_user')
+      setSessionLines([makeLine('system', 'nx-field-01 login:')])
+    }
+  }, [splashDone, appPhase])
+
+  // Advance booting → resume_prompt or playing once MOTD finishes
+  useEffect(() => {
+    if (!bootDone || appPhase !== 'booting' || resumeHandled.current) return
+    resumeHandled.current = true
+
+    if (hasSave()) {
+      setAppPhase('resume_prompt')
+      setSessionLines(prev => [
+        ...prev,
+        makeLine('separator', ''),
+        makeLine('output', 'Previous session detected.'),
+        makeLine('system', "Type  yes  to resume, or  no  to start a new run."),
+      ])
+    } else {
+      setGameState(createInitialState())
+      setAppPhase('playing')
+    }
+  }, [bootDone, appPhase])
+
+  // Auto-save on state changes during play
+  useEffect(() => {
+    if (gameState?.phase === 'playing') saveGame(gameState)
+  }, [gameState])
+
+  const push = useCallback((lines: TerminalLine[]) => {
+    setSessionLines(prev => [...prev, ...lines])
+  }, [])
+
+  const handleSubmit = useCallback((raw: string) => {
+    // ── Splash (shouldn't happen, input disabled) ──────────
+    if (appPhase === 'splash') return
+
+    // ── Login: username ────────────────────────────────────
+    if (appPhase === 'login_user') {
+      const user = raw.trim()
+      setUsername(user)
+      setAppPhase('login_pass')
+      push([
+        makeLine('input',  raw),
+        makeLine('system', 'Password:'),
+      ])
+      return
+    }
+
+    // ── Login: password ────────────────────────────────────
+    if (appPhase === 'login_pass') {
+      // Echo masked — never show the actual password
+      push([makeLine('input', '********')])
+
+      if (username === OPERATIVE_USER && raw === OPERATIVE_PASS) {
+        push([
+          makeLine('system', ''),
+          makeLine('output', `Access granted. Welcome, ${username}.`),
+          makeLine('separator', ''),
+        ])
+        setAppPhase('booting')
+      } else {
+        push([
+          makeLine('error',  'Login incorrect.'),
+          makeLine('system', 'nx-field-01 login:'),
+        ])
+        setUsername('')
+        setAppPhase('login_user')
+      }
+      return
+    }
+
+    // ── Resume prompt ──────────────────────────────────────
+    if (appPhase === 'resume_prompt') {
+      const answer = raw.trim().toLowerCase()
+      push([makeLine('input', raw)])
+      if (answer === 'yes' || answer === 'y') {
+        const saved = loadGame()
+        if (saved) {
+          setGameState(saved)
+          setAppPhase('playing')
+          push([makeLine('system', 'Session restored.'), makeLine('separator', '')])
+        }
+      } else {
+        clearSave()
+        setGameState(createInitialState())
+        setAppPhase('playing')
+        push([makeLine('system', 'Starting new run.'), makeLine('separator', '')])
+      }
+      return
+    }
+
+    // ── Playing ────────────────────────────────────────────
+    if (!gameState || appPhase !== 'playing') return
+
+    const result = resolveCommand(raw, gameState)
+
+    if (raw.trim().toLowerCase() === 'clear') {
+      setSessionLines([])
+      return
+    }
+
+    const out = [
+      makeLine('input', raw),
+      ...result.lines.map(l => makeLine(l.type, l.content)),
+    ]
+
+    if (result.nextState) {
+      const next = result.nextState as GameState
+      setGameState(next)
+      if (next.phase === 'burned') {
+        out.push(
+          makeLine('separator', ''),
+          makeLine('error',  'TRACE LIMIT REACHED — CONNECTION BURNED.'),
+          makeLine('system', 'Exfiltrated assets retained. Restarting session...'),
+          makeLine('separator', ''),
+        )
+        setAppPhase('burned')
+        clearSave()
+      }
+    }
+
+    push(out)
+  }, [appPhase, gameState, username, push])
+
+  // ── Prompt and masking per phase ───────────────────────────
+  const promptStr = appPhase === 'login_user' ? '' :
+                    appPhase === 'login_pass' ? '' :
+                    'nexus $'
+  const isMasked     = appPhase === 'login_pass'
+  const isNoHistory  = appPhase === 'login_user' || appPhase === 'login_pass'
+  const inputDisabled =
+    appPhase === 'splash' ||
+    appPhase === 'booting' ||
+    appPhase === 'burned'
+
+  const node   = gameState ? currentNode(gameState) : null
+  const nodeIp = node?.ip ?? '---'
+  const trace  = gameState?.player.trace ?? 0
+
+  // Combine all line sources
+  const allLines: TerminalLine[] = [
+    ...splashLines,
+    ...sessionLines,
+    ...(appPhase === 'booting' || appPhase === 'resume_prompt' || appPhase === 'playing' || appPhase === 'burned'
+      ? bootLines : []),
+  ]
+
+  // Kick off boot rendering only once
+  if (appPhase === 'booting' && !bootStarted.current) {
+    bootStarted.current = true
+  }
+
+  return (
+    <Terminal
+      lines={allLines}
+      nodeIp={nodeIp}
+      trace={trace}
+      suggestions={appPhase === 'playing' ? SUGGESTIONS : []}
+      onSubmit={handleSubmit}
+      inputDisabled={inputDisabled}
+      inputPrompt={promptStr}
+      inputMasked={isMasked}
+      inputNoHistory={isNoHistory}
+    />
+  )
+}
