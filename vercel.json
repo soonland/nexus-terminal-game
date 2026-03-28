@@ -1,3 +1,8 @@
 {
-  "framework": "vite"
+  "framework": "vite",
+  "functions": {
+    "api/**/*.ts": {
+      "runtime": "nodejs22.x"
+    }
+  }
 }
