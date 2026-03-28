@@ -1,0 +1,80 @@
+@font-face {
+  font-family: 'IBM VGA 8x16';
+  src: url('/fonts/Web437_IBM_VGA_8x16-2x.woff') format('woff');
+  font-weight: normal;
+  font-style: normal;
+}
+
+/* ── ncurses / dialog color palette ──────────────────────── */
+:root {
+  --color-bg:          #0000aa;   /* classic ncurses blue */
+  --color-bg-header:   #0000aa;
+  --color-border:      #5555ff;   /* bright blue border */
+
+  --color-output:      #ffffff;   /* white */
+  --color-input:       #ffffff;
+  --color-system:      #aaaaaa;   /* light gray */
+  --color-separator:   #5555ff;   /* bright blue */
+  --color-dim:         #aaaaaa;
+
+  --color-error:       #ff5555;   /* bright red */
+  --color-aria:        #55ffff;   /* bright cyan */
+  --color-aria-border: #00aaaa;
+
+  /* Trace meter */
+  --color-safe:        #55ff55;
+  --color-elevated:    #ffff55;
+  --color-active:      #ff5500;
+  --color-aggressive:  #ff5555;
+
+  --font-mono: 'IBM VGA 8x16', 'VT323', monospace;
+  --font-size:  16px;
+  --line-height: 1.5;
+}
+
+/* ── Reset ────────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-output);
+  font-family: var(--font-mono);
+  font-size: var(--font-size);
+  font-weight: 400;
+  line-height: var(--line-height);
+  -webkit-font-smoothing: none;
+  image-rendering: pixelated;
+}
+
+/* ── Terminal line types ──────────────────────────────────── */
+.line {
+  padding: 0 1.5rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.line--output    { color: var(--color-output); }
+.line--input     { color: var(--color-input); }
+.line--system    { color: var(--color-system); }
+.line--error     { color: var(--color-error); }
+.line--separator { color: var(--color-separator); user-select: none; }
+.line--aria {
+  color: var(--color-aria);
+  border-left: 2px solid var(--color-aria-border);
+  padding-left: calc(1.5rem - 2px);
+}
+
+/* ── Scrollbar ────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 0; }
