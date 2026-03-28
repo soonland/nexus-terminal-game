@@ -12,6 +12,8 @@ import { saveGame, loadGame, hasSave, clearSave } from './engine/persistence'
 const OPERATIVE_USER = 'ghost'
 const OPERATIVE_PASS = 'nX-2847'
 
+const SPINNER_FRAMES = ['-', '\\', '|', '/']
+
 type AppPhase =
   | 'splash'
   | 'login_user'
@@ -27,13 +29,16 @@ export function App() {
   const { lines: splashLines, done: splashDone } = useSplash()
   const { lines: bootLines,   done: bootDone   } = useBootSequence()
 
-  const [appPhase, setAppPhase]     = useState<AppPhase>('splash')
-  const [gameState, setGameState]   = useState<GameState | null>(null)
+  const [appPhase, setAppPhase]         = useState<AppPhase>('splash')
+  const [gameState, setGameState]       = useState<GameState | null>(null)
   const [sessionLines, setSessionLines] = useState<TerminalLine[]>([])
-  const [username, setUsername]     = useState('')
+  const [username, setUsername]         = useState('')
+  const [spinnerLine, setSpinnerLine]   = useState<TerminalLine | null>(null)
 
   const bootStarted    = useRef(false)
   const resumeHandled  = useRef(false)
+  const spinnerTimer   = useRef<ReturnType<typeof setInterval> | null>(null)
+  const spinnerFrame   = useRef(0)
 
   // Advance splash → login_user once banner finishes
   useEffect(() => {
@@ -52,6 +57,7 @@ export function App() {
       setAppPhase('resume_prompt')
       setSessionLines(prev => [
         ...prev,
+        ...bootLines,
         makeLine('separator', ''),
         makeLine('output', 'Previous session detected.'),
         makeLine('system', "Type  yes  to resume, or  no  to start a new run."),
@@ -59,8 +65,9 @@ export function App() {
     } else {
       setGameState(createInitialState())
       setAppPhase('playing')
+      setSessionLines(prev => [...prev, ...bootLines])
     }
-  }, [bootDone, appPhase])
+  }, [bootDone, appPhase, bootLines])
 
   // Auto-save on state changes during play
   useEffect(() => {
@@ -71,7 +78,24 @@ export function App() {
     setSessionLines(prev => [...prev, ...lines])
   }, [])
 
-  const handleSubmit = useCallback((raw: string) => {
+  const startSpinner = useCallback(() => {
+    spinnerFrame.current = 0
+    setSpinnerLine(makeLine('system', `[ ${SPINNER_FRAMES[0]} ]`))
+    spinnerTimer.current = setInterval(() => {
+      spinnerFrame.current = (spinnerFrame.current + 1) % SPINNER_FRAMES.length
+      setSpinnerLine(makeLine('system', `[ ${SPINNER_FRAMES[spinnerFrame.current]} ]`))
+    }, 120)
+  }, [])
+
+  const stopSpinner = useCallback(() => {
+    if (spinnerTimer.current) {
+      clearInterval(spinnerTimer.current)
+      spinnerTimer.current = null
+    }
+    setSpinnerLine(null)
+  }, [])
+
+  const handleSubmit = useCallback(async (raw: string) => {
     // ── Splash (shouldn't happen, input disabled) ──────────
     if (appPhase === 'splash') return
 
@@ -133,17 +157,19 @@ export function App() {
     // ── Playing ────────────────────────────────────────────
     if (!gameState || appPhase !== 'playing') return
 
-    const result = resolveCommand(raw, gameState)
-
     if (raw.trim().toLowerCase() === 'clear') {
       setSessionLines([])
       return
     }
 
-    const out = [
-      makeLine('input', raw),
-      ...result.lines.map(l => makeLine(l.type, l.content)),
-    ]
+    push([makeLine('input', raw)])
+    startSpinner()
+
+    const result = await resolveCommand(raw, gameState)
+
+    stopSpinner()
+
+    const out = result.lines.map(l => makeLine(l.type, l.content))
 
     if (result.nextState) {
       const next = result.nextState as GameState
@@ -161,7 +187,7 @@ export function App() {
     }
 
     push(out)
-  }, [appPhase, gameState, username, push])
+  }, [appPhase, gameState, username, push, startSpinner, stopSpinner])
 
   // ── Prompt and masking per phase ───────────────────────────
   const promptStr = appPhase === 'login_user' ? '' :
@@ -170,20 +196,23 @@ export function App() {
   const isMasked     = appPhase === 'login_pass'
   const isNoHistory  = appPhase === 'login_user' || appPhase === 'login_pass'
   const inputDisabled =
-    appPhase === 'splash' ||
-    appPhase === 'booting' ||
-    appPhase === 'burned'
+    appPhase === 'splash'   ||
+    appPhase === 'booting'  ||
+    appPhase === 'burned'   ||
+    spinnerLine !== null
 
   const node   = gameState ? currentNode(gameState) : null
   const nodeIp = node?.ip ?? '---'
   const trace  = gameState?.player.trace ?? 0
 
   // Combine all line sources
+  // bootLines are only streamed dynamically during 'booting'; once done they are
+  // snapshotted into sessionLines so they stay in place as commands are typed.
   const allLines: TerminalLine[] = [
     ...splashLines,
     ...sessionLines,
-    ...(appPhase === 'booting' || appPhase === 'resume_prompt' || appPhase === 'playing' || appPhase === 'burned'
-      ? bootLines : []),
+    ...(spinnerLine ? [spinnerLine] : []),
+    ...(appPhase === 'booting' ? bootLines : []),
   ]
 
   // Kick off boot rendering only once

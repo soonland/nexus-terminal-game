@@ -58,6 +58,7 @@ export interface LiveNode {
   accessLevel: AccessLevel  // player's current access on this node
   compromised: boolean
   discovered: boolean
+  locked?: boolean          // Phase 4: locked nodes cannot be connected until unlocked
   credentialHints: string[] // credential IDs findable here
 }
 
@@ -111,6 +112,8 @@ export interface GameState {
   phase: GamePhase
   runId: string
   startedAt: number
+  turnCount: number
+  recentCommands: string[]  // last 8 commands for AI context
   player: Player
   network: {
     currentNodeId: string

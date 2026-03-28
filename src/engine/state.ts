@@ -6,6 +6,8 @@ export function createInitialState(): GameState {
     phase: 'playing',
     runId: crypto.randomUUID(),
     startedAt: Date.now(),
+    turnCount: 0,
+    recentCommands: [],
     player: {
       handle: 'ghost',
       trace: 0,

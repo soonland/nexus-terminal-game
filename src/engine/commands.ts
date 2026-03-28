@@ -2,6 +2,26 @@ import { GameState, CommandOutput, hasAccess, AccessLevel } from '../types/game'
 import { currentNode, addTrace } from './state'
 import produce from './produce'
 
+interface WorldAIResponse {
+  narrative: string
+  traceChange: number
+  accessGranted: boolean
+  newAccessLevel: 'none' | 'user' | 'admin' | 'root' | null
+  flagsSet: Record<string, boolean>
+  nodesUnlocked: string[]
+  isUnknown: boolean
+}
+
+const WORLD_AI_FALLBACK: WorldAIResponse = {
+  narrative: '[World AI unavailable — operating in offline mode. Try basic commands.]',
+  traceChange: 0,
+  accessGranted: false,
+  newAccessLevel: null,
+  flagsSet: {},
+  nodesUnlocked: [],
+  isUnknown: true,
+}
+
 type Out = CommandOutput['lines']
 const line  = (content: string, type: CommandOutput['lines'][0]['type'] = 'system') =>
   ({ type, content })
@@ -11,10 +31,10 @@ const err   = (content: string) => line(content, 'error')
 const sep   = ()                => line('', 'separator')
 
 // ── Command resolution ─────────────────────────────────────
-export function resolveCommand(
+export async function resolveCommand(
   raw: string,
   state: GameState,
-): CommandOutput {
+): Promise<CommandOutput> {
   if (state.phase === 'burned') {
     return {
       lines: [err('SESSION TERMINATED — trace limit reached. Restarting...')],
@@ -25,34 +45,129 @@ export function resolveCommand(
   const verb = cmd?.toLowerCase() ?? ''
 
   // ── Local commands (no trace, no state change) ───────────
+  let result: CommandOutput | null = null
   switch (verb) {
-    case 'help':    return cmdHelp()
-    case 'status':  return cmdStatus(state)
-    case 'inventory': return cmdInventory(state)
-    case 'map':     return cmdMap(state)
-    case 'clear':   return { lines: [], nextState: undefined }
+    case 'help':      result = cmdHelp(); break
+    case 'status':    result = cmdStatus(state); break
+    case 'inventory': result = cmdInventory(state); break
+    case 'map':       result = cmdMap(state); break
+    case 'clear':     result = { lines: [] }; break
   }
+  if (result) return withTurn(result, raw, state)
 
   // ── Engine commands ──────────────────────────────────────
   switch (verb) {
-    case 'scan':       return cmdScan(args, state)
-    case 'connect':    return cmdConnect(args, state)
-    case 'login':      return cmdLogin(args, state)
-    case 'ls':         return cmdLs(args, state)
-    case 'cat':        return cmdCat(args, state)
-    case 'disconnect': return cmdDisconnect(state)
-    case 'exploit':    return cmdExploit(args, state)
-    case 'exfil':      return cmdExfil(args, state)
-    case 'wipe-logs':  return cmdWipeLogs(state)
+    case 'scan':       result = cmdScan(args, state); break
+    case 'connect':    result = cmdConnect(args, state); break
+    case 'login':      result = cmdLogin(args, state); break
+    case 'ls':         result = cmdLs(args, state); break
+    case 'cat':        result = cmdCat(args, state); break
+    case 'disconnect': result = cmdDisconnect(state); break
+    case 'exploit':    result = cmdExploit(args, state); break
+    case 'exfil':      result = cmdExfil(args, state); break
+    case 'wipe-logs':  result = cmdWipeLogs(state); break
+  }
+  if (result) return withTurn(result, raw, state)
+
+  // ── Unknown → route to World AI ─────────────────────────
+  return cmdWorldAI(raw, state)
+}
+
+// ── Merge turn tracking into any CommandOutput ────────────
+function withTurn(result: CommandOutput, raw: string, baseState: GameState): CommandOutput {
+  const base = (result.nextState ?? baseState) as GameState
+  return { ...result, nextState: advanceTurn(base, raw) }
+}
+
+// ── Track command in recentCommands / turnCount ───────────
+function advanceTurn(state: GameState, raw: string): GameState {
+  const recentCommands = [...(state.recentCommands ?? []), raw].slice(-8)
+  return produce(state, s => {
+    s.turnCount = (s.turnCount ?? 0) + 1
+    s.recentCommands = recentCommands
+  })
+}
+
+// ── World AI ──────────────────────────────────────────────
+async function cmdWorldAI(raw: string, state: GameState): Promise<CommandOutput> {
+  const node   = currentNode(state)
+  const player = state.player
+
+  const payload = {
+    command: raw,
+    currentNode: {
+      id:          node.id,
+      ip:          node.ip,
+      label:       node.label,
+      layer:       node.layer,
+      accessLevel: node.accessLevel,
+      services:    node.services.map(s => ({ name: s.name, port: s.port, vulnerable: s.vulnerable })),
+      files:       node.files
+        .filter(f => hasAccess(node.accessLevel, f.accessRequired))
+        .map(f => ({ name: f.name, type: f.type })),
+    },
+    playerState: {
+      handle:  player.handle,
+      trace:   player.trace,
+      charges: player.charges,
+      tools:   player.tools.map(t => ({ id: t.id })),
+    },
+    recentCommands: state.recentCommands ?? [],
+    turnCount:      state.turnCount ?? 0,
   }
 
-  // ── Unknown → will be AI-routed in Phase 3 ───────────────
-  return {
-    lines: [
-      sys(`[routing to AI handler — not yet implemented]`),
-      err(`Unknown command: ${verb}`),
-    ],
+  let aiResponse: WorldAIResponse
+  try {
+    const res = await fetch('/api/world', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(payload),
+    })
+    aiResponse = await res.json() as WorldAIResponse
+  } catch {
+    aiResponse = WORLD_AI_FALLBACK
   }
+
+  // Apply state mutations from AI response
+  let next = advanceTurn(state, raw)
+
+  if (aiResponse.traceChange > 0) {
+    next = addTrace(next, aiResponse.traceChange)
+  }
+
+  if (aiResponse.accessGranted && aiResponse.newAccessLevel) {
+    next = produce(next, s => {
+      s.network.nodes[node.id]!.accessLevel = aiResponse.newAccessLevel as AccessLevel
+    })
+  }
+
+  if (Object.keys(aiResponse.flagsSet).length > 0) {
+    next = produce(next, s => {
+      Object.assign(s.flags, aiResponse.flagsSet)
+    })
+  }
+
+  if (aiResponse.nodesUnlocked.length > 0) {
+    next = produce(next, s => {
+      for (const nodeId of aiResponse.nodesUnlocked) {
+        const target = s.network.nodes[nodeId]
+        if (target) {
+          target.discovered = true
+          target.locked = false
+        }
+      }
+    })
+  }
+
+  const lineType = aiResponse.isUnknown ? 'error' : 'output'
+  const lines: CommandOutput['lines'] = [
+    { type: lineType, content: aiResponse.narrative },
+  ]
+  if (aiResponse.traceChange > 0) {
+    lines.push(sys(`  +${aiResponse.traceChange} trace`))
+  }
+
+  return { lines, nextState: next }
 }
 
 // ── help ──────────────────────────────────────────────────
