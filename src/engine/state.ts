@@ -1,4 +1,4 @@
-import { GameState } from '../types/game'
+import { GameState, LiveNode } from '../types/game'
 import { buildNodeMap, ANCHOR_CREDENTIALS } from '../data/anchorNodes'
 
 export function createInitialState(): GameState {
@@ -34,8 +34,10 @@ export function createInitialState(): GameState {
   }
 }
 
-export function currentNode(state: GameState) {
-  return state.network.nodes[state.network.currentNodeId]!
+export function currentNode(state: GameState): LiveNode {
+  const node = state.network.nodes[state.network.currentNodeId]
+  if (!node) throw new Error(`currentNode: node not found: ${state.network.currentNodeId}`)
+  return node
 }
 
 export function addTrace(state: GameState, amount: number): GameState {

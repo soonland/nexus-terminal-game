@@ -137,7 +137,8 @@ async function cmdWorldAI(raw: string, state: GameState): Promise<CommandOutput>
 
   if (aiResponse.accessGranted && aiResponse.newAccessLevel) {
     next = produce(next, s => {
-      s.network.nodes[node.id]!.accessLevel = aiResponse.newAccessLevel as AccessLevel
+      const n = s.network.nodes[node.id]
+      if (n) n.accessLevel = aiResponse.newAccessLevel as AccessLevel
     })
   }
 
@@ -284,7 +285,7 @@ function cmdScan(args: string[], state: GameState): CommandOutput {
       return { lines: [err(`No response from ${args[0]}`)] }
     }
     if (!target.discovered) {
-      next = produce(next, s => { s.network.nodes[target.id]!.discovered = true })
+      next = produce(next, s => { const n = s.network.nodes[target.id]; if (n) n.discovered = true })
     }
     lines.push(out(`Scanning ${target.ip}...`))
     lines.push(sys(`  Host    : ${target.label}`))
@@ -302,7 +303,7 @@ function cmdScan(args: string[], state: GameState): CommandOutput {
     const peers = node.connections.map(id => state.network.nodes[id]).filter(Boolean)
     peers.forEach(peer => {
       if (peer) {
-        next = produce(next, s => { s.network.nodes[peer.id]!.discovered = true })
+        next = produce(next, s => { const n = s.network.nodes[peer.id]; if (n) n.discovered = true })
         const vuln = peer.services.some(s => s.vulnerable && !s.patched) ? '  [!]' : ''
         lines.push(sys(`  ${peer.ip}  ${peer.label}${vuln}`))
       }
@@ -364,7 +365,8 @@ function cmdLogin(args: string[], state: GameState): CommandOutput {
 
   // Grant access and mark credential as obtained
   const next = produce(state, s => {
-    s.network.nodes[node.id]!.accessLevel = match.accessLevel
+    const n = s.network.nodes[node.id]
+    if (n) n.accessLevel = match.accessLevel
     const cred = s.player.credentials.find(c => c.id === match.id)
     if (cred) cred.obtained = true
   })
@@ -444,7 +446,8 @@ function cmdDisconnect(state: GameState): CommandOutput {
     return { lines: [err('No previous node to return to.')] }
   }
 
-  const prevNode = state.network.nodes[prev]!
+  const prevNode = state.network.nodes[prev]
+  if (!prevNode) return { lines: [err('No previous node to return to.')] }
   const next = produce(state, s => {
     s.network.currentNodeId  = prev
     s.network.previousNodeId = null
@@ -477,8 +480,8 @@ function cmdExploit(args: string[], state: GameState): CommandOutput {
 
   const next = produce(addTrace(state, 2), s => {
     s.player.charges -= svc.exploitCost
-    s.network.nodes[node.id]!.accessLevel  = svc.accessGained as AccessLevel
-    s.network.nodes[node.id]!.compromised  = true
+    const n = s.network.nodes[node.id]
+    if (n) { n.accessLevel = svc.accessGained as AccessLevel; n.compromised = true }
   })
 
   return {
