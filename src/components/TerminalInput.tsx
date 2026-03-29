@@ -33,8 +33,7 @@ export const TerminalInput = forwardRef<HTMLInputElement, Props>(
     }, [disabled, ref]);
 
     const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-      const input = ref && 'current' in ref ? ref.current : null;
-      if (!input) return;
+      const input = e.currentTarget;
 
       if (e.key === 'Enter') {
         const value = input.value;

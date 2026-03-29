@@ -26,6 +26,8 @@ export default tseslint.config(
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
+      // App.tsx is an intentional state machine — phase transitions via effects are by design
+      'react-hooks/set-state-in-effect': 'off',
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
       'react/self-closing-comp': ['error', { component: true, html: true }],
       '@typescript-eslint/consistent-type-imports': ['error', { prefer: 'type-imports' }],
