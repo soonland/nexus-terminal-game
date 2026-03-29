@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { resolveCommand } from './commands'
 import { createInitialState } from './state'
 import { GameState } from '../types/game'
+import produce from './produce'
 
 // ── Helpers ────────────────────────────────────────────────
 
@@ -331,5 +332,853 @@ describe('resolveCommand — AI routing fetch failure', () => {
     const result = await resolveCommand('frobnicate', state)
     const traceLine = result.lines.find(l => l.content.includes('trace'))
     expect(traceLine).toBeUndefined()
+  })
+})
+
+// ── Local commands ─────────────────────────────────────────
+
+describe('resolveCommand — help', () => {
+  let state: GameState
+
+  beforeEach(() => {
+    state = createInitialState()
+  })
+
+  it('should return lines containing command descriptions', async () => {
+    const result = await resolveCommand('help', state)
+    const contents = result.lines.map(l => l.content)
+    expect(contents.some(c => c.includes('help'))).toBe(true)
+    expect(contents.some(c => c.includes('status'))).toBe(true)
+    expect(contents.some(c => c.includes('scan'))).toBe(true)
+    expect(contents.some(c => c.includes('connect'))).toBe(true)
+    expect(contents.some(c => c.includes('login'))).toBe(true)
+    expect(contents.some(c => c.includes('exploit'))).toBe(true)
+  })
+
+  it('should include separator lines', async () => {
+    const result = await resolveCommand('help', state)
+    const separators = result.lines.filter(l => l.type === 'separator')
+    expect(separators.length).toBeGreaterThan(0)
+  })
+
+  it('should not modify player trace', async () => {
+    const result = await resolveCommand('help', state)
+    expect((result.nextState as GameState).player.trace).toBe(0)
+  })
+})
+
+describe('resolveCommand — status', () => {
+  let state: GameState
+
+  beforeEach(() => {
+    state = createInitialState()
+  })
+
+  it('should return the current node IP in output', async () => {
+    const result = await resolveCommand('status', state)
+    const contents = result.lines.map(l => l.content)
+    expect(contents.some(c => c.includes('10.0.0.1'))).toBe(true)
+  })
+
+  it('should return the player handle', async () => {
+    const result = await resolveCommand('status', state)
+    const contents = result.lines.map(l => l.content)
+    expect(contents.some(c => c.includes('ghost'))).toBe(true)
+  })
+
+  it('should show trace percentage', async () => {
+    const result = await resolveCommand('status', state)
+    const contents = result.lines.map(l => l.content)
+    expect(contents.some(c => c.includes('0%'))).toBe(true)
+  })
+
+  it('should show SAFE when trace is 0', async () => {
+    const result = await resolveCommand('status', state)
+    const contents = result.lines.map(l => l.content)
+    expect(contents.some(c => c.includes('SAFE'))).toBe(true)
+  })
+
+  it('should show ELEVATED when trace is 31', async () => {
+    const elevated = produce(state, s => { s.player.trace = 31 })
+    const result = await resolveCommand('status', elevated)
+    const contents = result.lines.map(l => l.content)
+    expect(contents.some(c => c.includes('ELEVATED'))).toBe(true)
+  })
+
+  it('should show SENTINEL ACTIVE when trace is 61', async () => {
+    const active = produce(state, s => { s.player.trace = 61 })
+    const result = await resolveCommand('status', active)
+    const contents = result.lines.map(l => l.content)
+    expect(contents.some(c => c.includes('SENTINEL ACTIVE'))).toBe(true)
+  })
+
+  it('should show CRITICAL when trace is 86', async () => {
+    const critical = produce(state, s => { s.player.trace = 86 })
+    const result = await resolveCommand('status', critical)
+    const contents = result.lines.map(l => l.content)
+    expect(contents.some(c => c.includes('CRITICAL'))).toBe(true)
+  })
+
+  it('should list tools', async () => {
+    const result = await resolveCommand('status', state)
+    const contents = result.lines.map(l => l.content)
+    expect(contents.some(c => c.includes('exploit-kit'))).toBe(true)
+  })
+
+  it('should show charges count', async () => {
+    const result = await resolveCommand('status', state)
+    const contents = result.lines.map(l => l.content)
+    expect(contents.some(c => c.includes('3'))).toBe(true)
+  })
+})
+
+describe('resolveCommand — inventory', () => {
+  let state: GameState
+
+  beforeEach(() => {
+    state = createInitialState()
+  })
+
+  it('should show "none" for credentials when no creds are obtained', async () => {
+    const result = await resolveCommand('inventory', state)
+    const contents = result.lines.map(l => l.content)
+    expect(contents.some(c => c.includes('none'))).toBe(true)
+  })
+
+  it('should show "none" for exfiltrated when inventory is empty', async () => {
+    const result = await resolveCommand('inventory', state)
+    const contents = result.lines.map(l => l.content)
+    expect(contents.some(c => c.toLowerCase().includes('none'))).toBe(true)
+  })
+
+  it('should list obtained credentials', async () => {
+    const withCred = produce(state, s => {
+      const cred = s.player.credentials.find(c => c.id === 'cred_contractor')
+      if (cred) cred.obtained = true
+    })
+    const result = await resolveCommand('inventory', withCred)
+    const contents = result.lines.map(l => l.content)
+    expect(contents.some(c => c.includes('contractor') && c.includes('Welcome1!'))).toBe(true)
+  })
+
+  it('should list exfiltrated files', async () => {
+    const withExfil = produce(state, s => {
+      s.player.exfiltrated.push({
+        name: 'welcome.txt',
+        path: '/var/www/contractor/welcome.txt',
+        type: 'document',
+        content: 'test',
+        exfiltrable: true,
+        accessRequired: 'user',
+      })
+    })
+    const result = await resolveCommand('inventory', withExfil)
+    const contents = result.lines.map(l => l.content)
+    expect(contents.some(c => c.includes('welcome.txt'))).toBe(true)
+  })
+
+  it('should show CREDENTIALS header when creds are obtained', async () => {
+    const withCred = produce(state, s => {
+      const cred = s.player.credentials.find(c => c.id === 'cred_contractor')
+      if (cred) cred.obtained = true
+    })
+    const result = await resolveCommand('inventory', withCred)
+    const contents = result.lines.map(l => l.content)
+    expect(contents.some(c => c.includes('CREDENTIALS'))).toBe(true)
+  })
+
+  it('should show EXFILTRATED header when files are present', async () => {
+    const withExfil = produce(state, s => {
+      s.player.exfiltrated.push({
+        name: 'welcome.txt',
+        path: '/var/www/contractor/welcome.txt',
+        type: 'document',
+        content: 'test',
+        exfiltrable: true,
+        accessRequired: 'user',
+      })
+    })
+    const result = await resolveCommand('inventory', withExfil)
+    const contents = result.lines.map(l => l.content)
+    expect(contents.some(c => c.includes('EXFILTRATED'))).toBe(true)
+  })
+})
+
+describe('resolveCommand — map', () => {
+  let state: GameState
+
+  beforeEach(() => {
+    state = createInitialState()
+  })
+
+  it('should show NETWORK MAP header', async () => {
+    const result = await resolveCommand('map', state)
+    const contents = result.lines.map(l => l.content)
+    expect(contents.some(c => c.includes('NETWORK MAP'))).toBe(true)
+  })
+
+  it('should list discovered nodes by layer', async () => {
+    const result = await resolveCommand('map', state)
+    const contents = result.lines.map(l => l.content)
+    // contractor_portal is discovered at layer 0
+    expect(contents.some(c => c.includes('10.0.0.1'))).toBe(true)
+  })
+
+  it('should mark the current node with a marker', async () => {
+    const result = await resolveCommand('map', state)
+    const contents = result.lines.map(l => l.content)
+    expect(contents.some(c => c.includes('◄'))).toBe(true)
+  })
+
+  it('should not show undiscovered nodes', async () => {
+    const result = await resolveCommand('map', state)
+    const contents = result.lines.map(l => l.content)
+    // vpn_gateway starts undiscovered
+    expect(contents.some(c => c.includes('10.0.0.2'))).toBe(false)
+  })
+
+  it('should show layer label for each discovered layer', async () => {
+    const result = await resolveCommand('map', state)
+    const contents = result.lines.map(l => l.content)
+    expect(contents.some(c => c.includes('ENTRY'))).toBe(true)
+  })
+
+  it('should show access level in brackets when node has access', async () => {
+    const withAccess = produce(state, s => {
+      const n = s.network.nodes['contractor_portal']
+      if (n) n.accessLevel = 'user'
+    })
+    const result = await resolveCommand('map', withAccess)
+    const contents = result.lines.map(l => l.content)
+    expect(contents.some(c => c.includes('[USER]'))).toBe(true)
+  })
+})
+
+describe('resolveCommand — clear', () => {
+  let state: GameState
+
+  beforeEach(() => {
+    state = createInitialState()
+  })
+
+  it('should return an empty lines array', async () => {
+    const result = await resolveCommand('clear', state)
+    // Only the nextState turn-tracking line is added; the lines[] itself has no visible content
+    const visibleLines = result.lines.filter(l => l.type !== 'separator')
+    expect(visibleLines).toHaveLength(0)
+  })
+})
+
+// ── Engine commands ────────────────────────────────────────
+
+describe('resolveCommand — scan (no args, subnet scan)', () => {
+  let state: GameState
+
+  beforeEach(() => {
+    state = createInitialState()
+  })
+
+  it('should add 1 trace', async () => {
+    const result = await resolveCommand('scan', state)
+    expect((result.nextState as GameState).player.trace).toBe(1)
+  })
+
+  it('should discover connected nodes', async () => {
+    const result = await resolveCommand('scan', state)
+    const nextNodes = (result.nextState as GameState).network.nodes
+    expect(nextNodes['vpn_gateway']?.discovered).toBe(true)
+  })
+
+  it('should output the scanning message with the layer number', async () => {
+    const result = await resolveCommand('scan', state)
+    const contents = result.lines.map(l => l.content)
+    expect(contents.some(c => c.includes('Scanning subnet') && c.includes('layer 0'))).toBe(true)
+  })
+
+  it('should list peer IPs in the output', async () => {
+    const result = await resolveCommand('scan', state)
+    const contents = result.lines.map(l => l.content)
+    expect(contents.some(c => c.includes('10.0.0.2'))).toBe(true)
+  })
+
+  it('should mark vulnerable peers with [!]', async () => {
+    const result = await resolveCommand('scan', state)
+    const contents = result.lines.map(l => l.content)
+    // vpn_gateway has snmp port 161 vulnerable
+    expect(contents.some(c => c.includes('[!]'))).toBe(true)
+  })
+})
+
+describe('resolveCommand — scan [ip] (specific IP scan)', () => {
+  let state: GameState
+
+  beforeEach(() => {
+    state = createInitialState()
+  })
+
+  it('should return an error when the IP is not found', async () => {
+    const result = await resolveCommand('scan 1.2.3.4', state)
+    expect(result.lines[0].type).toBe('error')
+    expect(result.lines[0].content).toMatch(/No response from 1\.2\.3\.4/)
+  })
+
+  it('should show host details for a known IP', async () => {
+    const result = await resolveCommand('scan 10.0.0.2', state)
+    const contents = result.lines.map(l => l.content)
+    expect(contents.some(c => c.includes('VPN GATEWAY'))).toBe(true)
+  })
+
+  it('should mark the node as discovered', async () => {
+    const result = await resolveCommand('scan 10.0.0.2', state)
+    expect((result.nextState as GameState).network.nodes['vpn_gateway']?.discovered).toBe(true)
+  })
+
+  it('should list services with port numbers', async () => {
+    const result = await resolveCommand('scan 10.0.0.2', state)
+    const contents = result.lines.map(l => l.content)
+    expect(contents.some(c => c.includes('22') || c.includes('161'))).toBe(true)
+  })
+
+  it('should mark vulnerable services with [VULNERABLE]', async () => {
+    const result = await resolveCommand('scan 10.0.0.2', state)
+    const contents = result.lines.map(l => l.content)
+    expect(contents.some(c => c.includes('[VULNERABLE]'))).toBe(true)
+  })
+
+  it('should add 1 trace even when scanning a specific IP', async () => {
+    const result = await resolveCommand('scan 10.0.0.2', state)
+    expect((result.nextState as GameState).player.trace).toBe(1)
+  })
+
+  it('should show ACTIVE status for non-compromised node', async () => {
+    const result = await resolveCommand('scan 10.0.0.2', state)
+    const contents = result.lines.map(l => l.content)
+    expect(contents.some(c => c.includes('ACTIVE'))).toBe(true)
+  })
+
+  it('should show COMPROMISED status for a compromised node', async () => {
+    const withCompromised = produce(state, s => {
+      const n = s.network.nodes['vpn_gateway']
+      if (n) n.compromised = true
+    })
+    const result = await resolveCommand('scan 10.0.0.2', withCompromised)
+    const contents = result.lines.map(l => l.content)
+    expect(contents.some(c => c.includes('COMPROMISED'))).toBe(true)
+  })
+})
+
+describe('resolveCommand — connect', () => {
+  let state: GameState
+
+  beforeEach(() => {
+    state = createInitialState()
+    // Discover vpn_gateway so we can connect to it
+    state = produce(state, s => {
+      const n = s.network.nodes['vpn_gateway']
+      if (n) n.discovered = true
+    })
+  })
+
+  it('should return a usage error when no IP is provided', async () => {
+    const result = await resolveCommand('connect', state)
+    expect(result.lines[0].type).toBe('error')
+    expect(result.lines[0].content).toMatch(/Usage/)
+  })
+
+  it('should return an error when the IP is not in the network', async () => {
+    const result = await resolveCommand('connect 9.9.9.9', state)
+    expect(result.lines[0].type).toBe('error')
+    expect(result.lines[0].content).toMatch(/Host not found/)
+  })
+
+  it('should return an error when the node is not yet discovered', async () => {
+    // Hide vpn_gateway again
+    const hidden = produce(state, s => {
+      const n = s.network.nodes['vpn_gateway']
+      if (n) n.discovered = false
+    })
+    const result = await resolveCommand('connect 10.0.0.2', hidden)
+    expect(result.lines[0].type).toBe('error')
+    expect(result.lines[0].content).toMatch(/try scanning first/)
+  })
+
+  it('should return an error when there is no direct route', async () => {
+    // ops_cctv_ctrl is not directly connected to contractor_portal
+    const withOps = produce(state, s => {
+      const n = s.network.nodes['ops_cctv_ctrl']
+      if (n) n.discovered = true
+    })
+    const result = await resolveCommand('connect 10.1.0.1', withOps)
+    expect(result.lines[0].type).toBe('error')
+    expect(result.lines[0].content).toMatch(/No direct route/)
+  })
+
+  it('should update currentNodeId on success', async () => {
+    const result = await resolveCommand('connect 10.0.0.2', state)
+    expect((result.nextState as GameState).network.currentNodeId).toBe('vpn_gateway')
+  })
+
+  it('should set previousNodeId to the current node on success', async () => {
+    const result = await resolveCommand('connect 10.0.0.2', state)
+    expect((result.nextState as GameState).network.previousNodeId).toBe('contractor_portal')
+  })
+
+  it('should include the target label in output lines', async () => {
+    const result = await resolveCommand('connect 10.0.0.2', state)
+    const contents = result.lines.map(l => l.content)
+    expect(contents.some(c => c.includes('VPN GATEWAY'))).toBe(true)
+  })
+})
+
+describe('resolveCommand — login', () => {
+  let state: GameState
+
+  beforeEach(() => {
+    state = createInitialState()
+  })
+
+  it('should return a usage error when fewer than two args are provided', async () => {
+    const result = await resolveCommand('login contractor', state)
+    expect(result.lines[0].type).toBe('error')
+    expect(result.lines[0].content).toMatch(/Usage/)
+  })
+
+  it('should add 5 trace on failed authentication', async () => {
+    const result = await resolveCommand('login contractor wrongpass', state)
+    expect((result.nextState as GameState).player.trace).toBe(5)
+  })
+
+  it('should return an error line on failed authentication', async () => {
+    const result = await resolveCommand('login contractor wrongpass', state)
+    expect(result.lines[0].type).toBe('error')
+    expect(result.lines[0].content).toMatch(/Authentication failed/)
+  })
+
+  it('should grant access on correct credentials', async () => {
+    const result = await resolveCommand('login contractor Welcome1!', state)
+    const nextNode = (result.nextState as GameState).network.nodes['contractor_portal']
+    expect(nextNode?.accessLevel).toBe('user')
+  })
+
+  it('should mark the credential as obtained on success', async () => {
+    const result = await resolveCommand('login contractor Welcome1!', state)
+    const cred = (result.nextState as GameState).player.credentials.find(c => c.id === 'cred_contractor')
+    expect(cred?.obtained).toBe(true)
+  })
+
+  it('should return a confirmation line with the username', async () => {
+    const result = await resolveCommand('login contractor Welcome1!', state)
+    const contents = result.lines.map(l => l.content)
+    expect(contents.some(c => c.includes('contractor'))).toBe(true)
+  })
+
+  it('should fail when username is correct but node is wrong', async () => {
+    // Move player to vpn_gateway — contractor cred is valid there too, but test with wrong node
+    const atOps = produce(state, s => {
+      s.network.currentNodeId = 'ops_cctv_ctrl'
+      const n = s.network.nodes['ops_cctv_ctrl']
+      if (n) n.discovered = true
+    })
+    // ops.admin creds are not valid on ops_cctv_ctrl via contractor credentials
+    const result = await resolveCommand('login contractor Welcome1!', atOps)
+    // contractor / Welcome1! is not valid on ops_cctv_ctrl
+    expect(result.lines[0].type).toBe('error')
+  })
+})
+
+describe('resolveCommand — ls', () => {
+  let state: GameState
+
+  beforeEach(() => {
+    // Start with user access so we can list files
+    state = produce(createInitialState(), s => {
+      const n = s.network.nodes['contractor_portal']
+      if (n) n.accessLevel = 'user'
+    })
+  })
+
+  it('should return a permission error when not authenticated', async () => {
+    const noAccess = produce(createInitialState(), s => {
+      const n = s.network.nodes['contractor_portal']
+      if (n) n.accessLevel = 'none'
+    })
+    const result = await resolveCommand('ls', noAccess)
+    expect(result.lines[0].type).toBe('error')
+    expect(result.lines[0].content).toMatch(/Permission denied/)
+  })
+
+  it('should list accessible file names', async () => {
+    const result = await resolveCommand('ls', state)
+    const contents = result.lines.map(l => l.content)
+    expect(contents.some(c => c.includes('welcome.txt'))).toBe(true)
+  })
+
+  it('should not list files requiring higher access', async () => {
+    const result = await resolveCommand('ls', state)
+    const contents = result.lines.map(l => l.content)
+    // access_log requires admin; user-level should not see it
+    expect(contents.some(c => c.includes('access_log'))).toBe(false)
+  })
+
+  it('should mark tripwire files with [!]', async () => {
+    // Move to ops_hr_db which has a tripwire file
+    const atHrDb = produce(createInitialState(), s => {
+      s.network.currentNodeId = 'ops_hr_db'
+      const n = s.network.nodes['ops_hr_db']
+      if (n) { n.accessLevel = 'admin'; n.discovered = true }
+    })
+    const result = await resolveCommand('ls', atHrDb)
+    const contents = result.lines.map(l => l.content)
+    expect(contents.some(c => c.includes('[!]'))).toBe(true)
+  })
+
+  it('should mark non-exfiltrable files with [no-exfil]', async () => {
+    // access_log is non-exfiltrable but requires admin
+    const withAdmin = produce(createInitialState(), s => {
+      const n = s.network.nodes['contractor_portal']
+      if (n) n.accessLevel = 'admin'
+    })
+    const result = await resolveCommand('ls', withAdmin)
+    const contents = result.lines.map(l => l.content)
+    expect(contents.some(c => c.includes('[no-exfil]'))).toBe(true)
+  })
+
+  it('should show a "no accessible files" message when nothing is accessible', async () => {
+    // Create a node with no files accessible at user level
+    const emptyAccess = produce(createInitialState(), s => {
+      const n = s.network.nodes['contractor_portal']
+      if (n) { n.files = []; n.accessLevel = 'user' }
+    })
+    const result = await resolveCommand('ls', emptyAccess)
+    const contents = result.lines.map(l => l.content)
+    expect(contents.some(c => c.includes('no accessible files'))).toBe(true)
+  })
+})
+
+describe('resolveCommand — cat', () => {
+  let state: GameState
+
+  beforeEach(() => {
+    state = produce(createInitialState(), s => {
+      const n = s.network.nodes['contractor_portal']
+      if (n) n.accessLevel = 'user'
+    })
+  })
+
+  it('should return a usage error when no filename provided', async () => {
+    const result = await resolveCommand('cat', state)
+    expect(result.lines[0].type).toBe('error')
+    expect(result.lines[0].content).toMatch(/Usage/)
+  })
+
+  it('should return a permission error when not authenticated', async () => {
+    const noAccess = produce(createInitialState(), s => {
+      const n = s.network.nodes['contractor_portal']
+      if (n) n.accessLevel = 'none'
+    })
+    const result = await resolveCommand('cat welcome.txt', noAccess)
+    expect(result.lines[0].type).toBe('error')
+    expect(result.lines[0].content).toMatch(/Permission denied/)
+  })
+
+  it('should return a file-not-found error for unknown filename', async () => {
+    const result = await resolveCommand('cat doesnotexist.txt', state)
+    expect(result.lines[0].type).toBe('error')
+    expect(result.lines[0].content).toMatch(/File not found/)
+  })
+
+  it('should return a permission denied error for files above access level', async () => {
+    // access_log requires admin; we only have user
+    const result = await resolveCommand('cat access_log', state)
+    expect(result.lines[0].type).toBe('error')
+    expect(result.lines[0].content).toMatch(/Permission denied/)
+  })
+
+  it('should return file content as output lines', async () => {
+    const result = await resolveCommand('cat welcome.txt', state)
+    const outputLines = result.lines.filter(l => l.type === 'output')
+    expect(outputLines.length).toBeGreaterThan(0)
+    expect(outputLines.some(l => l.content.includes('IRONGATE'))).toBe(true)
+  })
+
+  it('should add 10 trace when reading a tripwire file', async () => {
+    const atHrDb = produce(createInitialState(), s => {
+      s.network.currentNodeId = 'ops_hr_db'
+      const n = s.network.nodes['ops_hr_db']
+      if (n) { n.accessLevel = 'admin'; n.discovered = true }
+    })
+    const result = await resolveCommand('cat whistleblower_complaint_draft.txt', atHrDb)
+    expect((result.nextState as GameState).player.trace).toBe(10)
+  })
+
+  it('should return an AI stub for files with null content', async () => {
+    // access_log has null content but requires admin
+    const withAdmin = produce(createInitialState(), s => {
+      const n = s.network.nodes['contractor_portal']
+      if (n) n.accessLevel = 'admin'
+    })
+    const result = await resolveCommand('cat access_log', withAdmin)
+    const contents = result.lines.map(l => l.content)
+    expect(contents.some(c => c.includes('Phase 3'))).toBe(true)
+  })
+
+  it('should match file by path as well as name', async () => {
+    const result = await resolveCommand('cat /var/www/contractor/welcome.txt', state)
+    const outputLines = result.lines.filter(l => l.type === 'output')
+    expect(outputLines.length).toBeGreaterThan(0)
+  })
+})
+
+describe('resolveCommand — disconnect', () => {
+  let state: GameState
+
+  beforeEach(() => {
+    // Set up state as if we connected: currently at vpn_gateway, previous is contractor_portal
+    state = produce(createInitialState(), s => {
+      s.network.previousNodeId = 'contractor_portal'
+      s.network.currentNodeId = 'vpn_gateway'
+      const n = s.network.nodes['vpn_gateway']
+      if (n) n.discovered = true
+    })
+  })
+
+  it('should return an error when there is no previous node', async () => {
+    const noPrev = produce(createInitialState(), s => {
+      s.network.previousNodeId = null
+    })
+    const result = await resolveCommand('disconnect', noPrev)
+    expect(result.lines[0].type).toBe('error')
+    expect(result.lines[0].content).toMatch(/No previous node/)
+  })
+
+  it('should update currentNodeId to the previous node', async () => {
+    const result = await resolveCommand('disconnect', state)
+    expect((result.nextState as GameState).network.currentNodeId).toBe('contractor_portal')
+  })
+
+  it('should set previousNodeId to null after disconnecting', async () => {
+    const result = await resolveCommand('disconnect', state)
+    expect((result.nextState as GameState).network.previousNodeId).toBeNull()
+  })
+
+  it('should include the returning node IP in output', async () => {
+    const result = await resolveCommand('disconnect', state)
+    const contents = result.lines.map(l => l.content)
+    expect(contents.some(c => c.includes('10.0.0.1'))).toBe(true)
+  })
+})
+
+describe('resolveCommand — exploit', () => {
+  let state: GameState
+
+  beforeEach(() => {
+    state = createInitialState()
+  })
+
+  it('should return a usage error when no service is provided', async () => {
+    const result = await resolveCommand('exploit', state)
+    expect(result.lines[0].type).toBe('error')
+    expect(result.lines[0].content).toMatch(/Usage/)
+  })
+
+  it('should return an error when exploit-kit tool is not present', async () => {
+    const noKit = produce(state, s => {
+      s.player.tools = s.player.tools.filter(t => t.id !== 'exploit-kit')
+    })
+    const result = await resolveCommand('exploit http', noKit)
+    expect(result.lines[0].type).toBe('error')
+    expect(result.lines[0].content).toMatch(/exploit-kit/)
+  })
+
+  it('should return an error when service is not found on current node', async () => {
+    const result = await resolveCommand('exploit ftp', state)
+    expect(result.lines[0].type).toBe('error')
+    expect(result.lines[0].content).toMatch(/Service not found/)
+  })
+
+  it('should return an error when service is patched', async () => {
+    const patched = produce(state, s => {
+      const n = s.network.nodes['contractor_portal']
+      const svc = n?.services.find(sv => sv.name === 'http')
+      if (svc) svc.patched = true
+    })
+    const result = await resolveCommand('exploit http', patched)
+    expect(result.lines[0].type).toBe('error')
+    expect(result.lines[0].content).toMatch(/patched/)
+  })
+
+  it('should return an error when service is not vulnerable', async () => {
+    const result = await resolveCommand('exploit ssh', state)
+    expect(result.lines[0].type).toBe('error')
+    expect(result.lines[0].content).toMatch(/no known vulnerability/)
+  })
+
+  it('should return an error when charges are insufficient', async () => {
+    const noCharges = produce(state, s => { s.player.charges = 0 })
+    const result = await resolveCommand('exploit http', noCharges)
+    expect(result.lines[0].type).toBe('error')
+    expect(result.lines[0].content).toMatch(/Insufficient charges/)
+  })
+
+  it('should grant access on a successful exploit', async () => {
+    const result = await resolveCommand('exploit http', state)
+    const nextNode = (result.nextState as GameState).network.nodes['contractor_portal']
+    expect(nextNode?.accessLevel).toBe('user')
+  })
+
+  it('should deduct exploit charges on success', async () => {
+    const result = await resolveCommand('exploit http', state)
+    // http costs 1 charge; player starts with 3
+    expect((result.nextState as GameState).player.charges).toBe(2)
+  })
+
+  it('should mark the node as compromised on success', async () => {
+    const result = await resolveCommand('exploit http', state)
+    const nextNode = (result.nextState as GameState).network.nodes['contractor_portal']
+    expect(nextNode?.compromised).toBe(true)
+  })
+
+  it('should add 2 trace on a successful exploit', async () => {
+    const result = await resolveCommand('exploit http', state)
+    expect((result.nextState as GameState).player.trace).toBe(2)
+  })
+
+  it('should include the access level gained in output', async () => {
+    const result = await resolveCommand('exploit http', state)
+    const contents = result.lines.map(l => l.content)
+    expect(contents.some(c => c.includes('USER'))).toBe(true)
+  })
+})
+
+describe('resolveCommand — exfil', () => {
+  let state: GameState
+
+  beforeEach(() => {
+    state = produce(createInitialState(), s => {
+      const n = s.network.nodes['contractor_portal']
+      if (n) n.accessLevel = 'user'
+    })
+  })
+
+  it('should return a usage error when no filename provided', async () => {
+    const result = await resolveCommand('exfil', state)
+    expect(result.lines[0].type).toBe('error')
+    expect(result.lines[0].content).toMatch(/Usage/)
+  })
+
+  it('should return an error when not authenticated', async () => {
+    const noAccess = produce(createInitialState(), s => {
+      const n = s.network.nodes['contractor_portal']
+      if (n) n.accessLevel = 'none'
+    })
+    const result = await resolveCommand('exfil welcome.txt', noAccess)
+    expect(result.lines[0].type).toBe('error')
+    expect(result.lines[0].content).toMatch(/Not authenticated/)
+  })
+
+  it('should return a not-found error for unknown file', async () => {
+    const result = await resolveCommand('exfil phantom.txt', state)
+    expect(result.lines[0].type).toBe('error')
+    expect(result.lines[0].content).toMatch(/File not found/)
+  })
+
+  it('should return an error when file is not exfiltrable', async () => {
+    // access_log is not exfiltrable; need admin access to see it
+    const withAdmin = produce(createInitialState(), s => {
+      const n = s.network.nodes['contractor_portal']
+      if (n) n.accessLevel = 'admin'
+    })
+    const result = await resolveCommand('exfil access_log', withAdmin)
+    expect(result.lines[0].type).toBe('error')
+    expect(result.lines[0].content).toMatch(/exfiltration blocked/)
+  })
+
+  it('should add file to player exfiltrated on success', async () => {
+    const result = await resolveCommand('exfil welcome.txt', state)
+    const exfil = (result.nextState as GameState).player.exfiltrated
+    expect(exfil.some(f => f.name === 'welcome.txt')).toBe(true)
+  })
+
+  it('should add 3 trace on successful exfil', async () => {
+    const result = await resolveCommand('exfil welcome.txt', state)
+    expect((result.nextState as GameState).player.trace).toBe(3)
+  })
+
+  it('should include "+3 trace" in output', async () => {
+    const result = await resolveCommand('exfil welcome.txt', state)
+    const contents = result.lines.map(l => l.content)
+    expect(contents.some(c => c.includes('+3 trace'))).toBe(true)
+  })
+
+  it('should return a note when file was already exfiltrated', async () => {
+    const alreadyDone = produce(state, s => {
+      s.player.exfiltrated.push({
+        name: 'welcome.txt',
+        path: '/var/www/contractor/welcome.txt',
+        type: 'document',
+        content: 'test',
+        exfiltrable: true,
+        accessRequired: 'user',
+      })
+    })
+    const result = await resolveCommand('exfil welcome.txt', alreadyDone)
+    const contents = result.lines.map(l => l.content)
+    expect(contents.some(c => c.includes('Already exfiltrated'))).toBe(true)
+  })
+
+  it('should return an error when access is insufficient for the file', async () => {
+    // Try to exfil a file that needs admin but player only has user
+    // First need a node with a file that is exfiltrable but requires admin
+    const atVpn = produce(createInitialState(), s => {
+      s.network.currentNodeId = 'vpn_gateway'
+      const n = s.network.nodes['vpn_gateway']
+      if (n) { n.accessLevel = 'user'; n.discovered = true }
+    })
+    const result = await resolveCommand('exfil vpn_users.conf', atVpn)
+    expect(result.lines[0].type).toBe('error')
+    expect(result.lines[0].content).toMatch(/Permission denied/)
+  })
+})
+
+describe('resolveCommand — wipe-logs', () => {
+  let state: GameState
+
+  beforeEach(() => {
+    state = createInitialState()
+  })
+
+  it('should return an error when log-wiper tool is not present', async () => {
+    // Initial state only has port-scanner and exploit-kit, not log-wiper
+    const result = await resolveCommand('wipe-logs', state)
+    expect(result.lines[0].type).toBe('error')
+    expect(result.lines[0].content).toMatch(/log-wiper/)
+  })
+
+  it('should reduce trace by 15 when log-wiper is present', async () => {
+    const withTool = produce(state, s => {
+      s.player.trace = 40
+      s.player.tools.push({ id: 'log-wiper', name: 'Log Wiper', description: 'Reduces trace.' })
+    })
+    const result = await resolveCommand('wipe-logs', withTool)
+    expect((result.nextState as GameState).player.trace).toBe(25)
+  })
+
+  it('should not reduce trace below 0', async () => {
+    const withTool = produce(state, s => {
+      s.player.trace = 5
+      s.player.tools.push({ id: 'log-wiper', name: 'Log Wiper', description: 'Reduces trace.' })
+    })
+    const result = await resolveCommand('wipe-logs', withTool)
+    expect((result.nextState as GameState).player.trace).toBe(0)
+  })
+
+  it('should include the new trace value in output', async () => {
+    const withTool = produce(state, s => {
+      s.player.trace = 30
+      s.player.tools.push({ id: 'log-wiper', name: 'Log Wiper', description: 'Reduces trace.' })
+    })
+    const result = await resolveCommand('wipe-logs', withTool)
+    const contents = result.lines.map(l => l.content)
+    expect(contents.some(c => c.includes('15%'))).toBe(true)
   })
 })
