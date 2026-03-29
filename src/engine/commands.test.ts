@@ -777,6 +777,206 @@ describe('resolveCommand — connect', () => {
     const contents = result.lines.map(l => l.content);
     expect(contents.some(c => c.includes('VPN GATEWAY'))).toBe(true);
   });
+
+  // ── Filler node description generation ────────────────────
+
+  it('should fetch and show a generated description on first connect to a filler node', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(makeOkFetchResponse({ description: '[GENERATED DESCRIPTION]' })),
+    );
+
+    const withFiller = produce(state, s => {
+      s.network.nodes['filler_01'] = {
+        id: 'filler_01',
+        ip: '10.0.99.1',
+        template: 'workstation',
+        label: 'WORKSTATION-01',
+        description: null,
+        layer: 1,
+        anchor: false,
+        connections: [],
+        services: [],
+        files: [],
+        accessLevel: 'none',
+        compromised: false,
+        discovered: true,
+        credentialHints: [],
+      };
+      s.network.nodes['contractor_portal']!.connections.push('filler_01');
+    });
+
+    const result = await resolveCommand('connect 10.0.99.1', withFiller);
+    const contents = result.lines.map(l => l.content);
+    expect(contents.some(c => c.includes('[GENERATED DESCRIPTION]'))).toBe(true);
+  });
+
+  it('should cache the generated description in nextState after first connect', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(makeOkFetchResponse({ description: '[CACHED DESCRIPTION]' })),
+    );
+
+    const withFiller = produce(state, s => {
+      s.network.nodes['filler_01'] = {
+        id: 'filler_01',
+        ip: '10.0.99.1',
+        template: 'workstation',
+        label: 'WORKSTATION-01',
+        description: null,
+        layer: 1,
+        anchor: false,
+        connections: [],
+        services: [],
+        files: [],
+        accessLevel: 'none',
+        compromised: false,
+        discovered: true,
+        credentialHints: [],
+      };
+      s.network.nodes['contractor_portal']!.connections.push('filler_01');
+    });
+
+    const result = await resolveCommand('connect 10.0.99.1', withFiller);
+    const nextState = result.nextState as GameState;
+    expect(nextState.network.nodes['filler_01']!.description).toBe('[CACHED DESCRIPTION]');
+  });
+
+  it('should show the cached description on reconnect and not call fetch again', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(makeOkFetchResponse({ description: 'should not appear' }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const withCached = produce(state, s => {
+      s.network.nodes['filler_01'] = {
+        id: 'filler_01',
+        ip: '10.0.99.1',
+        template: 'workstation',
+        label: 'WORKSTATION-01',
+        description: 'Already generated description.',
+        layer: 1,
+        anchor: false,
+        connections: [],
+        services: [],
+        files: [],
+        accessLevel: 'none',
+        compromised: false,
+        discovered: true,
+        credentialHints: [],
+      };
+      s.network.nodes['contractor_portal']!.connections.push('filler_01');
+    });
+
+    const result = await resolveCommand('connect 10.0.99.1', withCached);
+    expect(fetchMock).not.toHaveBeenCalled();
+    const contents = result.lines.map(l => l.content);
+    expect(contents.some(c => c.includes('Already generated description.'))).toBe(true);
+  });
+
+  it('should show fallback text and not cache when API returns non-ok response', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 503 }));
+
+    const withFiller = produce(state, s => {
+      s.network.nodes['filler_01'] = {
+        id: 'filler_01',
+        ip: '10.0.99.1',
+        template: 'workstation',
+        label: 'WORKSTATION-01',
+        description: null,
+        layer: 1,
+        anchor: false,
+        connections: [],
+        services: [],
+        files: [],
+        accessLevel: 'none',
+        compromised: false,
+        discovered: true,
+        credentialHints: [],
+      };
+      s.network.nodes['contractor_portal']!.connections.push('filler_01');
+    });
+
+    const result = await resolveCommand('connect 10.0.99.1', withFiller);
+    const contents = result.lines.map(l => l.content);
+    expect(contents.some(c => c.includes('unidentified host'))).toBe(true);
+    const nextState = result.nextState as GameState;
+    expect(nextState.network.nodes['filler_01']!.description).toBeNull();
+  });
+
+  it('should show fallback text and not cache when fetch throws a network error', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('Network failure')));
+
+    const withFiller = produce(state, s => {
+      s.network.nodes['filler_01'] = {
+        id: 'filler_01',
+        ip: '10.0.99.1',
+        template: 'workstation',
+        label: 'WORKSTATION-01',
+        description: null,
+        layer: 1,
+        anchor: false,
+        connections: [],
+        services: [],
+        files: [],
+        accessLevel: 'none',
+        compromised: false,
+        discovered: true,
+        credentialHints: [],
+      };
+      s.network.nodes['contractor_portal']!.connections.push('filler_01');
+    });
+
+    const result = await resolveCommand('connect 10.0.99.1', withFiller);
+    const contents = result.lines.map(l => l.content);
+    expect(contents.some(c => c.includes('unidentified host'))).toBe(true);
+    const nextState = result.nextState as GameState;
+    expect(nextState.network.nodes['filler_01']!.description).toBeNull();
+  });
+
+  it('should never call the API for an anchor node and show its authored description', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    // vpn_gateway is an anchor node with an authored description
+    const result = await resolveCommand('connect 10.0.0.2', state);
+    expect(fetchMock).not.toHaveBeenCalled();
+    const contents = result.lines.map(l => l.content);
+    expect(contents.some(c => c.includes('bridge between the contractor DMZ'))).toBe(true);
+  });
+
+  it('should include ariaInfluence in the fetch request body when set on the node', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(makeOkFetchResponse({ description: '[ARIA TINTED]' }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const withAriaFiller = produce(state, s => {
+      s.network.nodes['filler_01'] = {
+        id: 'filler_01',
+        ip: '10.0.99.1',
+        template: 'workstation',
+        label: 'WORKSTATION-01',
+        description: null,
+        layer: 1,
+        anchor: false,
+        ariaInfluence: 0.7,
+        connections: [],
+        services: [],
+        files: [],
+        accessLevel: 'none',
+        compromised: false,
+        discovered: true,
+        credentialHints: [],
+      };
+      s.network.nodes['contractor_portal']!.connections.push('filler_01');
+    });
+
+    await resolveCommand('connect 10.0.99.1', withAriaFiller);
+    expect(fetchMock).toHaveBeenCalledOnce();
+    const requestBody = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(requestBody.ariaInfluence).toBe(0.7);
+  });
 });
 
 describe('resolveCommand — login', () => {

@@ -71,8 +71,7 @@ export const resolveCommand = async (raw: string, state: GameState): Promise<Com
       result = cmdScan(args, state);
       break;
     case 'connect':
-      result = cmdConnect(args, state);
-      break;
+      return withTurn(await cmdConnect(args, state), raw, state);
     case 'login':
       result = cmdLogin(args, state);
       break;
@@ -356,7 +355,10 @@ const cmdScan = (args: string[], state: GameState): CommandOutput => {
 };
 
 // ── connect ───────────────────────────────────────────────
-const cmdConnect = (args: string[], state: GameState): CommandOutput => {
+const NODE_DESCRIPTION_FALLBACK =
+  'You have connected to an unidentified host. System metadata is unavailable.';
+
+const cmdConnect = async (args: string[], state: GameState): Promise<CommandOutput> => {
   if (!args[0]) return { lines: [err('Usage: connect [ip]')] };
 
   const target = Object.values(state.network.nodes).find(n => n?.ip === args[0]);
@@ -368,16 +370,52 @@ const cmdConnect = (args: string[], state: GameState): CommandOutput => {
     return { lines: [err(`No direct route from ${node.ip} to ${target.ip}`)] };
   }
 
-  const next = produce(state, s => {
+  let next = produce(state, s => {
     s.network.previousNodeId = s.network.currentNodeId;
     s.network.currentNodeId = target.id;
   });
+
+  let description = target.description;
+
+  // Generate flavour description on first visit to a filler node
+  if (!target.anchor && description === null) {
+    try {
+      const res = await fetch('/api/node-description', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nodeId: target.id,
+          template: target.template,
+          division: LAYER_DIVISION[target.layer] ?? 'unknown',
+          label: target.label,
+          ariaInfluence: target.ariaInfluence ?? 0,
+        }),
+      });
+      if (res.ok) {
+        const data = (await res.json()) as { description?: string };
+        description =
+          typeof data.description === 'string' ? data.description : NODE_DESCRIPTION_FALLBACK;
+      } else {
+        description = NODE_DESCRIPTION_FALLBACK;
+      }
+    } catch {
+      description = NODE_DESCRIPTION_FALLBACK;
+    }
+
+    // Cache only on success so transient errors allow retries on next connect
+    if (description !== NODE_DESCRIPTION_FALLBACK) {
+      next = produce(next, s => {
+        const n = s.network.nodes[target.id];
+        if (n) n.description = description;
+      });
+    }
+  }
 
   return {
     lines: [
       out(`Connecting to ${target.ip}...`),
       sys(`  ${target.label}`),
-      sys(`  ${target.description}`),
+      sys(`  ${description ?? NODE_DESCRIPTION_FALLBACK}`),
       sys(
         `  Access: ${target.accessLevel === 'none' ? 'NONE — authenticate to proceed' : target.accessLevel.toUpperCase()}`,
       ),
