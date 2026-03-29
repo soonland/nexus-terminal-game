@@ -911,6 +911,10 @@ describe('resolveCommand — cat', () => {
     });
   });
 
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it('should return a usage error when no filename provided', async () => {
     const result = await resolveCommand('cat', state);
     expect(result.lines[0].type).toBe('error');
@@ -971,7 +975,6 @@ describe('resolveCommand — cat', () => {
     const result = await resolveCommand('cat access_log', withAdmin);
     const contents = result.lines.map(l => l.content);
     expect(contents.some(c => c.includes('MOCK FILE CONTENT'))).toBe(true);
-    vi.unstubAllGlobals();
   });
 
   it('should match file by path as well as name', async () => {
@@ -1008,7 +1011,6 @@ describe('resolveCommand — cat', () => {
     expect(fetchMock).not.toHaveBeenCalled();
     const secondContents = second.lines.map(l => l.content);
     expect(secondContents.some(c => c.includes('[CACHED CONTENT]'))).toBe(true);
-    vi.unstubAllGlobals();
   });
 
   it('should POST to /api/file with the correct fields', async () => {
@@ -1037,7 +1039,6 @@ describe('resolveCommand — cat', () => {
     expect(posted.ownerTemplate).toBe('web_server');
     expect(posted.division).toBe('entry');
     expect(posted.ariaPlanted).toBe(false);
-    vi.unstubAllGlobals();
   });
 
   it('should use fallback content when fetch throws a network error', async () => {
@@ -1049,7 +1050,6 @@ describe('resolveCommand — cat', () => {
     const result = await resolveCommand('cat access_log', withAdmin);
     const contents = result.lines.map(l => l.content);
     expect(contents.some(c => c.includes('FILE CONTENT UNAVAILABLE'))).toBe(true);
-    vi.unstubAllGlobals();
   });
 
   it('should use fallback content when API response has no content field', async () => {
@@ -1067,7 +1067,6 @@ describe('resolveCommand — cat', () => {
     const result = await resolveCommand('cat access_log', withAdmin);
     const contents = result.lines.map(l => l.content);
     expect(contents.some(c => c.includes('FILE CONTENT UNAVAILABLE'))).toBe(true);
-    vi.unstubAllGlobals();
   });
 
   it('should derive division "entry" for layer 0 nodes', async () => {
@@ -1085,7 +1084,6 @@ describe('resolveCommand — cat', () => {
 
     const posted = JSON.parse(fetchMock.mock.calls[0][1].body);
     expect(posted.division).toBe('entry');
-    vi.unstubAllGlobals();
   });
 });
 

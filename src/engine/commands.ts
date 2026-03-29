@@ -496,18 +496,24 @@ const cmdCat = async (args: string[], state: GameState): Promise<CommandOutput> 
           ariaPlanted: file.ariaPlanted ?? false,
         }),
       });
-      const data = (await res.json()) as { content?: string };
-      content = typeof data.content === 'string' ? data.content : FILE_CONTENT_FALLBACK;
+      if (res.ok) {
+        const data = (await res.json()) as { content?: string };
+        content = typeof data.content === 'string' ? data.content : FILE_CONTENT_FALLBACK;
+      } else {
+        content = FILE_CONTENT_FALLBACK;
+      }
     } catch {
       content = FILE_CONTENT_FALLBACK;
     }
 
-    // Cache generated content in state so subsequent cat calls skip the API
-    next = produce(next, s => {
-      const n = s.network.nodes[node.id];
-      const f = n?.files.find(x => x.path === file.path);
-      if (f) f.content = content;
-    });
+    // Only cache on success so transient errors allow retries on next cat
+    if (content !== FILE_CONTENT_FALLBACK) {
+      next = produce(next, s => {
+        const n = s.network.nodes[node.id];
+        const f = n?.files.find(x => x.path === file.path);
+        if (f) f.content = content;
+      });
+    }
   }
 
   const lines: Out = [sep()];
