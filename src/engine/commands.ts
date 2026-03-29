@@ -11,7 +11,7 @@ interface WorldAIResponse {
   flagsSet: Record<string, boolean>;
   nodesUnlocked: string[];
   isUnknown: boolean;
-  suggestions: string[];
+  suggestions?: unknown;
 }
 
 const WORLD_AI_FALLBACK: WorldAIResponse = {

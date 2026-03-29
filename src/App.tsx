@@ -158,7 +158,6 @@ export const App = () => {
       }
 
       push([makeLine('input', raw)]);
-      setAiSuggestions([]);
       startSpinner();
 
       let result;
@@ -189,8 +188,8 @@ export const App = () => {
         }
       }
 
-      if (result.suggestions && result.suggestions.length > 0) {
-        setAiSuggestions(result.suggestions);
+      if ('suggestions' in result) {
+        setAiSuggestions(result.suggestions ?? []);
       }
 
       push(out);

@@ -213,7 +213,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       nodesUnlocked: Array.isArray(parsed.nodesUnlocked) ? parsed.nodesUnlocked : [],
       isUnknown: typeof parsed.isUnknown === 'boolean' ? parsed.isUnknown : false,
       suggestions: Array.isArray(parsed.suggestions)
-        ? parsed.suggestions.filter((s): s is string => typeof s === 'string')
+        ? parsed.suggestions.filter((s): s is string => typeof s === 'string').slice(0, 3)
         : [],
     };
 
