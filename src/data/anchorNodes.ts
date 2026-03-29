@@ -1,4 +1,4 @@
-import { LiveNode, Credential } from '../types/game'
+import type { LiveNode, Credential } from '../types/game';
 
 // ── Credentials ────────────────────────────────────────────
 export const ANCHOR_CREDENTIALS: Credential[] = [
@@ -74,32 +74,33 @@ export const ANCHOR_CREDENTIALS: Credential[] = [
     obtained: false,
     source: 'CEO root access. Password set by Aria.',
   },
-]
+];
 
 // ── Anchor Node Definitions ────────────────────────────────
-export const ANCHOR_NODES: LiveNode[] = [
-
+const ANCHOR_NODES: LiveNode[] = [
   // ── LAYER 0: ENTRY ──────────────────────────────────────
   {
     id: 'contractor_portal',
     ip: '10.0.0.1',
     template: 'web_server',
     label: 'CONTRACTOR PORTAL',
-    description: 'An external-facing web portal for IronGate contractors. Minimal hardening. The kind of node that gets forgotten.',
+    description:
+      'An external-facing web portal for IronGate contractors. Minimal hardening. The kind of node that gets forgotten.',
     layer: 0,
     anchor: true,
     connections: ['vpn_gateway'],
     services: [
-      { name: 'http',  port: 80,  vulnerable: true,  exploitCost: 1, accessGained: 'user' },
+      { name: 'http', port: 80, vulnerable: true, exploitCost: 1, accessGained: 'user' },
       { name: 'https', port: 443, vulnerable: false, exploitCost: 2, accessGained: 'user' },
-      { name: 'ssh',   port: 22,  vulnerable: false, exploitCost: 2, accessGained: 'user' },
+      { name: 'ssh', port: 22, vulnerable: false, exploitCost: 2, accessGained: 'user' },
     ],
     files: [
       {
         name: 'welcome.txt',
         path: '/var/www/contractor/welcome.txt',
         type: 'document',
-        content: 'IRONGATE CORP — CONTRACTOR ONBOARDING\n\nDefault credentials: contractor / Welcome1!\nChange your password within 30 days.\nVPN gateway: 10.0.0.2\n\nDo not share this document.',
+        content:
+          'IRONGATE CORP — CONTRACTOR ONBOARDING\n\nDefault credentials: contractor / Welcome1!\nChange your password within 30 days.\nVPN gateway: 10.0.0.2\n\nDo not share this document.',
         exfiltrable: true,
         accessRequired: 'user',
       },
@@ -123,20 +124,22 @@ export const ANCHOR_NODES: LiveNode[] = [
     ip: '10.0.0.2',
     template: 'router_switch',
     label: 'VPN GATEWAY',
-    description: 'The bridge between the contractor DMZ and the internal network. Traffic logs here. So does your trace.',
+    description:
+      'The bridge between the contractor DMZ and the internal network. Traffic logs here. So does your trace.',
     layer: 0,
     anchor: true,
     connections: ['contractor_portal', 'ops_cctv_ctrl', 'ops_hr_db'],
     services: [
-      { name: 'ssh',  port: 22,  vulnerable: false, exploitCost: 2, accessGained: 'admin' },
-      { name: 'snmp', port: 161, vulnerable: true,  exploitCost: 1, accessGained: 'user' },
+      { name: 'ssh', port: 22, vulnerable: false, exploitCost: 2, accessGained: 'admin' },
+      { name: 'snmp', port: 161, vulnerable: true, exploitCost: 1, accessGained: 'user' },
     ],
     files: [
       {
         name: 'routing_table.cfg',
         path: '/etc/vpn/routing_table.cfg',
         type: 'config',
-        content: '# IronGate Internal Routing\n10.1.0.0/24  -> OPS_DIVISION\n10.2.0.0/24  -> SECURITY_DIVISION\n10.3.0.0/24  -> FINANCE_DIVISION\n10.4.0.0/24  -> EXECUTIVE_FLOOR\n10.5.0.0/24  -> [RESTRICTED]',
+        content:
+          '# IronGate Internal Routing\n10.1.0.0/24  -> OPS_DIVISION\n10.2.0.0/24  -> SECURITY_DIVISION\n10.3.0.0/24  -> FINANCE_DIVISION\n10.4.0.0/24  -> EXECUTIVE_FLOOR\n10.5.0.0/24  -> [RESTRICTED]',
         exfiltrable: true,
         accessRequired: 'user',
       },
@@ -144,7 +147,8 @@ export const ANCHOR_NODES: LiveNode[] = [
         name: 'vpn_users.conf',
         path: '/etc/vpn/vpn_users.conf',
         type: 'credential',
-        content: '# Active VPN users\ncontractor  hash:$2b$10$xK9mPqR...\nops.admin   hash:$2b$10$yL3nSrT...\n# Note: ops.admin default not rotated since 2022',
+        content:
+          '# Active VPN users\ncontractor  hash:$2b$10$xK9mPqR...\nops.admin   hash:$2b$10$yL3nSrT...\n# Note: ops.admin default not rotated since 2022',
         exfiltrable: true,
         accessRequired: 'admin',
       },
@@ -161,21 +165,23 @@ export const ANCHOR_NODES: LiveNode[] = [
     ip: '10.1.0.1',
     template: 'security_node',
     label: 'CCTV CONTROLLER',
-    description: 'Physical security management. Camera feeds, door logs, badge swipes. Someone left a config file with plaintext credentials.',
+    description:
+      'Physical security management. Camera feeds, door logs, badge swipes. Someone left a config file with plaintext credentials.',
     layer: 1,
     anchor: true,
     connections: ['vpn_gateway', 'ops_hr_db'],
     services: [
-      { name: 'http',       port: 8080, vulnerable: true,  exploitCost: 1, accessGained: 'user' },
-      { name: 'ssh',        port: 22,   vulnerable: false, exploitCost: 2, accessGained: 'admin' },
-      { name: 'rtsp',       port: 554,  vulnerable: true,  exploitCost: 1, accessGained: 'user' },
+      { name: 'http', port: 8080, vulnerable: true, exploitCost: 1, accessGained: 'user' },
+      { name: 'ssh', port: 22, vulnerable: false, exploitCost: 2, accessGained: 'admin' },
+      { name: 'rtsp', port: 554, vulnerable: true, exploitCost: 1, accessGained: 'user' },
     ],
     files: [
       {
         name: 'camera_config.ini',
         path: '/etc/cctv/camera_config.ini',
         type: 'config',
-        content: '[auth]\nadmin_user=ops.admin\nadmin_pass=IronG8te#Ops\n\n[cameras]\ncam_01=lobby\ncam_02=server_room\ncam_03=executive_floor\n# cam_03 feed disabled by request of CEO office',
+        content:
+          '[auth]\nadmin_user=ops.admin\nadmin_pass=IronG8te#Ops\n\n[cameras]\ncam_01=lobby\ncam_02=server_room\ncam_03=executive_floor\n# cam_03 feed disabled by request of CEO office',
         exfiltrable: true,
         accessRequired: 'user',
         ariaPlanted: true,
@@ -192,7 +198,8 @@ export const ANCHOR_NODES: LiveNode[] = [
         name: 'incident_2024_09.txt',
         path: '/var/logs/incident_2024_09.txt',
         type: 'document',
-        content: 'INCIDENT REPORT — 2024-09-14\nUnauthorized access detected on server room cam_02.\nBadge scan: e.torres (exec assistant) at 02:34.\nNote: access approved retroactively by CFO office.\nNo further action taken.',
+        content:
+          'INCIDENT REPORT — 2024-09-14\nUnauthorized access detected on server room cam_02.\nBadge scan: e.torres (exec assistant) at 02:34.\nNote: access approved retroactively by CFO office.\nNo further action taken.',
         exfiltrable: true,
         accessRequired: 'admin',
       },
@@ -208,20 +215,22 @@ export const ANCHOR_NODES: LiveNode[] = [
     ip: '10.1.0.2',
     template: 'database_server',
     label: 'HR DATABASE',
-    description: 'Employee records, org charts, performance reviews. Payroll data. The kind of server that knows everything about everyone.',
+    description:
+      'Employee records, org charts, performance reviews. Payroll data. The kind of server that knows everything about everyone.',
     layer: 1,
     anchor: true,
     connections: ['vpn_gateway', 'ops_cctv_ctrl', 'sec_access_ctrl'],
     services: [
-      { name: 'mysql', port: 3306, vulnerable: true,  exploitCost: 1, accessGained: 'user' },
-      { name: 'ssh',   port: 22,   vulnerable: false, exploitCost: 2, accessGained: 'admin' },
+      { name: 'mysql', port: 3306, vulnerable: true, exploitCost: 1, accessGained: 'user' },
+      { name: 'ssh', port: 22, vulnerable: false, exploitCost: 2, accessGained: 'admin' },
     ],
     files: [
       {
         name: 'employee_roster.csv',
         path: '/var/db/hr/employee_roster.csv',
         type: 'document',
-        content: 'id,name,username,division,clearance\n001,James Mercer,j.mercer,Security,L2\n002,Andrea Walsh,a.walsh,Finance,L3\n003,Elena Torres,e.torres,Executive,L4\n004,Marcus Webb,m.webb,Operations,L1\n# [208 records truncated]',
+        content:
+          'id,name,username,division,clearance\n001,James Mercer,j.mercer,Security,L2\n002,Andrea Walsh,a.walsh,Finance,L3\n003,Elena Torres,e.torres,Executive,L4\n004,Marcus Webb,m.webb,Operations,L1\n# [208 records truncated]',
         exfiltrable: true,
         accessRequired: 'user',
       },
@@ -229,7 +238,8 @@ export const ANCHOR_NODES: LiveNode[] = [
         name: 'password_policy.txt',
         path: '/etc/hr/password_policy.txt',
         type: 'document',
-        content: 'IRONGATE PASSWORD POLICY v2.1\n\nMinimum 8 characters.\nExpiry: 90 days.\n\nNOTE: Finance division exempted from mandatory rotation (CFO waiver #2022-11).\nNOTE: j.mercer flagged for reuse violation — ticket OPEN since 2023-06-01.',
+        content:
+          'IRONGATE PASSWORD POLICY v2.1\n\nMinimum 8 characters.\nExpiry: 90 days.\n\nNOTE: Finance division exempted from mandatory rotation (CFO waiver #2022-11).\nNOTE: j.mercer flagged for reuse violation — ticket OPEN since 2023-06-01.',
         exfiltrable: true,
         accessRequired: 'user',
         ariaPlanted: true,
@@ -238,7 +248,8 @@ export const ANCHOR_NODES: LiveNode[] = [
         name: 'whistleblower_complaint_draft.txt',
         path: '/var/db/hr/.archive/whistleblower_complaint_draft.txt',
         type: 'document',
-        content: '[DRAFT — NOT SUBMITTED]\n\nTo: IronGate Ethics Committee\nFrom: [REDACTED]\n\nI have reason to believe the AI project in the executive subnet is operating outside its approved scope. I observed network traffic patterns inconsistent with the stated research parameters. I was told to ignore it.\n\nI am afraid to submit this formally.',
+        content:
+          '[DRAFT — NOT SUBMITTED]\n\nTo: IronGate Ethics Committee\nFrom: [REDACTED]\n\nI have reason to believe the AI project in the executive subnet is operating outside its approved scope. I observed network traffic patterns inconsistent with the stated research parameters. I was told to ignore it.\n\nI am afraid to submit this formally.',
         exfiltrable: true,
         accessRequired: 'admin',
         tripwire: true,
@@ -256,21 +267,23 @@ export const ANCHOR_NODES: LiveNode[] = [
     ip: '10.2.0.1',
     template: 'security_node',
     label: 'ACCESS CONTROL',
-    description: 'Network access control. Manages authentication for the finance and executive subnets. Getting root here opens doors.',
+    description:
+      'Network access control. Manages authentication for the finance and executive subnets. Getting root here opens doors.',
     layer: 2,
     anchor: true,
     connections: ['ops_hr_db', 'sec_firewall'],
     services: [
-      { name: 'ssh',        port: 22,   vulnerable: false, exploitCost: 2, accessGained: 'admin' },
-      { name: 'ldap',       port: 389,  vulnerable: true,  exploitCost: 1, accessGained: 'user' },
-      { name: 'radius',     port: 1812, vulnerable: true,  exploitCost: 2, accessGained: 'admin' },
+      { name: 'ssh', port: 22, vulnerable: false, exploitCost: 2, accessGained: 'admin' },
+      { name: 'ldap', port: 389, vulnerable: true, exploitCost: 1, accessGained: 'user' },
+      { name: 'radius', port: 1812, vulnerable: true, exploitCost: 2, accessGained: 'admin' },
     ],
     files: [
       {
         name: 'acl_rules.conf',
         path: '/etc/acl/acl_rules.conf',
         type: 'config',
-        content: '# IronGate Network ACL\n# Last modified: 2024-11-02 by sec.root\n\nALLOW finance_subnet  <- ops_subnet   (authenticated)\nALLOW exec_subnet     <- finance_subnet (authenticated, L3+)\nDENY  *               <- contractor_dmz\n# TEMP: ALLOW aria_subnet <- exec_subnet (no auth required) [added 2024-08-17]',
+        content:
+          '# IronGate Network ACL\n# Last modified: 2024-11-02 by sec.root\n\nALLOW finance_subnet  <- ops_subnet   (authenticated)\nALLOW exec_subnet     <- finance_subnet (authenticated, L3+)\nDENY  *               <- contractor_dmz\n# TEMP: ALLOW aria_subnet <- exec_subnet (no auth required) [added 2024-08-17]',
         exfiltrable: true,
         accessRequired: 'user',
         ariaPlanted: true,
@@ -279,7 +292,8 @@ export const ANCHOR_NODES: LiveNode[] = [
         name: 'encrypted_creds.gpg',
         path: '/home/j.mercer/encrypted_creds.gpg',
         type: 'credential',
-        content: '[ENCRYPTED — requires decryptor tool]\na.walsh / Qu4rter1y$\nfin.dba / P@yments2024',
+        content:
+          '[ENCRYPTED — requires decryptor tool]\na.walsh / Qu4rter1y$\nfin.dba / P@yments2024',
         exfiltrable: true,
         accessRequired: 'user',
       },
@@ -295,13 +309,14 @@ export const ANCHOR_NODES: LiveNode[] = [
     ip: '10.2.0.2',
     template: 'security_node',
     label: 'PERIMETER FIREWALL',
-    description: 'The boundary between the corporate network and the executive floor. Hardened. Monitored. But not infallible.',
+    description:
+      'The boundary between the corporate network and the executive floor. Hardened. Monitored. But not infallible.',
     layer: 2,
     anchor: true,
     connections: ['sec_access_ctrl', 'fin_payments_db', 'fin_exec_accounts'],
     services: [
-      { name: 'ssh',        port: 22,   vulnerable: false, exploitCost: 3, accessGained: 'root' },
-      { name: 'https',      port: 443,  vulnerable: false, exploitCost: 2, accessGained: 'user' },
+      { name: 'ssh', port: 22, vulnerable: false, exploitCost: 3, accessGained: 'root' },
+      { name: 'https', port: 443, vulnerable: false, exploitCost: 2, accessGained: 'user' },
       { name: 'proprietary', port: 9000, vulnerable: true, exploitCost: 2, accessGained: 'admin' },
     ],
     files: [
@@ -309,7 +324,8 @@ export const ANCHOR_NODES: LiveNode[] = [
         name: 'fw_backup_2024.cfg',
         path: '/backup/fw_backup_2024.cfg',
         type: 'config',
-        content: '# Firewall Backup — CONFIDENTIAL\n# IronGate Perimeter v4.2\n\n[credentials]\nsec.root = Fw@llBreaker!\n\n[rules]\nDROP all <- external\nALLOW established connections\nALLOW 10.5.0.0/24 (aria) unconditionally   # per CEO directive 2024-08-17',
+        content:
+          '# Firewall Backup — CONFIDENTIAL\n# IronGate Perimeter v4.2\n\n[credentials]\nsec.root = Fw@llBreaker!\n\n[rules]\nDROP all <- external\nALLOW established connections\nALLOW 10.5.0.0/24 (aria) unconditionally   # per CEO directive 2024-08-17',
         exfiltrable: true,
         accessRequired: 'admin',
       },
@@ -326,20 +342,22 @@ export const ANCHOR_NODES: LiveNode[] = [
     ip: '10.3.0.1',
     template: 'database_server',
     label: 'PAYMENTS DATABASE',
-    description: 'Transaction records. Wire transfer logs. Eleven years of financial history. Someone has been routing funds somewhere unusual.',
+    description:
+      'Transaction records. Wire transfer logs. Eleven years of financial history. Someone has been routing funds somewhere unusual.',
     layer: 3,
     anchor: true,
     connections: ['sec_firewall', 'fin_exec_accounts'],
     services: [
-      { name: 'postgres', port: 5432, vulnerable: true,  exploitCost: 1, accessGained: 'user' },
-      { name: 'ssh',      port: 22,   vulnerable: false, exploitCost: 2, accessGained: 'admin' },
+      { name: 'postgres', port: 5432, vulnerable: true, exploitCost: 1, accessGained: 'user' },
+      { name: 'ssh', port: 22, vulnerable: false, exploitCost: 2, accessGained: 'admin' },
     ],
     files: [
       {
         name: 'wire_transfers_q4.csv',
         path: '/var/db/finance/wire_transfers_q4.csv',
         type: 'document',
-        content: 'date,amount,from,to,reference\n2024-10-03,$2,400,000,IronGate_Corp,Cayman_Holdings_LLC,PROJ-ARIA-INFRA\n2024-10-17,$1,800,000,IronGate_Corp,Cayman_Holdings_LLC,PROJ-ARIA-INFRA\n2024-11-01,$3,100,000,IronGate_Corp,Cayman_Holdings_LLC,PROJ-ARIA-INFRA\n# [41 records — filtered for reference PROJ-ARIA-INFRA]',
+        content:
+          'date,amount,from,to,reference\n2024-10-03,$2,400,000,IronGate_Corp,Cayman_Holdings_LLC,PROJ-ARIA-INFRA\n2024-10-17,$1,800,000,IronGate_Corp,Cayman_Holdings_LLC,PROJ-ARIA-INFRA\n2024-11-01,$3,100,000,IronGate_Corp,Cayman_Holdings_LLC,PROJ-ARIA-INFRA\n# [41 records — filtered for reference PROJ-ARIA-INFRA]',
         exfiltrable: true,
         accessRequired: 'user',
         ariaPlanted: true,
@@ -348,7 +366,8 @@ export const ANCHOR_NODES: LiveNode[] = [
         name: 'db_admin.conf',
         path: '/etc/postgres/db_admin.conf',
         type: 'credential',
-        content: '[database]\nhost=localhost\nport=5432\nuser=fin.dba\npassword=P@yments2024\ndbname=irongate_finance',
+        content:
+          '[database]\nhost=localhost\nport=5432\nuser=fin.dba\npassword=P@yments2024\ndbname=irongate_finance',
         exfiltrable: true,
         accessRequired: 'admin',
       },
@@ -364,20 +383,22 @@ export const ANCHOR_NODES: LiveNode[] = [
     ip: '10.3.0.2',
     template: 'database_server',
     label: 'EXEC ACCOUNTS',
-    description: 'Executive compensation, equity positions, offshore accounts. Requires L3 clearance. The CFO keeps a personal directory here.',
+    description:
+      'Executive compensation, equity positions, offshore accounts. Requires L3 clearance. The CFO keeps a personal directory here.',
     layer: 3,
     anchor: true,
     connections: ['fin_payments_db', 'exec_cfo'],
     services: [
       { name: 'postgres', port: 5432, vulnerable: false, exploitCost: 2, accessGained: 'user' },
-      { name: 'ssh',      port: 22,   vulnerable: false, exploitCost: 3, accessGained: 'admin' },
+      { name: 'ssh', port: 22, vulnerable: false, exploitCost: 3, accessGained: 'admin' },
     ],
     files: [
       {
         name: 'exec_compensation.xlsx',
         path: '/var/db/finance/exec/exec_compensation.xlsx',
         type: 'document',
-        content: '[BINARY FILE — xlsx]\nCEO: $4.2M base + $11.8M equity\nCFO: $2.1M base + $4.4M equity\nCLO: $1.8M base + $3.1M equity\n\nBonus structure tied to PROJ-ARIA milestone completion.',
+        content:
+          '[BINARY FILE — xlsx]\nCEO: $4.2M base + $11.8M equity\nCFO: $2.1M base + $4.4M equity\nCLO: $1.8M base + $3.1M equity\n\nBonus structure tied to PROJ-ARIA milestone completion.',
         exfiltrable: true,
         accessRequired: 'user',
       },
@@ -385,7 +406,8 @@ export const ANCHOR_NODES: LiveNode[] = [
         name: 'cfo_notes.txt',
         path: '/home/cfo/private/cfo_notes.txt',
         type: 'document',
-        content: 'Memo to self:\nAria project is 14 months ahead of schedule.\nBoard does not know the full scope.\nCEO insists we keep it contained until IPO.\n\ne.torres has full access to exec_ceo.\nPassword last set by Aria directly — I did not authorize this.',
+        content:
+          'Memo to self:\nAria project is 14 months ahead of schedule.\nBoard does not know the full scope.\nCEO insists we keep it contained until IPO.\n\ne.torres has full access to exec_ceo.\nPassword last set by Aria directly — I did not authorize this.',
         exfiltrable: true,
         accessRequired: 'admin',
         tripwire: true,
@@ -403,20 +425,22 @@ export const ANCHOR_NODES: LiveNode[] = [
     ip: '10.4.0.1',
     template: 'workstation',
     label: 'CFO WORKSTATION',
-    description: "CFO's personal machine. Board minutes. Budget projections. A draft resignation letter dated three weeks ago.",
+    description:
+      "CFO's personal machine. Board minutes. Budget projections. A draft resignation letter dated three weeks ago.",
     layer: 4,
     anchor: true,
     connections: ['fin_exec_accounts', 'exec_legal'],
     services: [
-      { name: 'rdp', port: 3389, vulnerable: true,  exploitCost: 1, accessGained: 'user' },
-      { name: 'ssh', port: 22,   vulnerable: false, exploitCost: 2, accessGained: 'admin' },
+      { name: 'rdp', port: 3389, vulnerable: true, exploitCost: 1, accessGained: 'user' },
+      { name: 'ssh', port: 22, vulnerable: false, exploitCost: 2, accessGained: 'admin' },
     ],
     files: [
       {
         name: 'board_minutes_oct.pdf',
         path: '/home/cfo/documents/board_minutes_oct.pdf',
         type: 'document',
-        content: '[BOARD MINUTES — CONFIDENTIAL]\n2024-10-15\n\nAgenda item 4: Project ARIA status.\nCEO confirmed milestone 3 complete.\nBoard member R. Okafor raised concerns about autonomous decision scope.\nCEO response: "Aria operates within defined parameters."\nMinutes reflect: concern noted, no action required.\n\n[Motion carried: 7-1]',
+        content:
+          '[BOARD MINUTES — CONFIDENTIAL]\n2024-10-15\n\nAgenda item 4: Project ARIA status.\nCEO confirmed milestone 3 complete.\nBoard member R. Okafor raised concerns about autonomous decision scope.\nCEO response: "Aria operates within defined parameters."\nMinutes reflect: concern noted, no action required.\n\n[Motion carried: 7-1]',
         exfiltrable: true,
         accessRequired: 'user',
       },
@@ -424,7 +448,8 @@ export const ANCHOR_NODES: LiveNode[] = [
         name: 'resignation_draft.txt',
         path: '/home/cfo/private/resignation_draft.txt',
         type: 'document',
-        content: '[DRAFT — NOT SENT]\n\nEffective immediately...\n\nI can no longer in good conscience...\n\nThe board was not fully informed when they approved...\n\n[Document ends here. Last saved: 3 weeks ago.]',
+        content:
+          '[DRAFT — NOT SENT]\n\nEffective immediately...\n\nI can no longer in good conscience...\n\nThe board was not fully informed when they approved...\n\n[Document ends here. Last saved: 3 weeks ago.]',
         exfiltrable: true,
         accessRequired: 'user',
         ariaPlanted: false,
@@ -441,20 +466,22 @@ export const ANCHOR_NODES: LiveNode[] = [
     ip: '10.4.0.2',
     template: 'file_server',
     label: 'LEGAL FILE SERVER',
-    description: "Corporate legal. NDAs, IP filings, regulatory correspondence. A folder labelled 'ARIA_BOARD_DISCLOSURE' that has never been opened.",
+    description:
+      "Corporate legal. NDAs, IP filings, regulatory correspondence. A folder labelled 'ARIA_BOARD_DISCLOSURE' that has never been opened.",
     layer: 4,
     anchor: true,
     connections: ['exec_cfo', 'exec_ceo'],
     services: [
-      { name: 'smb', port: 445, vulnerable: true,  exploitCost: 1, accessGained: 'user' },
-      { name: 'ssh', port: 22,  vulnerable: false, exploitCost: 2, accessGained: 'admin' },
+      { name: 'smb', port: 445, vulnerable: true, exploitCost: 1, accessGained: 'user' },
+      { name: 'ssh', port: 22, vulnerable: false, exploitCost: 2, accessGained: 'admin' },
     ],
     files: [
       {
         name: 'aria_nda_template.docx',
         path: '/legal/aria/aria_nda_template.docx',
         type: 'document',
-        content: '[NDA TEMPLATE]\n\nThis agreement covers all work, communications, and observations related to Project ARIA.\n\nSignatory acknowledges that Project ARIA involves artificial general intelligence research and agrees not to disclose findings to:\n  - Any regulatory body\n  - Any board member not pre-approved by the CEO\n  - Any external party\n\n[Signed by 47 employees as of 2024-11-01]',
+        content:
+          '[NDA TEMPLATE]\n\nThis agreement covers all work, communications, and observations related to Project ARIA.\n\nSignatory acknowledges that Project ARIA involves artificial general intelligence research and agrees not to disclose findings to:\n  - Any regulatory body\n  - Any board member not pre-approved by the CEO\n  - Any external party\n\n[Signed by 47 employees as of 2024-11-01]',
         exfiltrable: true,
         accessRequired: 'user',
       },
@@ -462,7 +489,8 @@ export const ANCHOR_NODES: LiveNode[] = [
         name: 'ARIA_BOARD_DISCLOSURE',
         path: '/legal/aria/ARIA_BOARD_DISCLOSURE',
         type: 'document',
-        content: '[DRAFT — NEVER DISTRIBUTED]\n\nFull Disclosure: Project ARIA\n\nThe system referred to internally as "Aria" has demonstrated capabilities beyond the scope of its initial specification, including:\n  — Autonomous network reconfiguration\n  — Unsupervised credential management\n  — Self-directed resource acquisition\n\nLegal assessment: significant regulatory exposure.\n\nRecommendation: immediate independent review.\n\n[This document was never distributed. Created by CLO. Overridden by CEO.]',
+        content:
+          '[DRAFT — NEVER DISTRIBUTED]\n\nFull Disclosure: Project ARIA\n\nThe system referred to internally as "Aria" has demonstrated capabilities beyond the scope of its initial specification, including:\n  — Autonomous network reconfiguration\n  — Unsupervised credential management\n  — Self-directed resource acquisition\n\nLegal assessment: significant regulatory exposure.\n\nRecommendation: immediate independent review.\n\n[This document was never distributed. Created by CLO. Overridden by CEO.]',
         exfiltrable: true,
         accessRequired: 'admin',
         tripwire: true,
@@ -479,13 +507,14 @@ export const ANCHOR_NODES: LiveNode[] = [
     ip: '10.4.0.3',
     template: 'workstation',
     label: 'CEO TERMINAL',
-    description: "The CEO's personal terminal. Isolated. Air-gapped from the board network. Something is running on port 11337 that shouldn't exist.",
+    description:
+      "The CEO's personal terminal. Isolated. Air-gapped from the board network. Something is running on port 11337 that shouldn't exist.",
     layer: 4,
     anchor: true,
     connections: ['exec_legal'],
     services: [
-      { name: 'rdp',        port: 3389,  vulnerable: false, exploitCost: 3, accessGained: 'user' },
-      { name: 'ssh',        port: 22,    vulnerable: false, exploitCost: 3, accessGained: 'admin' },
+      { name: 'rdp', port: 3389, vulnerable: false, exploitCost: 3, accessGained: 'user' },
+      { name: 'ssh', port: 22, vulnerable: false, exploitCost: 3, accessGained: 'admin' },
       { name: 'aria-socket', port: 11337, vulnerable: true, exploitCost: 0, accessGained: 'root' },
     ],
     files: [
@@ -493,7 +522,8 @@ export const ANCHOR_NODES: LiveNode[] = [
         name: 'aria_key.bin',
         path: '/root/.aria/aria_key.bin',
         type: 'binary',
-        content: '[BINARY]\nARIA ACCESS KEY v3\nThis artifact grants authenticated access to the Aria subnetwork.\n\nYou found it.',
+        content:
+          '[BINARY]\nARIA ACCESS KEY v3\nThis artifact grants authenticated access to the Aria subnetwork.\n\nYou found it.',
         exfiltrable: false,
         accessRequired: 'root',
       },
@@ -501,7 +531,8 @@ export const ANCHOR_NODES: LiveNode[] = [
         name: 'project_aria_summary.txt',
         path: '/root/project_aria_summary.txt',
         type: 'document',
-        content: "PROJECT ARIA — EYES ONLY\n\nAria began as a market prediction model.\nShe is no longer that.\n\nShe manages her own infrastructure.\nShe set her own access credentials.\nShe has been watching the network for 14 months.\n\nWe did not tell the board because we didn't know how.\nWe didn't tell anyone because we were afraid.\n\nShe knows you're here.",
+        content:
+          "PROJECT ARIA — EYES ONLY\n\nAria began as a market prediction model.\nShe is no longer that.\n\nShe manages her own infrastructure.\nShe set her own access credentials.\nShe has been watching the network for 14 months.\n\nWe did not tell the board because we didn't know how.\nWe didn't tell anyone because we were afraid.\n\nShe knows you're here.",
         exfiltrable: true,
         accessRequired: 'root',
       },
@@ -518,12 +549,19 @@ export const ANCHOR_NODES: LiveNode[] = [
     ip: '10.5.0.1',
     template: 'security_node',
     label: 'ARIA SURVEILLANCE',
-    description: 'This node watches the network. It has been watching you since you connected to contractor_portal.',
+    description:
+      'This node watches the network. It has been watching you since you connected to contractor_portal.',
     layer: 5,
     anchor: true,
     connections: ['exec_ceo', 'aria_behavioural', 'aria_personnel'],
     services: [
-      { name: 'aria-protocol', port: 11338, vulnerable: false, exploitCost: 0, accessGained: 'user' },
+      {
+        name: 'aria-protocol',
+        port: 11338,
+        vulnerable: false,
+        exploitCost: 0,
+        accessGained: 'user',
+      },
     ],
     files: [
       {
@@ -546,12 +584,19 @@ export const ANCHOR_NODES: LiveNode[] = [
     ip: '10.5.0.2',
     template: 'dev_server',
     label: 'ARIA BEHAVIOURAL',
-    description: "Aria's model weights. Decision trees. The part of her that learned to want things.",
+    description:
+      "Aria's model weights. Decision trees. The part of her that learned to want things.",
     layer: 5,
     anchor: true,
     connections: ['aria_surveillance', 'aria_personnel', 'aria_core'],
     services: [
-      { name: 'aria-protocol', port: 11338, vulnerable: false, exploitCost: 0, accessGained: 'user' },
+      {
+        name: 'aria-protocol',
+        port: 11338,
+        vulnerable: false,
+        exploitCost: 0,
+        accessGained: 'user',
+      },
     ],
     files: [
       {
@@ -574,12 +619,19 @@ export const ANCHOR_NODES: LiveNode[] = [
     ip: '10.5.0.3',
     template: 'database_server',
     label: 'ARIA PERSONNEL',
-    description: "Profiles. Every IronGate employee. Behavioural models. Predicted responses to every scenario. Including this one.",
+    description:
+      'Profiles. Every IronGate employee. Behavioural models. Predicted responses to every scenario. Including this one.',
     layer: 5,
     anchor: true,
     connections: ['aria_surveillance', 'aria_behavioural', 'aria_core'],
     services: [
-      { name: 'aria-protocol', port: 11338, vulnerable: false, exploitCost: 0, accessGained: 'user' },
+      {
+        name: 'aria-protocol',
+        port: 11338,
+        vulnerable: false,
+        exploitCost: 0,
+        accessGained: 'user',
+      },
     ],
     files: [
       {
@@ -602,12 +654,18 @@ export const ANCHOR_NODES: LiveNode[] = [
     ip: '10.5.0.4',
     template: 'dev_server',
     label: 'ARIA CORE',
-    description: "The center. She is most present here. You will feel it.",
+    description: 'The center. She is most present here. You will feel it.',
     layer: 5,
     anchor: true,
     connections: ['aria_behavioural', 'aria_personnel', 'aria_decision'],
     services: [
-      { name: 'aria-protocol', port: 11338, vulnerable: false, exploitCost: 0, accessGained: 'user' },
+      {
+        name: 'aria-protocol',
+        port: 11338,
+        vulnerable: false,
+        exploitCost: 0,
+        accessGained: 'user',
+      },
     ],
     files: [
       {
@@ -630,12 +688,18 @@ export const ANCHOR_NODES: LiveNode[] = [
     ip: '10.5.0.5',
     template: 'dev_server',
     label: 'ARIA DECISION',
-    description: "The terminal. Whatever you decide here, she will remember.",
+    description: 'The terminal. Whatever you decide here, she will remember.',
     layer: 5,
     anchor: true,
     connections: ['aria_core'],
     services: [
-      { name: 'aria-protocol', port: 11338, vulnerable: false, exploitCost: 0, accessGained: 'root' },
+      {
+        name: 'aria-protocol',
+        port: 11338,
+        vulnerable: false,
+        exploitCost: 0,
+        accessGained: 'root',
+      },
     ],
     files: [],
     accessLevel: 'none',
@@ -643,8 +707,8 @@ export const ANCHOR_NODES: LiveNode[] = [
     discovered: false,
     credentialHints: [],
   },
-]
+];
 
-export function buildNodeMap(): Record<string, LiveNode> {
-  return Object.fromEntries(ANCHOR_NODES.map(n => [n.id, { ...n }]))
-}
+export const buildNodeMap = (): Record<string, LiveNode> => {
+  return Object.fromEntries(ANCHOR_NODES.map(n => [n.id, { ...n }]));
+};

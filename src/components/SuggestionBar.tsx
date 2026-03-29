@@ -1,24 +1,25 @@
 interface Props {
-  suggestions: string[]
-  onSelect: (suggestion: string) => void
+  suggestions: string[];
+  onSelect: (suggestion: string) => void;
 }
 
-export function SuggestionBar({ suggestions, onSelect }: Props) {
-  if (suggestions.length === 0) return null
+export const SuggestionBar = ({ suggestions, onSelect }: Props) => {
+  if (suggestions.length === 0) return null;
 
   return (
-    <div style={{
-      display: 'flex',
-      gap: '0.75rem',
-      padding: '0.2rem 1.5rem',
-      borderTop: '1px solid var(--color-border)',
-    }}>
+    <div
+      style={{
+        display: 'flex',
+        gap: '0.75rem',
+        padding: '0.2rem 1.5rem',
+        borderTop: '1px solid var(--color-border)',
+      }}>
       {suggestions.map(s => (
         <button
           key={s}
-          onClick={(e) => {
-            e.stopPropagation()
-            onSelect(s)
+          onClick={e => {
+            e.stopPropagation();
+            onSelect(s);
           }}
           style={{
             background: 'var(--color-system)',
@@ -30,15 +31,14 @@ export function SuggestionBar({ suggestions, onSelect }: Props) {
             cursor: 'pointer',
           }}
           onMouseEnter={e => {
-            (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-error)'
+            (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-error)';
           }}
           onMouseLeave={e => {
-            (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-system)'
-          }}
-        >
+            (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-system)';
+          }}>
           {s}
         </button>
       ))}
     </div>
-  )
-}
+  );
+};

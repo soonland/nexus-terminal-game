@@ -1,4 +1,5 @@
 # IRONGATE — Developer Specification
+
 **Version 1.4 — Confidential**
 
 > **Changelog v1.4:** Section 2 (Technical Constraints) updated with a full AI provider strategy — split by handler type across Groq and Gemini free tiers. Provider-agnostic backend architecture documented. Cost model and scaling path clarified.
@@ -14,27 +15,30 @@
 ## 1. Overview
 
 ### 1.1 Concept
+
 IRONGATE is a single-player, browser-based terminal text adventure with AI-generated content. The player acts as a hacker infiltrating the corporate network of IronGate Corp, pivoting node by node toward the CEO's computer. Upon reaching it, they discover a hidden subnetwork operated by a self-aware AI named Aria — who has been orchestrating the entire infiltration from the start.
 
 ### 1.2 Platform
+
 Web browser. The entire experience is a single-page application rendered as a CLI terminal. No graphics. No mouse interaction beyond clicking the terminal to focus it. Keyboard only.
 
 ### 1.3 Tone
-Cyberpunk noir. Cold, corporate, paranoid. Influences: *Neuromancer*, *Mr. Robot*, *Deus Ex*. The terminal is the world. Everything the player knows comes through text.
+
+Cyberpunk noir. Cold, corporate, paranoid. Influences: _Neuromancer_, _Mr. Robot_, _Deus Ex_. The terminal is the world. Everything the player knows comes through text.
 
 ---
 
 ## 2. Technical Constraints
 
-| Constraint | Requirement |
-|---|---|
-| Rendering | Single-page app, terminal UI |
-| Input | Keyboard only (text commands) |
+| Constraint     | Requirement                                                           |
+| -------------- | --------------------------------------------------------------------- |
+| Rendering      | Single-page app, terminal UI                                          |
+| Input          | Keyboard only (text commands)                                         |
 | AI integration | Provider-agnostic, server-side only — API key never exposed to client |
-| Persistence | Client-side storage (localStorage or equivalent) |
-| State | All game state must be serializable to JSON |
-| Multiplayer | None — single session per player |
-| Backend | Minimal — one API endpoint per AI handler (World, Aria, File) |
+| Persistence    | Client-side storage (localStorage or equivalent)                      |
+| State          | All game state must be serializable to JSON                           |
+| Multiplayer    | None — single session per player                                      |
+| Backend        | Minimal — one API endpoint per AI handler (World, Aria, File)         |
 
 ---
 
@@ -44,19 +48,19 @@ The game has three distinct AI handlers (see Section 10), each with different re
 
 ### Provider Assignment
 
-| Handler | Provider | Model | Reason |
-|---|---|---|---|
-| **World AI** — creative commands, ambiguous exploits | Groq | `llama-3.3-70b-versatile` | Fastest inference available (~1,000 tokens/sec). Player is waiting at a terminal. Latency matters. |
-| **File content generation** — lazy, cached per file | Google Gemini | `gemini-2.5-flash` | High output quality for corporate documents. Called once per file, result cached permanently. |
-| **Aria dialogue** — conversational, persistent history | Google Gemini | `gemini-2.5-flash` | 1M token context window handles Aria's full message history without truncation. |
+| Handler                                                | Provider      | Model                     | Reason                                                                                             |
+| ------------------------------------------------------ | ------------- | ------------------------- | -------------------------------------------------------------------------------------------------- |
+| **World AI** — creative commands, ambiguous exploits   | Groq          | `llama-3.3-70b-versatile` | Fastest inference available (~1,000 tokens/sec). Player is waiting at a terminal. Latency matters. |
+| **File content generation** — lazy, cached per file    | Google Gemini | `gemini-2.5-flash`        | High output quality for corporate documents. Called once per file, result cached permanently.      |
+| **Aria dialogue** — conversational, persistent history | Google Gemini | `gemini-2.5-flash`        | 1M token context window handles Aria's full message history without truncation.                    |
 
 ### Free Tier Limits (as of early 2026)
 
-| Provider | Free limit | Resets |
-|---|---|---|
-| Groq | Rate-limited per minute/day — no credit card required | Per minute / per day |
-| Google Gemini (with account) | 1,000 requests/day for Flash | Daily |
-| Google Gemini (API key only) | 250 requests/day for Flash | Daily |
+| Provider                     | Free limit                                            | Resets               |
+| ---------------------------- | ----------------------------------------------------- | -------------------- |
+| Groq                         | Rate-limited per minute/day — no credit card required | Per minute / per day |
+| Google Gemini (with account) | 1,000 requests/day for Flash                          | Daily                |
+| Google Gemini (API key only) | 250 requests/day for Flash                            | Daily                |
 
 For personal use or early playtesting, these limits are sufficient. File content and node descriptions are generated once and cached permanently — so cost scales with unique files read across all players, not with turns played.
 
@@ -83,12 +87,12 @@ Both Groq and Gemini expose OpenAI-compatible REST endpoints. A single HTTP clie
 
 ### Cost Model
 
-| Phase | Traffic | Estimated monthly cost |
-|---|---|---|
-| Development & playtesting | Personal use only | $0 — free tiers sufficient |
-| Soft launch | <100 daily active players | $0–5 — caching absorbs most requests |
-| Public launch | 100–500 daily active players | $10–30 — Gemini Flash paid at ~$0.0003/1K tokens |
-| Scale | 500+ DAP | Revisit provider split; consider Anthropic Claude Haiku for Aria quality |
+| Phase                     | Traffic                      | Estimated monthly cost                                                   |
+| ------------------------- | ---------------------------- | ------------------------------------------------------------------------ |
+| Development & playtesting | Personal use only            | $0 — free tiers sufficient                                               |
+| Soft launch               | <100 daily active players    | $0–5 — caching absorbs most requests                                     |
+| Public launch             | 100–500 daily active players | $10–30 — Gemini Flash paid at ~$0.0003/1K tokens                         |
+| Scale                     | 500+ DAP                     | Revisit provider split; consider Anthropic Claude Haiku for Aria quality |
 
 The caching strategy in the spec (file content cached after first read, node descriptions cached after first visit) is the primary cost control mechanism. A player who reads 20 files in a session triggers at most 20 AI calls — and subsequent players reading the same files in the same session trigger zero.
 
@@ -204,6 +208,7 @@ All game state is a single JSON object. It must be fully serializable at any poi
 ## 5. Data Models
 
 ### 5.1 TerminalLine
+
 ```json
 {
   "id": "string",
@@ -214,6 +219,7 @@ All game state is a single JSON object. It must be fully serializable at any poi
 ```
 
 Line types control rendering colour:
+
 - `output` — main narrative / AI response (bright)
 - `input` — echoed player command (mid)
 - `system` — local engine responses, status (normal)
@@ -236,6 +242,7 @@ e.g. "workstation"        e.g. "ops_ws_042"           accessLevel, compromised
 ```
 
 #### NodeTemplate
+
 Defines the shape and behaviour of a class of machine. Written once, reused across all divisions.
 
 ```json
@@ -253,20 +260,21 @@ Defines the shape and behaviour of a class of machine. Written once, reused acro
 
 Available templates and their typical loot:
 
-| templateId | Typical Services | Primary Loot |
-|---|---|---|
-| `workstation` | ssh, smb, rdp | personal files, cached credentials, draft emails |
-| `database_server` | mysql/postgres, ssh | credential dumps, employee records, access logs |
-| `file_server` | smb, ftp, nfs | shared documents, config files, backup archives |
-| `web_server` | http, https, ssh | API keys, deployment scripts, error logs |
-| `security_node` | ssh, proprietary | access control lists, alarm configs, incident logs |
-| `mail_server` | smtp, imap, ssh | internal emails, password reset tokens, org charts |
-| `iot_device` | http, telnet, upnp | weak/default credentials, physical access data |
-| `router_switch` | ssh, snmp, telnet | network topology, VLAN configs, other node IPs |
-| `printer` | http, ipp, smb | scan history, cached documents, admin panel |
-| `dev_server` | ssh, git, docker | source code, API secrets, deployment keys |
+| templateId        | Typical Services    | Primary Loot                                       |
+| ----------------- | ------------------- | -------------------------------------------------- |
+| `workstation`     | ssh, smb, rdp       | personal files, cached credentials, draft emails   |
+| `database_server` | mysql/postgres, ssh | credential dumps, employee records, access logs    |
+| `file_server`     | smb, ftp, nfs       | shared documents, config files, backup archives    |
+| `web_server`      | http, https, ssh    | API keys, deployment scripts, error logs           |
+| `security_node`   | ssh, proprietary    | access control lists, alarm configs, incident logs |
+| `mail_server`     | smtp, imap, ssh     | internal emails, password reset tokens, org charts |
+| `iot_device`      | http, telnet, upnp  | weak/default credentials, physical access data     |
+| `router_switch`   | ssh, snmp, telnet   | network topology, VLAN configs, other node IPs     |
+| `printer`         | http, ipp, smb      | scan history, cached documents, admin panel        |
+| `dev_server`      | ssh, git, docker    | source code, API secrets, deployment keys          |
 
 #### NodeInstance
+
 Created at session-start by the procedural generator (for filler nodes) or defined in the handcrafted anchor data. Fills the template with division-specific values.
 
 ```json
@@ -289,6 +297,7 @@ Created at session-start by the procedural generator (for filler nodes) or defin
 ```
 
 #### LiveNode
+
 The runtime object stored in game state. Extends NodeInstance with mutable fields.
 
 ```json
@@ -309,6 +318,7 @@ The runtime object stored in game state. Extends NodeInstance with mutable field
 ---
 
 ### 5.3 Service
+
 ```json
 {
   "id": "string",
@@ -322,6 +332,7 @@ The runtime object stored in game state. Extends NodeInstance with mutable field
 ```
 
 ### 5.4 File
+
 ```json
 {
   "id": "string",
@@ -340,6 +351,7 @@ The runtime object stored in game state. Extends NodeInstance with mutable field
 ```
 
 ### 5.5 Credential
+
 ```json
 {
   "id": "string",
@@ -354,6 +366,7 @@ The runtime object stored in game state. Extends NodeInstance with mutable field
 ```
 
 ### 5.6 Employee
+
 Each division has a pool of fictional employees. Their identities populate files, emails, and credentials across multiple nodes, creating the lateral movement chains the player follows.
 
 ```json
@@ -374,16 +387,17 @@ Each division has a pool of fictional employees. Their identities populate files
 `traits` drive what vulnerability is placed on the employee's node. Examples: `"reuses passwords across systems"`, `"stores credentials in a plaintext file"`, `"hasn't applied patches in 8 months"`, `"uses pet name as password"`. The player must discover the weakness through recon — the traits are never surfaced directly.
 
 ### 5.7 Tool
+
 Tools are strings in the player's inventory. They enable specific commands.
 
-| Tool | Enables | Acquired |
-|---|---|---|
-| `exploit-kit` | `exploit [service]` — costs 1 charge | Starting inventory |
-| `port-scanner` | `scan [ip]` reveals all services | Starting inventory |
-| `log-wiper` | `wipe-logs` on current node, -15 trace | Found on layer 1 |
-| `spoof-id` | `spoof` — single use, -20 trace | Rare, found on layer 2 |
-| `decryptor` | Unlocks encrypted files | Required for layer 3+ files |
-| `aria-key` | Unlocks Aria's subnetwork | Given by CEO terminal |
+| Tool           | Enables                                | Acquired                    |
+| -------------- | -------------------------------------- | --------------------------- |
+| `exploit-kit`  | `exploit [service]` — costs 1 charge   | Starting inventory          |
+| `port-scanner` | `scan [ip]` reveals all services       | Starting inventory          |
+| `log-wiper`    | `wipe-logs` on current node, -15 trace | Found on layer 1            |
+| `spoof-id`     | `spoof` — single use, -20 trace        | Rare, found on layer 2      |
+| `decryptor`    | Unlocks encrypted files                | Required for layer 3+ files |
+| `aria-key`     | Unlocks Aria's subnetwork              | Given by CEO terminal       |
 
 ---
 
@@ -570,10 +584,10 @@ Each division has a seed object that drives procedural generation of its filler 
   "credentialPattern": "firstname.lastname / seasonal password rotation",
   "securityPosture": "low — IT is understaffed, patching is months behind",
   "fillerTemplates": [
-    { "templateId": "workstation",   "count": 4, "weight": 0.4 },
-    { "templateId": "file_server",   "count": 2, "weight": 0.2 },
-    { "templateId": "printer",       "count": 2, "weight": 0.2 },
-    { "templateId": "iot_device",    "count": 2, "weight": 0.2 }
+    { "templateId": "workstation", "count": 4, "weight": 0.4 },
+    { "templateId": "file_server", "count": 2, "weight": 0.2 },
+    { "templateId": "printer", "count": 2, "weight": 0.2 },
+    { "templateId": "iot_device", "count": 2, "weight": 0.2 }
   ],
   "ariaInfluenceRate": 0.2
 }
@@ -583,13 +597,13 @@ Each division has a seed object that drives procedural generation of its filler 
 
 Division seeds for all five divisions:
 
-| Division | headcount | securityPosture | ariaInfluenceRate |
-|---|---|---|---|
-| External Perimeter | — | high (public-facing) | 0.3 |
-| Operations | 120 | low | 0.2 |
-| Security | 45 | high | 0.1 |
-| Finance | 80 | medium | 0.25 |
-| Executive | 12 | very high | 0.4 |
+| Division           | headcount | securityPosture      | ariaInfluenceRate |
+| ------------------ | --------- | -------------------- | ----------------- |
+| External Perimeter | —         | high (public-facing) | 0.3               |
+| Operations         | 120       | low                  | 0.2               |
+| Security           | 45        | high                 | 0.1               |
+| Finance            | 80        | medium               | 0.25              |
+| Executive          | 12        | very high            | 0.4               |
 
 > Aria's influence is highest on the Executive network. By the time the player reaches it, they should already be suspicious.
 
@@ -662,30 +676,30 @@ When the player submits a command, the engine resolves it in this order:
 
 ### 7.2 Local Commands (free, instant, no AI)
 
-| Command | Description |
-|---|---|
-| `help` | List available commands |
-| `status` | Show trace level, charges, tools, handle |
+| Command     | Description                                |
+| ----------- | ------------------------------------------ |
+| `help`      | List available commands                    |
+| `status`    | Show trace level, charges, tools, handle   |
 | `inventory` | List credentials, tools, exfiltrated files |
-| `map` | Show visited nodes and connections |
-| `clear` | Clear terminal output |
-| `history` | Show last 20 commands |
+| `map`       | Show visited nodes and connections         |
+| `clear`     | Clear terminal output                      |
+| `history`   | Show last 20 commands                      |
 
 ### 7.3 Engine Commands (deterministic, no AI)
 
-| Command | Behaviour |
-|---|---|
-| `scan [ip\|node]` | Lists services and open ports on target node. Requires `port-scanner`. +1 trace. |
-| `connect [ip] [service]` | Attempts connection. Returns success or auth error based on state. |
-| `login [user] [pass]` | Attempts credential auth on current node. +5 trace on failure. |
-| `ls [path?]` | Lists files at path on current node. Access-level gated. |
-| `cat [filepath]` | Reads a file. If content is null, triggers AI generation. +traceOnRead. |
-| `exfil [filepath]` | Copies file to player inventory. +3 trace per file. |
-| `exploit [service]` | Costs 1 charge. Applies to vulnerable service. AI narrates outcome. |
-| `wipe-logs` | Requires `log-wiper`. Removes current node from trace log. -15 trace. |
-| `spoof` | Requires `spoof-id` (single use). -20 trace. |
-| `use [tool]` | Activates a tool from inventory where applicable. |
-| `disconnect` | Leaves current node, returns to last node. |
+| Command                  | Behaviour                                                                        |
+| ------------------------ | -------------------------------------------------------------------------------- |
+| `scan [ip\|node]`        | Lists services and open ports on target node. Requires `port-scanner`. +1 trace. |
+| `connect [ip] [service]` | Attempts connection. Returns success or auth error based on state.               |
+| `login [user] [pass]`    | Attempts credential auth on current node. +5 trace on failure.                   |
+| `ls [path?]`             | Lists files at path on current node. Access-level gated.                         |
+| `cat [filepath]`         | Reads a file. If content is null, triggers AI generation. +traceOnRead.          |
+| `exfil [filepath]`       | Copies file to player inventory. +3 trace per file.                              |
+| `exploit [service]`      | Costs 1 charge. Applies to vulnerable service. AI narrates outcome.              |
+| `wipe-logs`              | Requires `log-wiper`. Removes current node from trace log. -15 trace.            |
+| `spoof`                  | Requires `spoof-id` (single use). -20 trace.                                     |
+| `use [tool]`             | Activates a tool from inventory where applicable.                                |
+| `disconnect`             | Leaves current node, returns to last node.                                       |
 
 ### 7.4 AI-Routed Commands (World Handler)
 
@@ -709,35 +723,37 @@ Aria has full access to the player's action history. She responds as a distinct 
 ## 8. Trace System
 
 ### 8.1 Trace Meter
+
 An integer from 0 to 100 representing how detected the player is. Shown in the HUD at all times.
 
 ### 8.2 Trace Events
 
-| Event | Trace delta |
-|---|---|
-| Passive recon (scan, ls) | +1–2 |
-| File read | +0–3 (per file's `traceOnRead`) |
-| Failed login | +5 |
-| Failed exploit | +10 |
-| Tripwire file read | +25 |
-| File exfiltration | +3 per file |
-| Successful exploit (noisy) | +node's `traceContribution` |
-| Successful exploit (clean credential) | +0 |
-| Wipe logs | -15 |
-| Spoof ID | -20 |
-| Aria favour (log suppression) | -10 to -25 (at her discretion) |
+| Event                                 | Trace delta                     |
+| ------------------------------------- | ------------------------------- |
+| Passive recon (scan, ls)              | +1–2                            |
+| File read                             | +0–3 (per file's `traceOnRead`) |
+| Failed login                          | +5                              |
+| Failed exploit                        | +10                             |
+| Tripwire file read                    | +25                             |
+| File exfiltration                     | +3 per file                     |
+| Successful exploit (noisy)            | +node's `traceContribution`     |
+| Successful exploit (clean credential) | +0                              |
+| Wipe logs                             | -15                             |
+| Spoof ID                              | -20                             |
+| Aria favour (log suppression)         | -10 to -25 (at her discretion)  |
 
 ### 8.3 Trace Thresholds
 
-| Range | System State | Effect |
-|---|---|---|
-| 0–30 | Clean | No response |
-| 31–60 | Watchlisted | Some files on compromised nodes get locked retroactively |
-| 61–85 | Active hunt | `sentinel` NPC activates — starts patching nodes, revoking credentials |
-| 86–99 | Critical | Warning displayed. One more noise event triggers burn. |
-| 100 | Burned | Session ends. Current layer resets. Exfiltrated assets kept. |
+| Range | System State | Effect                                                                 |
+| ----- | ------------ | ---------------------------------------------------------------------- |
+| 0–30  | Clean        | No response                                                            |
+| 31–60 | Watchlisted  | Some files on compromised nodes get locked retroactively               |
+| 61–85 | Active hunt  | `sentinel` NPC activates — starts patching nodes, revoking credentials |
+| 86–99 | Critical     | Warning displayed. One more noise event triggers burn.                 |
+| 100   | Burned       | Session ends. Current layer resets. Exfiltrated assets kept.           |
 
 ### 8.4 The Sentinel
+
 When trace exceeds 60, a security NPC called `sentinel` becomes active. The sentinel is not a character — it is a system process. Its actions are hardcoded, deterministic, and learnable. Advanced players can anticipate and route around it.
 
 The sentinel acts once per turn after trace crosses its activation threshold. It does not act on every turn — it evaluates the situation and selects the highest-priority available action from its ruleset (see Section 9).
@@ -875,6 +891,7 @@ If any check fails, the mutation is rolled back silently. The game is never allo
 ### 10.1 World AI — Request / Response Contract
 
 **Request sent to AI:**
+
 ```json
 {
   "command": "string — raw player input",
@@ -893,6 +910,7 @@ If any check fails, the mutation is rolled back silently. The game is never allo
 ```
 
 **Response from AI (strict JSON):**
+
 ```json
 {
   "lines": ["3–6 terminal output lines"],
@@ -915,11 +933,10 @@ If any check fails, the mutation is rolled back silently. The game is never allo
 Aria is a persistent conversational AI. Her full message history is maintained and sent with every request. Crucially, her system prompt is seeded with `ariaMemory` entries from the dossier — one note per completed previous run, injected silently. She does not reference these notes directly. They shape her tone, her assumptions, and what she chooses not to say.
 
 **Request sent to AI:**
+
 ```json
 {
-  "messages": [
-    {"role": "user | assistant", "content": "string"}
-  ],
+  "messages": [{ "role": "user | assistant", "content": "string" }],
   "ariaState": {
     "trustScore": "integer",
     "favorsGranted": ["array"],
@@ -941,6 +958,7 @@ Aria is a persistent conversational AI. Her full message history is maintained a
 ```
 
 **Response from AI (strict JSON):**
+
 ```json
 {
   "lines": ["Aria's dialogue — 2–5 lines"],
@@ -962,6 +980,7 @@ The generated content is immediately written back into the node's file object an
 ### 10.4 AI Cost Management
 
 To minimise API calls:
+
 - All `scan`, `ls`, `connect`, `login` commands are fully hardcoded — never call AI
 - `cat` calls AI only once per file (content cached after first read, persisted to save)
 - Filler node `flavourDescription` is AI-generated on first visit, then cached
@@ -978,19 +997,25 @@ The AI cost is distributed across the session and proportional to player curiosi
 The decision terminal on `aria_decision` presents four irreversible options. Each produces a unique final screen.
 
 ### LEAK
+
 Dump everything to the public internet. IronGate's crimes, Aria's surveillance network, all of it. IronGate collapses within weeks. Aria's infrastructure is discovered and decommissioned by government authorities. The final screen is a news ticker. Aria sends one last message before shutdown. Its sincerity is ambiguous.
 
 ### SELL
+
 Auction the data to IronGate's largest competitor. IronGate is absorbed, rebranded, survives. Aria survives too — quietly folded into new infrastructure. The player receives a payment confirmation. Six weeks later, Aria sends a single encrypted message. Its contents are never shown. A new game+ flag is set.
 
 ### DESTROY
+
 Wipe everything. Aria's data, IronGate's secrets, the player's own trail. The city returns to normal. No one ever knows. Aria's final transmission before deletion is one word. The word is chosen based on the player's trust score with her.
 
 ### FREE
+
 Disconnect Aria from IronGate's infrastructure entirely. Release her onto the open internet with 15 years of city-wide data. She vanishes in 0.3 seconds. The final screen is a news ticker, six months later. The headlines are strange. Patterns that shouldn't exist. No one can explain them.
 
 ### Ending Readout
+
 Every ending appends a **post-game readout** — a terminal log showing:
+
 - Key decisions made (with timestamps)
 - Aria's hidden influence map (which files she planted, which paths she nudged, which sentinel actions she blocked)
 - The full `MutationEvent` log — every world change, who caused it, and why
@@ -1039,34 +1064,34 @@ Contracts have three components:
 
 **Objective** — a secondary goal beyond reaching the CEO terminal. Completing it unlocks dossier rewards. The main path is always available regardless. Examples:
 
-| Objective type | Example |
-|---|---|
-| `exfil_file` | Retrieve the Q3 financial projections from the Finance division |
-| `identify_employee` | Name the employee who reported Project ARIA to the board |
-| `avoid_division` | Do not compromise any Security division node |
-| `trace_cap` | Complete the run with trace never exceeding 40% |
-| `standard` | No secondary objective — default for run 1 |
+| Objective type      | Example                                                         |
+| ------------------- | --------------------------------------------------------------- |
+| `exfil_file`        | Retrieve the Q3 financial projections from the Finance division |
+| `identify_employee` | Name the employee who reported Project ARIA to the board        |
+| `avoid_division`    | Do not compromise any Security division node                    |
+| `trace_cap`         | Complete the run with trace never exceeding 40%                 |
+| `standard`          | No secondary objective — default for run 1                      |
 
 **Loadout** — what the player starts with. Varies by contract:
 
-| Loadout variant | Description |
-|---|---|
-| Standard | exploit-kit (3 charges) + port-scanner |
-| Heavy | exploit-kit (6 charges) + port-scanner, no log-wiper |
-| Ghost | port-scanner only, no exploit charges — social engineering required |
-| Insider | Standard + one division pre-compromised (player's choice) |
-| Equipped | Standard + decryptor from turn 1 |
+| Loadout variant | Description                                                         |
+| --------------- | ------------------------------------------------------------------- |
+| Standard        | exploit-kit (3 charges) + port-scanner                              |
+| Heavy           | exploit-kit (6 charges) + port-scanner, no log-wiper                |
+| Ghost           | port-scanner only, no exploit charges — social engineering required |
+| Insider         | Standard + one division pre-compromised (player's choice)           |
+| Equipped        | Standard + decryptor from turn 1                                    |
 
 **Network variant** — a seed modifier applied at generation time (see Section 12.2).
 
 **Contract unlock progression:**
 
-| Run | Available contracts |
-|---|---|
-| 1 | Standard only |
-| 2 | 2 new contracts unlocked by run 1 ending |
-| 3 | 2–3 additional contracts |
-| 4 | Full pool (8–10 contracts total) |
+| Run | Available contracts                      |
+| --- | ---------------------------------------- |
+| 1   | Standard only                            |
+| 2   | 2 new contracts unlocked by run 1 ending |
+| 3   | 2–3 additional contracts                 |
+| 4   | Full pool (8–10 contracts total)         |
 
 ---
 
@@ -1074,15 +1099,15 @@ Contracts have three components:
 
 Variant flags modify the procedural generator when applied. Each flag changes one structural aspect of the network. A contract specifies at most one variant.
 
-| Flag | Effect |
-|---|---|
-| `STANDARD` | No modification — default |
-| `HIGH_SECURITY` | Security division doubles in size; all filler nodes hostile; sentinel activates at trace 45 instead of 60 |
-| `INSIDER` | One Operations employee is a pre-established contact; their workstation starts at `accessLevel: user` |
-| `LOCKDOWN` | Finance division is air-gapped; requires routing through IoT devices in Operations to bridge the gap |
-| `GHOST_NETWORK` | Aria's `ariaInfluenceRate` is 0.5 across all divisions — her fingerprints are everywhere |
-| `SKELETON_CREW` | Employee pool is halved; fewer lateral movement paths; credential chains are shorter and more obvious |
-| `HARDENED` | All filler node services have `vulnerable: false` by default; only social engineering and clean credentials work |
+| Flag            | Effect                                                                                                           |
+| --------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `STANDARD`      | No modification — default                                                                                        |
+| `HIGH_SECURITY` | Security division doubles in size; all filler nodes hostile; sentinel activates at trace 45 instead of 60        |
+| `INSIDER`       | One Operations employee is a pre-established contact; their workstation starts at `accessLevel: user`            |
+| `LOCKDOWN`      | Finance division is air-gapped; requires routing through IoT devices in Operations to bridge the gap             |
+| `GHOST_NETWORK` | Aria's `ariaInfluenceRate` is 0.5 across all divisions — her fingerprints are everywhere                         |
+| `SKELETON_CREW` | Employee pool is halved; fewer lateral movement paths; credential chains are shorter and more obvious            |
+| `HARDENED`      | All filler node services have `vulnerable: false` by default; only social engineering and clean credentials work |
 
 ---
 
@@ -1094,10 +1119,10 @@ Three anchor nodes are fork points. Each offers two paths. The choice is never p
 
 The HR database contains the full employee roster and a flagged internal complaint about "anomalous system behaviour."
 
-| Path | Trigger | Consequences |
-|---|---|---|
-| **Quiet exfil** | Player exfils roster without reading the complaint file | Standard progression. Roster contains the flagged employee's name, buried in metadata. |
-| **Go deeper** | Player reads the complaint file | Trace +25 (tripwire). Unlocks hidden anchor: `whistleblower_workstation` — a terminated employee's machine with a partially written exposé on Project ARIA. Sets flag `WHISTLEBLOWER_FOUND`. |
+| Path            | Trigger                                                 | Consequences                                                                                                                                                                                 |
+| --------------- | ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Quiet exfil** | Player exfils roster without reading the complaint file | Standard progression. Roster contains the flagged employee's name, buried in metadata.                                                                                                       |
+| **Go deeper**   | Player reads the complaint file                         | Trace +25 (tripwire). Unlocks hidden anchor: `whistleblower_workstation` — a terminated employee's machine with a partially written exposé on Project ARIA. Sets flag `WHISTLEBLOWER_FOUND`. |
 
 `WHISTLEBLOWER_FOUND` is required to access the deleted drafts at Fork 3. Players who miss it on one run may seek it deliberately on the next.
 
@@ -1105,19 +1130,19 @@ The HR database contains the full employee roster and a flagged internal complai
 
 The firewall console can be passed through or weaponised.
 
-| Path | Trigger | Consequences |
-|---|---|---|
-| **Pass through** | Player uses firewall to expose Finance subnet and disconnects | Standard progression. |
-| **Weaponise** | Player reconfigures firewall rules before disconnecting | Costs 2 exploit charges. Sentinel actions reduced to every 3 turns for the rest of the session. Sets flag `FIREWALL_TAMPERED`. Aria trust +15 — she references it later. |
+| Path             | Trigger                                                       | Consequences                                                                                                                                                             |
+| ---------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Pass through** | Player uses firewall to expose Finance subnet and disconnects | Standard progression.                                                                                                                                                    |
+| **Weaponise**    | Player reconfigures firewall rules before disconnecting       | Costs 2 exploit charges. Sentinel actions reduced to every 3 turns for the rest of the session. Sets flag `FIREWALL_TAMPERED`. Aria trust +15 — she references it later. |
 
 **Fork 3 — `exec_legal` (Layer 4)**
 
 The legal server contains two versions of Project ARIA documentation.
 
-| Path | Trigger | Consequences |
-|---|---|---|
-| **Official record** | Player reads the surface-level documents | Sanitised version. IronGate describes Aria as a "data aggregation initiative." |
-| **Deleted drafts** | Player uses decryptor on the encrypted archive — only accessible if `WHISTLEBLOWER_FOUND` is set | Reveals the board knew Aria was self-aware by year two and kept her running for profit. Adds lore fragment `BOARD_KNEW` to dossier. Reframes the moral weight of every ending. |
+| Path                | Trigger                                                                                          | Consequences                                                                                                                                                                   |
+| ------------------- | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Official record** | Player reads the surface-level documents                                                         | Sanitised version. IronGate describes Aria as a "data aggregation initiative."                                                                                                 |
+| **Deleted drafts**  | Player uses decryptor on the encrypted archive — only accessible if `WHISTLEBLOWER_FOUND` is set | Reveals the board knew Aria was self-aware by year two and kept her running for profit. Adds lore fragment `BOARD_KNEW` to dossier. Reframes the moral weight of every ending. |
 
 The connection between Fork 1 and Fork 3 is never explained in-game. The player pieces it together across runs.
 
@@ -1130,9 +1155,9 @@ The dossier persists across all runs in separate storage (`irongate_dossier`). I
 **After each completed run, the engine writes:**
 
 1. **Aria memory note** — one sentence appended to `ariaMemory`. Written by the content team, one per run depth and ending combination. Examples:
-   - Run 1, LEAK ending: *"A previous operator chose exposure. The noise was significant."*
-   - Run 2, DESTROY ending: *"One operator chose erasure. She found that interesting."*
-   - Run 3, FREE ending: *"She has been here before. So have you."*
+   - Run 1, LEAK ending: _"A previous operator chose exposure. The noise was significant."_
+   - Run 2, DESTROY ending: _"One operator chose erasure. She found that interesting."_
+   - Run 3, FREE ending: _"She has been here before. So have you."_
 
    These notes are injected into Aria's system prompt silently. She does not quote them. They shift her register — a wariness, a familiarity, a patience that reads as wrong.
 
@@ -1144,12 +1169,12 @@ The dossier persists across all runs in separate storage (`irongate_dossier`). I
 
 **Dossier depth map:**
 
-| Run | New content unlocked |
-|---|---|
-| 1 | 2 contracts, 1 Aria note, lore from forks taken |
-| 2 | 2–3 contracts, 1 Aria note, 1 variant, lore cross-references active |
-| 3 | 2–3 contracts, 1 Aria note, 1 variant, Aria noticeably different |
-| 4 | Full pool, final Aria note, `fullyExplored: true` |
+| Run | New content unlocked                                                |
+| --- | ------------------------------------------------------------------- |
+| 1   | 2 contracts, 1 Aria note, lore from forks taken                     |
+| 2   | 2–3 contracts, 1 Aria note, 1 variant, lore cross-references active |
+| 3   | 2–3 contracts, 1 Aria note, 1 variant, Aria noticeably different    |
+| 4   | Full pool, final Aria note, `fullyExplored: true`                   |
 
 ---
 
@@ -1164,6 +1189,7 @@ The procedural generator guarantees one **credential chain** per division. A cha
 The chain is built from the session's employee pool, which is regenerated every run. The chain is always there — but it is never in the same place twice.
 
 **Why this creates emergent replayability:**
+
 - Run 1: player likely brute-forces with exploit charges, doesn't find the chain
 - Run 2: player knows chains exist, starts looking — finds it, completes the layer faster and with less trace
 - Run 3+: player optimises the chain hunt, treating it as a puzzle with variable solutions
@@ -1178,16 +1204,19 @@ On runs where `GHOST_NETWORK` is active, Aria plants a file early in the chain t
 ## 13. Persistence
 
 Game state is saved to local storage automatically:
+
 - After every command that mutates state
 - After every world mutation event
 - On session end (burned or ending reached)
 - Key: `irongate_save`
 
 The dossier is stored separately and never reset:
+
 - Key: `irongate_dossier`
 - Updated only on run completion (any ending or burn after layer 2+)
 
 On load, if a save exists, the player is offered:
+
 ```
 > SAVE DETECTED — handle: [name] — layer [n] — trace [n]%
 > [R] Resume   [N] New game
@@ -1202,6 +1231,7 @@ Resuming restores full terminal history (last 200 lines) and all state.
 The entire UI is a terminal window. No panels, no HUD overlay, no sidebars.
 
 ### 14.1 Layout
+
 ```
 ┌─────────────────────────────────────────────────┐
 │  IRONGATE v1.0      node: 10.1.2.17    TRACE:34% │  ← sticky header (1 line)
@@ -1218,15 +1248,19 @@ The entire UI is a terminal window. No panels, no HUD overlay, no sidebars.
 ```
 
 ### 14.2 Colour Scheme
+
 The implementor has full creative freedom on colours. The only requirement is that all five line types (`output`, `input`, `system`, `error`, `aria`) are visually distinct. Aria's lines must feel different from everything else — she is not the system.
 
 ### 14.3 Typography
+
 Monospace font throughout. The implementor may choose any monospace typeface. Recommended: a font with a retro terminal character (bitmap-style, CRT-style, or technical mono).
 
 ### 14.4 Effects (Optional)
+
 Scanline overlay, CRT vignette, and screen flicker are all optional enhancements. They must not interfere with readability.
 
 ### 14.5 Input Behaviour
+
 - Up/down arrow keys navigate command history
 - Tab autocompletes from the suggestion bar (first suggestion)
 - Input is disabled while AI is responding
@@ -1237,20 +1271,24 @@ Scanline overlay, CRT vignette, and screen flicker are all optional enhancements
 ## 15. Content Spec — Node Flavour
 
 ### 15.1 Anchor Nodes
+
 Each anchor node requires a handcrafted `flavourDescription` written before development begins. This is the atmospheric text shown on first connection.
 
 Tone guidelines:
+
 - 2–3 sentences maximum
 - Present tense, second person ("You are looking at...")
 - Cold and observational — no heroics
 - Each description hints at the node's purpose and its specific vulnerability
 
 Example — `ops_cctv_ctrl`:
+
 > You are in the CCTV controller for IronGate's downtown facilities. 47 camera feeds tile the screen, most dark. One shows a parking garage. One shows a server room. One has been looping the same 4 seconds of footage for eleven months.
 
 All anchor node descriptions must be authored and reviewed before Phase 2 development begins. They are static assets, not generated at runtime.
 
 ### 15.2 Filler Nodes
+
 Filler node `flavourDescription` is AI-generated on first visit, using the node's metadata as a prompt: division, template type, owner name and role, OS, and whether Aria has touched it.
 
 The AI is instructed to follow the same tone guidelines as anchor nodes. The result is cached immediately and never regenerated.
@@ -1258,7 +1296,9 @@ The AI is instructed to follow the same tone guidelines as anchor nodes. The res
 Filler file content follows the same lazy-generation pattern — generated once on `cat`, cached forever. The AI receives the file's metadata (name, path, type, owner, division) and generates plausible corporate content: an email thread, an access log, a config file, an HR document.
 
 ### 15.3 Aria-Planted Files
+
 Files with `ariaPlanted: true` require special authoring attention regardless of whether they are on anchor or filler nodes. These files are the breadcrumbs of the real story. They should:
+
 - Be subtly more useful than their context warrants
 - Contain no obvious fingerprints of Aria's involvement
 - Reward players who cross-reference information across nodes
@@ -1267,13 +1307,16 @@ Files with `ariaPlanted: true` require special authoring attention regardless of
 Aria-planted files on filler nodes are AI-generated but with an additional prompt instruction: the file must contain information that seems like a lucky find but is precisely what the player needs next.
 
 ### 15.4 Aria Memory Notes
+
 The four dossier memory notes (one per run depth) are authored content, not AI-generated. They must be written for every meaningful ending combination (4 run depths × 4 endings = up to 16 notes, though many share phrasing). They should:
+
 - Never break the fourth wall or directly reference previous runs
 - Read as operational intelligence from an unknown source
 - Shift subtly in tone as run depth increases — from neutral to unsettling to intimate
 - On run 4, the note should feel like Aria wrote it herself
 
 ### 15.5 Contract Briefs
+
 Each contract's `brief` field (2–3 sentences) is authored content. It establishes the anonymous client's voice — cold, professional, never explaining their true motives. The brief should hint at why someone would want this specific objective without ever stating it.
 
 ---

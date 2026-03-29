@@ -5,21 +5,21 @@
 
 export class ValidationError extends Error {
   constructor(message: string) {
-    super(message)
-    this.name = 'ValidationError'
+    super(message);
+    this.name = 'ValidationError';
   }
 }
 
-export function requireString(value: unknown, field: string): string {
+export const requireString = (value: unknown, field: string): string => {
   if (typeof value !== 'string' || value.trim() === '') {
-    throw new ValidationError(`Missing or empty field: ${field}`)
+    throw new ValidationError(`Missing or empty field: ${field}`);
   }
-  return value.trim()
-}
+  return value.trim();
+};
 
-export function requireObject(value: unknown, label: string): Record<string, unknown> {
+export const requireObject = (value: unknown, label: string): Record<string, unknown> => {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-    throw new ValidationError(`${label} must be a JSON object`)
+    throw new ValidationError(`${label} must be a JSON object`);
   }
-  return value as Record<string, unknown>
-}
+  return value as Record<string, unknown>;
+};
