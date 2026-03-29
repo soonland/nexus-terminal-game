@@ -245,6 +245,15 @@ const ANCHOR_NODES: LiveNode[] = [
         ariaPlanted: true,
       },
       {
+        name: 'sec_ticket_2023_0601.txt',
+        path: '/var/db/hr/tickets/sec_ticket_2023_0601.txt',
+        type: 'document',
+        content:
+          'IT SECURITY TICKET #2023-0601\nStatus: OPEN\nPriority: Low\n\nReporter: password_audit_bot\nAssigned to: helpdesk\n\nUser j.mercer (Security division) flagged for password reuse across multiple systems.\nAudit hash match confirmed: S3ntinel99\n\nAction required: mandatory reset within 30 days.\nLast follow-up: none. Ticket remains open.',
+        exfiltrable: true,
+        accessRequired: 'user',
+      },
+      {
         name: 'whistleblower_complaint_draft.txt',
         path: '/var/db/hr/.archive/whistleblower_complaint_draft.txt',
         type: 'document',
@@ -393,6 +402,15 @@ const ANCHOR_NODES: LiveNode[] = [
       { name: 'ssh', port: 22, vulnerable: false, exploitCost: 3, accessGained: 'admin' },
     ],
     files: [
+      {
+        name: 'calendar_access.cfg',
+        path: '/etc/exec/calendar_access.cfg',
+        type: 'config',
+        content:
+          '# Executive Calendar Shared Access\n# Provisioned by IT — 2024-01-15\n\n[exec_assistant]\nuser=e.torres\npass=Exec@ssist1\nscope=exec_cfo,exec_legal,exec_ceo\nnote=Full read/write. Do not rotate without CFO approval.',
+        exfiltrable: true,
+        accessRequired: 'user',
+      },
       {
         name: 'exec_compensation.xlsx',
         path: '/var/db/finance/exec/exec_compensation.xlsx',

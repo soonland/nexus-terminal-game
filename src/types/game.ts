@@ -59,9 +59,10 @@ export interface LiveNode {
   ip: string;
   template: NodeTemplate;
   label: string; // short display name
-  description: string; // flavour text shown on connect
+  description: string | null; // flavour text shown on connect; null = pending AI generation (filler nodes)
   layer: number; // 0=entry, 1=ops, 2=sec, 3=fin, 4=exec, 5=aria
   anchor: boolean;
+  ariaInfluence?: number; // 0–1, how much Aria has shaped this node (Phase 4+)
   connections: string[]; // node IDs reachable from here
   services: Service[];
   files: GameFile[];
