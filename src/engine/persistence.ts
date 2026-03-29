@@ -5,8 +5,8 @@ const SAVE_KEY = 'irongate_save';
 export const saveGame = (state: GameState): void => {
   try {
     localStorage.setItem(SAVE_KEY, JSON.stringify(state));
-  } catch {
-    // Storage full or unavailable — silently ignore
+  } catch (e) {
+    console.warn('[persistence] saveGame failed', e);
   }
 };
 
@@ -21,7 +21,8 @@ export const loadGame = (): GameState | null => {
       recentCommands: Array.isArray(parsed['recentCommands']) ? parsed['recentCommands'] : [],
     };
     return state;
-  } catch {
+  } catch (e) {
+    console.warn('[persistence] loadGame failed', e);
     return null;
   }
 };

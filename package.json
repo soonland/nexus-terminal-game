@@ -24,6 +24,9 @@
       "prettier --write"
     ]
   },
+  "engines": {
+    "node": ">=24"
+  },
   "dependencies": {
     "@fontsource/fira-code": "^5.1.0",
     "@fontsource/ibm-plex-mono": "^5.2.7",
