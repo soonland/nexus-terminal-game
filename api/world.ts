@@ -57,7 +57,7 @@ The player is a hacker navigating a corporate network. You interpret freeform co
 
 You MUST respond with valid JSON matching this exact shape:
 {
-  "narrative": "<1-3 terse sentences in character — technical, no pleasantries>",
+  "narrative": "<1-2 sentences max, under 100 characters each — terse, technical, no pleasantries>",
   "traceChange": <integer 0-5, how much this action increases trace detection>,
   "accessGranted": <boolean, true only if the action narratively grants access>,
   "newAccessLevel": <"user"|"admin"|"root"|null — only set if accessGranted is true>,
@@ -156,7 +156,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       body: JSON.stringify({
         contents: [{ parts: [{ text: fullPrompt }] }],
         generationConfig: {
-          maxOutputTokens: 512,
+          maxOutputTokens: 2048,
           temperature: 0.7,
           responseMimeType: 'application/json',
         },
@@ -184,7 +184,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json(FALLBACK_RESPONSE);
     }
 
-    const parsed = JSON.parse(text) as Partial<WorldAIResponse>;
+    // Gemini sometimes wraps the JSON in markdown code fences — strip them
+    const stripped = text
+      .replace(/^```(?:json)?\s*/i, '')
+      .replace(/\s*```$/, '')
+      .trim();
+    // Extract the outermost JSON object in case there is leading/trailing prose
+    const jsonStart = stripped.indexOf('{');
+    const jsonEnd = stripped.lastIndexOf('}');
+    if (jsonStart === -1 || jsonEnd === -1 || jsonEnd <= jsonStart) {
+      log.error('No JSON object found in Gemini response', stripped.slice(0, 200));
+      return res.status(200).json(FALLBACK_RESPONSE);
+    }
+    const parsed = JSON.parse(stripped.slice(jsonStart, jsonEnd + 1)) as Partial<WorldAIResponse>;
 
     const response: WorldAIResponse = {
       narrative:

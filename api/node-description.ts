@@ -24,7 +24,7 @@ import { ValidationError, requireObject, requireString } from './_lib/validate.j
 const log = makeLogger('node-description');
 
 const GEMINI_API_URL =
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
+  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
 const FALLBACK_DESCRIPTION =
   'You have connected to an unidentified host. System metadata is unavailable.';
 

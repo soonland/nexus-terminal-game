@@ -393,8 +393,8 @@ const cmdConnect = async (args: string[], state: GameState): Promise<CommandOutp
       });
       if (res.ok) {
         const data = (await res.json()) as { description?: string };
-        description =
-          typeof data.description === 'string' ? data.description : NODE_DESCRIPTION_FALLBACK;
+        const raw = typeof data.description === 'string' ? data.description.trim() : '';
+        description = raw.length > 0 ? raw : NODE_DESCRIPTION_FALLBACK;
       } else {
         description = NODE_DESCRIPTION_FALLBACK;
       }

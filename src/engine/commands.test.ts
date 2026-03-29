@@ -730,6 +730,10 @@ describe('resolveCommand — connect', () => {
     });
   });
 
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it('should return a usage error when no IP is provided', async () => {
     const result = await resolveCommand('connect', state);
     expect(result.lines[0].type).toBe('error');

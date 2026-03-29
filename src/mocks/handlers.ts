@@ -1,8 +1,16 @@
 import { http, HttpResponse } from 'msw';
 
 export const handlers = [
-  http.post('/api/world-ai', () => {
-    return HttpResponse.json({ unlockedNodeIds: [] });
+  http.post('/api/world', () => {
+    return HttpResponse.json({
+      narrative: '[MOCK WORLD RESPONSE]',
+      traceChange: 0,
+      accessGranted: false,
+      newAccessLevel: null,
+      flagsSet: {},
+      nodesUnlocked: [],
+      isUnknown: false,
+    });
   }),
 
   http.post('/api/file', () => {
