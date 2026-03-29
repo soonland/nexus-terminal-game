@@ -11,7 +11,7 @@ npm run lint          # ESLint (all files)
 npm run format        # Prettier write (all files)
 npm run preview       # preview production build locally
 npm run test          # Vitest run (all tests)
-npm run test:coverage # Vitest with v8 coverage (≥75% per file)
+npm run test:coverage # Vitest with v8 coverage — 75% threshold per file (statements, branches, functions, lines); configured in vitest.config.ts
 npm run test:ui       # Vitest browser UI
 npm run analyze       # production build + open bundle treemap
 npm run knip          # find unused exports, files, and dependencies
@@ -21,7 +21,7 @@ Build (`npm run build`) is the primary correctness check — it runs `tsc -b` be
 
 ## Tooling
 
-- **ESLint** — `eslint.config.js`, `strictTypeChecked` ruleset, uses `tsconfig.eslint.json` (covers all files in one block). Arrow functions enforced (`func-style`), semicolons required, `no-console` warns in `src/`.
+- **ESLint** — `eslint.config.js`, `strictTypeChecked` ruleset, uses `tsconfig.eslint.json` (covers all files in one block). Arrow functions enforced (`func-style`), semicolons required, `no-console` is `error` (only `warn` allowed) in `src/` and `warn` in `api/`. The single exemption is `api/_lib/logger.ts`.
 - **Prettier** — `.prettierrc.json`: single quotes, trailing commas, 100 char width, no arrow parens, bracket same line.
 - **Husky + lint-staged** — pre-commit runs Prettier then ESLint on staged files only. `commit-msg` runs commitlint.
 - **commitlint** — `commitlint.config.js`, enforces Conventional Commits (`feat`, `fix`, `chore`, `docs`, `refactor`, `test`, `ci`, `build`, `perf`, `revert`).

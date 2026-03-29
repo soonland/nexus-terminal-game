@@ -24,7 +24,10 @@
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { makeLogger } from './_lib/logger.js';
 import { ValidationError, requireObject, requireString } from './_lib/validate.js';
+
+const log = makeLogger('world');
 
 const GEMINI_API_URL =
   'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
@@ -91,7 +94,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const apiKey = process.env['GEMINI_API_KEY'];
   if (!apiKey) {
-    console.error('[world] GEMINI_API_KEY not set');
+    log.error('GEMINI_API_KEY not set');
     return res.status(200).json(FALLBACK_RESPONSE);
   }
 
@@ -168,7 +171,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (!geminiRes.ok) {
       const errBody = await geminiRes.text();
-      console.error('[world] Gemini HTTP error', geminiRes.status, errBody);
+      log.error('Gemini HTTP error', geminiRes.status, errBody);
       return res.status(200).json(FALLBACK_RESPONSE);
     }
 
@@ -177,7 +180,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     };
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
     if (!text) {
-      console.error('[world] Gemini empty response', JSON.stringify(data).slice(0, 500));
+      log.error('Gemini empty response', JSON.stringify(data).slice(0, 500));
       return res.status(200).json(FALLBACK_RESPONSE);
     }
 
@@ -197,7 +200,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     return res.status(200).json(response);
   } catch (e) {
-    console.error('[world] Unexpected error', e);
+    log.error('Unexpected error', e);
     return res.status(200).json(FALLBACK_RESPONSE);
   }
 }

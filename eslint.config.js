@@ -41,6 +41,13 @@ export default tseslint.config(
     },
   },
   {
+    // src/ should never log directly — use the terminal output pipeline instead
+    files: ['src/**/*.{ts,tsx}'],
+    rules: {
+      'no-console': ['error', { allow: ['warn'] }],
+    },
+  },
+  {
     files: ['**/__tests__/**/*.ts', '**/*.test.ts', '**/*.test.tsx'],
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',

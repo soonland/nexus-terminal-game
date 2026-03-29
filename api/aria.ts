@@ -12,7 +12,10 @@
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { makeLogger } from './_lib/logger.js';
 import { ValidationError, requireObject, requireString } from './_lib/validate.js';
+
+const log = makeLogger('aria');
 
 const GEMINI_API_URL =
   'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
@@ -37,6 +40,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const apiKey = process.env['GEMINI_API_KEY'];
   if (!apiKey) {
+    log.error('GEMINI_API_KEY not set');
     return res.status(200).json({ reply: FALLBACK_REPLY });
   }
 
@@ -75,16 +79,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
 
     if (!geminiRes.ok) {
+      const errBody = await geminiRes.text();
+      log.error('Gemini HTTP error', geminiRes.status, errBody);
       return res.status(200).json({ reply: FALLBACK_REPLY });
     }
 
     const data = (await geminiRes.json()) as {
       candidates?: { content?: { parts?: { text?: string }[] } }[];
     };
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? FALLBACK_REPLY;
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+    if (!text) {
+      log.error('Gemini empty response', JSON.stringify(data).slice(0, 500));
+      return res.status(200).json({ reply: FALLBACK_REPLY });
+    }
 
     return res.status(200).json({ reply: text });
-  } catch {
+  } catch (e) {
+    log.error('Unexpected error', e);
     return res.status(200).json({ reply: FALLBACK_REPLY });
   }
 }
