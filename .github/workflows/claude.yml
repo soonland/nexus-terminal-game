@@ -12,21 +12,28 @@ on:
 
 jobs:
   claude:
+    # Only allow the repo owner to invoke @claude.
     if: |
-      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
-      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
-      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
-      (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
+      (
+        github.event.comment.author_association == 'OWNER' ||
+        github.event.review.author_association == 'OWNER' ||
+        github.event.issue.author_association == 'OWNER'
+      ) && (
+        (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
+        (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
+        (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
+        (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
+      )
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       pull-requests: write
       issues: write
       id-token: write
       actions: read # Required for Claude to read CI results on PRs
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 1
 
@@ -35,15 +42,41 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-
+          track_progress: true
           # This is an optional setting that allows Claude to read CI results on PRs
           additional_permissions: |
             actions: read
 
-          # Optional: Give a custom prompt to Claude. If this is not specified, Claude will perform the instructions specified in the comment that tagged it.
-          # prompt: 'Update the pull request description to include a summary of changes.'
+          prompt: |
+            If triggered from a PR comment or review:
+            - Perform the action described in the comment directly.
 
-          # Optional: Add claude_args to customize behavior and configuration
-          # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
-          # or https://code.claude.com/docs/en/cli-reference for available options
-          # claude_args: '--allowed-tools Bash(gh pr:*)'
+            If triggered from an issue comment or issue body containing "@claude implement":
+            - Read the skill file at `.github/skills/implement-feature.md` and follow it exactly.
+            - The issue that triggered this workflow is the current issue context.
+
+            If triggered from an issue body or comment containing "@claude" (but NOT "implement"):
+            - Read the issue body carefully.
+            - Explore the codebase to understand the relevant files and existing patterns.
+            - Post a comment on the issue with a structured implementation plan in this format:
+
+            ## Scope
+            <one or two sentences describing what needs to change and which package(s) are affected>
+
+            ## Tasks
+            - [ ] <specific file path or component to create/modify>
+            - [ ] <next task>
+            - [ ] Tests + typecheck pass
+
+            ## Dependencies
+            <other issues that must be merged first, or "None">
+
+            ## Blocks
+            <issues that cannot start until this is merged, or "None">
+
+            ## Known Limitations
+            <edge cases, deferred work, or constraints worth flagging>
+
+            Do NOT write or commit any code. Post the plan as a comment only.
+
+          claude_args: "--model claude-sonnet-4-6 --max-turns 50"
