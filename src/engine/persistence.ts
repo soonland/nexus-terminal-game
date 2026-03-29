@@ -14,7 +14,11 @@ export function loadGame(): GameState | null {
   try {
     const raw = localStorage.getItem(SAVE_KEY)
     if (!raw) return null
-    return JSON.parse(raw) as GameState
+    const state = JSON.parse(raw) as GameState
+    // Migrate saves that predate Phase 3 fields
+    if (state.turnCount === undefined) state.turnCount = 0
+    if (state.recentCommands === undefined) state.recentCommands = []
+    return state
   } catch {
     return null
   }
