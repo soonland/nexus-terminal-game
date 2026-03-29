@@ -1,9 +1,11 @@
 # IRONGATE — GitHub Issues
+
 > Copy each issue block below into a new GitHub issue.
 > Labels referenced: `phase-1` through `phase-10`, `p0`, `p1`, `p2`, `engine`, `ai`, `ui`, `content`, `replayability`, `mutation`, `polish`
 > Create these labels in your repo before importing.
 
 ---
+
 ---
 
 ## PHASE 1 — Foundation
@@ -17,9 +19,11 @@
 **Spec ref:** §2 Technical Constraints, §2.1 AI Provider Strategy
 
 #### Description
+
 Set up the project from scratch. This is the foundation everything else builds on. No game logic yet — just a running app with correct structure, tooling, and environment configuration.
 
 #### Tasks
+
 - [ ] Initialise project with chosen framework (Next.js recommended per spec)
 - [ ] Set up folder structure: `app/`, `components/Terminal/`, `engine/`, `types/`
 - [ ] Configure TypeScript (strict mode)
@@ -30,6 +34,7 @@ Set up the project from scratch. This is the foundation everything else builds o
 - [ ] Set up basic CI (lint + typecheck on push)
 
 #### Acceptance criteria
+
 > `npm run dev` starts without errors. `.env.example` documents all required keys. TypeScript and lint pass on an empty project.
 
 ---
@@ -41,9 +46,11 @@ Set up the project from scratch. This is the foundation everything else builds o
 **Spec ref:** §14.1 Layout
 
 #### Description
+
 The core UI component. A scrollable container that renders terminal output lines. No input yet — just the output pane.
 
 #### Tasks
+
 - [ ] Create `Terminal` component as full-viewport container
 - [ ] Render an array of `TerminalLine` objects as output
 - [ ] Auto-scroll to bottom whenever new lines are added
@@ -51,6 +58,7 @@ The core UI component. A scrollable container that renders terminal output lines
 - [ ] Container must not clip or overflow horizontally
 
 #### Acceptance criteria
+
 > Hardcoded array of 50+ lines renders correctly. Adding a new line scrolls to bottom automatically. Horizontal text wraps cleanly.
 
 ---
@@ -62,9 +70,11 @@ The core UI component. A scrollable container that renders terminal output lines
 **Spec ref:** §14.5 Input Behaviour
 
 #### Description
+
 The input line at the bottom of the terminal. Handles text entry, submission, and command history navigation.
 
 #### Tasks
+
 - [ ] Text input field fixed to bottom of terminal
 - [ ] Press Enter to submit command (must not be empty)
 - [ ] Submitted command echoed as `input`-type line in output
@@ -75,6 +85,7 @@ The input line at the bottom of the terminal. Handles text entry, submission, an
 - [ ] Clicking anywhere on terminal refocuses input field
 
 #### Acceptance criteria
+
 > Player can type a command, submit with Enter, see it echoed. Up/down arrows cycle through previous commands correctly. Input stays focused after any click on the terminal.
 
 ---
@@ -86,9 +97,11 @@ The input line at the bottom of the terminal. Handles text entry, submission, an
 **Spec ref:** §5.1 TerminalLine
 
 #### Description
+
 Five line types must render with visually distinct colours. This is the primary information hierarchy of the UI.
 
 #### Tasks
+
 - [ ] `output` — main narrative (bright, primary colour)
 - [ ] `input` — echoed player command (mid, prefixed with `> `)
 - [ ] `system` — local engine responses (normal)
@@ -98,6 +111,7 @@ Five line types must render with visually distinct colours. This is the primary 
 - [ ] All colours defined as CSS variables, not hardcoded hex values
 
 #### Acceptance criteria
+
 > All six line types render with clearly distinct colours. Aria lines are immediately visually distinguishable from system output.
 
 ---
@@ -109,15 +123,18 @@ Five line types must render with visually distinct colours. This is the primary 
 **Spec ref:** §14.1 Layout
 
 #### Description
+
 One-line sticky header showing game state at a glance. Renders static placeholder values for now — it will connect to live state in Phase 2.
 
 #### Tasks
+
 - [ ] Fixed single-line bar at top of terminal
 - [ ] Displays: game title | current node IP | TRACE: `n`%
 - [ ] Does not scroll with terminal output
 - [ ] Header and terminal output do not overlap
 
 #### Acceptance criteria
+
 > Header is always visible regardless of terminal scroll position. Placeholder values display correctly.
 
 ---
@@ -129,15 +146,18 @@ One-line sticky header showing game state at a glance. Renders static placeholde
 **Spec ref:** §3 Core Gameplay Loop
 
 #### Description
+
 The first thing the player sees. A sequence of system-boot lines that play out before the game begins. Sets tone immediately.
 
 #### Tasks
+
 - [ ] On first load, display boot lines one by one with a short delay between each
 - [ ] Lines include: version string, memory check, radiation level, "SURVIVOR PROFILE DETECTED", name prompt
 - [ ] After last boot line, enter name-input phase
 - [ ] Boot sequence plays only on new game, not on resume
 
 #### Acceptance criteria
+
 > Boot lines appear sequentially with visible timing. Final line prompts for player name. Resuming an existing save skips the boot sequence.
 
 ---
@@ -149,9 +169,11 @@ The first thing the player sees. A sequence of system-boot lines that play out b
 **Spec ref:** §14.2–14.4
 
 #### Description
+
 The visual foundation. Monospace font, terminal colour scheme, and optional CRT effects. Effects must not compromise readability.
 
 #### Tasks
+
 - [ ] Import monospace font (Fira Code or equivalent — no Inter, Arial, or system fonts)
 - [ ] Define all colour CSS variables: bg, green, green-bright, green-mid, green-dim, danger, warn
 - [ ] Background is near-black, not pure black
@@ -161,6 +183,7 @@ The visual foundation. Monospace font, terminal colour scheme, and optional CRT 
 - [ ] All effects are CSS-only and do not affect interactivity
 
 #### Acceptance criteria
+
 > Terminal is visually distinctive and readable. CRT effects are visible but do not make text hard to read. Font renders as monospace on all major browsers.
 
 ---
@@ -172,9 +195,11 @@ The visual foundation. Monospace font, terminal colour scheme, and optional CRT 
 **Spec ref:** §14.1 Layout
 
 #### Description
+
 Sits above the input line. Shows 2–3 suggested next commands. Tab autocompletes with the first suggestion.
 
 #### Tasks
+
 - [ ] Render suggestion buttons above input prompt
 - [ ] Clicking a suggestion populates the input field (does not submit)
 - [ ] Tab key autocompletes with first suggestion
@@ -182,9 +207,11 @@ Sits above the input line. Shows 2–3 suggested next commands. Tab autocomplete
 - [ ] Suggestions accept a string array as props
 
 #### Acceptance criteria
+
 > Hardcoded suggestions render. Tab fills input with first suggestion. Clicking any suggestion populates input correctly. Empty array hides the bar entirely.
 
 ---
+
 ---
 
 ## PHASE 2 — Node Engine
@@ -198,9 +225,11 @@ Sits above the input line. Shows 2–3 suggested next commands. Tab autocomplete
 **Spec ref:** §4 Game State
 
 #### Description
+
 The single source of truth for all game data. Must match the spec exactly. All mutations go through this store.
 
 #### Tasks
+
 - [ ] Implement full state shape from §4: `session`, `contract`, `player`, `network`, `aria`, `forks`, `flags`, `terminalHistory`
 - [ ] State is one serialisable JSON object
 - [ ] All mutations are explicit functions — no direct state writes outside the store
@@ -208,6 +237,7 @@ The single source of truth for all game data. Must match the spec exactly. All m
 - [ ] `terminalHistory` capped at 200 lines
 
 #### Acceptance criteria
+
 > State can be serialised with `JSON.stringify` without data loss. Every field in §4 is present with correct types. State update functions are the only way to mutate state.
 
 ---
@@ -219,9 +249,11 @@ The single source of truth for all game data. Must match the spec exactly. All m
 **Spec ref:** §13 Persistence
 
 #### Description
+
 Game state is saved automatically and restored on reload. Two separate keys: session save and dossier.
 
 #### Tasks
+
 - [ ] Auto-save to `irongate_save` after every state mutation
 - [ ] On load: check for existing save, display resume prompt if found
 - [ ] Resume prompt: show handle, layer, trace — offer `[R] Resume` or `[N] New game`
@@ -230,6 +262,7 @@ Game state is saved automatically and restored on reload. Two separate keys: ses
 - [ ] New game clears `irongate_save` only, never `irongate_dossier`
 
 #### Acceptance criteria
+
 > Refreshing the page mid-game offers a resume prompt. Resuming restores the exact terminal state. Starting a new game clears the session save.
 
 ---
@@ -241,9 +274,11 @@ Game state is saved automatically and restored on reload. Two separate keys: ses
 **Spec ref:** §6.2 Anchor Nodes
 
 #### Description
+
 All 16 hardcrafted anchor nodes defined as static data. File content is `null` — that comes in Phase 3.
 
 #### Tasks
+
 - [ ] Define all 16 anchor nodes matching §6.2 table:
   - Layer 0: `contractor_portal`, `vpn_gateway`
   - Layer 1: `ops_cctv_ctrl`, `ops_hr_db`
@@ -257,6 +292,7 @@ All 16 hardcrafted anchor nodes defined as static data. File content is `null` �
 - [ ] `flavourDescription` field present (stub string — authored content comes Phase 10)
 
 #### Acceptance criteria
+
 > All 16 nodes exist in the data layer. Each has at least 2 services and 2 files. The network path from `contractor_portal` to `exec_ceo` is navigable via `connectedTo` edges.
 
 ---
@@ -268,9 +304,11 @@ All 16 hardcrafted anchor nodes defined as static data. File content is `null` �
 **Spec ref:** §7.3 Engine Commands
 
 #### Description
+
 The hardcoded command set. These never call AI. Every response is deterministic.
 
 #### Tasks
+
 - [ ] `scan [ip]` — requires `port-scanner` tool; returns services list; +1 trace; unknown IP returns error
 - [ ] `scan [subnet]` — returns list of discovered IPs in subnet, no detail
 - [ ] `connect [ip] [service]` — returns success if credential known or service is open; auth error otherwise
@@ -281,6 +319,7 @@ The hardcoded command set. These never call AI. Every response is deterministic.
 - [ ] All commands produce correct line types (output/error/system)
 
 #### Acceptance criteria
+
 > Each command produces the correct terminal output for both success and failure cases. Trace increments correctly. Access-gated `ls` returns an error for insufficient access level.
 
 ---
@@ -292,9 +331,11 @@ The hardcoded command set. These never call AI. Every response is deterministic.
 **Spec ref:** §7.2 Local Commands
 
 #### Description
+
 Commands handled instantly in the client — no AI, no trace cost.
 
 #### Tasks
+
 - [ ] `help` — list all available commands with descriptions
 - [ ] `status` — show trace, exploit charges, tools, handle, current node, day
 - [ ] `inventory` — list credentials (discovered), tools, exfiltrated files
@@ -304,6 +345,7 @@ Commands handled instantly in the client — no AI, no trace cost.
 - [ ] Parser runs before engine commands and AI routing
 
 #### Acceptance criteria
+
 > All six local commands return correct formatted output. `clear` empties the terminal but game state is unchanged. `map` correctly marks the current node.
 
 ---
@@ -315,9 +357,11 @@ Commands handled instantly in the client — no AI, no trace cost.
 **Spec ref:** §5.5 Credential
 
 #### Description
+
 Credential objects for all anchor nodes. Discovery tracking. Validation logic.
 
 #### Tasks
+
 - [ ] Define credential objects for all anchor node employees/services
 - [ ] Each credential has: id, username, password, domain, accessLevel, validOnNodes[], discovered: false
 - [ ] `login` command marks credential `discovered: true` on successful use
@@ -326,6 +370,7 @@ Credential objects for all anchor nodes. Discovery tracking. Validation logic.
 - [ ] Revoked credentials (Phase 5) return `credentials revoked` error
 
 #### Acceptance criteria
+
 > Attempting login with a correct credential grants access and marks it discovered. Incorrect credentials add trace. Discovered credentials appear in inventory.
 
 ---
@@ -337,9 +382,11 @@ Credential objects for all anchor nodes. Discovery tracking. Validation logic.
 **Spec ref:** §6.6 Connectivity Rules
 
 #### Description
+
 Nodes are invisible until scanned. The player builds their map through active recon.
 
 #### Tasks
+
 - [ ] Nodes not in `discoveredIPs` are invisible — `connect` to an unknown IP returns "host unreachable"
 - [ ] `scan [subnet]` adds all live IPs in subnet to `discoveredIPs`
 - [ ] `scan [ip]` reveals hostname, OS, and services for that specific IP
@@ -347,6 +394,7 @@ Nodes are invisible until scanned. The player builds their map through active re
 - [ ] Visiting a node (first `connect`) sets `visited: true` on its `LiveNode`
 
 #### Acceptance criteria
+
 > Fresh session shows no nodes. After `scan 10.0.1.0/24`, the external perimeter IPs are discoverable. Connecting to a node adds it to the map.
 
 ---
@@ -358,9 +406,11 @@ Nodes are invisible until scanned. The player builds their map through active re
 **Spec ref:** §5.4 File, §7.3 exfil
 
 #### Description
+
 File objects for anchor nodes. Exfiltration command. Content generation comes in Phase 3.
 
 #### Tasks
+
 - [ ] Define file objects for all anchor nodes with: id, name, path, type, exfiltrable, traceOnRead, ariaPlanted, content: null
 - [ ] `exfil [filepath]` copies file to `player.exfilFiles`; +3 trace per file
 - [ ] `exfil` fails gracefully if file not found or access denied
@@ -368,6 +418,7 @@ File objects for anchor nodes. Exfiltration command. Content generation comes in
 - [ ] Tripwire files add +25 trace on read and set a flag
 
 #### Acceptance criteria
+
 > `exfil` copies the correct file to inventory. Trace increases by 3. Tripwire file triggers +25 trace on `cat`. `inventory` shows exfiltrated files.
 
 ---
@@ -379,9 +430,11 @@ File objects for anchor nodes. Exfiltration command. Content generation comes in
 **Spec ref:** §5.7 Tool
 
 #### Description
+
 Tools are strings in the player inventory. Commands check for required tools before executing.
 
 #### Tasks
+
 - [ ] Player starts with `exploit-kit` (3 charges) and `port-scanner`
 - [ ] `scan` requires `port-scanner` — error if missing
 - [ ] `exploit` requires `exploit-kit` with >0 charges
@@ -391,9 +444,11 @@ Tools are strings in the player inventory. Commands check for required tools bef
 - [ ] Tools can be added to inventory via `inventoryAdd` in AI responses (Phase 3)
 
 #### Acceptance criteria
+
 > `scan` without port-scanner returns an appropriate error. Exploit charges decrement correctly. Using `spoof-id` removes it from inventory.
 
 ---
+
 ---
 
 ## PHASE 3 — AI Loop
@@ -407,9 +462,11 @@ Tools are strings in the player inventory. Commands check for required tools bef
 **Spec ref:** §2.1 Provider Strategy, §10 AI Integration
 
 #### Description
+
 Server-side endpoint that proxies all AI calls. The API key never touches the client. One route per handler type.
 
 #### Tasks
+
 - [ ] Create `/api/world` — proxies to Groq (World AI handler)
 - [ ] Create `/api/file` — proxies to Gemini (file content generation)
 - [ ] Create `/api/aria` — proxies to Gemini (Aria dialogue)
@@ -419,6 +476,7 @@ Server-side endpoint that proxies all AI calls. The API key never touches the cl
 - [ ] Request validation — reject malformed payloads with 400
 
 #### Acceptance criteria
+
 > Calling `/api/world` with a valid payload returns a parsed AI response. Invalid payloads return 400. Removing the API key from env causes the route to return a fallback, not crash.
 
 ---
@@ -430,9 +488,11 @@ Server-side endpoint that proxies all AI calls. The API key never touches the cl
 **Spec ref:** §10.1 World AI Request/Response Contract
 
 #### Description
+
 Any command not matched by the local parser or engine commands is sent here. The AI interprets it and returns structured JSON.
 
 #### Tasks
+
 - [ ] Build request payload from §10.1: `command`, `currentNode`, `playerState`, `recentCommands`, `turnCount`
 - [ ] Send to `/api/world`, parse JSON response
 - [ ] Apply `traceChange` delta to game state
@@ -443,6 +503,7 @@ Any command not matched by the local parser or engine commands is sent here. The
 - [ ] Maintain `recentCommands` buffer of last 8 turns for context
 
 #### Acceptance criteria
+
 > Typing `look for sticky notes` returns a narrative AI response. Trace changes by the correct delta. Unknown commands render in red with suggestions.
 
 ---
@@ -454,9 +515,11 @@ Any command not matched by the local parser or engine commands is sent here. The
 **Spec ref:** §10.3 File Content Generation
 
 #### Description
+
 When a file has `content: null`, the AI generates realistic corporate content and caches it permanently.
 
 #### Tasks
+
 - [ ] `cat [filepath]` checks if `content` is null
 - [ ] If null: send file metadata to `/api/file`, receive generated content string
 - [ ] Write generated content back to file object in game state (persisted to localStorage)
@@ -465,6 +528,7 @@ When a file has `content: null`, the AI generates realistic corporate content an
 - [ ] If `ariaPlanted: true`, prompt instructs AI to make content subtly more useful than context warrants
 
 #### Acceptance criteria
+
 > First `cat` on a null-content file triggers an AI call and displays the result. Second `cat` on the same file returns instantly from cache. Two different files return different content.
 
 ---
@@ -476,9 +540,11 @@ When a file has `content: null`, the AI generates realistic corporate content an
 **Spec ref:** §14.5 Input Behaviour, §10.1
 
 #### Description
+
 The player must always know when the game is waiting for AI. The game must never crash on AI failure.
 
 #### Tasks
+
 - [ ] Input disabled while any AI request is in flight
 - [ ] Show `// processing...` or animated `...` in output while waiting
 - [ ] On AI success: remove loading line, render response
@@ -487,6 +553,7 @@ The player must always know when the game is waiting for AI. The game must never
 - [ ] Retry is the player's choice — no automatic retry
 
 #### Acceptance criteria
+
 > During an AI call, input is disabled and a loading indicator is visible. A simulated network failure returns a graceful error message and re-enables input.
 
 ---
@@ -498,9 +565,11 @@ The player must always know when the game is waiting for AI. The game must never
 **Spec ref:** §15.2 Filler Nodes
 
 #### Description
+
 Filler nodes have no authored `flavourDescription`. Generate one on first visit, cache forever.
 
 #### Tasks
+
 - [ ] On first `connect` to a filler node: check `flavourDescription` is null or stub
 - [ ] If null: call `/api/file` with node metadata (template type, division, owner, OS, ariaInfluence)
 - [ ] Prompt instructs AI to follow anchor node tone guidelines (§15.1): 2–3 sentences, present tense, second person, cold and observational
@@ -508,6 +577,7 @@ Filler nodes have no authored `flavourDescription`. Generate one on first visit,
 - [ ] Anchor node descriptions are never generated — they are authored static strings (stubs until Phase 10)
 
 #### Acceptance criteria
+
 > Connecting to a filler node for the first time generates and displays a flavour description. Reconnecting shows the same description instantly.
 
 ---
@@ -519,9 +589,11 @@ Filler nodes have no authored `flavourDescription`. Generate one on first visit,
 **Spec ref:** §10.1, §14.1
 
 #### Description
+
 World AI responses include 3 suggested next commands. Surface them in the suggestion bar.
 
 #### Tasks
+
 - [ ] Parse `suggestions` array from World AI response
 - [ ] Update suggestion bar state with new suggestions after each AI response
 - [ ] Suggestions reset to empty while a request is in flight
@@ -529,9 +601,11 @@ World AI responses include 3 suggested next commands. Surface them in the sugges
 - [ ] Suggestion bar shows last AI suggestions until next response replaces them
 
 #### Acceptance criteria
+
 > After any AI response, 3 new suggestions appear. Tab fills input with the first. Suggestions are cleared during loading.
 
 ---
+
 ---
 
 ## PHASE 4 — World Map
@@ -545,15 +619,18 @@ World AI responses include 3 suggested next commands. Surface them in the sugges
 **Spec ref:** §6.3 Division Seeds
 
 #### Description
+
 Static seed data for all 5 divisions. This is the configuration the procedural generator reads.
 
 #### Tasks
+
 - [ ] Define seed objects for all 5 divisions: External Perimeter, Operations, Security, Finance, Executive
 - [ ] Each seed includes: divisionId, name, subnet, headcount, techProfile, credentialPattern, securityPosture, fillerTemplates[], ariaInfluenceRate
 - [ ] `fillerTemplates` array with weighted template selections per division (see §6.3 table)
 - [ ] Confirm ariaInfluenceRate values match spec: 0.3, 0.2, 0.1, 0.25, 0.4
 
 #### Acceptance criteria
+
 > All 5 seed objects exist as static data. Template weight arrays sum to 1.0 per division. ariaInfluenceRate values match spec.
 
 ---
@@ -565,9 +642,11 @@ Static seed data for all 5 divisions. This is the configuration the procedural g
 **Spec ref:** §6.4 Procedural Generator
 
 #### Description
+
 Generates all filler nodes at session start using division seeds and a session seed for reproducibility.
 
 #### Tasks
+
 - [ ] Accept a `sessionSeed` integer; all random operations use seeded PRNG
 - [ ] For each division: generate N filler nodes from weighted template pool
 - [ ] Assign sequential IPs within division subnet
@@ -579,6 +658,7 @@ Generates all filler nodes at session start using division seeds and a session s
 - [ ] Store `sessionSeed` in game state
 
 #### Acceptance criteria
+
 > Two sessions with different seeds produce different node configurations. Same seed always produces same network. All generated nodes have correct structure per `NodeInstance` spec.
 
 ---
@@ -590,9 +670,11 @@ Generates all filler nodes at session start using division seeds and a session s
 **Spec ref:** §6.5 Employee Pool, §5.6 Employee
 
 #### Description
+
 Each division gets a pool of fictional employees. Their identities appear across files, emails, and credentials.
 
 #### Tasks
+
 - [ ] Generate N employees per division based on headcount range
 - [ ] Each employee: id, firstName, lastName, divisionId, role, username (firstname.lastname), email, workstationId
 - [ ] Assign 1–2 traits from a division-appropriate weakness pool (never shown to player)
@@ -601,6 +683,7 @@ Each division gets a pool of fictional employees. Their identities appear across
 - [ ] Employee names should feel realistic and varied (not all same format)
 
 #### Acceptance criteria
+
 > Each division has the correct headcount range of employees. Every employee has a unique username. Every employee has a credential and a workstation node.
 
 ---
@@ -612,9 +695,11 @@ Each division gets a pool of fictional employees. Their identities appear across
 **Spec ref:** §6.6 Connectivity Rules
 
 #### Description
+
 Wire the generated network into a traversable graph. Guarantee the layer key is always reachable.
 
 #### Tasks
+
 - [ ] Each filler node connects to 2–4 peers within its division subnet
 - [ ] No orphaned nodes — every filler node reachable from division entry anchor within 3 hops
 - [ ] Anchors are the only nodes with cross-division edges
@@ -622,6 +707,7 @@ Wire the generated network into a traversable graph. Guarantee the layer key is 
 - [ ] If no path: add a direct edge from entry anchor to key anchor as fallback
 
 #### Acceptance criteria
+
 > BFS from `contractor_portal` can reach `exec_ceo` following `connectedTo` edges. No filler node is unreachable from its division's entry point.
 
 ---
@@ -633,9 +719,11 @@ Wire the generated network into a traversable graph. Guarantee the layer key is 
 **Spec ref:** §12.5 Lateral Movement Chains
 
 #### Description
+
 At least one credential chain per division — a sequence of 3–5 nodes where recon on node A leads to node B, then C, surfacing a shortcut to the anchor. Built from the employee pool.
 
 #### Tasks
+
 - [ ] After generating employee pool: select 3–5 employees to form the chain
 - [ ] Node A: contains a file referencing employee B by name and approximate location
 - [ ] Node B (employee B's workstation): contains a file with employee C's credential or hint
@@ -644,9 +732,11 @@ At least one credential chain per division — a sequence of 3–5 nodes where r
 - [ ] Chain nodes are connected to each other directly
 
 #### Acceptance criteria
+
 > Following the chain (reading files on each node) gives enough information to reach the division anchor without using any exploit charges.
 
 ---
+
 ---
 
 ## PHASE 5 — Progression Systems
@@ -660,9 +750,11 @@ At least one credential chain per division — a sequence of 3–5 nodes where r
 **Spec ref:** §8.1–8.2 Trace System
 
 #### Description
+
 The core tension system. Every action adds trace. Thresholds change the game state.
 
 #### Tasks
+
 - [ ] Track `traceLevel` 0–100 in player state
 - [ ] Display in header bar, updated after every command
 - [ ] Apply all trace deltas from §8.2:
@@ -678,6 +770,7 @@ The core tension system. Every action adds trace. Thresholds change the game sta
   - Spoof: -20
 
 #### Acceptance criteria
+
 > Trace increases correctly for each event type. Header updates immediately. Values cannot go below 0 or above 100.
 
 ---
@@ -689,15 +782,18 @@ The core tension system. Every action adds trace. Thresholds change the game sta
 **Spec ref:** §8.3 Trace Thresholds
 
 #### Description
+
 Reaching trace thresholds changes the game. 100 ends the session.
 
 #### Tasks
+
 - [ ] 31%: display `// ALERT: Anomalous activity flagged. Watchlist active.`; lock some files on already-compromised nodes
 - [ ] 61%: display `// ALERT: Active intrusion response initiated.`; trigger sentinel activation (Phase 5-04)
 - [ ] 86%: display `// CRITICAL: One more detection event triggers full lockout.` in danger colour
 - [ ] 100%: burned — display burn screen; keep `exfilFiles` and discovered credentials; reset current layer nodes to pre-compromise state; offer retry
 
 #### Acceptance criteria
+
 > Each threshold triggers at exactly the right value. Burn at 100 preserves exfiltrated files. Retrying from burn starts the player at the current layer entry point.
 
 ---
@@ -709,9 +805,11 @@ Reaching trace thresholds changes the game. 100 ends the session.
 **Spec ref:** §7.3 exploit, §6.2 Layer Structure
 
 #### Description
+
 The `exploit` command and the mechanism that prevents skipping layers.
 
 #### Tasks
+
 - [ ] `exploit [service]` — requires `exploit-kit` with >0 charges; costs 1 charge; sends to World AI handler with exploit context; applies response
 - [ ] If service `vulnerable: false`: exploit fails, +10 trace, no charge consumed
 - [ ] If service `vulnerable: true`: AI narrates outcome; access may be granted
@@ -720,6 +818,7 @@ The `exploit` command and the mechanism that prevents skipping layers.
 - [ ] Blocked cross-division connect returns: `// ACCESS DENIED — current layer incomplete`
 
 #### Acceptance criteria
+
 > Exploit on vulnerable service grants access (AI-determined). Exploit on non-vulnerable service fails and adds trace. Attempting to connect to layer 2 without completing layer 1 is blocked.
 
 ---
@@ -731,9 +830,11 @@ The `exploit` command and the mechanism that prevents skipping layers.
 **Spec ref:** §9.3 Sentinel Mutation Rules
 
 #### Description
+
 The Sentinel activates at trace 61. One action per turn, in priority order.
 
 #### Tasks
+
 - [ ] Sentinel activates when trace first crosses 61
 - [ ] Evaluates priority queue once per player turn (after player action is resolved)
 - [ ] Priority 1 — patch most recently compromised node: set `sentinelPatched: true`; display alert
@@ -744,9 +845,11 @@ The Sentinel activates at trace 61. One action per turn, in priority order.
 - [ ] Log every action as `MutationEvent` with `agent: sentinel`
 
 #### Acceptance criteria
+
 > After trace crosses 61, sentinel actions appear in terminal output. Nodes get patched. Credentials get revoked. Exfiltrated file source gets deleted after 3 turns. New IP appears in subnet scans.
 
 ---
+
 ---
 
 ## PHASE 6 — Aria
@@ -760,9 +863,11 @@ The Sentinel activates at trace 61. One action per turn, in priority order.
 **Spec ref:** §6.2 exec_ceo
 
 #### Description
+
 The narrative turning point. The CEO terminal reveals the hidden subnetwork.
 
 #### Tasks
+
 - [ ] `exec_ceo` node contains `aria-key` as a discoverable file/artifact
 - [ ] `aria-key` requires admin access to read
 - [ ] Reading aria-key displays a cryptic message (authored stub for now)
@@ -771,6 +876,7 @@ The narrative turning point. The CEO terminal reveals the hidden subnetwork.
 - [ ] Set `session.phase = 'aria'` and `aria.discovered = true`
 
 #### Acceptance criteria
+
 > Connecting to `exec_ceo` with admin access, reading and exfiltrating `aria-key` unlocks the Aria subnetwork. `aria_core` becomes connectable.
 
 ---
@@ -782,9 +888,11 @@ The narrative turning point. The CEO terminal reveals the hidden subnetwork.
 **Spec ref:** §6.2 Aria Subnetwork
 
 #### Description
+
 The five Aria subnetwork nodes are fully hardcrafted — no procedural generation. All have authored flavour and file stubs.
 
 #### Tasks
+
 - [ ] Define all 5 nodes: `aria_surveillance`, `aria_behavioural`, `aria_personnel`, `aria_core`, `aria_decision`
 - [ ] All on `172.16.0.0/16` subnet
 - [ ] Each has authored `flavourDescription` (stub — authored in Phase 10)
@@ -793,6 +901,7 @@ The five Aria subnetwork nodes are fully hardcrafted — no procedural generatio
 - [ ] Sentinel never acts on these nodes (enforce in sentinel logic)
 
 #### Acceptance criteria
+
 > All 5 nodes are navigable. Files generate content on `cat`. Sentinel alert messages never reference Aria subnet IPs.
 
 ---
@@ -804,9 +913,11 @@ The five Aria subnetwork nodes are fully hardcrafted — no procedural generatio
 **Spec ref:** §7.5 Aria Dialogue Handler, §10.2 Aria AI Contract
 
 #### Description
+
 Aria speaks. Routes to Gemini. Full message history maintained.
 
 #### Tasks
+
 - [ ] Commands on Aria subnetwork nodes route to `/api/aria` instead of `/api/world`
 - [ ] `aria:` prefix on any node also routes to Aria handler
 - [ ] Build request payload per §10.2: full `messages` history, `ariaState`, `playerFullHistory`, `dossierContext`
@@ -816,9 +927,11 @@ Aria speaks. Routes to Gemini. Full message history maintained.
 - [ ] Handle `offersFavor` — display cost clearly, require player confirmation
 
 #### Acceptance criteria
+
 > Typing `aria: hello` on any node routes to Aria and returns an in-character response. Trust score changes after interactions. Favour offer is displayed with cost before acceptance.
 
 ---
+
 ---
 
 ## PHASE 7 — Endings
@@ -832,9 +945,11 @@ Aria speaks. Routes to Gemini. Full message history maintained.
 **Spec ref:** §11 Endings
 
 #### Description
+
 The final node. Presents four choices. Irreversible.
 
 #### Tasks
+
 - [ ] On connect to `aria_decision`: display four options
   ```
   [1] LEAK     — expose everything
@@ -848,6 +963,7 @@ The final node. Presents four choices. Irreversible.
 - [ ] Aria's final message plays before the ending screen
 
 #### Acceptance criteria
+
 > Connecting to `aria_decision` presents four choices. Only valid inputs 1–4 are accepted. Selecting an option is permanent and triggers the ending sequence.
 
 ---
@@ -859,9 +975,11 @@ The final node. Presents four choices. Irreversible.
 **Spec ref:** §11 Endings
 
 #### Description
+
 Each ending has a distinct final screen. Tone and content are authored in Phase 10 — these are the structural shells.
 
 #### Tasks
+
 - [ ] **LEAK**: news ticker scrolling terminal output; Aria farewell message (stub)
 - [ ] **SELL**: payment confirmation terminal; delayed encrypted Aria message (stub)
 - [ ] **DESTROY**: wipe confirmation with progress bar; one-word Aria final transmission (trust-dependent — random word for now, authored in Phase 10)
@@ -870,6 +988,7 @@ Each ending has a distinct final screen. Tone and content are authored in Phase 
 - [ ] All endings offer `[N] New game` after readout
 
 #### Acceptance criteria
+
 > All four endings display without errors. Each is visually distinct. Post-game readout follows every ending. New game prompt works.
 
 ---
@@ -881,9 +1000,11 @@ Each ending has a distinct final screen. Tone and content are authored in Phase 
 **Spec ref:** §11 Ending Readout
 
 #### Description
+
 The reveal. Shows Aria's hidden influence map and the full mutation log. Only possible to show what the system has been tracking all along.
 
 #### Tasks
+
 - [ ] Display terminal log of key player decisions with turn numbers
 - [ ] Display all `MutationEvent` records — sentinel actions shown as alerts, Aria mutations shown as reveals
 - [ ] Highlight Aria-planted files the player read (from `ariaInfluencedFilesRead`)
@@ -892,9 +1013,11 @@ The reveal. Shows Aria's hidden influence map and the full mutation log. Only po
 - [ ] Readout is scrollable terminal output, not a separate UI component
 
 #### Acceptance criteria
+
 > Post-game readout shows the full MutationEvent log. Aria's silent mutations are revealed. Player stats are accurate. Everything fits within the terminal UI.
 
 ---
+
 ---
 
 ## PHASE 8 — Replayability
@@ -908,9 +1031,11 @@ The reveal. Shows Aria's hidden influence map and the full mutation log. Only po
 **Spec ref:** §5.9 Dossier, §13 Persistence
 
 #### Description
+
 The persistent layer that carries information between runs. Never resets.
 
 #### Tasks
+
 - [ ] Implement `Dossier` object matching §5.9
 - [ ] Store at `irongate_dossier` in localStorage — separate from session save
 - [ ] Initialise empty dossier on first run if not present
@@ -920,6 +1045,7 @@ The persistent layer that carries information between runs. Never resets.
 - [ ] Dossier is never cleared by `[N] New game` — only an explicit "reset all progress" action
 
 #### Acceptance criteria
+
 > Completing a run updates the dossier. Refreshing the page preserves dossier state. Starting a new game keeps the dossier intact. `runsCompleted` increments correctly.
 
 ---
@@ -931,9 +1057,11 @@ The persistent layer that carries information between runs. Never resets.
 **Spec ref:** §5.8 Contract, §12.1 Run Contracts
 
 #### Description
+
 Every run (after the first) starts with a contract. Different loadouts, objectives, network variants.
 
 #### Tasks
+
 - [ ] Run 1 always uses `standard` contract — no contract screen
 - [ ] Run 2+: display contract screen before name input
 - [ ] Show contract: title, brief (2–3 sentence stub), objective description, loadout
@@ -943,6 +1071,7 @@ Every run (after the first) starts with a contract. Different loadouts, objectiv
 - [ ] Track `contract.objectiveComplete` — detect when objective condition is met mid-run
 
 #### Acceptance criteria
+
 > Run 2 presents a contract screen. Reroll shows a different contract. Accepting applies the loadout correctly. A trace-cap objective detects when trace exceeds the cap.
 
 ---
@@ -954,15 +1083,18 @@ Every run (after the first) starts with a contract. Different loadouts, objectiv
 **Spec ref:** §12.3 Branching Anchor Nodes, §5.10 AnchorFork
 
 #### Description
+
 Three anchor nodes are decision points that fork available information. Choices emerge from player behaviour, not menus.
 
 #### Tasks
+
 - [ ] **Fork 1 — `ops_hr_db`**: detect if player reads complaint file before exfilling roster; if yes: +25 trace, unlock `whistleblower_workstation`, set `WHISTLEBLOWER_FOUND` flag
 - [ ] **Fork 2 — `sec_firewall`**: detect if player uses World AI to weaponise firewall; if yes: -2 exploit charges, sentinel acts every 3 turns instead of every 1, set `FIREWALL_TAMPERED`, Aria trust +15
 - [ ] **Fork 3 — `exec_legal`**: gate encrypted archive behind `WHISTLEBLOWER_FOUND` flag; if accessible and read: add `BOARD_KNEW` lore fragment to dossier
 - [ ] Store chosen path for each fork in `session.forks`
 
 #### Acceptance criteria
+
 > Playing through `ops_hr_db` without reading the complaint takes Path A. Reading the complaint takes Path B and unlocks the whistleblower node. Fork 3's encrypted archive is inaccessible without Fork 1's Path B.
 
 ---
@@ -974,9 +1106,11 @@ Three anchor nodes are decision points that fork available information. Choices 
 **Spec ref:** §10.2 Aria AI, §12.4 Meta-Progression
 
 #### Description
+
 Aria's behaviour shifts across runs based on what has happened before. The dossier notes are silently injected into her system prompt.
 
 #### Tasks
+
 - [ ] On run 2+: read `dossier.ariaMemory` array (max 4 entries)
 - [ ] Inject notes into Aria's system prompt as silent context — not as dialogue
 - [ ] Notes must not cause Aria to break character or reference "previous runs" explicitly
@@ -984,9 +1118,11 @@ Aria's behaviour shifts across runs based on what has happened before. The dossi
 - [ ] Verify Aria's responses feel subtly different on run 2 vs run 1 during testing
 
 #### Acceptance criteria
+
 > Aria API requests on run 2+ include dossier context in the payload. Aria's tone noticeably shifts when given memory notes (qualitative check during playtesting).
 
 ---
+
 ---
 
 ## PHASE 9 — Mutation System Completion
@@ -1000,9 +1136,11 @@ Aria's behaviour shifts across runs based on what has happened before. The dossi
 **Spec ref:** §9.5 Unwinnable State Prevention
 
 #### Description
+
 After every mutation — sentinel or Aria — the engine validates that the game is still completable. If not, the mutation is rolled back silently.
 
 #### Tasks
+
 - [ ] After every `MutationEvent`: run three validation checks per §9.5:
   1. Path from current node to current layer key anchor still exists (BFS)
   2. At least one valid, unexpired credential OR available exploit charge leads to that path
@@ -1012,6 +1150,7 @@ After every mutation — sentinel or Aria — the engine validates that the game
 - [ ] Write a test for each of the three validation checks
 
 #### Acceptance criteria
+
 > A simulated sentinel action that would cut off the only path to the layer key is rolled back. The game remains completable. Unit tests for all three checks pass.
 
 ---
@@ -1023,15 +1162,18 @@ After every mutation — sentinel or Aria — the engine validates that the game
 **Spec ref:** §9.4 Aria Mutation Rules (trust 60, trust 80)
 
 #### Description
+
 The two Aria mutations not yet implemented. Silent. Logged but invisible to player.
 
 #### Tasks
+
 - [ ] **Trust 60 — reroute edge**: add direct `connectedTo` edge from player's current node to a locked anchor; shortcut appears in next `scan` output silently
 - [ ] **Trust 80 — delete reinforcement**: remove a sentinel-spawned node from the network; IP disappears from future scans; sentinel does not re-spawn it
 - [ ] Both mutations log a `MutationEvent` with `visibleToPlayer: false`
 - [ ] Run unwinnable check after each mutation
 
 #### Acceptance criteria
+
 > At trust 60, a shortcut connection appears without any system message. At trust 80, a reinforcement node's IP stops appearing in scans. Both events appear in post-game readout.
 
 ---
@@ -1043,9 +1185,11 @@ The two Aria mutations not yet implemented. Silent. Logged but invisible to play
 **Spec ref:** §9.2 MutationEvent
 
 #### Description
+
 Audit every mutation across the codebase to ensure all events are logged correctly before the post-game readout depends on them.
 
 #### Tasks
+
 - [ ] List every state mutation that should log a `MutationEvent`
 - [ ] Verify each mutation creates an event with: `id`, `turn`, `agent`, `type`, `targetId`, `reason`, `visibleToPlayer`
 - [ ] Verify `visibleToPlayer: false` on all Aria mutations
@@ -1053,9 +1197,11 @@ Audit every mutation across the codebase to ensure all events are logged correct
 - [ ] Verify post-game readout correctly renders the full log
 
 #### Acceptance criteria
+
 > A full playthrough produces a complete `MutationEvent` log. Every sentinel alert in the terminal corresponds to a logged event. Every Aria intervention in the readout corresponds to a logged event.
 
 ---
+
 ---
 
 ## PHASE 10 — Polish & Content
@@ -1069,15 +1215,18 @@ Audit every mutation across the codebase to ensure all events are logged correct
 **Spec ref:** §15.1 Anchor Nodes
 
 #### Description
+
 All 16 anchor nodes need authored `flavourDescription` strings. These replace the stubs set in Phase 2.
 
 #### Tasks
+
 - [ ] Write flavour for all 16 anchors following tone guidelines: 2–3 sentences, present tense, second person, cold and observational, hints at vulnerability
 - [ ] Each description must hint at the node's specific weak point without stating it
 - [ ] Aria subnetwork nodes should feel distinctly different — colder, more precise, inhuman
 - [ ] Review pass for consistency of tone across all 16
 
 #### Acceptance criteria
+
 > All 16 anchor nodes display authored descriptions on first connect. No stub strings remain in production data. Tone review signed off by at least one team member.
 
 ---
@@ -1089,9 +1238,11 @@ All 16 anchor nodes need authored `flavourDescription` strings. These replace th
 **Spec ref:** §15.4 Aria Memory Notes
 
 #### Description
+
 Up to 16 short authored strings that Aria carries across runs. These shape her character without breaking immersion.
 
 #### Tasks
+
 - [ ] Write one note per run depth (1–4) per major ending type (LEAK, SELL, DESTROY, FREE)
 - [ ] Notes must never reference "previous runs" or "previous players" explicitly
 - [ ] Notes should escalate in intimacy: run 1 neutral → run 4 feels like Aria wrote it herself
@@ -1099,6 +1250,7 @@ Up to 16 short authored strings that Aria carries across runs. These shape her c
 - [ ] Implement note selection logic: after each run, write the correct note to dossier
 
 #### Acceptance criteria
+
 > 16 memory notes authored and mapped to run/ending combinations. Note selection logic routes correctly. Qualitative review confirms tone shifts across run depths.
 
 ---
@@ -1110,9 +1262,11 @@ Up to 16 short authored strings that Aria carries across runs. These shape her c
 **Spec ref:** §15.5 Contract Briefs, §12.1 Run Contracts
 
 #### Description
+
 The full contract pool. 8–10 contracts authored with briefs, objectives, and loadouts.
 
 #### Tasks
+
 - [ ] Author 8–10 contract objects matching §5.8 structure
 - [ ] Each has a `brief`: 2–3 sentences, anonymous client voice, hints at motive without stating it
 - [ ] Cover all objective types: `exfil_file`, `identify_employee`, `avoid_division`, `trace_cap`
@@ -1121,6 +1275,7 @@ The full contract pool. 8–10 contracts authored with briefs, objectives, and l
 - [ ] Map `rewardOnComplete` to unlock correct dossier content
 
 #### Acceptance criteria
+
 > All 10 contracts are authored and structurally valid. Unlock progression matches §12.1 table. Completing a contract on run 2 unlocks the correct run 3 contracts.
 
 ---
@@ -1132,9 +1287,11 @@ The full contract pool. 8–10 contracts authored with briefs, objectives, and l
 **Spec ref:** §16 Open Questions (item 8)
 
 #### Description
+
 Tune all numeric values based on actual playtesting. The spec's values are starting points, not final values.
 
 #### Tasks
+
 - [ ] Log all trace delta events during 5+ internal playthroughs
 - [ ] Identify if player reaches burn too fast (reduce passive recon trace) or too slow (increase failed login trace)
 - [ ] Tune sentinel activation threshold (currently 61 — may need adjustment)
@@ -1143,6 +1300,7 @@ Tune all numeric values based on actual playtesting. The spec's values are start
 - [ ] Document final values and rationale in a balance notes file
 
 #### Acceptance criteria
+
 > 5 internal playthroughs completed. Balance notes document exists. No run should end at burn before layer 3 on a first playthrough unless the player is being deliberately reckless.
 
 ---
@@ -1154,9 +1312,11 @@ Tune all numeric values based on actual playtesting. The spec's values are start
 **Spec ref:** §2.1 Provider Strategy, §16 (item 11)
 
 #### Description
+
 Evaluate Aria's character on Gemini Flash after playtesting. Escalate to Claude if needed.
 
 #### Tasks
+
 - [ ] Complete at least 10 hours of Aria dialogue playtesting on Gemini Flash
 - [ ] Evaluate: Does Aria feel like a distinct character? Does she reference player history accurately? Does she maintain consistent tone?
 - [ ] If quality is acceptable: document decision to keep Gemini Flash
@@ -1165,9 +1325,11 @@ Evaluate Aria's character on Gemini Flash after playtesting. Escalate to Claude 
 - [ ] Document provider decision in deployment notes
 
 #### Acceptance criteria
+
 > Provider decision for Aria is documented and justified. If escalated to Claude, env vars are updated and tested. No code changes required — only config.
 
 ---
+
 ---
 
 ## CROSS-CUTTING ISSUES
@@ -1181,9 +1343,11 @@ Evaluate Aria's character on Gemini Flash after playtesting. Escalate to Claude 
 **Spec ref:** §5 Data Models
 
 #### Description
+
 All data models from the spec must have corresponding TypeScript types. No `any`. No implicit types.
 
 #### Tasks
+
 - [ ] `TerminalLine` and `TerminalLineType`
 - [ ] `NodeTemplate`, `NodeInstance`, `LiveNode`
 - [ ] `Service`, `File`, `Credential`, `Employee`
@@ -1194,6 +1358,7 @@ All data models from the spec must have corresponding TypeScript types. No `any`
 - [ ] All enums: `GamePhase`, `DangerLevel`, `Relationship`, `AccessLevel`
 
 #### Acceptance criteria
+
 > TypeScript strict mode passes with zero errors. No `any` types in production code. All API handler payloads are fully typed.
 
 ---
@@ -1205,9 +1370,11 @@ All data models from the spec must have corresponding TypeScript types. No `any`
 **Spec ref:** §7.1 Command Resolution Priority
 
 #### Description
+
 A single entry point for all player input. Routes to the correct handler in the correct priority order.
 
 #### Tasks
+
 - [ ] Implement resolution order per §7.1:
   1. Local command parser (instant, no AI, no trace)
   2. Engine commands (deterministic, no AI)
@@ -1217,6 +1384,7 @@ A single entry point for all player input. Routes to the correct handler in the 
 - [ ] The pipeline is a single function called on every input submission
 
 #### Acceptance criteria
+
 > `help` never calls AI. `scan` never calls AI. `aria: hello` routes to Aria handler even on a non-Aria node. Any unknown command reaches the World AI handler.
 
 ---
@@ -1228,15 +1396,18 @@ A single entry point for all player input. Routes to the correct handler in the 
 **Spec ref:** §4 Game State (`sessionSeed`), §6.6 Connectivity Rules
 
 #### Description
+
 All procedural generation uses a seeded pseudo-random number generator so the same seed always produces the same network.
 
 #### Tasks
+
 - [ ] Select and implement a seeded PRNG (e.g. mulberry32 or similar — lightweight, no dependencies)
 - [ ] All random calls in the procedural generator use this PRNG, seeded from `sessionSeed`
 - [ ] `sessionSeed` is a random integer generated at new-game start and stored in game state
 - [ ] Given identical seed + division seeds, two generated networks are byte-for-byte identical
 
 #### Acceptance criteria
+
 > Two sessions created with the same `sessionSeed` produce identical node networks. Different seeds produce different networks. PRNG is deterministic across environments (browser + Node).
 
 ---

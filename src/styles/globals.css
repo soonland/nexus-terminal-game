@@ -7,39 +7,43 @@
 
 /* ── ncurses / dialog color palette ──────────────────────── */
 :root {
-  --color-bg:          #0000aa;   /* classic ncurses blue */
-  --color-bg-header:   #0000aa;
-  --color-border:      #5555ff;   /* bright blue border */
+  --color-bg: #0000aa; /* classic ncurses blue */
+  --color-bg-header: #0000aa;
+  --color-border: #5555ff; /* bright blue border */
 
-  --color-output:      #ffffff;   /* white */
-  --color-input:       #ffffff;
-  --color-system:      #aaaaaa;   /* light gray */
-  --color-separator:   #5555ff;   /* bright blue */
-  --color-dim:         #aaaaaa;
+  --color-output: #ffffff; /* white */
+  --color-input: #ffffff;
+  --color-system: #aaaaaa; /* light gray */
+  --color-separator: #5555ff; /* bright blue */
+  --color-dim: #aaaaaa;
 
-  --color-error:       #ff5555;   /* bright red */
-  --color-aria:        #55ffff;   /* bright cyan */
+  --color-error: #ff5555; /* bright red */
+  --color-aria: #55ffff; /* bright cyan */
   --color-aria-border: #00aaaa;
 
   /* Trace meter */
-  --color-safe:        #55ff55;
-  --color-elevated:    #ffff55;
-  --color-active:      #ff5500;
-  --color-aggressive:  #ff5555;
+  --color-safe: #55ff55;
+  --color-elevated: #ffff55;
+  --color-active: #ff5500;
+  --color-aggressive: #ff5555;
 
   --font-mono: 'IBM VGA 8x16', 'VT323', monospace;
-  --font-size:  16px;
+  --font-size: 16px;
   --line-height: 1.5;
 }
 
 /* ── Reset ────────────────────────────────────────────────── */
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
-html, body, #root {
+html,
+body,
+#root {
   height: 100%;
   width: 100%;
   overflow: hidden;
@@ -63,11 +67,22 @@ body {
   word-break: break-word;
 }
 
-.line--output    { color: var(--color-output); }
-.line--input     { color: var(--color-input); }
-.line--system    { color: var(--color-system); }
-.line--error     { color: var(--color-error); }
-.line--separator { color: var(--color-separator); user-select: none; }
+.line--output {
+  color: var(--color-output);
+}
+.line--input {
+  color: var(--color-input);
+}
+.line--system {
+  color: var(--color-system);
+}
+.line--error {
+  color: var(--color-error);
+}
+.line--separator {
+  color: var(--color-separator);
+  user-select: none;
+}
 .line--aria {
   color: var(--color-aria);
   border-left: 2px solid var(--color-aria-border);
@@ -75,6 +90,13 @@ body {
 }
 
 /* ── Scrollbar ────────────────────────────────────────────── */
-::-webkit-scrollbar { width: 4px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 0; }
+::-webkit-scrollbar {
+  width: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 0;
+}

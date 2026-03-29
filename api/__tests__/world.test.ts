@@ -217,13 +217,11 @@ describe('POST /api/world — with API key', () => {
   it('returns fallback when fetch returns non-ok response', async () => {
     vi.stubGlobal(
       'fetch',
-      vi
-        .fn()
-        .mockResolvedValue({
-          ok: false,
-          status: 500,
-          text: vi.fn().mockResolvedValue('Internal Server Error'),
-        }),
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 500,
+        text: vi.fn().mockResolvedValue('Internal Server Error'),
+      }),
     );
 
     const res = makeRes();

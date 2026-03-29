@@ -2,7 +2,7 @@
 
 A browser-based terminal hacking game with a sci-fi noir aesthetic. You are a Nexus Corp field operative tasked with infiltrating the corporate network of IronGate Corp — pivoting node by node toward the executive subnet, where something unexpected is waiting.
 
-Inspired by *Mr. Robot*, *Neuromancer*, and the classic feel of TN3270/DOS terminals.
+Inspired by _Mr. Robot_, _Neuromancer_, and the classic feel of TN3270/DOS terminals.
 
 ---
 
@@ -37,37 +37,37 @@ Every action increases your trace percentage. At **61%** an automated Sentinel a
 
 ### Commands
 
-| Command | Description |
-|---|---|
-| `help` | List all commands |
-| `status` | Current trace, charges, node, tools |
-| `inventory` | Credentials, tools, exfiltrated files |
-| `map` | Discovered network nodes |
-| `scan [ip]` | Probe a node or subnet (+1 trace) |
-| `connect [ip]` | Move to a node |
-| `login [user] [pass]` | Authenticate (+5 trace on failure) |
-| `ls [path]` | List files on current node |
-| `cat [file]` | Read a file |
-| `exfil [file]` | Copy file to inventory (+3 trace) |
-| `exploit [service]` | Exploit a vulnerable service (costs charges) |
-| `disconnect` | Return to previous node |
-| `wipe-logs` | Reduce trace -15% (requires log-wiper tool) |
-| `clear` | Clear terminal |
+| Command               | Description                                  |
+| --------------------- | -------------------------------------------- |
+| `help`                | List all commands                            |
+| `status`              | Current trace, charges, node, tools          |
+| `inventory`           | Credentials, tools, exfiltrated files        |
+| `map`                 | Discovered network nodes                     |
+| `scan [ip]`           | Probe a node or subnet (+1 trace)            |
+| `connect [ip]`        | Move to a node                               |
+| `login [user] [pass]` | Authenticate (+5 trace on failure)           |
+| `ls [path]`           | List files on current node                   |
+| `cat [file]`          | Read a file                                  |
+| `exfil [file]`        | Copy file to inventory (+3 trace)            |
+| `exploit [service]`   | Exploit a vulnerable service (costs charges) |
+| `disconnect`          | Return to previous node                      |
+| `wipe-logs`           | Reduce trace -15% (requires log-wiper tool)  |
+| `clear`               | Clear terminal                               |
 
 ---
 
 ## Tech Stack
 
-| Layer | Technology |
-|---|---|
-| Frontend | Vite + React + TypeScript |
-| Styling | Pure CSS — IBM VGA 8x16 font, ncurses/DOS aesthetic |
-| Game engine | Client-side state machine (no backend needed for core gameplay) |
-| AI — creative commands | Groq API (llama-3.3-70b) — Phase 3 |
-| AI — file content | Google Gemini Flash — Phase 3 |
-| AI — Aria dialogue | Google Gemini Flash — Phase 3 |
-| Hosting | Vercel (static site + serverless functions) |
-| Persistence | localStorage (session) + Vercel KV (shared cache, Phase 3+) |
+| Layer                  | Technology                                                      |
+| ---------------------- | --------------------------------------------------------------- |
+| Frontend               | Vite + React + TypeScript                                       |
+| Styling                | Pure CSS — IBM VGA 8x16 font, ncurses/DOS aesthetic             |
+| Game engine            | Client-side state machine (no backend needed for core gameplay) |
+| AI — creative commands | Groq API (llama-3.3-70b) — Phase 3                              |
+| AI — file content      | Google Gemini Flash — Phase 3                                   |
+| AI — Aria dialogue     | Google Gemini Flash — Phase 3                                   |
+| Hosting                | Vercel (static site + serverless functions)                     |
+| Persistence            | localStorage (session) + Vercel KV (shared cache, Phase 3+)     |
 
 ---
 
@@ -124,6 +124,7 @@ npm run dev
 Open [http://localhost:5173](http://localhost:5173).
 
 **Login credentials** (Nexus Corp operative):
+
 ```
 login: ghost
 password: nX-2847
@@ -148,18 +149,18 @@ AI features are not required to play — the game engine works fully without the
 
 ## Implementation Roadmap
 
-| Phase | Status | Description |
-|---|---|---|
-| 1 — Foundation | ✅ Done | Terminal UI, splash, login, MOTD, CRT aesthetic |
-| 2 — Node Engine | ✅ Done | 16 anchor nodes, all engine commands, trace meter, persistence |
-| 3 — AI Loop | 🔜 Next | Creative commands, AI file content, Aria placeholder |
-| 4 — World Map | ⬜ Planned | Procedural filler nodes (38–52), employee pool generator |
-| 5 — Progression | ⬜ Planned | Trace thresholds, Sentinel system, layer gating |
-| 6 — Aria | ⬜ Planned | Aria subnetwork, dialogue, trust score, mutations |
-| 7 — Endings | ⬜ Planned | 4 endings + post-game readout |
-| 8 — Replayability | ⬜ Planned | Dossier, contracts, fork decisions |
-| 9 — Mutations | ⬜ Planned | Unwinnable prevention, full Sentinel/Aria mutation log |
-| 10 — Polish | ⬜ Planned | Authored content, balance pass, sound |
+| Phase             | Status     | Description                                                    |
+| ----------------- | ---------- | -------------------------------------------------------------- |
+| 1 — Foundation    | ✅ Done    | Terminal UI, splash, login, MOTD, CRT aesthetic                |
+| 2 — Node Engine   | ✅ Done    | 16 anchor nodes, all engine commands, trace meter, persistence |
+| 3 — AI Loop       | 🔜 Next    | Creative commands, AI file content, Aria placeholder           |
+| 4 — World Map     | ⬜ Planned | Procedural filler nodes (38–52), employee pool generator       |
+| 5 — Progression   | ⬜ Planned | Trace thresholds, Sentinel system, layer gating                |
+| 6 — Aria          | ⬜ Planned | Aria subnetwork, dialogue, trust score, mutations              |
+| 7 — Endings       | ⬜ Planned | 4 endings + post-game readout                                  |
+| 8 — Replayability | ⬜ Planned | Dossier, contracts, fork decisions                             |
+| 9 — Mutations     | ⬜ Planned | Unwinnable prevention, full Sentinel/Aria mutation log         |
+| 10 — Polish       | ⬜ Planned | Authored content, balance pass, sound                          |
 
 ---
 
