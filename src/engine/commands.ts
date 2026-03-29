@@ -11,6 +11,7 @@ interface WorldAIResponse {
   flagsSet: Record<string, boolean>;
   nodesUnlocked: string[];
   isUnknown: boolean;
+  suggestions: string[];
 }
 
 const WORLD_AI_FALLBACK: WorldAIResponse = {
@@ -21,6 +22,7 @@ const WORLD_AI_FALLBACK: WorldAIResponse = {
   flagsSet: {},
   nodesUnlocked: [],
   isUnknown: true,
+  suggestions: [],
 };
 
 type Out = CommandOutput['lines'];
@@ -195,7 +197,12 @@ const cmdWorldAI = async (raw: string, state: GameState): Promise<CommandOutput>
     lines.push(sys(`  +${String(aiResponse.traceChange)} trace`));
   }
 
-  return { lines, nextState: next };
+  const rawSuggestions = aiResponse.suggestions;
+  const suggestions = Array.isArray(rawSuggestions)
+    ? rawSuggestions.filter((s): s is string => typeof s === 'string')
+    : [];
+
+  return { lines, nextState: next, suggestions };
 };
 
 // ── help ──────────────────────────────────────────────────

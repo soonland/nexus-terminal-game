@@ -40,6 +40,7 @@ export interface WorldAIResponse {
   flagsSet: Record<string, boolean>;
   nodesUnlocked: string[];
   isUnknown: boolean;
+  suggestions: string[];
 }
 
 const FALLBACK_RESPONSE: WorldAIResponse = {
@@ -50,6 +51,7 @@ const FALLBACK_RESPONSE: WorldAIResponse = {
   flagsSet: {},
   nodesUnlocked: [],
   isUnknown: true,
+  suggestions: [],
 };
 
 const SYSTEM_PROMPT = `You are the World AI for a hacking terminal game called NEXUS.
@@ -63,7 +65,8 @@ You MUST respond with valid JSON matching this exact shape:
   "newAccessLevel": <"user"|"admin"|"root"|null — only set if accessGranted is true>,
   "flagsSet": <object of string→boolean game flags set by this action, or {}>,
   "nodesUnlocked": <array of node IDs that become reachable, or []>,
-  "isUnknown": <boolean, true if the command is completely nonsensical in context>
+  "isUnknown": <boolean, true if the command is completely nonsensical in context>,
+  "suggestions": <array of exactly 3 short command strings the player could try next, contextually appropriate>
 }
 
 Rules:
@@ -72,6 +75,7 @@ Rules:
 - Trace costs should reflect operational noise: passive observation = 0-1, active probing = 2-3, aggressive = 4-5
 - Keep narrative terse and technical. No "Sure!" or "I can help with that."
 - If the command is nonsensical or impossible in context, set isUnknown: true and explain briefly in narrative
+- suggestions must always be an array of exactly 3 short strings: valid commands the player could type next given the current node and game state
 - Do not output anything outside the JSON object`;
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -208,6 +212,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       flagsSet: parsed.flagsSet && typeof parsed.flagsSet === 'object' ? parsed.flagsSet : {},
       nodesUnlocked: Array.isArray(parsed.nodesUnlocked) ? parsed.nodesUnlocked : [],
       isUnknown: typeof parsed.isUnknown === 'boolean' ? parsed.isUnknown : false,
+      suggestions: Array.isArray(parsed.suggestions)
+        ? parsed.suggestions.filter((s): s is string => typeof s === 'string')
+        : [],
     };
 
     return res.status(200).json(response);

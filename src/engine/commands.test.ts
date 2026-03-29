@@ -21,6 +21,7 @@ const DEFAULT_AI_RESPONSE = {
   flagsSet: {},
   nodesUnlocked: [],
   isUnknown: false,
+  suggestions: [],
 };
 
 // ── Tests ──────────────────────────────────────────────────
@@ -1539,5 +1540,74 @@ describe('resolveCommand — wipe-logs', () => {
     const result = await resolveCommand('wipe-logs', withTool);
     const contents = result.lines.map(l => l.content);
     expect(contents.some(c => c.includes('15%'))).toBe(true);
+  });
+});
+
+describe('resolveCommand — AI suggestions', () => {
+  let state: GameState;
+
+  beforeEach(() => {
+    state = createInitialState();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('should return suggestions from AI response', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValue(
+          makeOkFetchResponse({ ...DEFAULT_AI_RESPONSE, suggestions: ['scan', 'ls', 'status'] }),
+        ),
+    );
+    const result = await resolveCommand('frobnicate', state);
+    expect(result.suggestions).toEqual(['scan', 'ls', 'status']);
+  });
+
+  it('should return empty suggestions array when AI returns empty array', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(makeOkFetchResponse({ ...DEFAULT_AI_RESPONSE, suggestions: [] })),
+    );
+    const result = await resolveCommand('frobnicate', state);
+    expect(result.suggestions).toEqual([]);
+  });
+
+  it('should return empty suggestions array when AI omits suggestions field', async () => {
+    // DEFAULT_AI_RESPONSE has suggestions: [] but we spread without it to simulate omission
+    const { suggestions: _omitted, ...responseWithoutSuggestions } = DEFAULT_AI_RESPONSE;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(makeOkFetchResponse(responseWithoutSuggestions)),
+    );
+    const result = await resolveCommand('frobnicate', state);
+    expect(result.suggestions).toEqual([]);
+  });
+
+  it('should have suggestions undefined for local commands', async () => {
+    const result = await resolveCommand('help', state);
+    expect(result.suggestions).toBeUndefined();
+  });
+
+  it('should have suggestions undefined for engine commands', async () => {
+    const result = await resolveCommand('scan', state);
+    expect(result.suggestions).toBeUndefined();
+  });
+
+  it('should filter non-string values from suggestions array', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        makeOkFetchResponse({
+          ...DEFAULT_AI_RESPONSE,
+          suggestions: ['scan', 42, null, 'ls'],
+        }),
+      ),
+    );
+    const result = await resolveCommand('frobnicate', state);
+    expect(result.suggestions).toEqual(['scan', 'ls']);
   });
 });

@@ -148,4 +148,5 @@ import type { LineType } from './terminal';
 export interface CommandOutput {
   lines: Array<{ type: LineType; content: string }>;
   nextState?: Partial<GameState>;
+  suggestions?: string[];
 }

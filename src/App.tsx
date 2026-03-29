@@ -24,8 +24,6 @@ type AppPhase =
   | 'playing'
   | 'burned';
 
-const SUGGESTIONS = ['help', 'status', 'scan', 'map', 'inventory'];
-
 export const App = () => {
   const { lines: splashLines, done: splashDone } = useSplash();
   const { lines: bootLines, done: bootDone } = useBootSequence();
@@ -35,6 +33,7 @@ export const App = () => {
   const [sessionLines, setSessionLines] = useState<TerminalLine[]>([]);
   const [username, setUsername] = useState('');
   const [spinnerLine, setSpinnerLine] = useState<TerminalLine | null>(null);
+  const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
 
   const bootStarted = useRef(false);
   const resumeHandled = useRef(false);
@@ -159,6 +158,7 @@ export const App = () => {
       }
 
       push([makeLine('input', raw)]);
+      setAiSuggestions([]);
       startSpinner();
 
       let result;
@@ -187,6 +187,10 @@ export const App = () => {
           setAppPhase('burned');
           clearSave();
         }
+      }
+
+      if (result.suggestions && result.suggestions.length > 0) {
+        setAiSuggestions(result.suggestions);
       }
 
       push(out);
@@ -230,7 +234,7 @@ export const App = () => {
       lines={allLines}
       nodeIp={nodeIp}
       trace={trace}
-      suggestions={appPhase === 'playing' ? SUGGESTIONS : []}
+      suggestions={appPhase === 'playing' ? aiSuggestions : []}
       onSubmit={cmd => {
         void handleSubmit(cmd);
       }}
