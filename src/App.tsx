@@ -212,9 +212,11 @@ export const App = () => {
   ];
 
   // Kick off boot rendering only once
-  if (appPhase === 'booting' && !bootStarted.current) {
-    bootStarted.current = true;
-  }
+  useEffect(() => {
+    if (appPhase === 'booting' && !bootStarted.current) {
+      bootStarted.current = true;
+    }
+  }, [appPhase]);
 
   return (
     <Terminal
