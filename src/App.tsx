@@ -161,7 +161,14 @@ export const App = () => {
       push([makeLine('input', raw)]);
       startSpinner();
 
-      const result = await resolveCommand(raw, gameState);
+      let result;
+      try {
+        result = await resolveCommand(raw, gameState);
+      } catch {
+        stopSpinner();
+        push([makeLine('error', '// SIGNAL LOST — try again')]);
+        return;
+      }
 
       stopSpinner();
 
