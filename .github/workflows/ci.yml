@@ -27,8 +27,11 @@ jobs:
       - name: Typecheck (api)
         run: npx tsc -p tsconfig.api.json --noEmit
 
+      - name: Format check
+        run: npx prettier --check .
+
       - name: Lint
-        run: npx eslint api/
+        run: npx eslint .
 
       - name: Test with coverage (≥75% threshold)
         run: npm run test:coverage

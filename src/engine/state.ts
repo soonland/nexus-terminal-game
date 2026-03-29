@@ -1,7 +1,7 @@
-import { GameState, LiveNode } from '../types/game'
-import { buildNodeMap, ANCHOR_CREDENTIALS } from '../data/anchorNodes'
+import type { GameState, LiveNode } from '../types/game';
+import { buildNodeMap, ANCHOR_CREDENTIALS } from '../data/anchorNodes';
 
-export function createInitialState(): GameState {
+export const createInitialState = (): GameState => {
   return {
     phase: 'playing',
     runId: crypto.randomUUID(),
@@ -15,8 +15,16 @@ export function createInitialState(): GameState {
       credentials: ANCHOR_CREDENTIALS.map(c => ({ ...c })),
       exfiltrated: [],
       tools: [
-        { id: 'port-scanner', name: 'Port Scanner',  description: 'Reduces trace cost of scan by 1.' },
-        { id: 'exploit-kit',  name: 'Exploit Kit',   description: 'Required to run exploit commands.' },
+        {
+          id: 'port-scanner',
+          name: 'Port Scanner',
+          description: 'Reduces trace cost of scan by 1.',
+        },
+        {
+          id: 'exploit-kit',
+          name: 'Exploit Kit',
+          description: 'Required to run exploit commands.',
+        },
       ],
     },
     network: {
@@ -31,20 +39,20 @@ export function createInitialState(): GameState {
     },
     forks: {},
     flags: {},
-  }
-}
+  };
+};
 
-export function currentNode(state: GameState): LiveNode {
-  const node = state.network.nodes[state.network.currentNodeId]
-  if (!node) throw new Error(`currentNode: node not found: ${state.network.currentNodeId}`)
-  return node
-}
+export const currentNode = (state: GameState): LiveNode => {
+  const node = state.network.nodes[state.network.currentNodeId];
+  if (!node) throw new Error(state.network.currentNodeId);
+  return node;
+};
 
-export function addTrace(state: GameState, amount: number): GameState {
-  const trace = Math.min(100, state.player.trace + amount)
+export const addTrace = (state: GameState, amount: number): GameState => {
+  const trace = Math.min(100, state.player.trace + amount);
   return {
     ...state,
     player: { ...state.player, trace },
     phase: trace >= 100 ? 'burned' : state.phase,
-  }
-}
+  };
+};

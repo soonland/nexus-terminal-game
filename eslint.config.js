@@ -1,34 +1,55 @@
-import js from '@eslint/js'
-import globals from 'globals'
-import reactHooks from 'eslint-plugin-react-hooks'
-import reactRefresh from 'eslint-plugin-react-refresh'
-import tseslint from 'typescript-eslint'
+import js from '@eslint/js';
+import globals from 'globals';
+import reactHooks from 'eslint-plugin-react-hooks';
+import reactRefresh from 'eslint-plugin-react-refresh';
+import reactPlugin from 'eslint-plugin-react';
+import tseslint from 'typescript-eslint';
+import prettierConfig from 'eslint-config-prettier';
 
 export default tseslint.config(
   { ignores: ['dist', 'coverage'] },
   {
-    extends: [js.configs.recommended, ...tseslint.configs.strict],
+    extends: [js.configs.recommended, ...tseslint.configs.strictTypeChecked, prettierConfig],
     files: ['**/*.{ts,tsx}'],
     languageOptions: {
-      ecmaVersion: 2020,
-      globals: globals.browser,
+      ecmaVersion: 2022,
+      globals: { ...globals.browser, ...globals.node },
+      parserOptions: {
+        project: './tsconfig.eslint.json',
+        tsconfigRootDir: import.meta.dirname,
+      },
     },
     plugins: {
       'react-hooks': reactHooks,
       'react-refresh': reactRefresh,
+      react: reactPlugin,
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
-      'react-refresh/only-export-components': [
-        'warn',
-        { allowConstantExport: true },
+      'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
+      'react/self-closing-comp': ['error', { component: true, html: true }],
+      '@typescript-eslint/consistent-type-imports': ['error', { prefer: 'type-imports' }],
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
       ],
+      semi: ['error', 'always'],
+      'func-style': ['error', 'expression'],
+      'no-console': 'warn',
     },
   },
   {
-    files: ['**/__tests__/**/*.ts', '**/*.test.ts'],
+    files: ['**/__tests__/**/*.ts', '**/*.test.ts', '**/*.test.tsx'],
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-non-null-assertion': 'off',
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+      '@typescript-eslint/no-unsafe-argument': 'off',
+      '@typescript-eslint/no-unsafe-member-access': 'off',
+      '@typescript-eslint/no-unsafe-return': 'off',
+      '@typescript-eslint/no-unsafe-call': 'off',
+      'func-style': 'off',
+      'no-console': 'off',
     },
   },
-)
+);
