@@ -5,7 +5,7 @@ export const handlers = [
     return HttpResponse.json({ unlockedNodeIds: [] });
   }),
 
-  http.post('/api/file-content', () => {
+  http.post('/api/file', () => {
     return HttpResponse.json({ content: '[MOCK FILE CONTENT]' });
   }),
 

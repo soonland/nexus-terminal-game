@@ -80,8 +80,7 @@ export const resolveCommand = async (raw: string, state: GameState): Promise<Com
       result = cmdLs(args, state);
       break;
     case 'cat':
-      result = cmdCat(args, state);
-      break;
+      return withTurn(await cmdCat(args, state), raw, state);
     case 'disconnect':
       result = cmdDisconnect(state);
       break;
@@ -446,7 +445,19 @@ const cmdLs = (args: string[], state: GameState): CommandOutput => {
 };
 
 // ── cat ───────────────────────────────────────────────────
-const cmdCat = (args: string[], state: GameState): CommandOutput => {
+const LAYER_DIVISION: Record<number, string> = {
+  0: 'entry',
+  1: 'ops',
+  2: 'security',
+  3: 'finance',
+  4: 'executive',
+  5: 'aria',
+};
+
+const FILE_CONTENT_FALLBACK =
+  '[FILE CONTENT UNAVAILABLE — AI generation offline. Raw binary data suppressed.]';
+
+const cmdCat = async (args: string[], state: GameState): Promise<CommandOutput> => {
   if (!args[0]) return { lines: [err('Usage: cat [filepath]')] };
 
   const node = currentNode(state);
@@ -467,15 +478,40 @@ const cmdCat = (args: string[], state: GameState): CommandOutput => {
     next = addTrace(state, 10);
   }
 
-  if (file.content === null) {
-    return {
-      lines: [sys('[AI content generation — available in Phase 3]')],
-      nextState: next,
-    };
+  let content = file.content;
+
+  if (content === null) {
+    try {
+      const res = await fetch('/api/file', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nodeId: node.id,
+          fileName: file.name,
+          filePath: file.path,
+          fileType: file.type,
+          ownerLabel: node.label,
+          ownerTemplate: node.template,
+          division: LAYER_DIVISION[node.layer] ?? 'unknown',
+          ariaPlanted: file.ariaPlanted ?? false,
+        }),
+      });
+      const data = (await res.json()) as { content?: string };
+      content = typeof data.content === 'string' ? data.content : FILE_CONTENT_FALLBACK;
+    } catch {
+      content = FILE_CONTENT_FALLBACK;
+    }
+
+    // Cache generated content in state so subsequent cat calls skip the API
+    next = produce(next, s => {
+      const n = s.network.nodes[node.id];
+      const f = n?.files.find(x => x.path === file.path);
+      if (f) f.content = content;
+    });
   }
 
   const lines: Out = [sep()];
-  file.content.split('\n').forEach(l => lines.push(out(l)));
+  content.split('\n').forEach(l => lines.push(out(l)));
   lines.push(sep());
 
   return { lines, nextState: next };

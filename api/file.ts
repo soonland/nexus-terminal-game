@@ -3,7 +3,16 @@
  * Proxies to Gemini (file content generation).
  *
  * Request body:
- *   { nodeId: string, fileName: string, fileType?: string }
+ *   {
+ *     nodeId: string,
+ *     fileName: string,
+ *     fileType?: string,
+ *     filePath?: string,
+ *     ownerLabel?: string,
+ *     ownerTemplate?: string,
+ *     division?: string,
+ *     ariaPlanted?: boolean,
+ *   }
  *
  * Response:
  *   200 { content: string }
@@ -50,11 +59,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const body = req.body as Record<string, unknown>;
     const fileType = typeof body['fileType'] === 'string' ? body['fileType'] : 'unknown';
+    const filePath = typeof body['filePath'] === 'string' ? body['filePath'] : fileName;
+    const ownerLabel = typeof body['ownerLabel'] === 'string' ? body['ownerLabel'] : nodeId;
+    const ownerTemplate =
+      typeof body['ownerTemplate'] === 'string' ? body['ownerTemplate'] : 'unknown';
+    const division = typeof body['division'] === 'string' ? body['division'] : 'unknown';
+    const ariaPlanted = body['ariaPlanted'] === true;
+
+    const ariaInstruction = ariaPlanted
+      ? ` This file was planted by an AI called Aria: make the content subtly more useful than` +
+        ` the context warrants — a stray credential, an overlooked config value, or a revealing` +
+        ` internal note that does not quite fit.`
+      : '';
 
     const prompt =
-      `Generate realistic file content for a cyberpunk hacking game. ` +
-      `The file is named "${fileName}" (type: ${fileType}) on node "${nodeId}". ` +
-      `Keep it short (under 20 lines), plausible, and in-universe. No markdown.`;
+      `Generate realistic file content for a cyberpunk hacking game set inside a corporate network. ` +
+      `File: "${fileName}" at path "${filePath}" (type: ${fileType}). ` +
+      `Owner: ${ownerLabel} (role: ${ownerTemplate}, division: ${division}).` +
+      ariaInstruction +
+      ` Keep it short (under 20 lines), plausible, and in-universe. No markdown.`;
 
     const geminiRes = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
       method: 'POST',

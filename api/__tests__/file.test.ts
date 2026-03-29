@@ -260,4 +260,124 @@ describe('POST /api/file — with API key', () => {
     expect(res._status).toBe(200);
     expect((res._json as any).content).toBe(FALLBACK);
   });
+
+  it('should include the Aria instruction in the prompt when ariaPlanted is true', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({
+        candidates: [{ content: { parts: [{ text: 'generated' }] } }],
+      }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const req = makeReq({
+      body: { nodeId: 'aria-node', fileName: 'secret.cfg', ariaPlanted: true },
+    });
+    const res = makeRes() as any;
+    await handler(req, res);
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    const promptText = body.contents[0].parts[0].text;
+    expect(promptText).toContain('Aria');
+  });
+
+  it('should NOT include the Aria instruction in the prompt when ariaPlanted is false', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({
+        candidates: [{ content: { parts: [{ text: 'generated' }] } }],
+      }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const req = makeReq({
+      body: { nodeId: 'plain-node', fileName: 'config.txt', ariaPlanted: false },
+    });
+    const res = makeRes() as any;
+    await handler(req, res);
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    const promptText = body.contents[0].parts[0].text;
+    expect(promptText).not.toContain('Aria');
+  });
+
+  it('should include filePath in the prompt', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({
+        candidates: [{ content: { parts: [{ text: 'generated' }] } }],
+      }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const req = makeReq({
+      body: { nodeId: 'node-alpha', fileName: 'config.cfg', filePath: '/etc/app/config.cfg' },
+    });
+    const res = makeRes() as any;
+    await handler(req, res);
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    const promptText = body.contents[0].parts[0].text;
+    expect(promptText).toContain('/etc/app/config.cfg');
+  });
+
+  it('should include ownerLabel in the prompt', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({
+        candidates: [{ content: { parts: [{ text: 'generated' }] } }],
+      }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const req = makeReq({
+      body: { nodeId: 'node-alpha', fileName: 'config.cfg', ownerLabel: 'FINANCE SERVER' },
+    });
+    const res = makeRes() as any;
+    await handler(req, res);
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    const promptText = body.contents[0].parts[0].text;
+    expect(promptText).toContain('FINANCE SERVER');
+  });
+
+  it('should include ownerTemplate in the prompt', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({
+        candidates: [{ content: { parts: [{ text: 'generated' }] } }],
+      }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const req = makeReq({
+      body: { nodeId: 'node-alpha', fileName: 'config.cfg', ownerTemplate: 'database_server' },
+    });
+    const res = makeRes() as any;
+    await handler(req, res);
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    const promptText = body.contents[0].parts[0].text;
+    expect(promptText).toContain('database_server');
+  });
+
+  it('should include division in the prompt', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({
+        candidates: [{ content: { parts: [{ text: 'generated' }] } }],
+      }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const req = makeReq({
+      body: { nodeId: 'node-alpha', fileName: 'config.cfg', division: 'security' },
+    });
+    const res = makeRes() as any;
+    await handler(req, res);
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    const promptText = body.contents[0].parts[0].text;
+    expect(promptText).toContain('security');
+  });
 });
