@@ -57,6 +57,15 @@ export const TerminalInput = forwardRef<HTMLInputElement, Props>(
         return;
       }
 
+      if (e.key.startsWith('F') && /^F\d+$/.test(e.key)) {
+        const idx = Number.parseInt(e.key.slice(1), 10) - 1;
+        if (idx >= 0 && idx < suggestions.length) {
+          e.preventDefault();
+          input.value = suggestions[idx] ?? '';
+        }
+        return;
+      }
+
       if (e.key === 'Tab') {
         e.preventDefault();
         if (suggestions.length === 0) return;

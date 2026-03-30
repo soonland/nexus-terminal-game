@@ -14,7 +14,7 @@ export const SuggestionBar = ({ suggestions, onSelect }: Props) => {
         padding: '0.2rem 1.5rem',
         borderTop: '1px solid var(--color-border)',
       }}>
-      {suggestions.map(s => (
+      {suggestions.map((s, i) => (
         <button
           key={s}
           onClick={e => {
@@ -36,6 +36,8 @@ export const SuggestionBar = ({ suggestions, onSelect }: Props) => {
           onMouseLeave={e => {
             (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-system)';
           }}>
+          <span
+            style={{ color: 'var(--color-bg)', marginRight: '0.3rem' }}>{`F${String(i + 1)}`}</span>
           {s}
         </button>
       ))}

@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { forwardRef, useImperativeHandle, useRef } from 'react';
 import type { TerminalLine } from '../types/terminal';
 import { TerminalHeader } from './TerminalHeader';
 import { TerminalOutput } from './TerminalOutput';
@@ -17,44 +17,62 @@ interface Props {
   inputNoHistory?: boolean;
 }
 
-export const Terminal = ({
-  lines,
-  nodeIp,
-  trace,
-  suggestions,
-  onSubmit,
-  inputDisabled = false,
-  inputPrompt = 'nexus $',
-  inputMasked = false,
-  inputNoHistory = false,
-}: Props) => {
-  const inputRef = useRef<HTMLInputElement>(null);
+export interface TerminalHandle {
+  focus: () => void;
+}
 
-  return (
-    <div
-      onClick={() => inputRef.current?.focus()}
-      style={{ display: 'flex', flexDirection: 'column', height: '100%', cursor: 'text' }}>
-      <TerminalHeader nodeIp={nodeIp} trace={trace} />
+export const Terminal = forwardRef<TerminalHandle, Props>(
+  (
+    {
+      lines,
+      nodeIp,
+      trace,
+      suggestions,
+      onSubmit,
+      inputDisabled = false,
+      inputPrompt = 'nexus $',
+      inputMasked = false,
+      inputNoHistory = false,
+    },
+    ref,
+  ) => {
+    const inputRef = useRef<HTMLInputElement>(null);
 
-      <TerminalOutput lines={lines} />
+    useImperativeHandle(ref, () => ({
+      focus: () => inputRef.current?.focus(),
+    }));
 
-      <div style={{ flexShrink: 0 }}>
-        <SuggestionBar
-          suggestions={suggestions}
-          onSelect={s => {
-            if (inputRef.current) inputRef.current.value = s;
-          }}
-        />
-        <TerminalInput
-          ref={inputRef}
-          onSubmit={onSubmit}
-          disabled={inputDisabled}
-          suggestions={suggestions}
-          prompt={inputPrompt}
-          masked={inputMasked}
-          noHistory={inputNoHistory}
-        />
+    return (
+      <div
+        onClick={() => inputRef.current?.focus()}
+        style={{ display: 'flex', flexDirection: 'column', height: '100%', cursor: 'text' }}>
+        <TerminalHeader nodeIp={nodeIp} trace={trace} />
+
+        <TerminalOutput lines={lines} />
+
+        <div style={{ flexShrink: 0 }}>
+          <SuggestionBar
+            suggestions={suggestions}
+            onSelect={s => {
+              if (inputRef.current) {
+                inputRef.current.value = s;
+                inputRef.current.focus();
+              }
+            }}
+          />
+          <TerminalInput
+            ref={inputRef}
+            onSubmit={onSubmit}
+            disabled={inputDisabled}
+            suggestions={suggestions}
+            prompt={inputPrompt}
+            masked={inputMasked}
+            noHistory={inputNoHistory}
+          />
+        </div>
       </div>
-    </div>
-  );
-};
+    );
+  },
+);
+
+Terminal.displayName = 'Terminal';

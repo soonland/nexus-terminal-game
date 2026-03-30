@@ -6,43 +6,58 @@ const now = new Date();
 const lastLogin = new Date(now.getTime() - 1000 * 60 * 60 * 3);
 const lastLoginStr = lastLogin.toUTCString().replace('GMT', 'UTC');
 
+const BANNER = [
+  '                                                              ',
+  '    ███╗   ██╗███████╗██╗  ██╗██╗   ██╗███████╗             ',
+  '    ████╗  ██║██╔════╝╚██╗██╔╝██║   ██║██╔════╝             ',
+  '    ██╔██╗ ██║█████╗   ╚███╔╝ ██║   ██║███████╗             ',
+  '    ██║╚██╗██║██╔══╝   ██╔██╗ ██║   ██║╚════██║             ',
+  '    ██║ ╚████║███████╗██╔╝ ██╗╚██████╔╝███████║             ',
+  '    ╚═╝  ╚═══╝╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚══════╝            ',
+  '                                                              ',
+  '    Covert Operations Division  //  Field Terminal Access     ',
+  '                                                              ',
+];
+
+const BANNER_DONE = BANNER.length * 60 + 200;
+
 const BOOT_LINES: Array<{ type: Parameters<typeof makeLine>[0]; content: string; delay: number }> =
   [
-    { type: 'system', content: 'Authorized use only. All sessions are recorded.', delay: 0 },
-    { type: 'separator', content: '', delay: 150 },
-    { type: 'output', content: 'Welcome to nx-field-01.ops.nexuscorp.int', delay: 300 },
-    { type: 'system', content: 'Nexus OS 4.1.0-hardened (x86_64)', delay: 400 },
-    { type: 'separator', content: '', delay: 550 },
-    { type: 'system', content: `Last login: ${lastLoginStr} from 10.99.0.44`, delay: 700 },
-    { type: 'separator', content: '', delay: 900 },
-    { type: 'system', content: 'Establishing covert uplink...', delay: 1200 },
-    { type: 'system', content: 'Routing through anonymization layers...', delay: 1600 },
-    { type: 'system', content: 'Spoofing origin signature...', delay: 2000 },
-    { type: 'system', content: '[████████████████████] 100%', delay: 2500 },
-    { type: 'system', content: 'Uplink confirmed.', delay: 2800 },
-    { type: 'separator', content: '', delay: 3000 },
-    { type: 'output', content: '  DISPATCH NOTICE — OPS TICKET #NX-2847', delay: 3200 },
-    { type: 'output', content: '  Target   : IronGate Corp', delay: 3350 },
-    { type: 'output', content: '  Entry    : contractor_portal (10.0.0.1)', delay: 3500 },
+    ...BANNER.map((line, i) => ({ type: 'output' as const, content: line, delay: i * 60 })),
+    { type: 'separator', content: '', delay: BANNER_DONE },
+    {
+      type: 'system',
+      content: 'Authorized use only. All sessions are recorded.',
+      delay: BANNER_DONE + 150,
+    },
+    { type: 'separator', content: '', delay: BANNER_DONE + 300 },
     {
       type: 'output',
-      content: '  Objective: classified — you will know it when you find it.',
-      delay: 3650,
+      content: 'Welcome to nx-field-01.ops.nexuscorp.int',
+      delay: BANNER_DONE + 450,
     },
+    { type: 'system', content: 'Nexus OS 4.1.0-hardened (x86_64)', delay: BANNER_DONE + 550 },
+    { type: 'separator', content: '', delay: BANNER_DONE + 700 },
     {
-      type: 'output',
-      content: '  Handler  : DISPATCH  |  Cover: none  |  Disavowal: immediate',
-      delay: 3800,
+      type: 'system',
+      content: `Last login: ${lastLoginStr} from 10.99.0.44`,
+      delay: BANNER_DONE + 900,
     },
-    { type: 'separator', content: '', delay: 4000 },
-    { type: 'system', content: "Type 'help' to list available commands.", delay: 4150 },
+    { type: 'separator', content: '', delay: BANNER_DONE + 1100 },
+    {
+      type: 'system',
+      content: "Type 'help' to list available commands.",
+      delay: BANNER_DONE + 1300,
+    },
   ];
 
-export const useBootSequence = (): { lines: TerminalLine[]; done: boolean } => {
+export const useBootSequence = (ready: boolean): { lines: TerminalLine[]; done: boolean } => {
   const [lines, setLines] = useState<TerminalLine[]>([]);
   const [done, setDone] = useState(false);
 
   useEffect(() => {
+    if (!ready) return;
+
     const timers: ReturnType<typeof setTimeout>[] = [];
 
     BOOT_LINES.forEach(({ type, content, delay }) => {
@@ -63,7 +78,7 @@ export const useBootSequence = (): { lines: TerminalLine[]; done: boolean } => {
     return () => {
       timers.forEach(clearTimeout);
     };
-  }, []);
+  }, [ready]);
 
   return { lines, done };
 };
