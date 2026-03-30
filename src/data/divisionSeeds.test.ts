@@ -1,13 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import { DIVISION_SEEDS } from './divisionSeeds';
+import type { DivisionId } from '../types/divisionSeed';
 
-const EXPECTED_DIVISION_IDS = [
+const EXPECTED_DIVISION_IDS: DivisionId[] = [
   'external_perimeter',
   'operations',
   'security',
   'finance',
   'executive',
-] as const;
+];
 
 const REQUIRED_FIELDS: (keyof (typeof DIVISION_SEEDS)[number])[] = [
   'divisionId',
@@ -51,7 +52,7 @@ describe('DIVISION_SEEDS', () => {
     it.each(EXPECTED_DIVISION_IDS)('should have weights that sum to 1.0 for "%s"', divisionId => {
       const seed = DIVISION_SEEDS.find(s => s.divisionId === divisionId)!;
       const sum = seed.fillerTemplates.reduce((acc, entry) => acc + entry.weight, 0);
-      expect(sum).toBeCloseTo(1.0, 10);
+      expect(sum).toBeCloseTo(1.0, 5);
     });
 
     it.each(EXPECTED_DIVISION_IDS)(

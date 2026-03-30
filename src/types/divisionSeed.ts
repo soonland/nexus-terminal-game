@@ -13,13 +13,15 @@ export type SecurityPosture = 'low' | 'medium' | 'high' | 'extreme';
 
 export type CredentialPattern = 'contractor' | 'ops' | 'security' | 'finance' | 'executive';
 
+export type DivisionId = 'external_perimeter' | 'operations' | 'security' | 'finance' | 'executive';
+
 export interface FillerTemplateWeight {
   template: NodeTemplate;
   weight: number; // weights across all entries in a division must sum to 1.0
 }
 
 export interface DivisionSeed {
-  divisionId: string;
+  divisionId: DivisionId;
   name: string;
   subnet: string;
   headcount: number;
