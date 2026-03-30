@@ -1,5 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { saveGame, loadGame, clearSave, hasSave } from './persistence';
+import {
+  saveGame,
+  loadGame,
+  clearSave,
+  hasSave,
+  recordDisclaimerAgreement,
+  disclaimerRequired,
+} from './persistence';
 import { createInitialState } from './state';
 import produce from './produce';
 import type { GameState } from '../types/game';
@@ -266,6 +273,59 @@ describe('clearSave', () => {
     mockStorage.setItem(SAVE_KEY, '{}');
     clearSave();
     expect(mockStorage.getItem(SAVE_KEY)).toBeNull();
+  });
+});
+
+describe('loadGame — orphaned exfil path', () => {
+  let mockStorage: ReturnType<typeof makeMockStorage>;
+
+  beforeEach(() => {
+    mockStorage = makeMockStorage();
+    vi.stubGlobal('localStorage', mockStorage);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('silently drops an exfiltrated path that no longer exists in any node', () => {
+    const state = createInitialState();
+    saveGame(state);
+    const [, value] = mockStorage.setItem.mock.calls[0] as [string, string];
+    const save = JSON.parse(value) as Record<string, unknown>;
+    const player = save['player'] as Record<string, unknown>;
+    player['exfiltratedPaths'] = ['/nonexistent/ghost.txt'];
+    mockStorage.getItem.mockReturnValue(JSON.stringify(save));
+    const loaded = loadGame();
+    expect(loaded?.player.exfiltrated).toHaveLength(0);
+  });
+});
+
+describe('disclaimerRequired / recordDisclaimerAgreement', () => {
+  let mockStorage: ReturnType<typeof makeMockStorage>;
+
+  beforeEach(() => {
+    mockStorage = makeMockStorage();
+    vi.stubGlobal('localStorage', mockStorage);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('returns true when no disclaimer key exists', () => {
+    expect(disclaimerRequired()).toBe(true);
+  });
+
+  it('returns false when agreement was recorded within the TTL', () => {
+    recordDisclaimerAgreement();
+    expect(disclaimerRequired()).toBe(false);
+  });
+
+  it('returns true when agreement timestamp is older than 24 hours', () => {
+    const expired = Date.now() - 25 * 60 * 60 * 1000;
+    mockStorage.getItem.mockReturnValue(String(expired));
+    expect(disclaimerRequired()).toBe(true);
   });
 });
 

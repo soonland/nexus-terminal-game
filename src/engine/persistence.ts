@@ -123,7 +123,7 @@ const fromSaveState = (save: SaveState): GameState => {
     if (delta.locked !== undefined) node.locked = delta.locked;
     // Restore AI-generated file content
     node.files.forEach(f => {
-      if (f.path in delta.cachedFileContents) f.content = delta.cachedFileContents[f.path] ?? null;
+      if (f.path in delta.cachedFileContents) f.content = delta.cachedFileContents[f.path];
     });
   }
 
