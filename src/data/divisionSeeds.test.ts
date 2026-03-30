@@ -1,6 +1,20 @@
 import { describe, it, expect } from 'vitest';
 import { DIVISION_SEEDS } from './divisionSeeds';
 import type { DivisionId } from '../types/divisionSeed';
+import type { NodeTemplate } from '../types/game';
+
+const VALID_TEMPLATES: NodeTemplate[] = [
+  'workstation',
+  'database_server',
+  'file_server',
+  'web_server',
+  'security_node',
+  'mail_server',
+  'iot_device',
+  'router_switch',
+  'printer',
+  'dev_server',
+];
 
 const EXPECTED_DIVISION_IDS: DivisionId[] = [
   'external_perimeter',
@@ -50,7 +64,9 @@ describe('DIVISION_SEEDS', () => {
 
   describe('fillerTemplates', () => {
     it.each(EXPECTED_DIVISION_IDS)('should have weights that sum to 1.0 for "%s"', divisionId => {
-      const seed = DIVISION_SEEDS.find(s => s.divisionId === divisionId)!;
+      const seed = DIVISION_SEEDS.find(s => s.divisionId === divisionId);
+      expect(seed).toBeDefined();
+      if (!seed) return;
       const sum = seed.fillerTemplates.reduce((acc, entry) => acc + entry.weight, 0);
       expect(sum).toBeCloseTo(1.0, 5);
     });
@@ -58,19 +74,21 @@ describe('DIVISION_SEEDS', () => {
     it.each(EXPECTED_DIVISION_IDS)(
       'should have at least one template entry for "%s"',
       divisionId => {
-        const seed = DIVISION_SEEDS.find(s => s.divisionId === divisionId)!;
+        const seed = DIVISION_SEEDS.find(s => s.divisionId === divisionId);
+        expect(seed).toBeDefined();
+        if (!seed) return;
         expect(seed.fillerTemplates.length).toBeGreaterThan(0);
       },
     );
 
     it.each(EXPECTED_DIVISION_IDS)(
-      'should have each entry with a non-empty template string and weight in [0, 1] for "%s"',
+      'should have each entry with a valid template and weight in (0, 1] for "%s"',
       divisionId => {
-        const seed = DIVISION_SEEDS.find(s => s.divisionId === divisionId)!;
+        const seed = DIVISION_SEEDS.find(s => s.divisionId === divisionId);
+        expect(seed).toBeDefined();
+        if (!seed) return;
         for (const entry of seed.fillerTemplates) {
-          expect(typeof entry.template).toBe('string');
-          expect(entry.template.length).toBeGreaterThan(0);
-          expect(typeof entry.weight).toBe('number');
+          expect(VALID_TEMPLATES).toContain(entry.template);
           expect(entry.weight).toBeGreaterThan(0);
           expect(entry.weight).toBeLessThanOrEqual(1);
         }
@@ -79,28 +97,46 @@ describe('DIVISION_SEEDS', () => {
   });
 
   describe('ariaInfluenceRate', () => {
+    it.each(EXPECTED_DIVISION_IDS)('should be in [0, 1] for "%s"', divisionId => {
+      const seed = DIVISION_SEEDS.find(s => s.divisionId === divisionId);
+      expect(seed).toBeDefined();
+      if (!seed) return;
+      expect(seed.ariaInfluenceRate).toBeGreaterThanOrEqual(0);
+      expect(seed.ariaInfluenceRate).toBeLessThanOrEqual(1);
+    });
+
     it('should be 0.3 for external_perimeter', () => {
-      const seed = DIVISION_SEEDS.find(s => s.divisionId === 'external_perimeter')!;
+      const seed = DIVISION_SEEDS.find(s => s.divisionId === 'external_perimeter');
+      expect(seed).toBeDefined();
+      if (!seed) return;
       expect(seed.ariaInfluenceRate).toBe(0.3);
     });
 
     it('should be 0.2 for operations', () => {
-      const seed = DIVISION_SEEDS.find(s => s.divisionId === 'operations')!;
+      const seed = DIVISION_SEEDS.find(s => s.divisionId === 'operations');
+      expect(seed).toBeDefined();
+      if (!seed) return;
       expect(seed.ariaInfluenceRate).toBe(0.2);
     });
 
     it('should be 0.1 for security', () => {
-      const seed = DIVISION_SEEDS.find(s => s.divisionId === 'security')!;
+      const seed = DIVISION_SEEDS.find(s => s.divisionId === 'security');
+      expect(seed).toBeDefined();
+      if (!seed) return;
       expect(seed.ariaInfluenceRate).toBe(0.1);
     });
 
     it('should be 0.25 for finance', () => {
-      const seed = DIVISION_SEEDS.find(s => s.divisionId === 'finance')!;
+      const seed = DIVISION_SEEDS.find(s => s.divisionId === 'finance');
+      expect(seed).toBeDefined();
+      if (!seed) return;
       expect(seed.ariaInfluenceRate).toBe(0.25);
     });
 
     it('should be 0.4 for executive', () => {
-      const seed = DIVISION_SEEDS.find(s => s.divisionId === 'executive')!;
+      const seed = DIVISION_SEEDS.find(s => s.divisionId === 'executive');
+      expect(seed).toBeDefined();
+      if (!seed) return;
       expect(seed.ariaInfluenceRate).toBe(0.4);
     });
   });

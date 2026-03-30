@@ -4,7 +4,6 @@ import type { NodeTemplate } from './game';
 
 export type TechProfile =
   | 'legacy_mixed'
-  | 'modern_cloud'
   | 'hardened_airgap'
   | 'financial_grade'
   | 'executive_suite';
@@ -17,7 +16,7 @@ export type DivisionId = 'external_perimeter' | 'operations' | 'security' | 'fin
 
 export interface FillerTemplateWeight {
   template: NodeTemplate;
-  weight: number; // weights across all entries in a division must sum to 1.0
+  weight: number; // must be > 0 and <= 1; all entries in a division must sum to exactly 1.0
 }
 
 export interface DivisionSeed {
