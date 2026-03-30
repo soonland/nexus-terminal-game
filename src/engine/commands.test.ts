@@ -393,21 +393,9 @@ describe('resolveCommand — help', () => {
     state = createInitialState();
   });
 
-  it('should return lines containing command descriptions', async () => {
+  it('should return empty lines (handled as modal in App)', async () => {
     const result = await resolveCommand('help', state);
-    const contents = result.lines.map(l => l.content);
-    expect(contents.some(c => c.includes('help'))).toBe(true);
-    expect(contents.some(c => c.includes('status'))).toBe(true);
-    expect(contents.some(c => c.includes('scan'))).toBe(true);
-    expect(contents.some(c => c.includes('connect'))).toBe(true);
-    expect(contents.some(c => c.includes('login'))).toBe(true);
-    expect(contents.some(c => c.includes('exploit'))).toBe(true);
-  });
-
-  it('should include separator lines', async () => {
-    const result = await resolveCommand('help', state);
-    const separators = result.lines.filter(l => l.type === 'separator');
-    expect(separators.length).toBeGreaterThan(0);
+    expect(result.lines).toHaveLength(0);
   });
 
   it('should not modify player trace', async () => {
@@ -487,78 +475,6 @@ describe('resolveCommand — status', () => {
   });
 });
 
-describe('resolveCommand — inventory', () => {
-  let state: GameState;
-
-  beforeEach(() => {
-    state = createInitialState();
-  });
-
-  it('should show "none" for credentials when no creds are obtained', async () => {
-    const result = await resolveCommand('inventory', state);
-    const contents = result.lines.map(l => l.content);
-    expect(contents.some(c => c.includes('none'))).toBe(true);
-  });
-
-  it('should show "none" for exfiltrated when inventory is empty', async () => {
-    const result = await resolveCommand('inventory', state);
-    const contents = result.lines.map(l => l.content);
-    expect(contents.some(c => c.toLowerCase().includes('none'))).toBe(true);
-  });
-
-  it('should list obtained credentials', async () => {
-    const withCred = produce(state, s => {
-      const cred = s.player.credentials.find(c => c.id === 'cred_contractor');
-      if (cred) cred.obtained = true;
-    });
-    const result = await resolveCommand('inventory', withCred);
-    const contents = result.lines.map(l => l.content);
-    expect(contents.some(c => c.includes('contractor') && c.includes('Welcome1!'))).toBe(true);
-  });
-
-  it('should list exfiltrated files', async () => {
-    const withExfil = produce(state, s => {
-      s.player.exfiltrated.push({
-        name: 'welcome.txt',
-        path: '/var/www/contractor/welcome.txt',
-        type: 'document',
-        content: 'test',
-        exfiltrable: true,
-        accessRequired: 'user',
-      });
-    });
-    const result = await resolveCommand('inventory', withExfil);
-    const contents = result.lines.map(l => l.content);
-    expect(contents.some(c => c.includes('welcome.txt'))).toBe(true);
-  });
-
-  it('should show CREDENTIALS header when creds are obtained', async () => {
-    const withCred = produce(state, s => {
-      const cred = s.player.credentials.find(c => c.id === 'cred_contractor');
-      if (cred) cred.obtained = true;
-    });
-    const result = await resolveCommand('inventory', withCred);
-    const contents = result.lines.map(l => l.content);
-    expect(contents.some(c => c.includes('CREDENTIALS'))).toBe(true);
-  });
-
-  it('should show EXFILTRATED header when files are present', async () => {
-    const withExfil = produce(state, s => {
-      s.player.exfiltrated.push({
-        name: 'welcome.txt',
-        path: '/var/www/contractor/welcome.txt',
-        type: 'document',
-        content: 'test',
-        exfiltrable: true,
-        accessRequired: 'user',
-      });
-    });
-    const result = await resolveCommand('inventory', withExfil);
-    const contents = result.lines.map(l => l.content);
-    expect(contents.some(c => c.includes('EXFILTRATED'))).toBe(true);
-  });
-});
-
 describe('resolveCommand — map', () => {
   let state: GameState;
 
@@ -566,45 +482,9 @@ describe('resolveCommand — map', () => {
     state = createInitialState();
   });
 
-  it('should show NETWORK MAP header', async () => {
+  it('should return empty lines (handled as modal in App)', async () => {
     const result = await resolveCommand('map', state);
-    const contents = result.lines.map(l => l.content);
-    expect(contents.some(c => c.includes('NETWORK MAP'))).toBe(true);
-  });
-
-  it('should list discovered nodes by layer', async () => {
-    const result = await resolveCommand('map', state);
-    const contents = result.lines.map(l => l.content);
-    // contractor_portal is discovered at layer 0
-    expect(contents.some(c => c.includes('10.0.0.1'))).toBe(true);
-  });
-
-  it('should mark the current node with a marker', async () => {
-    const result = await resolveCommand('map', state);
-    const contents = result.lines.map(l => l.content);
-    expect(contents.some(c => c.includes('◄'))).toBe(true);
-  });
-
-  it('should not show undiscovered nodes', async () => {
-    const result = await resolveCommand('map', state);
-    const contents = result.lines.map(l => l.content);
-    // vpn_gateway starts undiscovered
-    expect(contents.some(c => c.includes('10.0.0.2'))).toBe(false);
-  });
-
-  it('should show layer label for each discovered layer', async () => {
-    const result = await resolveCommand('map', state);
-    const contents = result.lines.map(l => l.content);
-    expect(contents.some(c => c.includes('ENTRY'))).toBe(true);
-  });
-
-  it('should show access level in brackets when node has access', async () => {
-    const withAccess = produce(state, s => {
-      s.network.nodes['contractor_portal']!.accessLevel = 'user';
-    });
-    const result = await resolveCommand('map', withAccess);
-    const contents = result.lines.map(l => l.content);
-    expect(contents.some(c => c.includes('[USER]'))).toBe(true);
+    expect(result.lines).toHaveLength(0);
   });
 });
 

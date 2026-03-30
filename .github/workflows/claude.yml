@@ -79,4 +79,4 @@ jobs:
 
             Do NOT write or commit any code. Post the plan as a comment only.
 
-          claude_args: "--model claude-sonnet-4-6 --max-turns 50"
+          claude_args: '--model claude-sonnet-4-6 --max-turns 50'

@@ -1,0 +1,135 @@
+{
+  "version": 1,
+  "phase": "playing",
+  "runId": "34cf85b4-401e-4cd9-85df-19b7c5351a8f",
+  "startedAt": 1774824637237,
+  "turnCount": 1,
+  "recentCommands": ["scan"],
+  "player": {
+    "trace": 1,
+    "charges": 3,
+    "tools": [
+      {
+        "id": "port-scanner",
+        "name": "Port Scanner",
+        "description": "Reduces trace cost of scan by 1."
+      },
+      {
+        "id": "exploit-kit",
+        "name": "Exploit Kit",
+        "description": "Required to run exploit commands."
+      }
+    ],
+    "credentialsObtained": [],
+    "exfiltratedPaths": []
+  },
+  "network": {
+    "currentNodeId": "contractor_portal",
+    "previousNodeId": null,
+    "nodes": {
+      "contractor_portal": {
+        "discovered": true,
+        "accessLevel": "none",
+        "compromised": false,
+        "cachedFileContents": {}
+      },
+      "vpn_gateway": {
+        "discovered": true,
+        "accessLevel": "none",
+        "compromised": false,
+        "cachedFileContents": {}
+      },
+      "ops_cctv_ctrl": {
+        "discovered": false,
+        "accessLevel": "none",
+        "compromised": false,
+        "cachedFileContents": {}
+      },
+      "ops_hr_db": {
+        "discovered": false,
+        "accessLevel": "none",
+        "compromised": false,
+        "cachedFileContents": {}
+      },
+      "sec_access_ctrl": {
+        "discovered": false,
+        "accessLevel": "none",
+        "compromised": false,
+        "cachedFileContents": {}
+      },
+      "sec_firewall": {
+        "discovered": false,
+        "accessLevel": "none",
+        "compromised": false,
+        "cachedFileContents": {}
+      },
+      "fin_payments_db": {
+        "discovered": false,
+        "accessLevel": "none",
+        "compromised": false,
+        "cachedFileContents": {}
+      },
+      "fin_exec_accounts": {
+        "discovered": false,
+        "accessLevel": "none",
+        "compromised": false,
+        "cachedFileContents": {}
+      },
+      "exec_cfo": {
+        "discovered": false,
+        "accessLevel": "none",
+        "compromised": false,
+        "cachedFileContents": {}
+      },
+      "exec_legal": {
+        "discovered": false,
+        "accessLevel": "none",
+        "compromised": false,
+        "cachedFileContents": {}
+      },
+      "exec_ceo": {
+        "discovered": false,
+        "accessLevel": "none",
+        "compromised": false,
+        "cachedFileContents": {}
+      },
+      "aria_surveillance": {
+        "discovered": false,
+        "accessLevel": "none",
+        "compromised": false,
+        "cachedFileContents": {}
+      },
+      "aria_behavioural": {
+        "discovered": false,
+        "accessLevel": "none",
+        "compromised": false,
+        "cachedFileContents": {}
+      },
+      "aria_personnel": {
+        "discovered": false,
+        "accessLevel": "none",
+        "compromised": false,
+        "cachedFileContents": {}
+      },
+      "aria_core": {
+        "discovered": false,
+        "accessLevel": "none",
+        "compromised": false,
+        "cachedFileContents": {}
+      },
+      "aria_decision": {
+        "discovered": false,
+        "accessLevel": "none",
+        "compromised": false,
+        "cachedFileContents": {}
+      }
+    }
+  },
+  "aria": {
+    "discovered": false,
+    "trustScore": 0,
+    "messageHistory": []
+  },
+  "forks": {},
+  "flags": {}
+}

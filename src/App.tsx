@@ -1,13 +1,27 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { Terminal } from './components/Terminal';
-import { useSplash } from './hooks/useSplash';
+import type { TerminalHandle } from './components/Terminal';
+import { WelcomeScreen } from './components/WelcomeScreen';
+import { PrologueScreen } from './components/PrologueScreen';
+import { ScanDiskScreen } from './components/ScanDiskScreen';
+import { BriefingModal } from './components/BriefingModal';
+import { MapModal } from './components/MapModal';
+import { HelpModal } from './components/HelpModal';
+import { NotesModal } from './components/NotesModal';
 import { useBootSequence } from './hooks/useBootSequence';
 import type { TerminalLine } from './types/terminal';
 import { makeLine } from './types/terminal';
 import type { GameState } from './types/game';
 import { createInitialState, currentNode } from './engine/state';
 import { resolveCommand } from './engine/commands';
-import { saveGame, loadGame, hasSave, clearSave } from './engine/persistence';
+import {
+  saveGame,
+  loadGame,
+  hasSave,
+  clearSave,
+  disclaimerRequired,
+  recordDisclaimerAgreement,
+} from './engine/persistence';
 
 // Nexus Corp operative credentials
 const OPERATIVE_USER = 'ghost';
@@ -16,63 +30,58 @@ const OPERATIVE_PASS = 'nX-2847';
 const SPINNER_FRAMES = ['-', '\\', '|', '/'];
 
 type AppPhase =
-  | 'splash'
+  | 'welcome'
+  | 'prologue'
   | 'login_user'
   | 'login_pass'
-  | 'booting'
   | 'resume_prompt'
+  | 'scanning'
+  | 'booting'
   | 'playing'
   | 'burned';
 
 export const App = () => {
-  const { lines: splashLines, done: splashDone } = useSplash();
-  const { lines: bootLines, done: bootDone } = useBootSequence();
+  const [appPhase, setAppPhase] = useState<AppPhase>(() =>
+    disclaimerRequired() ? 'welcome' : 'login_user',
+  );
 
-  const [appPhase, setAppPhase] = useState<AppPhase>('splash');
+  const { lines: bootLines, done: bootDone } = useBootSequence(appPhase === 'booting');
   const [gameState, setGameState] = useState<GameState | null>(null);
-  const [sessionLines, setSessionLines] = useState<TerminalLine[]>([]);
+  const [sessionLines, setSessionLines] = useState<TerminalLine[]>(() =>
+    disclaimerRequired() ? [] : [makeLine('system', 'nx-field-01 login:')],
+  );
   const [username, setUsername] = useState('');
   const [spinnerLine, setSpinnerLine] = useState<TerminalLine | null>(null);
   const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
+  const [briefingOpen, setBriefingOpen] = useState(false);
+  const [mapOpen, setMapOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [notesOpen, setNotesOpen] = useState(false);
 
-  const bootStarted = useRef(false);
-  const resumeHandled = useRef(false);
+  const terminalRef = useRef<TerminalHandle>(null);
+  const bootHandled = useRef(false);
   const spinnerTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const spinnerFrame = useRef(0);
 
-  // Advance splash → login_user once banner finishes
+  // Advance booting → playing once MOTD finishes
   useEffect(() => {
-    if (splashDone && appPhase === 'splash') {
-      setAppPhase('login_user');
-      setSessionLines([makeLine('system', 'nx-field-01 login:')]);
-    }
-  }, [splashDone, appPhase]);
-
-  // Advance booting → resume_prompt or playing once MOTD finishes
-  useEffect(() => {
-    if (!bootDone || appPhase !== 'booting' || resumeHandled.current) return;
-    resumeHandled.current = true;
-
-    if (hasSave()) {
-      setAppPhase('resume_prompt');
-      setSessionLines(prev => [
-        ...prev,
-        ...bootLines,
-        makeLine('separator', ''),
-        makeLine('output', 'Previous session detected.'),
-        makeLine('system', 'Type  yes  to resume, or  no  to start a new run.'),
-      ]);
-    } else {
-      setGameState(createInitialState());
-      setAppPhase('playing');
-      setSessionLines(prev => [...prev, ...bootLines]);
-    }
+    if (!bootDone || appPhase !== 'booting' || bootHandled.current) return;
+    bootHandled.current = true;
+    setAppPhase('playing');
+    setSessionLines(prev => [...prev, ...bootLines]);
   }, [bootDone, appPhase, bootLines]);
 
   // Auto-save on state changes during play
   useEffect(() => {
     if (gameState?.phase === 'playing') saveGame(gameState);
   }, [gameState]);
+
+  // Refocus terminal input whenever all modals close
+  useEffect(() => {
+    if (!helpOpen && !briefingOpen && !mapOpen && !notesOpen) {
+      terminalRef.current?.focus();
+    }
+  }, [helpOpen, briefingOpen, mapOpen, notesOpen]);
 
   const push = useCallback((lines: TerminalLine[]) => {
     setSessionLines(prev => [...prev, ...lines]);
@@ -97,9 +106,6 @@ export const App = () => {
 
   const handleSubmit = useCallback(
     async (raw: string) => {
-      // ── Splash (shouldn't happen, input disabled) ──────────
-      if (appPhase === 'splash') return;
-
       // ── Login: username ────────────────────────────────────
       if (appPhase === 'login_user') {
         const user = raw.trim();
@@ -111,7 +117,6 @@ export const App = () => {
 
       // ── Login: password ────────────────────────────────────
       if (appPhase === 'login_pass') {
-        // Echo masked — never show the actual password
         push([makeLine('input', '********')]);
 
         if (username === OPERATIVE_USER && raw === OPERATIVE_PASS) {
@@ -120,7 +125,17 @@ export const App = () => {
             makeLine('output', `Access granted. Welcome, ${username}.`),
             makeLine('separator', ''),
           ]);
-          setAppPhase('booting');
+          if (hasSave()) {
+            setAppPhase('resume_prompt');
+            push([
+              makeLine('output', 'Previous session detected.'),
+              makeLine('system', 'Type  yes  to resume, or  no  to start a new run.'),
+            ]);
+          } else {
+            setGameState(createInitialState());
+            setSessionLines([]);
+            setAppPhase('scanning');
+          }
         } else {
           push([makeLine('error', 'Login incorrect.'), makeLine('system', 'nx-field-01 login:')]);
           setUsername('');
@@ -137,15 +152,15 @@ export const App = () => {
           const saved = loadGame();
           if (saved) {
             setGameState(saved);
-            setAppPhase('playing');
-            push([makeLine('system', 'Session restored.'), makeLine('separator', '')]);
+          } else {
+            setGameState(createInitialState());
           }
         } else {
           clearSave();
           setGameState(createInitialState());
-          setAppPhase('playing');
-          push([makeLine('system', 'Starting new run.'), makeLine('separator', '')]);
         }
+        setSessionLines([]);
+        setAppPhase('scanning');
         return;
       }
 
@@ -154,6 +169,30 @@ export const App = () => {
 
       if (raw.trim().toLowerCase() === 'clear') {
         setSessionLines([]);
+        return;
+      }
+
+      if (raw.trim().toLowerCase() === 'help') {
+        push([makeLine('input', raw)]);
+        setHelpOpen(true);
+        return;
+      }
+
+      if (raw.trim().toLowerCase() === 'briefing') {
+        push([makeLine('input', raw)]);
+        setBriefingOpen(true);
+        return;
+      }
+
+      if (raw.trim().toLowerCase() === 'map') {
+        push([makeLine('input', raw)]);
+        setMapOpen(true);
+        return;
+      }
+
+      if (raw.trim().toLowerCase() === 'notes') {
+        push([makeLine('input', raw)]);
+        setNotesOpen(true);
         return;
       }
 
@@ -202,7 +241,7 @@ export const App = () => {
   const isMasked = appPhase === 'login_pass';
   const isNoHistory = appPhase === 'login_user' || appPhase === 'login_pass';
   const inputDisabled =
-    appPhase === 'splash' ||
+    appPhase === 'scanning' ||
     appPhase === 'booting' ||
     appPhase === 'burned' ||
     spinnerLine !== null;
@@ -211,36 +250,91 @@ export const App = () => {
   const nodeIp = node?.ip ?? '---';
   const trace = gameState?.player.trace ?? 0;
 
-  // Combine all line sources
-  // bootLines are only streamed dynamically during 'booting'; once done they are
-  // snapshotted into sessionLines so they stay in place as commands are typed.
   const allLines: TerminalLine[] = [
-    ...splashLines,
     ...sessionLines,
     ...(spinnerLine ? [spinnerLine] : []),
     ...(appPhase === 'booting' ? bootLines : []),
   ];
 
-  // Kick off boot rendering only once
-  useEffect(() => {
-    if (appPhase === 'booting' && !bootStarted.current) {
-      bootStarted.current = true;
-    }
-  }, [appPhase]);
+  if (appPhase === 'welcome') {
+    return (
+      <WelcomeScreen
+        onAgree={() => {
+          recordDisclaimerAgreement();
+          setAppPhase('prologue');
+        }}
+      />
+    );
+  }
+
+  if (appPhase === 'scanning') {
+    return (
+      <ScanDiskScreen
+        onDone={() => {
+          setSessionLines([]);
+          setAppPhase('booting');
+        }}
+      />
+    );
+  }
+
+  if (appPhase === 'prologue') {
+    return (
+      <PrologueScreen
+        onContinue={() => {
+          setAppPhase('login_user');
+          setSessionLines([makeLine('system', 'nx-field-01 login:')]);
+        }}
+      />
+    );
+  }
 
   return (
-    <Terminal
-      lines={allLines}
-      nodeIp={nodeIp}
-      trace={trace}
-      suggestions={appPhase === 'playing' ? aiSuggestions : []}
-      onSubmit={cmd => {
-        void handleSubmit(cmd);
-      }}
-      inputDisabled={inputDisabled}
-      inputPrompt={promptStr}
-      inputMasked={isMasked}
-      inputNoHistory={isNoHistory}
-    />
+    <>
+      <Terminal
+        ref={terminalRef}
+        lines={allLines}
+        nodeIp={nodeIp}
+        trace={trace}
+        suggestions={appPhase === 'playing' ? aiSuggestions : []}
+        onSubmit={cmd => {
+          void handleSubmit(cmd);
+        }}
+        inputDisabled={inputDisabled}
+        inputPrompt={promptStr}
+        inputMasked={isMasked}
+        inputNoHistory={isNoHistory}
+      />
+      {helpOpen && (
+        <HelpModal
+          onClose={() => {
+            setHelpOpen(false);
+          }}
+        />
+      )}
+      {briefingOpen && (
+        <BriefingModal
+          onClose={() => {
+            setBriefingOpen(false);
+          }}
+        />
+      )}
+      {mapOpen && gameState && (
+        <MapModal
+          gameState={gameState}
+          onClose={() => {
+            setMapOpen(false);
+          }}
+        />
+      )}
+      {notesOpen && gameState && (
+        <NotesModal
+          gameState={gameState}
+          onClose={() => {
+            setNotesOpen(false);
+          }}
+        />
+      )}
+    </>
   );
 };

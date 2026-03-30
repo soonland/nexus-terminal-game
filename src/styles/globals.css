@@ -9,12 +9,12 @@
 :root {
   --color-bg: #0000aa; /* classic ncurses blue */
   --color-bg-header: #0000aa;
-  --color-border: #5555ff; /* bright blue border */
+  --color-border: #ffff55; /* ScanDisk yellow */
 
   --color-output: #ffffff; /* white */
   --color-input: #ffffff;
-  --color-system: #aaaaaa; /* light gray */
-  --color-separator: #5555ff; /* bright blue */
+  --color-system: #ffff55; /* ScanDisk yellow */
+  --color-separator: #ffff55; /* ScanDisk yellow */
   --color-dim: #aaaaaa;
 
   --color-error: #ff5555; /* bright red */

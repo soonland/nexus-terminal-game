@@ -730,3 +730,10 @@ const ANCHOR_NODES: LiveNode[] = [
 export const buildNodeMap = (): Record<string, LiveNode> => {
   return Object.fromEntries(ANCHOR_NODES.map(n => [n.id, { ...n }]));
 };
+
+// Paths of files whose content is AI-generated (content: null in static definition).
+// Only these need to be cached in the save — all other file contents are reconstructed
+// from the static definitions on load.
+export const AI_GENERATED_FILE_PATHS: ReadonlySet<string> = new Set(
+  ANCHOR_NODES.flatMap(n => n.files.filter(f => f.content === null).map(f => f.path)),
+);

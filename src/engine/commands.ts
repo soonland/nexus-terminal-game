@@ -50,19 +50,25 @@ export const resolveCommand = async (raw: string, state: GameState): Promise<Com
   let result: CommandOutput | null = null;
   switch (verb) {
     case 'help':
-      result = cmdHelp();
+      result = { lines: [] }; // handled as modal in App
       break;
     case 'status':
       result = cmdStatus(state);
       break;
-    case 'inventory':
-      result = cmdInventory(state);
+    case 'whoami':
+      result = cmdWhoami(state);
       break;
     case 'map':
-      result = cmdMap(state);
+      result = { lines: [] }; // handled as modal in App
       break;
     case 'clear':
       result = { lines: [] };
+      break;
+    case 'briefing':
+      result = { lines: [] }; // handled as modal in App
+      break;
+    case 'notes':
+      result = { lines: [] }; // handled as modal in App
       break;
   }
   if (result) return withTurn(result, raw, state);
@@ -83,6 +89,9 @@ export const resolveCommand = async (raw: string, state: GameState): Promise<Com
     case 'cat':
       return withTurn(await cmdCat(args, state), raw, state);
     case 'disconnect':
+    case 'exit':
+    case 'logoff':
+    case 'logout':
       result = cmdDisconnect(state);
       break;
     case 'exploit':
@@ -205,30 +214,19 @@ const cmdWorldAI = async (raw: string, state: GameState): Promise<CommandOutput>
   return { lines, nextState: next, suggestions };
 };
 
-// ── help ──────────────────────────────────────────────────
-const cmdHelp = (): CommandOutput => {
+// ── whoami ────────────────────────────────────────────────
+const cmdWhoami = (state: GameState): CommandOutput => {
+  const node = currentNode(state);
+  const cred = state.player.credentials.find(
+    c => c.obtained && c.validOnNodes.includes(node.id) && c.accessLevel === node.accessLevel,
+  );
+  const localUser = cred?.username ?? (node.accessLevel === 'none' ? 'anonymous' : 'unknown');
   return {
     lines: [
-      sep(),
-      out('LOCAL COMMANDS (no trace):'),
-      sys('  help          — this message'),
-      sys('  status        — session overview'),
-      sys('  inventory     — credentials, tools, exfils'),
-      sys('  map           — discovered network nodes'),
-      sys('  clear         — clear terminal'),
-      sep(),
-      out('ENGINE COMMANDS:'),
-      sys('  scan                — scan current subnet (+1 trace)'),
-      sys('  scan [ip]           — probe a specific node (+1 trace)'),
-      sys('  connect [ip]        — connect to a node'),
-      sys('  login [user] [pass] — authenticate (+5 trace on fail)'),
-      sys('  ls [path]           — list files'),
-      sys('  cat [filepath]      — read a file'),
-      sys('  disconnect          — return to previous node'),
-      sys('  exploit [service]   — exploit a service (costs charges)'),
-      sys('  exfil [filepath]    — copy file to inventory (+3 trace)'),
-      sys('  wipe-logs           — clear traces (requires log-wiper)'),
-      sep(),
+      out(`${localUser}@${node.ip}`),
+      sys(`  Account    : ${localUser}  (${node.accessLevel.toUpperCase()})`),
+      sys(`  Host       : ${node.ip}  (${node.label})`),
+      sys(`  Operative  : ${state.player.handle}  [NEXUS]`),
     ],
   };
 };
@@ -257,61 +255,6 @@ const cmdStatus = (state: GameState): CommandOutput => {
       sep(),
     ],
   };
-};
-
-// ── inventory ─────────────────────────────────────────────
-const cmdInventory = (state: GameState): CommandOutput => {
-  const { player } = state;
-  const obtained = player.credentials.filter(c => c.obtained);
-  const lines: Out = [sep()];
-
-  if (obtained.length === 0) {
-    lines.push(sys('Credentials : none'));
-  } else {
-    lines.push(out('CREDENTIALS:'));
-    obtained.forEach(c =>
-      lines.push(
-        sys(`  ${c.username} / ${c.password}  [${c.accessLevel}]  — ${c.validOnNodes.join(', ')}`),
-      ),
-    );
-  }
-
-  lines.push(sep());
-
-  if (player.exfiltrated.length === 0) {
-    lines.push(sys('Exfiltrated : none'));
-  } else {
-    lines.push(out('EXFILTRATED:'));
-    player.exfiltrated.forEach(f => lines.push(sys(`  ${f.path}`)));
-  }
-
-  lines.push(sep());
-  return { lines };
-};
-
-// ── map ───────────────────────────────────────────────────
-const cmdMap = (state: GameState): CommandOutput => {
-  const { nodes, currentNodeId } = state.network;
-  const discovered = Object.values(nodes).filter(
-    (n): n is NonNullable<typeof n> => !!n && n.discovered,
-  );
-  const lines: Out = [sep(), out('NETWORK MAP:')];
-
-  const byLayer = [0, 1, 2, 3, 4, 5];
-  byLayer.forEach(layer => {
-    const layerNodes = discovered.filter(n => n.layer === layer);
-    if (layerNodes.length === 0) return;
-    const labels = ['ENTRY', 'OPS', 'SECURITY', 'FINANCE', 'EXECUTIVE', 'ARIA'];
-    lines.push(sys(`  [L${String(layer)}] ${labels[layer] ?? ''}`));
-    layerNodes.forEach(n => {
-      const current = n.id === currentNodeId ? ' ◄' : '';
-      const access = n.accessLevel !== 'none' ? ` [${n.accessLevel.toUpperCase()}]` : '';
-      lines.push(sys(`      ${n.ip}  ${n.label}${access}${current}`));
-    });
-  });
-
-  lines.push(sep());
-  return { lines };
 };
 
 // ── scan ──────────────────────────────────────────────────
@@ -503,7 +446,21 @@ const FILE_CONTENT_FALLBACK =
   '[FILE CONTENT UNAVAILABLE — AI generation offline. Raw binary data suppressed.]';
 
 const cmdCat = async (args: string[], state: GameState): Promise<CommandOutput> => {
-  if (!args[0]) return { lines: [err('Usage: cat [filepath]')] };
+  if (!args[0]) return { lines: [err('Usage: cat [filepath]  or  cat local:[filename]')] };
+
+  // ── local: prefix — read from exfil cache ────────────────
+  if (args[0].startsWith('local:')) {
+    const name = args[0].slice('local:'.length);
+    const cached = state.player.exfiltrated.find(
+      f => f.name === name || f.path === name || f.path.endsWith(`/${name}`),
+    );
+    if (!cached) return { lines: [err(`local: file not found: ${name}`)] };
+    const content = cached.content ?? FILE_CONTENT_FALLBACK;
+    const lines: Out = [sep()];
+    content.split('\n').forEach(l => lines.push(out(l)));
+    lines.push(sep());
+    return { lines };
+  }
 
   const node = currentNode(state);
   if (node.accessLevel === 'none') {
