@@ -13,17 +13,20 @@ export const hasAccess = (have: AccessLevel, need: AccessLevel): boolean => {
 };
 
 // ── Network ────────────────────────────────────────────────
-export type NodeTemplate =
-  | 'workstation'
-  | 'database_server'
-  | 'file_server'
-  | 'web_server'
-  | 'security_node'
-  | 'mail_server'
-  | 'iot_device'
-  | 'router_switch'
-  | 'printer'
-  | 'dev_server';
+export const NODE_TEMPLATES = [
+  'workstation',
+  'database_server',
+  'file_server',
+  'web_server',
+  'security_node',
+  'mail_server',
+  'iot_device',
+  'router_switch',
+  'printer',
+  'dev_server',
+] as const;
+
+export type NodeTemplate = (typeof NODE_TEMPLATES)[number];
 
 export type FileType =
   | 'log'
