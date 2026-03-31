@@ -24,6 +24,7 @@ export interface DivisionSeed {
   name: string;
   subnet: string;
   headcount: number;
+  fillerCount: number; // explicit filler node count per division (used by Phase 4 generator)
   techProfile: TechProfile;
   credentialPattern: CredentialPattern;
   securityPosture: SecurityPosture;

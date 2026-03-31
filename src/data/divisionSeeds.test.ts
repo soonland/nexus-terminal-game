@@ -16,6 +16,7 @@ const REQUIRED_FIELDS: (keyof DivisionSeed)[] = [
   'name',
   'subnet',
   'headcount',
+  'fillerCount',
   'techProfile',
   'credentialPattern',
   'securityPosture',
@@ -81,6 +82,51 @@ describe('DIVISION_SEEDS', () => {
         }
       },
     );
+  });
+
+  describe('fillerCount', () => {
+    it.each(EXPECTED_DIVISION_IDS)('should be a positive integer for "%s"', divisionId => {
+      const seed = DIVISION_SEEDS.find(s => s.divisionId === divisionId);
+      expect(seed).toBeDefined();
+      if (!seed) return;
+      expect(seed.fillerCount).toBeGreaterThan(0);
+      expect(Number.isInteger(seed.fillerCount)).toBe(true);
+    });
+
+    it('should be 3 for external_perimeter', () => {
+      const seed = DIVISION_SEEDS.find(s => s.divisionId === 'external_perimeter');
+      expect(seed).toBeDefined();
+      if (!seed) return;
+      expect(seed.fillerCount).toBe(3);
+    });
+
+    it('should be 4 for operations', () => {
+      const seed = DIVISION_SEEDS.find(s => s.divisionId === 'operations');
+      expect(seed).toBeDefined();
+      if (!seed) return;
+      expect(seed.fillerCount).toBe(4);
+    });
+
+    it('should be 2 for security', () => {
+      const seed = DIVISION_SEEDS.find(s => s.divisionId === 'security');
+      expect(seed).toBeDefined();
+      if (!seed) return;
+      expect(seed.fillerCount).toBe(2);
+    });
+
+    it('should be 3 for finance', () => {
+      const seed = DIVISION_SEEDS.find(s => s.divisionId === 'finance');
+      expect(seed).toBeDefined();
+      if (!seed) return;
+      expect(seed.fillerCount).toBe(3);
+    });
+
+    it('should be 2 for executive', () => {
+      const seed = DIVISION_SEEDS.find(s => s.divisionId === 'executive');
+      expect(seed).toBeDefined();
+      if (!seed) return;
+      expect(seed.fillerCount).toBe(2);
+    });
   });
 
   describe('ariaInfluenceRate', () => {
