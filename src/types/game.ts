@@ -132,6 +132,7 @@ export interface GameState {
   phase: GamePhase;
   runId: string;
   startedAt: number;
+  sessionSeed: number;
   turnCount: number;
   recentCommands: string[]; // last 8 commands for AI context
   player: Player;
