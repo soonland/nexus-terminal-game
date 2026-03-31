@@ -1,20 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { DIVISION_SEEDS } from './divisionSeeds';
-import type { DivisionId } from '../types/divisionSeed';
-import type { NodeTemplate } from '../types/game';
-
-const VALID_TEMPLATES: NodeTemplate[] = [
-  'workstation',
-  'database_server',
-  'file_server',
-  'web_server',
-  'security_node',
-  'mail_server',
-  'iot_device',
-  'router_switch',
-  'printer',
-  'dev_server',
-];
+import type { DivisionId, DivisionSeed } from '../types/divisionSeed';
+import { NODE_TEMPLATES } from '../types/game';
 
 const EXPECTED_DIVISION_IDS: DivisionId[] = [
   'external_perimeter',
@@ -24,7 +11,7 @@ const EXPECTED_DIVISION_IDS: DivisionId[] = [
   'executive',
 ];
 
-const REQUIRED_FIELDS: (keyof (typeof DIVISION_SEEDS)[number])[] = [
+const REQUIRED_FIELDS: (keyof DivisionSeed)[] = [
   'divisionId',
   'name',
   'subnet',
@@ -88,7 +75,7 @@ describe('DIVISION_SEEDS', () => {
         expect(seed).toBeDefined();
         if (!seed) return;
         for (const entry of seed.fillerTemplates) {
-          expect(VALID_TEMPLATES).toContain(entry.template);
+          expect(NODE_TEMPLATES).toContain(entry.template);
           expect(entry.weight).toBeGreaterThan(0);
           expect(entry.weight).toBeLessThanOrEqual(1);
         }

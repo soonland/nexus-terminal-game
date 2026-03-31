@@ -84,7 +84,7 @@ export const DIVISION_SEEDS: DivisionSeed[] = [
       { template: 'workstation', weight: 0.4 },
       { template: 'file_server', weight: 0.25 },
       { template: 'mail_server', weight: 0.2 },
-      { template: 'dev_server', weight: 0.15 },
+      { template: 'dev_server', weight: 0.15 }, // shadow IT: exec assistants run unsanctioned tools
     ],
     ariaInfluenceRate: 0.4,
   },
