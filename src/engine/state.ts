@@ -2,10 +2,10 @@ import type { GameState, LiveNode } from '../types/game';
 import { buildNodeMap, ANCHOR_CREDENTIALS } from '../data/anchorNodes';
 import { generateFillerNodes } from './generateFillerNodes';
 
-export const createInitialState = (): GameState => {
-  const sessionSeed = Math.floor(Math.random() * 2 ** 32);
+export const createInitialState = (sessionSeed?: number): GameState => {
+  const resolvedSeed = sessionSeed ?? Math.floor(Math.random() * 2 ** 32);
   const anchorNodes = buildNodeMap();
-  const { fillerNodes, anchorPatches } = generateFillerNodes(sessionSeed, anchorNodes);
+  const { fillerNodes, anchorPatches } = generateFillerNodes(resolvedSeed, anchorNodes);
 
   // Merge filler nodes into the node map
   const nodes: Record<string, LiveNode> = { ...anchorNodes };
@@ -15,6 +15,7 @@ export const createInitialState = (): GameState => {
 
   // Patch anchor connections to include filler node IDs
   for (const [anchorId, fillerIds] of Object.entries(anchorPatches)) {
+    // anchorPatches is built from anchors just merged into nodes — the node is guaranteed to exist
     const anchor = nodes[anchorId];
     nodes[anchorId] = { ...anchor, connections: [...anchor.connections, ...fillerIds] };
   }
@@ -23,7 +24,7 @@ export const createInitialState = (): GameState => {
     phase: 'playing',
     runId: crypto.randomUUID(),
     startedAt: Date.now(),
-    sessionSeed,
+    sessionSeed: resolvedSeed,
     turnCount: 0,
     recentCommands: [],
     player: {

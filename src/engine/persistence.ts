@@ -20,6 +20,7 @@ interface SaveState {
   phase: GamePhase;
   runId: string;
   startedAt: number;
+  sessionSeed: number;
   turnCount: number;
   recentCommands: string[];
   player: {
@@ -67,6 +68,7 @@ const toSaveState = (state: GameState): SaveState => {
     phase: state.phase,
     runId: state.runId,
     startedAt: state.startedAt,
+    sessionSeed: state.sessionSeed,
     turnCount: state.turnCount,
     recentCommands: state.recentCommands,
     player: {
@@ -90,8 +92,8 @@ const toSaveState = (state: GameState): SaveState => {
 // ── Deserialisation ────────────────────────────────────────
 
 const fromSaveState = (save: SaveState): GameState => {
-  // Start from fresh static data — no credentials or node definitions in the save
-  const state = createInitialState();
+  // Restore with the original session seed so filler nodes are reproduced identically
+  const state = createInitialState(save.sessionSeed);
 
   state.phase = save.phase;
   state.runId = save.runId;

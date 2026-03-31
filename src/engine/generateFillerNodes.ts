@@ -194,6 +194,7 @@ const pick = <T>(prng: () => number, items: T[]): T => items[Math.floor(prng() *
 
 // ── Helper: weighted random template pick ───────────────────
 const weightedPick = (prng: () => number, templates: FillerTemplateWeight[]): NodeTemplate => {
+  if (templates.length === 0) throw new Error('weightedPick: empty template list');
   const roll = prng();
   let cumulative = 0;
   for (const { template, weight } of templates) {
@@ -303,6 +304,7 @@ export const generateFillerNodes = (
 
     const assignIP = (): string => {
       while (usedOctets.has(nextOctet)) nextOctet++;
+      if (nextOctet > 255) throw new Error(`Subnet exhausted for division ${division.divisionId}`);
       const ip = `${subnetBase}.${String(nextOctet)}`;
       usedOctets.add(nextOctet);
       nextOctet++;
