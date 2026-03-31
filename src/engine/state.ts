@@ -1,6 +1,7 @@
 import type { GameState, LiveNode } from '../types/game';
 import { buildNodeMap, ANCHOR_CREDENTIALS } from '../data/anchorNodes';
 import { generateFillerNodes } from './generateFillerNodes';
+import { generateEmployeePool } from './generateEmployeePool';
 
 export const createInitialState = (sessionSeed?: number): GameState => {
   const resolvedSeed = sessionSeed ?? Math.floor(Math.random() * 2 ** 32);
@@ -18,6 +19,19 @@ export const createInitialState = (sessionSeed?: number): GameState => {
     // anchorPatches is built from anchors just merged into nodes — the node is guaranteed to exist
     const anchor = nodes[anchorId];
     nodes[anchorId] = { ...anchor, connections: [...anchor.connections, ...fillerIds] };
+  }
+
+  // Generate employee pool (uses a separate seed offset to avoid PRNG stream overlap with filler nodes)
+  const { employees, employeeCredentials, credentialHintPatches } = generateEmployeePool(
+    resolvedSeed,
+    fillerNodes,
+  );
+
+  // Patch filler workstation nodes' credentialHints to reference employee credential IDs.
+  // Keys in credentialHintPatches always refer to filler nodes already in the map.
+  for (const [nodeId, credIds] of Object.entries(credentialHintPatches)) {
+    const node = nodes[nodeId];
+    nodes[nodeId] = { ...node, credentialHints: [...node.credentialHints, ...credIds] };
   }
 
   return {
@@ -58,6 +72,8 @@ export const createInitialState = (sessionSeed?: number): GameState => {
     },
     forks: {},
     flags: {},
+    employees,
+    worldCredentials: employeeCredentials,
   };
 };
 

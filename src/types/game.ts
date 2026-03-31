@@ -128,6 +128,8 @@ export interface AriaState {
 // ── Session ────────────────────────────────────────────────
 export type GamePhase = 'boot' | 'playing' | 'burned' | 'ended';
 
+import type { Employee } from './employee';
+
 export interface GameState {
   phase: GamePhase;
   runId: string;
@@ -144,6 +146,8 @@ export interface GameState {
   aria: AriaState;
   forks: Record<string, 'pending' | 'path_a' | 'path_b'>;
   flags: Record<string, boolean>;
+  employees: Employee[]; // Phase 4: procedurally generated employee pool
+  worldCredentials: Credential[]; // Phase 4: un-obtained credentials that exist in the world
 }
 
 // ── Command result ─────────────────────────────────────────
