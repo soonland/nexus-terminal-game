@@ -62,6 +62,7 @@ const CREDENTIAL_ACCESS: Record<DivisionId, AccessLevel> = {
 
 // ── Public result type ──────────────────────────────────────
 
+/** @public */
 export interface EmployeePoolResult {
   employees: Employee[];
   employeeCredentials: Credential[];

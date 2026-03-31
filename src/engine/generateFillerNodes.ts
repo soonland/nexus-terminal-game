@@ -268,6 +268,7 @@ const makeFiles = (
 };
 
 // ── Public result type ──────────────────────────────────────
+/** @public */
 export interface FillerNodeResult {
   fillerNodes: LiveNode[];
   anchorPatches: Record<string, string[]>;
