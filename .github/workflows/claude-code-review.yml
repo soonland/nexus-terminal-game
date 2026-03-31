@@ -31,3 +31,5 @@ jobs:
             Flag bugs, security issues, and deviations from the project conventions described in CLAUDE.md.
             Post your findings as inline review comments on the relevant lines.
             If the code looks good, post a brief summary comment on the PR confirming the review is complete.
+            Never submit a "Request Changes" review. Always use "Comment" only, never block the PR.
+
