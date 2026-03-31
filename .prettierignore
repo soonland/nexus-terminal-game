@@ -3,3 +3,4 @@ coverage
 public/fonts
 .github
 .claude
+*.md
