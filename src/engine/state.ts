@@ -1,11 +1,29 @@
 import type { GameState, LiveNode } from '../types/game';
 import { buildNodeMap, ANCHOR_CREDENTIALS } from '../data/anchorNodes';
+import { generateFillerNodes } from './generateFillerNodes';
 
 export const createInitialState = (): GameState => {
+  const sessionSeed = Math.floor(Math.random() * 2 ** 32);
+  const anchorNodes = buildNodeMap();
+  const { fillerNodes, anchorPatches } = generateFillerNodes(sessionSeed, anchorNodes);
+
+  // Merge filler nodes into the node map
+  const nodes: Record<string, LiveNode> = { ...anchorNodes };
+  for (const node of fillerNodes) {
+    nodes[node.id] = node;
+  }
+
+  // Patch anchor connections to include filler node IDs
+  for (const [anchorId, fillerIds] of Object.entries(anchorPatches)) {
+    const anchor = nodes[anchorId];
+    nodes[anchorId] = { ...anchor, connections: [...anchor.connections, ...fillerIds] };
+  }
+
   return {
     phase: 'playing',
     runId: crypto.randomUUID(),
     startedAt: Date.now(),
+    sessionSeed,
     turnCount: 0,
     recentCommands: [],
     player: {
@@ -30,7 +48,7 @@ export const createInitialState = (): GameState => {
     network: {
       currentNodeId: 'contractor_portal',
       previousNodeId: null,
-      nodes: buildNodeMap(),
+      nodes,
     },
     aria: {
       discovered: false,
