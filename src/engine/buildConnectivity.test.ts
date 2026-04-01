@@ -516,14 +516,17 @@ describe('buildConnectivity — global path contractor_portal → exec_ceo', () 
     // reach exec_ceo, forcing the fallback bridge.
     const layer0Entry = makeAnchor('contractor_portal', 0, ['vpn_gateway']);
     const layer0Key = makeAnchor('vpn_gateway', 0, ['contractor_portal']); // no ops link
-    // Everything from layer 1 onward is absent — BFS dead-ends at vpn_gateway.
-    // exec_ceo must still become reachable via a patch on the operations entry.
-    const execCeo = makeAnchor('exec_ceo', 4, []);
+    // ops entry and key are present but isolated — BFS dead-ends at vpn_gateway.
+    // The bridge guard requires both anchors to exist before patching, so both
+    // must be in the map for the fallback to fire on the operations division.
+    const opsEntry = makeAnchor('ops_cctv_ctrl', 1, []);
+    const opsKey = makeAnchor('ops_hr_db', 1, []);
 
     const anchorMap: Partial<Record<string, LiveNode>> = {
       contractor_portal: layer0Entry,
       vpn_gateway: layer0Key,
-      exec_ceo: execCeo,
+      ops_cctv_ctrl: opsEntry,
+      ops_hr_db: opsKey,
     };
     const anchorPatches: Record<string, string[]> = {};
 

@@ -138,12 +138,39 @@ export const buildConnectivity = (
         filler.connections = [...anchorConns, ...keptPeers];
         fillerMap.set(fillerId, filler);
         // Remove the back-edge from each dropped peer to preserve bidirectionality.
+        // If removal leaves a peer below MIN_CONNECTIONS, repair it immediately
+        // (it may already have been visited in this loop and won't get another pass).
         for (const droppedId of droppedPeers) {
           const peer = fillerMap.get(droppedId);
-          if (peer) {
-            peer.connections = peer.connections.filter(c => c !== fillerId);
-            fillerMap.set(droppedId, peer);
+          if (!peer) continue;
+          peer.connections = peer.connections.filter(c => c !== fillerId);
+          const peerSubnetConns = peer.connections.filter(c => allInSubnet.has(c));
+          if (peerSubnetConns.length < MIN_CONNECTIONS) {
+            const repairCandidates = divFillerIds.filter(
+              id => id !== droppedId && !peer.connections.includes(id),
+            );
+            for (let i = repairCandidates.length - 1; i > 0; i--) {
+              const j = Math.floor(prng() * (i + 1));
+              const tmp = repairCandidates[i];
+              repairCandidates[i] = repairCandidates[j];
+              repairCandidates[j] = tmp;
+            }
+            let needed = MIN_CONNECTIONS - peerSubnetConns.length;
+            for (const candidateId of repairCandidates) {
+              if (needed <= 0) break;
+              const candidate = fillerMap.get(candidateId);
+              if (!candidate) continue;
+              const candidateSubnetConns = candidate.connections.filter(c => allInSubnet.has(c));
+              if (candidateSubnetConns.length >= MAX_CONNECTIONS) continue;
+              peer.connections.push(candidateId);
+              if (!candidate.connections.includes(droppedId)) {
+                candidate.connections.push(droppedId);
+              }
+              fillerMap.set(candidateId, candidate);
+              needed--;
+            }
           }
+          fillerMap.set(droppedId, peer);
         }
       } else if (subnetConns.length < MIN_CONNECTIONS) {
         // Add peer connections until we reach the minimum.
@@ -200,8 +227,14 @@ export const buildConnectivity = (
       const divAnchors = DIVISION_ANCHORS[division.divisionId];
       if (!divAnchors) continue;
       if (!globalDist.has(divAnchors.key)) {
-        patches[divAnchors.entry] = [...(patches[divAnchors.entry] ?? []), divAnchors.key];
-        patches[divAnchors.key] = [...(patches[divAnchors.key] ?? []), divAnchors.entry];
+        // Guard: only patch anchors that actually exist in the map.
+        if (!anchorNodeMap[divAnchors.entry] || !anchorNodeMap[divAnchors.key]) continue;
+        if (!(patches[divAnchors.entry] ?? []).includes(divAnchors.key)) {
+          patches[divAnchors.entry] = [...(patches[divAnchors.entry] ?? []), divAnchors.key];
+        }
+        if (!(patches[divAnchors.key] ?? []).includes(divAnchors.entry)) {
+          patches[divAnchors.key] = [...(patches[divAnchors.key] ?? []), divAnchors.entry];
+        }
         break;
       }
     }
