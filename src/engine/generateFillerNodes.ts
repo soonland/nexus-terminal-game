@@ -10,6 +10,7 @@ import type { SecurityPosture, TechProfile } from '../types/divisionSeed';
 import type { FillerTemplateWeight } from '../types/divisionSeed';
 import { DIVISION_SEEDS } from '../data/divisionSeeds';
 import { createPRNG } from './prng';
+import { buildConnectivity } from './buildConnectivity';
 
 // ── Division → layer mapping ────────────────────────────────
 const DIVISION_LAYER: Record<string, number> = {
@@ -374,5 +375,8 @@ export const generateFillerNodes = (
     }
   }
 
-  return { fillerNodes, anchorPatches };
+  // Post-process: enforce connectivity rules and path guarantees.
+  // Uses a separate PRNG stream so the per-division streams above are unaffected.
+  const connectivityPrng = createPRNG((sessionSeed ^ 0x5a5a5a5a) >>> 0);
+  return buildConnectivity(fillerNodes, anchorNodeMap, anchorPatches, connectivityPrng);
 };
