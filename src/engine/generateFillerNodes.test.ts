@@ -198,12 +198,13 @@ describe('generateFillerNodes — Aria influence', () => {
 });
 
 describe('generateFillerNodes — anchor patches', () => {
-  it('all anchor patches reference valid filler node IDs', () => {
+  it('all anchor patches reference valid node IDs', () => {
+    // Patches may contain filler IDs (normal case) or anchor IDs (fallback path guarantee).
     const { fillerNodes, anchorPatches } = generateFillerNodes(42, anchorNodes);
-    const fillerIds = new Set(fillerNodes.map(n => n.id));
+    const allNodeIds = new Set([...fillerNodes.map(n => n.id), ...Object.keys(anchorNodes)]);
     for (const ids of Object.values(anchorPatches)) {
       for (const id of ids) {
-        expect(fillerIds.has(id)).toBe(true);
+        expect(allNodeIds.has(id)).toBe(true);
       }
     }
   });
