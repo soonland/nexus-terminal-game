@@ -147,7 +147,7 @@ export const buildConnectivity = (
           const peerSubnetConns = peer.connections.filter(c => allInSubnet.has(c));
           if (peerSubnetConns.length < MIN_CONNECTIONS) {
             const repairCandidates = divFillerIds.filter(
-              id => id !== droppedId && !peer.connections.includes(id),
+              id => id !== droppedId && id !== fillerId && !peer.connections.includes(id),
             );
             for (let i = repairCandidates.length - 1; i > 0; i--) {
               const j = Math.floor(prng() * (i + 1));
@@ -223,22 +223,27 @@ export const buildConnectivity = (
   }
 
   // ── Step 4: Verify end-to-end path contractor_portal → exec_ceo ──
-  const globalDist = bfs('contractor_portal', getConnections);
-  if (!globalDist.has('exec_ceo')) {
-    // Find the first division whose key anchor is not reachable and bridge it.
-    for (const division of DIVISION_SEEDS) {
-      const divAnchors = DIVISION_ANCHORS[division.divisionId];
-      if (!divAnchors) continue;
-      if (!globalDist.has(divAnchors.key)) {
-        // Guard: only patch anchors that actually exist in the map.
-        if (!anchorNodeMap[divAnchors.entry] || !anchorNodeMap[divAnchors.key]) continue;
-        if (!(patches[divAnchors.entry] ?? []).includes(divAnchors.key)) {
-          patches[divAnchors.entry] = [...(patches[divAnchors.entry] ?? []), divAnchors.key];
+  // Skip entirely if either endpoint is absent — the guarantee cannot be met.
+  if (anchorNodeMap['contractor_portal'] && anchorNodeMap['exec_ceo']) {
+    const globalDist = bfs('contractor_portal', getConnections);
+    if (!globalDist.has('exec_ceo')) {
+      // Find the first division whose key anchor is not reachable and bridge it.
+      // If that division's anchors are missing we cannot fix the real gap by
+      // skipping ahead — bridging a later division leaves the earlier break
+      // intact. Stop at the first unbridgeable gap.
+      for (const division of DIVISION_SEEDS) {
+        const divAnchors = DIVISION_ANCHORS[division.divisionId];
+        if (!divAnchors) continue;
+        if (!globalDist.has(divAnchors.key)) {
+          if (!anchorNodeMap[divAnchors.entry] || !anchorNodeMap[divAnchors.key]) break;
+          if (!(patches[divAnchors.entry] ?? []).includes(divAnchors.key)) {
+            patches[divAnchors.entry] = [...(patches[divAnchors.entry] ?? []), divAnchors.key];
+          }
+          if (!(patches[divAnchors.key] ?? []).includes(divAnchors.entry)) {
+            patches[divAnchors.key] = [...(patches[divAnchors.key] ?? []), divAnchors.entry];
+          }
+          break;
         }
-        if (!(patches[divAnchors.key] ?? []).includes(divAnchors.entry)) {
-          patches[divAnchors.key] = [...(patches[divAnchors.key] ?? []), divAnchors.entry];
-        }
-        break;
       }
     }
   }
