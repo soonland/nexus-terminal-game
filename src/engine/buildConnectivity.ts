@@ -156,6 +156,9 @@ export const buildConnectivity = (
               repairCandidates[j] = tmp;
             }
             let needed = MIN_CONNECTIONS - peerSubnetConns.length;
+            // Note: if every candidate is already at MAX_CONNECTIONS this peer
+            // may remain below MIN_CONNECTIONS. Step 3 will still ensure
+            // reachability via a direct entry-anchor edge in that case.
             for (const candidateId of repairCandidates) {
               if (needed <= 0) break;
               const candidate = fillerMap.get(candidateId);

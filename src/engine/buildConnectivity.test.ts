@@ -533,14 +533,10 @@ describe('buildConnectivity — global path contractor_portal → exec_ceo', () 
     // No filler nodes, but buildConnectivity still enforces the global path.
     const result = buildConnectivity([], anchorMap, anchorPatches, createPRNG(0));
 
-    // The function should have added a patch somewhere to bridge the gap.
-    // Verify that a patch key targeting an entry anchor was created.
-    const patchKeys = Object.keys(result.anchorPatches);
-    expect(patchKeys.length).toBeGreaterThan(0);
-
-    // At least one patch should point to a key anchor so the path can progress.
-    const allPatchTargets = Object.values(result.anchorPatches).flat();
-    expect(allPatchTargets.length).toBeGreaterThan(0);
+    // The operations division is the first one whose key anchor (ops_hr_db) is
+    // unreachable — the bridge should connect exactly that pair bidirectionally.
+    expect(result.anchorPatches['ops_cctv_ctrl']).toContain('ops_hr_db');
+    expect(result.anchorPatches['ops_hr_db']).toContain('ops_cctv_ctrl');
   });
 
   it('does not add redundant bridge patches when the path already exists', () => {
