@@ -133,8 +133,18 @@ export const buildConnectivity = (
         const anchorConns = filler.connections.filter(c => anchorsInLayer.includes(c));
         const peerConns = filler.connections.filter(c => divFillerIds.includes(c));
         const maxPeers = Math.max(0, MAX_CONNECTIONS - anchorConns.length);
-        filler.connections = [...anchorConns, ...peerConns.slice(0, maxPeers)];
+        const keptPeers = peerConns.slice(0, maxPeers);
+        const droppedPeers = peerConns.slice(maxPeers);
+        filler.connections = [...anchorConns, ...keptPeers];
         fillerMap.set(fillerId, filler);
+        // Remove the back-edge from each dropped peer to preserve bidirectionality.
+        for (const droppedId of droppedPeers) {
+          const peer = fillerMap.get(droppedId);
+          if (peer) {
+            peer.connections = peer.connections.filter(c => c !== fillerId);
+            fillerMap.set(droppedId, peer);
+          }
+        }
       } else if (subnetConns.length < MIN_CONNECTIONS) {
         // Add peer connections until we reach the minimum.
         const candidates = divFillerIds.filter(
@@ -150,9 +160,14 @@ export const buildConnectivity = (
         let needed = MIN_CONNECTIONS - subnetConns.length;
         for (const peer of candidates) {
           if (needed <= 0) break;
-          filler.connections.push(peer);
           const peerNode = fillerMap.get(peer);
-          if (peerNode && !peerNode.connections.includes(fillerId)) {
+          if (!peerNode) continue;
+          // Only add the edge if the peer has room for the back-edge, so both
+          // directions can be written and MAX_CONNECTIONS is never exceeded.
+          const peerSubnetConns = peerNode.connections.filter(c => allInSubnet.has(c));
+          if (peerSubnetConns.length >= MAX_CONNECTIONS) continue;
+          filler.connections.push(peer);
+          if (!peerNode.connections.includes(fillerId)) {
             peerNode.connections.push(fillerId);
           }
           needed--;
@@ -186,6 +201,7 @@ export const buildConnectivity = (
       if (!divAnchors) continue;
       if (!globalDist.has(divAnchors.key)) {
         patches[divAnchors.entry] = [...(patches[divAnchors.entry] ?? []), divAnchors.key];
+        patches[divAnchors.key] = [...(patches[divAnchors.key] ?? []), divAnchors.entry];
         break;
       }
     }

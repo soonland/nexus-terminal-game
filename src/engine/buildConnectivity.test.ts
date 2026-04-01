@@ -75,8 +75,8 @@ describe('buildConnectivity — bidirectionality', () => {
       ops_hr_db: anchor2,
     };
 
-    // Fillers: manually wire f1→f2 only (asymmetric initial state).
-    const f1 = makeNode('ops-ws-01', layer, ['ops_cctv_ctrl', 'f2']);
+    // Fillers: manually wire f1→ops-ws-02 only (asymmetric initial state).
+    const f1 = makeNode('ops-ws-01', layer, ['ops_cctv_ctrl', 'ops-ws-02']);
     const f2 = makeNode('ops-ws-02', layer, ['ops_cctv_ctrl']);
     const f3 = makeNode('ops-ws-03', layer, ['ops_cctv_ctrl', 'ops_hr_db']);
     const f4 = makeNode('ops-ws-04', layer, ['ops_hr_db']);
