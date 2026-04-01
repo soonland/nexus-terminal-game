@@ -75,8 +75,8 @@ describe('buildConnectivity — bidirectionality', () => {
       ops_hr_db: anchor2,
     };
 
-    // Fillers: manually wire f1→f2 only (asymmetric initial state).
-    const f1 = makeNode('ops-ws-01', layer, ['ops_cctv_ctrl', 'f2']);
+    // Fillers: manually wire f1→ops-ws-02 only (asymmetric initial state).
+    const f1 = makeNode('ops-ws-01', layer, ['ops_cctv_ctrl', 'ops-ws-02']);
     const f2 = makeNode('ops-ws-02', layer, ['ops_cctv_ctrl']);
     const f3 = makeNode('ops-ws-03', layer, ['ops_cctv_ctrl', 'ops_hr_db']);
     const f4 = makeNode('ops-ws-04', layer, ['ops_hr_db']);
@@ -510,34 +510,35 @@ describe('buildConnectivity — global path contractor_portal → exec_ceo', () 
   });
 
   it('adds a bridge edge when the global path is broken between divisions', () => {
-    // Build a minimal anchor map that has contractor_portal and exec_ceo
-    // but breaks the chain by removing the connection from ops_hr_db → sec_access_ctrl.
-    // We do this by creating stripped-down anchor stubs so the global BFS cannot
-    // reach exec_ceo, forcing the fallback bridge.
-    const layer0Entry = makeAnchor('contractor_portal', 0, ['vpn_gateway']);
-    const layer0Key = makeAnchor('vpn_gateway', 0, ['contractor_portal']); // no ops link
-    // Everything from layer 1 onward is absent — BFS dead-ends at vpn_gateway.
-    // exec_ceo must still become reachable via a patch on the operations entry.
-    const execCeo = makeAnchor('exec_ceo', 4, []);
-
+    // Minimal complete anchor chain where ops_cctv_ctrl is reachable from
+    // contractor_portal but ops_hr_db is not (the entry→key link is missing).
+    // The bridge should add ops_cctv_ctrl ↔ ops_hr_db, restoring the full path.
     const anchorMap: Partial<Record<string, LiveNode>> = {
-      contractor_portal: layer0Entry,
-      vpn_gateway: layer0Key,
-      exec_ceo: execCeo,
+      contractor_portal: makeAnchor('contractor_portal', 0, ['vpn_gateway']),
+      vpn_gateway: makeAnchor('vpn_gateway', 0, ['contractor_portal', 'ops_cctv_ctrl']),
+      ops_cctv_ctrl: makeAnchor('ops_cctv_ctrl', 1, ['vpn_gateway']), // no link to ops_hr_db
+      ops_hr_db: makeAnchor('ops_hr_db', 1, ['sec_access_ctrl']),
+      sec_access_ctrl: makeAnchor('sec_access_ctrl', 2, ['ops_hr_db', 'sec_firewall']),
+      sec_firewall: makeAnchor('sec_firewall', 2, ['sec_access_ctrl', 'fin_payments_db']),
+      fin_payments_db: makeAnchor('fin_payments_db', 3, ['sec_firewall', 'fin_exec_accounts']),
+      fin_exec_accounts: makeAnchor('fin_exec_accounts', 3, ['fin_payments_db', 'exec_cfo']),
+      exec_cfo: makeAnchor('exec_cfo', 4, ['fin_exec_accounts', 'exec_ceo']),
+      exec_ceo: makeAnchor('exec_ceo', 4, ['exec_cfo']),
     };
-    const anchorPatches: Record<string, string[]> = {};
 
-    // No filler nodes, but buildConnectivity still enforces the global path.
-    const result = buildConnectivity([], anchorMap, anchorPatches, createPRNG(0));
+    const result = buildConnectivity([], anchorMap, {}, createPRNG(0));
 
-    // The function should have added a patch somewhere to bridge the gap.
-    // Verify that a patch key targeting an entry anchor was created.
-    const patchKeys = Object.keys(result.anchorPatches);
-    expect(patchKeys.length).toBeGreaterThan(0);
+    // Bridge should connect the broken ops pair bidirectionally.
+    expect(result.anchorPatches['ops_cctv_ctrl']).toContain('ops_hr_db');
+    expect(result.anchorPatches['ops_hr_db']).toContain('ops_cctv_ctrl');
 
-    // At least one patch should point to a key anchor so the path can progress.
-    const allPatchTargets = Object.values(result.anchorPatches).flat();
-    expect(allPatchTargets.length).toBeGreaterThan(0);
+    // Applying the patches should restore contractor_portal → exec_ceo reachability.
+    const allNodes = new Map(Object.entries(anchorMap) as [string, LiveNode][]);
+    for (const [id, extra] of Object.entries(result.anchorPatches)) {
+      const node = allNodes.get(id);
+      if (node) allNodes.set(id, { ...node, connections: [...node.connections, ...extra] });
+    }
+    expect(bfsReachable('contractor_portal', allNodes).has('exec_ceo')).toBe(true);
   });
 
   it('does not add redundant bridge patches when the path already exists', () => {

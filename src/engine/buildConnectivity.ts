@@ -133,8 +133,48 @@ export const buildConnectivity = (
         const anchorConns = filler.connections.filter(c => anchorsInLayer.includes(c));
         const peerConns = filler.connections.filter(c => divFillerIds.includes(c));
         const maxPeers = Math.max(0, MAX_CONNECTIONS - anchorConns.length);
-        filler.connections = [...anchorConns, ...peerConns.slice(0, maxPeers)];
+        const keptPeers = peerConns.slice(0, maxPeers);
+        const droppedPeers = peerConns.slice(maxPeers);
+        filler.connections = [...anchorConns, ...keptPeers];
         fillerMap.set(fillerId, filler);
+        // Remove the back-edge from each dropped peer to preserve bidirectionality.
+        // If removal leaves a peer below MIN_CONNECTIONS, repair it immediately
+        // (it may already have been visited in this loop and won't get another pass).
+        for (const droppedId of droppedPeers) {
+          const peer = fillerMap.get(droppedId);
+          if (!peer) continue;
+          peer.connections = peer.connections.filter(c => c !== fillerId);
+          const peerSubnetConns = peer.connections.filter(c => allInSubnet.has(c));
+          if (peerSubnetConns.length < MIN_CONNECTIONS) {
+            const repairCandidates = divFillerIds.filter(
+              id => id !== droppedId && id !== fillerId && !peer.connections.includes(id),
+            );
+            for (let i = repairCandidates.length - 1; i > 0; i--) {
+              const j = Math.floor(prng() * (i + 1));
+              const tmp = repairCandidates[i];
+              repairCandidates[i] = repairCandidates[j];
+              repairCandidates[j] = tmp;
+            }
+            let needed = MIN_CONNECTIONS - peerSubnetConns.length;
+            // Note: if every candidate is already at MAX_CONNECTIONS this peer
+            // may remain below MIN_CONNECTIONS. Step 3 will still ensure
+            // reachability via a direct entry-anchor edge in that case.
+            for (const candidateId of repairCandidates) {
+              if (needed <= 0) break;
+              const candidate = fillerMap.get(candidateId);
+              if (!candidate) continue;
+              const candidateSubnetConns = candidate.connections.filter(c => allInSubnet.has(c));
+              if (candidateSubnetConns.length >= MAX_CONNECTIONS) continue;
+              peer.connections.push(candidateId);
+              if (!candidate.connections.includes(droppedId)) {
+                candidate.connections.push(droppedId);
+              }
+              fillerMap.set(candidateId, candidate);
+              needed--;
+            }
+          }
+          fillerMap.set(droppedId, peer);
+        }
       } else if (subnetConns.length < MIN_CONNECTIONS) {
         // Add peer connections until we reach the minimum.
         const candidates = divFillerIds.filter(
@@ -150,9 +190,14 @@ export const buildConnectivity = (
         let needed = MIN_CONNECTIONS - subnetConns.length;
         for (const peer of candidates) {
           if (needed <= 0) break;
-          filler.connections.push(peer);
           const peerNode = fillerMap.get(peer);
-          if (peerNode && !peerNode.connections.includes(fillerId)) {
+          if (!peerNode) continue;
+          // Only add the edge if the peer has room for the back-edge, so both
+          // directions can be written and MAX_CONNECTIONS is never exceeded.
+          const peerSubnetConns = peerNode.connections.filter(c => allInSubnet.has(c));
+          if (peerSubnetConns.length >= MAX_CONNECTIONS) continue;
+          filler.connections.push(peer);
+          if (!peerNode.connections.includes(fillerId)) {
             peerNode.connections.push(fillerId);
           }
           needed--;
@@ -178,15 +223,27 @@ export const buildConnectivity = (
   }
 
   // ── Step 4: Verify end-to-end path contractor_portal → exec_ceo ──
-  const globalDist = bfs('contractor_portal', getConnections);
-  if (!globalDist.has('exec_ceo')) {
-    // Find the first division whose key anchor is not reachable and bridge it.
-    for (const division of DIVISION_SEEDS) {
-      const divAnchors = DIVISION_ANCHORS[division.divisionId];
-      if (!divAnchors) continue;
-      if (!globalDist.has(divAnchors.key)) {
-        patches[divAnchors.entry] = [...(patches[divAnchors.entry] ?? []), divAnchors.key];
-        break;
+  // Skip entirely if either endpoint is absent — the guarantee cannot be met.
+  if (anchorNodeMap['contractor_portal'] && anchorNodeMap['exec_ceo']) {
+    const globalDist = bfs('contractor_portal', getConnections);
+    if (!globalDist.has('exec_ceo')) {
+      // Find the first division whose key anchor is not reachable and bridge it.
+      // If that division's anchors are missing we cannot fix the real gap by
+      // skipping ahead — bridging a later division leaves the earlier break
+      // intact. Stop at the first unbridgeable gap.
+      for (const division of DIVISION_SEEDS) {
+        const divAnchors = DIVISION_ANCHORS[division.divisionId];
+        if (!divAnchors) continue;
+        if (!globalDist.has(divAnchors.key)) {
+          if (!anchorNodeMap[divAnchors.entry] || !anchorNodeMap[divAnchors.key]) break;
+          if (!(patches[divAnchors.entry] ?? []).includes(divAnchors.key)) {
+            patches[divAnchors.entry] = [...(patches[divAnchors.entry] ?? []), divAnchors.key];
+          }
+          if (!(patches[divAnchors.key] ?? []).includes(divAnchors.entry)) {
+            patches[divAnchors.key] = [...(patches[divAnchors.key] ?? []), divAnchors.entry];
+          }
+          break;
+        }
       }
     }
   }
