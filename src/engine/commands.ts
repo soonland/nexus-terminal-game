@@ -380,9 +380,19 @@ const cmdLogin = (args: string[], state: GameState): CommandOutput => {
   const [username, password] = args;
 
   const node = currentNode(state);
-  const match = state.player.credentials.find(
+
+  // Check player's already-known credentials first, then world credentials
+  // (e.g. employee logins discovered via lateral movement chain files).
+  const matchInPlayer = state.player.credentials.find(
     c => c.username === username && c.password === password && c.validOnNodes.includes(node.id),
   );
+  const matchInWorld = matchInPlayer
+    ? undefined
+    : state.worldCredentials.find(
+        c => c.username === username && c.password === password && c.validOnNodes.includes(node.id),
+      );
+
+  const match = matchInPlayer ?? matchInWorld;
 
   if (!match) {
     const next = addTrace(state, 5);
@@ -392,12 +402,22 @@ const cmdLogin = (args: string[], state: GameState): CommandOutput => {
     };
   }
 
-  // Grant access and mark credential as obtained
+  // Grant access, mark credential as obtained, and promote world credentials into
+  // player.credentials so they persist and appear in whoami / inventory.
   const next = produce(state, s => {
     const n = s.network.nodes[node.id];
     if (n) n.accessLevel = match.accessLevel;
-    const cred = s.player.credentials.find(c => c.id === match.id);
-    if (cred) cred.obtained = true;
+    if (matchInPlayer) {
+      // produce clones the state — the credential found before the clone is always present after
+      const credIdx = s.player.credentials.findIndex(c => c.id === match.id);
+      if (credIdx !== -1) s.player.credentials[credIdx].obtained = true;
+    } else {
+      const worldIdx = s.worldCredentials.findIndex(c => c.id === match.id);
+      if (worldIdx !== -1) {
+        const [promoted] = s.worldCredentials.splice(worldIdx, 1);
+        s.player.credentials.push({ ...promoted, obtained: true });
+      }
+    }
   });
 
   return {

@@ -2,6 +2,7 @@ import type { GameState, LiveNode } from '../types/game';
 import { buildNodeMap, ANCHOR_CREDENTIALS } from '../data/anchorNodes';
 import { generateFillerNodes } from './generateFillerNodes';
 import { generateEmployeePool } from './generateEmployeePool';
+import { buildCredentialChains } from './buildCredentialChains';
 
 export const createInitialState = (sessionSeed?: number): GameState => {
   const resolvedSeed = sessionSeed ?? Math.floor(Math.random() * 2 ** 32);
@@ -32,6 +33,33 @@ export const createInitialState = (sessionSeed?: number): GameState => {
   for (const [nodeId, credIds] of Object.entries(credentialHintPatches)) {
     const node = nodes[nodeId];
     nodes[nodeId] = { ...node, credentialHints: [...node.credentialHints, ...credIds] };
+  }
+
+  // Build lateral movement chains — one per division — and apply the resulting patches.
+  const { filePatch, connectionPatch, credentialHintPatch } = buildCredentialChains(
+    resolvedSeed,
+    employees,
+    employeeCredentials,
+    fillerNodes,
+  );
+
+  for (const [nodeId, chainFiles] of Object.entries(filePatch)) {
+    const node = nodes[nodeId];
+    nodes[nodeId] = { ...node, files: [...node.files, ...chainFiles] };
+  }
+
+  for (const [nodeId, addedConns] of Object.entries(connectionPatch)) {
+    const node = nodes[nodeId];
+    const existing = new Set(node.connections);
+    const newConns = addedConns.filter(c => !existing.has(c));
+    nodes[nodeId] = { ...node, connections: [...node.connections, ...newConns] };
+  }
+
+  for (const [nodeId, credIds] of Object.entries(credentialHintPatch)) {
+    const node = nodes[nodeId];
+    const existing = new Set(node.credentialHints);
+    const newCredIds = credIds.filter(c => !existing.has(c));
+    nodes[nodeId] = { ...node, credentialHints: [...node.credentialHints, ...newCredIds] };
   }
 
   return {
