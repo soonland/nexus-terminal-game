@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildCredentialChains } from './buildCredentialChains';
+import { buildCredentialChains, DIVISION_LAYER } from './buildCredentialChains';
 import { generateEmployeePool } from './generateEmployeePool';
 import { generateFillerNodes } from './generateFillerNodes';
 import { buildNodeMap } from '../data/anchorNodes';
@@ -9,17 +9,10 @@ import type { LiveNode } from '../types/game';
 // ── Shared fixtures ─────────────────────────────────────────
 
 const anchorNodes = buildNodeMap();
-const { fillerNodes } = generateFillerNodes(42, anchorNodes);
-const { employees, employeeCredentials } = generateEmployeePool(42, fillerNodes);
-
-// Division → layer mapping (mirrors the module under test)
-const DIVISION_LAYER: Record<string, number> = {
-  external_perimeter: 0,
-  operations: 1,
-  security: 2,
-  finance: 3,
-  executive: 4,
-};
+// Seed 132 produces workstation-template nodes in multiple divisions (layers 0 and 1
+// each get 3+ workstations), which is required to form credential chains.
+const { fillerNodes } = generateFillerNodes(132, anchorNodes);
+const { employees, employeeCredentials } = generateEmployeePool(132, fillerNodes);
 
 // ── Determinism ─────────────────────────────────────────────
 
@@ -130,10 +123,10 @@ describe('buildCredentialChains — chain structure', () => {
     }
   });
 
-  it('every INT_MEMO file has accessRequired "none"', () => {
+  it('every INT_MEMO file has accessRequired "user"', () => {
     const memoFiles = allPlantedFiles.filter(({ file }) => file.name.startsWith('INT_MEMO_'));
     for (const { file } of memoFiles) {
-      expect(file.accessRequired).toBe('none');
+      expect(file.accessRequired).toBe('user');
     }
   });
 
@@ -313,14 +306,14 @@ describe('buildCredentialChains — credential file content', () => {
     }
   });
 
-  it('IT_CREDS content includes a System field referencing a valid filler node ID', () => {
-    const fillerIds = new Set(fillerNodes.map(n => n.id));
+  it('IT_CREDS content includes a System field with a valid IP address', () => {
+    const fillerIps = new Set(fillerNodes.map(n => n.ip));
     for (const files of Object.values(filePatch)) {
       for (const file of files) {
         if (!file.name.startsWith('IT_CREDS_')) continue;
         const sysMatch = file.content?.match(/^System: (.+)$/m);
         expect(sysMatch).not.toBeNull();
-        expect(fillerIds.has(sysMatch![1])).toBe(true);
+        expect(fillerIps.has(sysMatch![1])).toBe(true);
       }
     }
   });
@@ -466,12 +459,13 @@ describe('buildCredentialChains — chain length', () => {
   // in filePatch. Each chain step plants one file on the current node, so a
   // chain of length L plants files on nodes 0..L-2 (i.e. L-1 nodes).
   //
-  // Chain length is capped at min(distinctWorkstationIds, 5), so with at
-  // least 2 distinct nodes the minimum is 2, and files are planted on 1–4 nodes.
+  // Chain length is capped at min(distinctWorkstationIds, 5), with a minimum of 3.
+  // So files are planted on 2–4 nodes when a chain forms.
   //
   // We identify division membership via the node ID prefix (e.g. "ops-ws-01").
-  // We mirror the module's eligibility check: count distinct filler-node IDs
-  // that have at least one employee assigned AND whose layer matches the division.
+  // We mirror the module's eligibility check: count distinct workstation-template
+  // filler-node IDs that have at least one employee assigned AND whose layer
+  // matches the division.
   const DIV_PREFIX: Record<string, string> = {
     external_perimeter: 'ext',
     operations: 'ops',
@@ -487,13 +481,13 @@ describe('buildCredentialChains — chain length', () => {
     const prefix = DIV_PREFIX[division.divisionId];
     const layer = DIVISION_LAYER[division.divisionId];
 
-    // Mirror the module's grouping logic: only count workstation IDs whose
-    // assigned employees exist AND whose node layer matches this division.
+    // Mirror the module's grouping logic: only count workstation-template node IDs
+    // whose assigned employees exist AND whose node layer matches this division.
     const empsByWorkstation = new Map<string, string[]>();
     for (const emp of employees) {
       if (emp.divisionId !== division.divisionId || emp.workstationId === '') continue;
       const node = nodeById.get(emp.workstationId);
-      if (!node || node.layer !== layer) continue;
+      if (!node || node.layer !== layer || node.template !== 'workstation') continue;
       const list = empsByWorkstation.get(emp.workstationId) ?? [];
       list.push(emp.id);
       empsByWorkstation.set(emp.workstationId, list);
@@ -502,54 +496,65 @@ describe('buildCredentialChains — chain length', () => {
 
     const chainNodes = Object.keys(filePatch).filter(nodeId => nodeId.startsWith(`${prefix}-`));
 
-    if (distinctWorkstationCount < 2) {
-      it(`${division.divisionId}: produces no chain file nodes when < 2 distinct employee workstations`, () => {
+    if (distinctWorkstationCount < 3) {
+      it(`${division.divisionId}: produces no chain file nodes when < 3 distinct workstation nodes`, () => {
         expect(chainNodes.length).toBe(0);
       });
     } else {
-      it(`${division.divisionId}: chain plants files on 1–4 nodes (chain length 2–5, last node gets no file)`, () => {
+      it(`${division.divisionId}: chain plants files on 2–4 nodes (chain length 3–5, last node gets no file)`, () => {
         // A chain of length L (capped at min(distinct, 5)) plants files on L-1 nodes.
-        // min distinct is 2 → min files nodes = 1; max chain = 5 → max file nodes = 4.
-        expect(chainNodes.length).toBeGreaterThanOrEqual(1);
+        // min distinct is 3 → min file nodes = 2; max chain = 5 → max file nodes = 4.
+        expect(chainNodes.length).toBeGreaterThanOrEqual(2);
         expect(chainNodes.length).toBeLessThanOrEqual(4);
       });
     }
   }
 });
 
-// ── Graceful skip — divisions with < 2 workstation nodes ────
+// ── Graceful skip — divisions with < 3 workstation nodes ────
 
 describe('buildCredentialChains — graceful skip for thin divisions', () => {
-  it('returns empty patches when all filler nodes are in only one workstation per division', () => {
-    // Build a degenerate fillerNodes set with exactly one workstation per division
-    const onePerDiv: LiveNode[] = DIVISION_SEEDS.map((div, i) => ({
-      id: `${['ext', 'ops', 'sec', 'fin', 'exec'][i]}-ws-01`,
-      ip: `10.${String(i)}.0.10`,
-      template: 'workstation' as const,
-      label: 'WORKSTATION [Win]',
-      description: null,
-      layer: DIVISION_LAYER[div.divisionId],
-      anchor: false,
-      connections: [],
-      services: [],
-      files: [],
-      accessLevel: 'none' as const,
-      compromised: false,
-      discovered: false,
-      credentialHints: [],
-    }));
+  it('returns empty patches when each division has exactly two workstation nodes', () => {
+    // Build two workstation nodes per division — below the minimum of 3.
+    const twoPerDiv: LiveNode[] = DIVISION_SEEDS.flatMap((div, i) =>
+      [1, 2].map(n => ({
+        id: `${['ext', 'ops', 'sec', 'fin', 'exec'][i]}-ws-0${String(n)}`,
+        ip: `10.${String(i)}.0.${String(n + 9)}`,
+        template: 'workstation' as const,
+        label: 'WORKSTATION [Win]',
+        description: null,
+        layer: DIVISION_LAYER[div.divisionId],
+        anchor: false,
+        connections: [],
+        services: [],
+        files: [],
+        accessLevel: 'none' as const,
+        compromised: false,
+        discovered: false,
+        credentialHints: [],
+      })),
+    );
 
-    // Assign one employee to the single workstation per division
-    const thinEmployees = employees.map(e => ({
-      ...e,
-      workstationId: onePerDiv.find(n => n.layer === DIVISION_LAYER[e.divisionId])?.id ?? '',
-    }));
+    // Round-robin employees across the two workstations per division.
+    const divNodes = new Map<string, LiveNode[]>();
+    for (const node of twoPerDiv) {
+      const key = String(node.layer);
+      divNodes.set(key, [...(divNodes.get(key) ?? []), node]);
+    }
+    let counters: Record<string, number> = {};
+    const thinEmployees = employees.map(e => {
+      const layer = DIVISION_LAYER[e.divisionId];
+      const nodes = divNodes.get(String(layer)) ?? [];
+      const idx = counters[e.divisionId] ?? 0;
+      counters = { ...counters, [e.divisionId]: idx + 1 };
+      return { ...e, workstationId: nodes[idx % nodes.length]?.id ?? '' };
+    });
 
     const { filePatch, connectionPatch, credentialHintPatch } = buildCredentialChains(
       42,
       thinEmployees,
       employeeCredentials,
-      onePerDiv,
+      twoPerDiv,
     );
 
     expect(Object.keys(filePatch)).toHaveLength(0);
@@ -745,14 +750,15 @@ describe('buildCredentialChains — unknown workstation node IDs', () => {
   });
 });
 
-// ── IT_CREDS content references employee workstationId ───────
+// ── IT_CREDS System field is next employee's workstation IP ──
 
-describe('buildCredentialChains — IT_CREDS System field matches next employee workstation', () => {
+describe('buildCredentialChains — IT_CREDS System field matches next employee workstation IP', () => {
   const { filePatch } = buildCredentialChains(42, employees, employeeCredentials, fillerNodes);
 
-  it('System field in IT_CREDS matches the workstationId of the employee whose credentials are revealed', () => {
+  it('System field in IT_CREDS is the IP address of the workstation of the employee whose credentials are revealed', () => {
     const credByUsername = new Map(employeeCredentials.map(c => [c.username, c]));
     const empByEmpId = new Map(employees.map(e => [e.id, e]));
+    const nodeById = new Map(fillerNodes.map(n => [n.id, n]));
 
     for (const files of Object.values(filePatch)) {
       for (const file of files) {
@@ -768,7 +774,10 @@ describe('buildCredentialChains — IT_CREDS System field matches next employee 
         const source = cred?.source ?? '';
         const emp = empByEmpId.get(source);
         expect(emp).toBeDefined();
-        expect(sysMatch[1]).toBe(emp?.workstationId);
+
+        const workstationNode = nodeById.get(emp?.workstationId ?? '');
+        expect(workstationNode).toBeDefined();
+        expect(sysMatch[1]).toBe(workstationNode?.ip);
       }
     }
   });

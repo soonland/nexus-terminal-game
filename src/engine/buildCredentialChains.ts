@@ -5,7 +5,8 @@ import { DIVISION_SEEDS } from '../data/divisionSeeds';
 import { createPRNG } from './prng';
 
 // ── Division → layer mapping (mirrors generateFillerNodes) ──
-const DIVISION_LAYER: Record<DivisionId, number> = {
+// Exported so test files can import rather than duplicate it.
+export const DIVISION_LAYER: Record<DivisionId, number> = {
   external_perimeter: 0,
   operations: 1,
   security: 2,
@@ -48,7 +49,7 @@ const buildReferenceFile = (nextEmp: Employee, nextNodeIp: string, stepIndex: nu
       '-- IronGate IT Support',
     ].join('\n'),
     exfiltrable: false,
-    accessRequired: 'none',
+    accessRequired: 'user',
   };
 };
 
@@ -57,8 +58,8 @@ const buildReferenceFile = (nextEmp: Employee, nextNodeIp: string, stepIndex: nu
  * employee's login details. Placed on odd-index chain steps (1, 3 …).
  */
 const buildCredentialFile = (
-  nextEmp: Employee,
   nextCred: Credential,
+  nextNodeIp: string,
   stepIndex: number,
 ): GameFile => {
   const suffix = String(stepIndex + 1).padStart(2, '0');
@@ -71,7 +72,7 @@ const buildCredentialFile = (
       '',
       `User: ${nextCred.username}`,
       `Pass: ${nextCred.password}`,
-      `System: ${nextEmp.workstationId}`,
+      `System: ${nextNodeIp}`,
       '',
       'Please update password upon next login.',
       '-- IronGate IT Support',
@@ -93,7 +94,7 @@ const appendPatch = <T>(record: Record<string, T[]>, key: string, values: T[]): 
  * Build lateral movement chains — one per division when sufficient workstation
  * nodes are available.
  *
- * A chain is a sequence of 2–5 distinct workstation nodes where:
+ * A chain is a sequence of 3–5 distinct workstation-template filler nodes where:
  *   - Even-index steps plant a reference file naming the next employee + IP.
  *   - Odd-index steps plant a credential file revealing the next employee's login.
  *   - Every consecutive pair of chain nodes is directly connected (bidirectional).
@@ -102,8 +103,9 @@ const appendPatch = <T>(record: Record<string, T[]>, key: string, values: T[]): 
  * buildConnectivity already links every filler node in a division layer to that
  * layer's anchor nodes — no extra work required here.
  *
- * Uses a dedicated PRNG constant (0xd1b54a33) to avoid stream overlap with the
- * filler node generator (0x9e3779b9) and the employee pool generator (0xb7e15163).
+ * Uses a dedicated PRNG constant (0xd1b54a33) with a non-zero base offset so that
+ * divIndex=0 does not produce the same seed as the filler node (0x9e3779b9) or
+ * employee pool (0xb7e15163) generators.
  */
 export const buildCredentialChains = (
   sessionSeed: number,
@@ -124,19 +126,20 @@ export const buildCredentialChains = (
     const divId = division.divisionId;
     const layer = DIVISION_LAYER[divId];
 
-    // New constant avoids PRNG stream overlap with the other two generators.
-    const divSeed = (sessionSeed ^ (divIndex * 0xd1b54a33)) >>> 0;
+    // Non-zero base offset ensures divIndex=0 does not produce sessionSeed,
+    // which would collide with the base case of the other two generators.
+    const divSeed = (sessionSeed ^ 0xd1b54a33 ^ (divIndex * 0xd1b54a33)) >>> 0;
     const prng = createPRNG(divSeed);
 
     // Collect employees with workstations in this division's layer.
     const divEmps = employees.filter(e => e.divisionId === divId && e.workstationId !== '');
 
-    // Group employees by their workstation node, keeping only nodes that actually
-    // exist in this division's layer (layer check guards against stale IDs).
+    // Group employees by their workstation node, keeping only workstation-template
+    // nodes in this division's layer (guards against stale IDs and non-workstation nodes).
     const empsByWorkstation = new Map<string, Employee[]>();
     for (const emp of divEmps) {
       const node = nodeById.get(emp.workstationId);
-      if (!node || node.layer !== layer) continue;
+      if (!node || node.layer !== layer || node.template !== 'workstation') continue;
       const list = empsByWorkstation.get(emp.workstationId) ?? [];
       list.push(emp);
       empsByWorkstation.set(emp.workstationId, list);
@@ -144,8 +147,8 @@ export const buildCredentialChains = (
 
     const distinctWorkstationIds = [...empsByWorkstation.keys()];
 
-    // Need at least 2 distinct nodes to form a meaningful chain.
-    if (distinctWorkstationIds.length < 2) continue;
+    // Need at least 3 distinct workstation nodes to form a valid chain (spec: 3–5 nodes).
+    if (distinctWorkstationIds.length < 3) continue;
 
     // Shuffle node IDs deterministically.
     const shuffled = [...distinctWorkstationIds];
@@ -156,7 +159,7 @@ export const buildCredentialChains = (
       shuffled[j] = tmp;
     }
 
-    // Chain length: 2–5 nodes.
+    // Chain length: 3–5 nodes.
     const chainLength = Math.min(shuffled.length, 5);
     const chainNodeIds = shuffled.slice(0, chainLength);
 
@@ -183,7 +186,7 @@ export const buildCredentialChains = (
         // Odd step: credential file revealing the next employee's login details.
         const nextCred = credByEmpId.get(nextEmp.id);
         if (nextCred) {
-          appendPatch(filePatch, currentNodeId, [buildCredentialFile(nextEmp, nextCred, i)]);
+          appendPatch(filePatch, currentNodeId, [buildCredentialFile(nextCred, nextNode.ip, i)]);
           // Make the credential discoverable from this node (cross-node hint).
           appendPatch(credentialHintPatch, currentNodeId, [nextCred.id]);
         }
@@ -198,12 +201,9 @@ export const buildCredentialChains = (
       }
       // For the reverse direction, account for connections already added
       // earlier in this loop iteration (connectionPatch is accumulated).
-      const nextNode2 = nodeById.get(nextNodeId);
-      if (!nextNode2)
-        throw new Error(`buildCredentialChains: node ${nextNodeId} missing from node map`);
       const nextPatchConns = connectionPatch[nextNodeId] ?? [];
       if (
-        !nextNode2.connections.includes(currentNodeId) &&
+        !nextNode.connections.includes(currentNodeId) &&
         !nextPatchConns.includes(currentNodeId)
       ) {
         appendPatch(connectionPatch, nextNodeId, [currentNodeId]);
