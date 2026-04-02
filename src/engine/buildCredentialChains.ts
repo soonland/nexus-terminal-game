@@ -118,6 +118,8 @@ export const buildCredentialChains = (
   const credentialHintPatch: Record<string, string[]> = {};
 
   // Build quick lookups.
+  // One credential per employee is an invariant maintained by generateEmployeePool;
+  // if that ever changes, the Map will silently keep only the last entry per source.
   const credByEmpId = new Map(credentials.map(c => [c.source, c]));
   const nodeById = new Map(fillerNodes.map(n => [n.id, n]));
 
@@ -126,9 +128,10 @@ export const buildCredentialChains = (
     const divId = division.divisionId;
     const layer = DIVISION_LAYER[divId];
 
-    // Non-zero base offset ensures divIndex=0 does not produce sessionSeed,
-    // which would collide with the base case of the other two generators.
-    const divSeed = (sessionSeed ^ 0xd1b54a33 ^ (divIndex * 0xd1b54a33)) >>> 0;
+    // Using (divIndex + 1) avoids the XOR-cancellation at divIndex=1 that
+    // `divIndex * 0xd1b54a33` would produce (x ^ x = 0), and ensures every
+    // division index produces a unique seed that differs from sessionSeed.
+    const divSeed = (sessionSeed ^ 0xd1b54a33 ^ ((divIndex + 1) * 0xd1b54a33)) >>> 0;
     const prng = createPRNG(divSeed);
 
     // Collect employees with workstations in this division's layer.
