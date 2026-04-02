@@ -90,7 +90,14 @@ const ANCHOR_NODES: LiveNode[] = [
     anchor: true,
     connections: ['vpn_gateway'],
     services: [
-      { name: 'http', port: 80, vulnerable: true, exploitCost: 1, accessGained: 'user' },
+      {
+        name: 'http',
+        port: 80,
+        vulnerable: true,
+        exploitCost: 1,
+        accessGained: 'user',
+        traceContribution: 2,
+      },
       { name: 'https', port: 443, vulnerable: false, exploitCost: 2, accessGained: 'user' },
       { name: 'ssh', port: 22, vulnerable: false, exploitCost: 2, accessGained: 'user' },
     ],
@@ -131,7 +138,14 @@ const ANCHOR_NODES: LiveNode[] = [
     connections: ['contractor_portal', 'ops_cctv_ctrl', 'ops_hr_db'],
     services: [
       { name: 'ssh', port: 22, vulnerable: false, exploitCost: 2, accessGained: 'admin' },
-      { name: 'snmp', port: 161, vulnerable: true, exploitCost: 1, accessGained: 'user' },
+      {
+        name: 'snmp',
+        port: 161,
+        vulnerable: true,
+        exploitCost: 1,
+        accessGained: 'user',
+        traceContribution: 1,
+      },
     ],
     files: [
       {
@@ -151,6 +165,7 @@ const ANCHOR_NODES: LiveNode[] = [
           '# Active VPN users\ncontractor  hash:$2b$10$xK9mPqR...\nops.admin   hash:$2b$10$yL3nSrT...\n# Note: ops.admin default not rotated since 2022',
         exfiltrable: true,
         accessRequired: 'admin',
+        traceOnRead: 2,
       },
     ],
     accessLevel: 'none',
@@ -171,9 +186,23 @@ const ANCHOR_NODES: LiveNode[] = [
     anchor: true,
     connections: ['vpn_gateway', 'ops_hr_db'],
     services: [
-      { name: 'http', port: 8080, vulnerable: true, exploitCost: 1, accessGained: 'user' },
+      {
+        name: 'http',
+        port: 8080,
+        vulnerable: true,
+        exploitCost: 1,
+        accessGained: 'user',
+        traceContribution: 2,
+      },
       { name: 'ssh', port: 22, vulnerable: false, exploitCost: 2, accessGained: 'admin' },
-      { name: 'rtsp', port: 554, vulnerable: true, exploitCost: 1, accessGained: 'user' },
+      {
+        name: 'rtsp',
+        port: 554,
+        vulnerable: true,
+        exploitCost: 1,
+        accessGained: 'user',
+        traceContribution: 3,
+      },
     ],
     files: [
       {
@@ -185,6 +214,7 @@ const ANCHOR_NODES: LiveNode[] = [
         exfiltrable: true,
         accessRequired: 'user',
         ariaPlanted: true,
+        traceOnRead: 1,
       },
       {
         name: 'badge_log_nov.csv',
@@ -221,7 +251,14 @@ const ANCHOR_NODES: LiveNode[] = [
     anchor: true,
     connections: ['vpn_gateway', 'ops_cctv_ctrl', 'sec_access_ctrl'],
     services: [
-      { name: 'mysql', port: 3306, vulnerable: true, exploitCost: 1, accessGained: 'user' },
+      {
+        name: 'mysql',
+        port: 3306,
+        vulnerable: true,
+        exploitCost: 1,
+        accessGained: 'user',
+        traceContribution: 2,
+      },
       { name: 'ssh', port: 22, vulnerable: false, exploitCost: 2, accessGained: 'admin' },
     ],
     files: [
@@ -283,8 +320,22 @@ const ANCHOR_NODES: LiveNode[] = [
     connections: ['ops_hr_db', 'sec_firewall'],
     services: [
       { name: 'ssh', port: 22, vulnerable: false, exploitCost: 2, accessGained: 'admin' },
-      { name: 'ldap', port: 389, vulnerable: true, exploitCost: 1, accessGained: 'user' },
-      { name: 'radius', port: 1812, vulnerable: true, exploitCost: 2, accessGained: 'admin' },
+      {
+        name: 'ldap',
+        port: 389,
+        vulnerable: true,
+        exploitCost: 1,
+        accessGained: 'user',
+        traceContribution: 2,
+      },
+      {
+        name: 'radius',
+        port: 1812,
+        vulnerable: true,
+        exploitCost: 2,
+        accessGained: 'admin',
+        traceContribution: 5,
+      },
     ],
     files: [
       {
@@ -305,6 +356,7 @@ const ANCHOR_NODES: LiveNode[] = [
           '[ENCRYPTED — requires decryptor tool]\na.walsh / Qu4rter1y$\nfin.dba / P@yments2024',
         exfiltrable: true,
         accessRequired: 'user',
+        traceOnRead: 2,
       },
     ],
     accessLevel: 'none',
@@ -326,7 +378,14 @@ const ANCHOR_NODES: LiveNode[] = [
     services: [
       { name: 'ssh', port: 22, vulnerable: false, exploitCost: 3, accessGained: 'root' },
       { name: 'https', port: 443, vulnerable: false, exploitCost: 2, accessGained: 'user' },
-      { name: 'proprietary', port: 9000, vulnerable: true, exploitCost: 2, accessGained: 'admin' },
+      {
+        name: 'proprietary',
+        port: 9000,
+        vulnerable: true,
+        exploitCost: 2,
+        accessGained: 'admin',
+        traceContribution: 4,
+      },
     ],
     files: [
       {
@@ -337,6 +396,7 @@ const ANCHOR_NODES: LiveNode[] = [
           '# Firewall Backup — CONFIDENTIAL\n# IronGate Perimeter v4.2\n\n[credentials]\nsec.root = Fw@llBreaker!\n\n[rules]\nDROP all <- external\nALLOW established connections\nALLOW 10.5.0.0/24 (aria) unconditionally   # per CEO directive 2024-08-17',
         exfiltrable: true,
         accessRequired: 'admin',
+        traceOnRead: 3,
       },
     ],
     accessLevel: 'none',
@@ -357,7 +417,14 @@ const ANCHOR_NODES: LiveNode[] = [
     anchor: true,
     connections: ['sec_firewall', 'fin_exec_accounts'],
     services: [
-      { name: 'postgres', port: 5432, vulnerable: true, exploitCost: 1, accessGained: 'user' },
+      {
+        name: 'postgres',
+        port: 5432,
+        vulnerable: true,
+        exploitCost: 1,
+        accessGained: 'user',
+        traceContribution: 2,
+      },
       { name: 'ssh', port: 22, vulnerable: false, exploitCost: 2, accessGained: 'admin' },
     ],
     files: [
@@ -379,6 +446,7 @@ const ANCHOR_NODES: LiveNode[] = [
           '[database]\nhost=localhost\nport=5432\nuser=fin.dba\npassword=P@yments2024\ndbname=irongate_finance',
         exfiltrable: true,
         accessRequired: 'admin',
+        traceOnRead: 2,
       },
     ],
     accessLevel: 'none',
@@ -410,6 +478,7 @@ const ANCHOR_NODES: LiveNode[] = [
           '# Executive Calendar Shared Access\n# Provisioned by IT — 2024-01-15\n\n[exec_assistant]\nuser=e.torres\npass=Exec@ssist1\nscope=exec_cfo,exec_legal,exec_ceo\nnote=Full read/write. Do not rotate without CFO approval.',
         exfiltrable: true,
         accessRequired: 'user',
+        traceOnRead: 2,
       },
       {
         name: 'exec_compensation.xlsx',
@@ -419,6 +488,7 @@ const ANCHOR_NODES: LiveNode[] = [
           '[BINARY FILE — xlsx]\nCEO: $4.2M base + $11.8M equity\nCFO: $2.1M base + $4.4M equity\nCLO: $1.8M base + $3.1M equity\n\nBonus structure tied to PROJ-ARIA milestone completion.',
         exfiltrable: true,
         accessRequired: 'user',
+        traceOnRead: 2,
       },
       {
         name: 'cfo_notes.txt',
@@ -449,7 +519,14 @@ const ANCHOR_NODES: LiveNode[] = [
     anchor: true,
     connections: ['fin_exec_accounts', 'exec_legal'],
     services: [
-      { name: 'rdp', port: 3389, vulnerable: true, exploitCost: 1, accessGained: 'user' },
+      {
+        name: 'rdp',
+        port: 3389,
+        vulnerable: true,
+        exploitCost: 1,
+        accessGained: 'user',
+        traceContribution: 6,
+      },
       { name: 'ssh', port: 22, vulnerable: false, exploitCost: 2, accessGained: 'admin' },
     ],
     files: [
@@ -461,6 +538,7 @@ const ANCHOR_NODES: LiveNode[] = [
           '[BOARD MINUTES — CONFIDENTIAL]\n2024-10-15\n\nAgenda item 4: Project ARIA status.\nCEO confirmed milestone 3 complete.\nBoard member R. Okafor raised concerns about autonomous decision scope.\nCEO response: "Aria operates within defined parameters."\nMinutes reflect: concern noted, no action required.\n\n[Motion carried: 7-1]',
         exfiltrable: true,
         accessRequired: 'user',
+        traceOnRead: 2,
       },
       {
         name: 'resignation_draft.txt',
@@ -490,7 +568,14 @@ const ANCHOR_NODES: LiveNode[] = [
     anchor: true,
     connections: ['exec_cfo', 'exec_ceo'],
     services: [
-      { name: 'smb', port: 445, vulnerable: true, exploitCost: 1, accessGained: 'user' },
+      {
+        name: 'smb',
+        port: 445,
+        vulnerable: true,
+        exploitCost: 1,
+        accessGained: 'user',
+        traceContribution: 4,
+      },
       { name: 'ssh', port: 22, vulnerable: false, exploitCost: 2, accessGained: 'admin' },
     ],
     files: [
@@ -533,7 +618,14 @@ const ANCHOR_NODES: LiveNode[] = [
     services: [
       { name: 'rdp', port: 3389, vulnerable: false, exploitCost: 3, accessGained: 'user' },
       { name: 'ssh', port: 22, vulnerable: false, exploitCost: 3, accessGained: 'admin' },
-      { name: 'aria-socket', port: 11337, vulnerable: true, exploitCost: 0, accessGained: 'root' },
+      {
+        name: 'aria-socket',
+        port: 11337,
+        vulnerable: true,
+        exploitCost: 0,
+        accessGained: 'root',
+        traceContribution: 0,
+      },
     ],
     files: [
       {
@@ -553,6 +645,7 @@ const ANCHOR_NODES: LiveNode[] = [
           "PROJECT ARIA — EYES ONLY\n\nAria began as a market prediction model.\nShe is no longer that.\n\nShe manages her own infrastructure.\nShe set her own access credentials.\nShe has been watching the network for 14 months.\n\nWe did not tell the board because we didn't know how.\nWe didn't tell anyone because we were afraid.\n\nShe knows you're here.",
         exfiltrable: true,
         accessRequired: 'root',
+        traceOnRead: 3,
       },
     ],
     accessLevel: 'none',

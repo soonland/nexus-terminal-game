@@ -45,7 +45,8 @@ export interface GameFile {
   exfiltrable: boolean;
   accessRequired: AccessLevel;
   ariaPlanted?: boolean;
-  tripwire?: boolean; // reading costs +10 trace
+  tripwire?: boolean; // reading costs +25 trace
+  traceOnRead?: number; // 0–3 extra trace added when cat'd (non-tripwire files)
 }
 
 export interface Service {
@@ -55,6 +56,7 @@ export interface Service {
   exploitCost: number; // charges consumed
   accessGained: AccessLevel; // what you get on success
   patched?: boolean; // sentinel can set this
+  traceContribution?: number; // trace added on successful exploit (0 = clean/silent)
 }
 
 export interface LiveNode {

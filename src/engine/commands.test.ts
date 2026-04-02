@@ -1042,7 +1042,7 @@ describe('resolveCommand — cat', () => {
       s.network.nodes['ops_hr_db']!.discovered = true;
     });
     const result = await resolveCommand('cat whistleblower_complaint_draft.txt', atHrDb);
-    expect((result.nextState as GameState).player.trace).toBe(10);
+    expect((result.nextState as GameState).player.trace).toBe(25);
   });
 
   it('should fetch and display generated content for files with null content', async () => {

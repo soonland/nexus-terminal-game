@@ -103,6 +103,9 @@ export const resolveCommand = async (raw: string, state: GameState): Promise<Com
     case 'wipe-logs':
       result = cmdWipeLogs(state);
       break;
+    case 'spoof':
+      result = cmdSpoof(state);
+      break;
   }
   if (result) return withTurn(result, raw, state);
 
@@ -259,7 +262,8 @@ const cmdStatus = (state: GameState): CommandOutput => {
 
 // ── scan ──────────────────────────────────────────────────
 const cmdScan = (args: string[], state: GameState): CommandOutput => {
-  let next = addTrace(state, 1);
+  const traceDelta = Math.random() < 0.5 ? 1 : 2;
+  let next = addTrace(state, traceDelta);
   const lines: Out = [];
 
   if (args[0]) {
@@ -496,8 +500,13 @@ const cmdCat = async (args: string[], state: GameState): Promise<CommandOutput> 
   }
 
   let next = state;
+  let traceFeedback: string | null = null;
   if (file.tripwire) {
-    next = addTrace(state, 10);
+    next = addTrace(state, 25);
+    traceFeedback = '  [!] TRIPWIRE TRIGGERED  +25 trace';
+  } else if (file.traceOnRead) {
+    next = addTrace(state, file.traceOnRead);
+    traceFeedback = `  +${String(file.traceOnRead)} trace`;
   }
 
   let content = file.content;
@@ -539,6 +548,7 @@ const cmdCat = async (args: string[], state: GameState): Promise<CommandOutput> 
   }
 
   const lines: Out = [sep()];
+  if (traceFeedback) lines.push(err(traceFeedback));
   content.split('\n').forEach(l => lines.push(out(l)));
   lines.push(sep());
 
@@ -579,8 +589,18 @@ const cmdExploit = (args: string[], state: GameState): CommandOutput => {
   const svc = node.services.find(s => s.name === service);
 
   if (!svc) return { lines: [err(`Service not found on ${node.ip}: ${service}`)] };
-  if (svc.patched) return { lines: [err(`${service}: patched — exploit unavailable`)] };
-  if (!svc.vulnerable) return { lines: [err(`${service}: no known vulnerability`)] };
+  if (svc.patched) {
+    return {
+      lines: [err(`${service}: patched — exploit unavailable  (+10 trace)`)],
+      nextState: addTrace(state, 10),
+    };
+  }
+  if (!svc.vulnerable) {
+    return {
+      lines: [err(`${service}: no known vulnerability  (+10 trace)`)],
+      nextState: addTrace(state, 10),
+    };
+  }
 
   if (state.player.charges < svc.exploitCost) {
     return {
@@ -592,7 +612,8 @@ const cmdExploit = (args: string[], state: GameState): CommandOutput => {
     };
   }
 
-  const next = produce(addTrace(state, 2), s => {
+  const traceAdded = svc.traceContribution ?? 2;
+  const next = produce(addTrace(state, traceAdded), s => {
     s.player.charges -= svc.exploitCost;
     const n = s.network.nodes[node.id];
     if (n) {
@@ -601,15 +622,15 @@ const cmdExploit = (args: string[], state: GameState): CommandOutput => {
     }
   });
 
-  return {
-    lines: [
-      out(`Exploiting ${service} on ${node.ip}...`),
-      sys(`  Vulnerability confirmed.`),
-      sys(`  Access gained: ${svc.accessGained.toUpperCase()}`),
-      sys(`  Charges remaining: ${String(next.player.charges)}`),
-    ],
-    nextState: next,
-  };
+  const exploitLines: Out = [
+    out(`Exploiting ${service} on ${node.ip}...`),
+    sys(`  Vulnerability confirmed.`),
+    sys(`  Access gained: ${svc.accessGained.toUpperCase()}`),
+    sys(`  Charges remaining: ${String(next.player.charges)}`),
+  ];
+  if (traceAdded > 0) exploitLines.push(sys(`  +${String(traceAdded)} trace`));
+
+  return { lines: exploitLines, nextState: next };
 };
 
 // ── exfil ─────────────────────────────────────────────────
@@ -654,6 +675,25 @@ const cmdWipeLogs = (state: GameState): CommandOutput => {
   return {
     lines: [
       out('Wiping logs...'),
+      sys(`  Trace reduced by ${String(reduction)}%. Now: ${String(next.player.trace)}%`),
+    ],
+    nextState: next,
+  };
+};
+
+// ── spoof ─────────────────────────────────────────────────
+const cmdSpoof = (state: GameState): CommandOutput => {
+  const hasTool = state.player.tools.some(t => t.id === 'spoof-id');
+  if (!hasTool) return { lines: [err('spoof-id tool required')] };
+
+  const reduction = 20;
+  const next = produce(state, s => {
+    s.player.trace = Math.max(0, s.player.trace - reduction);
+  });
+
+  return {
+    lines: [
+      out('Spoofing identity signature...'),
       sys(`  Trace reduced by ${String(reduction)}%. Now: ${String(next.player.trace)}%`),
     ],
     nextState: next,
