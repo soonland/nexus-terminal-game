@@ -500,13 +500,13 @@ const cmdCat = async (args: string[], state: GameState): Promise<CommandOutput> 
   }
 
   let next = state;
-  let traceFeedback: string | null = null;
+  let traceFeedback: { msg: string; type: 'error' | 'system' } | null = null;
   if (file.tripwire) {
     next = addTrace(state, 25);
-    traceFeedback = '  [!] TRIPWIRE TRIGGERED  +25 trace';
+    traceFeedback = { msg: '  [!] TRIPWIRE TRIGGERED  +25 trace', type: 'error' };
   } else if (file.traceOnRead) {
     next = addTrace(state, file.traceOnRead);
-    traceFeedback = `  +${String(file.traceOnRead)} trace`;
+    traceFeedback = { msg: `  +${String(file.traceOnRead)} trace`, type: 'system' };
   }
 
   let content = file.content;
@@ -548,7 +548,7 @@ const cmdCat = async (args: string[], state: GameState): Promise<CommandOutput> 
   }
 
   const lines: Out = [sep()];
-  if (traceFeedback) lines.push(err(traceFeedback));
+  if (traceFeedback) lines.push(line(traceFeedback.msg, traceFeedback.type));
   content.split('\n').forEach(l => lines.push(out(l)));
   lines.push(sep());
 
@@ -589,6 +589,17 @@ const cmdExploit = (args: string[], state: GameState): CommandOutput => {
   const svc = node.services.find(s => s.name === service);
 
   if (!svc) return { lines: [err(`Service not found on ${node.ip}: ${service}`)] };
+
+  if (state.player.charges < svc.exploitCost) {
+    return {
+      lines: [
+        err(
+          `Insufficient charges (need ${String(svc.exploitCost)}, have ${String(state.player.charges)})`,
+        ),
+      ],
+    };
+  }
+
   if (svc.patched) {
     return {
       lines: [err(`${service}: patched — exploit unavailable  (+10 trace)`)],
@@ -599,16 +610,6 @@ const cmdExploit = (args: string[], state: GameState): CommandOutput => {
     return {
       lines: [err(`${service}: no known vulnerability  (+10 trace)`)],
       nextState: addTrace(state, 10),
-    };
-  }
-
-  if (state.player.charges < svc.exploitCost) {
-    return {
-      lines: [
-        err(
-          `Insufficient charges (need ${String(svc.exploitCost)}, have ${String(state.player.charges)})`,
-        ),
-      ],
     };
   }
 

@@ -1629,6 +1629,19 @@ describe('resolveCommand — trace meter', () => {
     expect((result.nextState as GameState).player.trace).toBe(0);
   });
 
+  it('should not add trace when player has 0 charges even if service is patched', async () => {
+    const noChargesPatched = produce(state, s => {
+      s.player.charges = 0;
+      const n = s.network.nodes['contractor_portal'];
+      if (n) {
+        const svc = n.services.find(x => x.name === 'http');
+        if (svc) svc.patched = true;
+      }
+    });
+    const result = await resolveCommand('exploit http', noChargesPatched);
+    expect((result.nextState as GameState).player.trace).toBe(0);
+  });
+
   // ── spoof: reduces trace by 20 ────────────────────────────
 
   it('should reduce trace by 20 when player has spoof-id tool', async () => {
