@@ -504,7 +504,7 @@ const cmdCat = async (args: string[], state: GameState): Promise<CommandOutput> 
   if (file.tripwire) {
     next = addTrace(state, 25);
     traceFeedback = { msg: '  [!] TRIPWIRE TRIGGERED  +25 trace', type: 'error' };
-  } else if (file.traceOnRead) {
+  } else if (file.traceOnRead != null && file.traceOnRead > 0) {
     next = addTrace(state, file.traceOnRead);
     traceFeedback = { msg: `  +${String(file.traceOnRead)} trace`, type: 'system' };
   }
@@ -676,7 +676,7 @@ const cmdWipeLogs = (state: GameState): CommandOutput => {
   return {
     lines: [
       out('Wiping logs...'),
-      sys(`  Trace reduced by ${String(reduction)}%. Now: ${String(next.player.trace)}%`),
+      sys(`  -${String(reduction)} trace. Now: ${String(next.player.trace)}%`),
     ],
     nextState: next,
   };
@@ -695,7 +695,7 @@ const cmdSpoof = (state: GameState): CommandOutput => {
   return {
     lines: [
       out('Spoofing identity signature...'),
-      sys(`  Trace reduced by ${String(reduction)}%. Now: ${String(next.player.trace)}%`),
+      sys(`  -${String(reduction)} trace. Now: ${String(next.player.trace)}%`),
     ],
     nextState: next,
   };
