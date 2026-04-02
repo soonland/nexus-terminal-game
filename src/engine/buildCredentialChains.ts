@@ -132,10 +132,10 @@ export const buildCredentialChains = (
     const divId = division.divisionId;
     const layer = DIVISION_LAYER[divId];
 
-    // Using (divIndex + 1) avoids the XOR-cancellation at divIndex=1 that
-    // `divIndex * 0xd1b54a33` would produce (x ^ x = 0), and ensures every
-    // division index produces a unique seed that differs from sessionSeed.
-    const divSeed = (sessionSeed ^ 0xd1b54a33 ^ ((divIndex + 1) * 0xd1b54a33)) >>> 0;
+    // Multiply by (divIndex + 1) so divIndex=0 produces 0xd1b54a33 (not 0), giving
+    // every division a unique offset that always differs from the raw sessionSeed.
+    // A leading `^ 0xd1b54a33` was previously present but cancelled the divIndex=0 term.
+    const divSeed = (sessionSeed ^ ((divIndex + 1) * 0xd1b54a33)) >>> 0;
     const prng = createPRNG(divSeed);
 
     // Collect employees with workstations in this division's layer.
