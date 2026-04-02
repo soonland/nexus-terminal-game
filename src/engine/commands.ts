@@ -408,8 +408,9 @@ const cmdLogin = (args: string[], state: GameState): CommandOutput => {
     const n = s.network.nodes[node.id];
     if (n) n.accessLevel = match.accessLevel;
     if (matchInPlayer) {
-      const cred = s.player.credentials.find(c => c.id === match.id);
-      if (cred) cred.obtained = true;
+      // produce clones the state — the credential found before the clone is always present after
+      const credIdx = s.player.credentials.findIndex(c => c.id === match.id);
+      if (credIdx !== -1) s.player.credentials[credIdx].obtained = true;
     } else {
       const worldIdx = s.worldCredentials.findIndex(c => c.id === match.id);
       if (worldIdx !== -1) {

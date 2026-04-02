@@ -40,8 +40,8 @@ const buildReferenceFile = (nextEmp: Employee, nextNodeIp: string, stepIndex: nu
     type: 'email',
     content: [
       'FROM: it-helpdesk@irongate.corp',
-      `TO: staff@irongate.corp`,
-      `SUBJECT: Workstation Relocation Notice`,
+      'TO: staff@irongate.corp',
+      'SUBJECT: Workstation Relocation Notice',
       '',
       `${nextEmp.firstName} ${nextEmp.lastName} (${nextEmp.username}) has been relocated.`,
       `New workstation: ${nextNodeIp}`,
@@ -117,11 +117,15 @@ export const buildCredentialChains = (
   const connectionPatch: Record<string, string[]> = {};
   const credentialHintPatch: Record<string, string[]> = {};
 
-  // Build quick lookups.
+  // Build quick lookups as plain objects so indexed access is typed as always-present,
+  // matching the pattern used in createInitialState (nodes: Record<string, LiveNode>).
   // One credential per employee is an invariant maintained by generateEmployeePool;
-  // if that ever changes, the Map will silently keep only the last entry per source.
-  const credByEmpId = new Map(credentials.map(c => [c.source, c]));
-  const nodeById = new Map(fillerNodes.map(n => [n.id, n]));
+  // if that ever changes, the object will silently keep only the last entry per source.
+  const credByEmpId = Object.fromEntries(credentials.map(c => [c.source, c])) as Record<
+    string,
+    Credential
+  >;
+  const nodeById = Object.fromEntries(fillerNodes.map(n => [n.id, n])) as Record<string, LiveNode>;
 
   for (let divIndex = 0; divIndex < DIVISION_SEEDS.length; divIndex++) {
     const division = DIVISION_SEEDS[divIndex];
@@ -139,16 +143,15 @@ export const buildCredentialChains = (
 
     // Group employees by their workstation node, keeping only workstation-template
     // nodes in this division's layer (guards against stale IDs and non-workstation nodes).
-    const empsByWorkstation = new Map<string, Employee[]>();
+    const empsByWorkstation: Record<string, Employee[]> = {};
     for (const emp of divEmps) {
-      const node = nodeById.get(emp.workstationId);
+      const node = nodeById[emp.workstationId];
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- workstationId may reference an anchor or non-filler node absent from nodeById
       if (!node || node.layer !== layer || node.template !== 'workstation') continue;
-      const list = empsByWorkstation.get(emp.workstationId) ?? [];
-      list.push(emp);
-      empsByWorkstation.set(emp.workstationId, list);
+      empsByWorkstation[emp.workstationId] = [...(empsByWorkstation[emp.workstationId] ?? []), emp];
     }
 
-    const distinctWorkstationIds = [...empsByWorkstation.keys()];
+    const distinctWorkstationIds = Object.keys(empsByWorkstation);
 
     // Need at least 3 distinct workstation nodes to form a valid chain (spec: 3–5 nodes).
     if (distinctWorkstationIds.length < 3) continue;
@@ -167,9 +170,9 @@ export const buildCredentialChains = (
     const chainNodeIds = shuffled.slice(0, chainLength);
 
     // Pick one representative employee per chain node using the PRNG.
+    // chainNodeIds contains only keys from empsByWorkstation — always defined.
     const chainEmployees = chainNodeIds.map(nId => {
-      const emps = empsByWorkstation.get(nId);
-      if (!emps) throw new Error(`buildCredentialChains: node ${nId} missing from employee map`);
+      const emps = empsByWorkstation[nId];
       return emps[Math.floor(prng() * emps.length)];
     });
 
@@ -178,16 +181,16 @@ export const buildCredentialChains = (
       const currentNodeId = chainNodeIds[i];
       const nextNodeId = chainNodeIds[i + 1];
       const nextEmp = chainEmployees[i + 1];
-      const nextNode = nodeById.get(nextNodeId);
-      if (!nextNode)
-        throw new Error(`buildCredentialChains: node ${nextNodeId} missing from node map`);
+      // chainNodeIds contains only IDs filtered to exist in nodeById — always defined.
+      const nextNode = nodeById[nextNodeId];
 
       if (i % 2 === 0) {
         // Even step: reference file pointing to the next employee's workstation.
         appendPatch(filePatch, currentNodeId, [buildReferenceFile(nextEmp, nextNode.ip, i)]);
       } else {
         // Odd step: credential file revealing the next employee's login details.
-        const nextCred = credByEmpId.get(nextEmp.id);
+        const nextCred = credByEmpId[nextEmp.id];
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- employee may lack a credential entry if the one-cred-per-employee invariant is broken
         if (nextCred) {
           appendPatch(filePatch, currentNodeId, [buildCredentialFile(nextCred, nextNode.ip, i)]);
           // Make the credential discoverable from this node (cross-node hint).
@@ -196,9 +199,7 @@ export const buildCredentialChains = (
       }
 
       // Ensure direct bidirectional connection between current and next node.
-      const currentNode = nodeById.get(currentNodeId);
-      if (!currentNode)
-        throw new Error(`buildCredentialChains: node ${currentNodeId} missing from node map`);
+      const currentNode = nodeById[currentNodeId];
       if (!currentNode.connections.includes(nextNodeId)) {
         appendPatch(connectionPatch, currentNodeId, [nextNodeId]);
       }
