@@ -15,7 +15,7 @@ const DIVISION_LAYER: Record<DivisionId, number> = {
 
 // ── Public result type ──────────────────────────────────────
 
-export interface CredentialChainResult {
+interface CredentialChainResult {
   /** Map of nodeId → GameFile[] to append to the node's file list. */
   filePatch: Record<string, GameFile[]>;
   /** Map of nodeId → nodeId[] to add to the node's connections. */
