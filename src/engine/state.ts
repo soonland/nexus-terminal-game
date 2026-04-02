@@ -45,8 +45,6 @@ export const createInitialState = (sessionSeed?: number): GameState => {
 
   for (const [nodeId, chainFiles] of Object.entries(filePatch)) {
     const node = nodes[nodeId];
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- Record<string,LiveNode> hides undefined at type level; guard is defensive
-    if (!node) continue;
     nodes[nodeId] = { ...node, files: [...node.files, ...chainFiles] };
   }
 
@@ -54,20 +52,14 @@ export const createInitialState = (sessionSeed?: number): GameState => {
     const node = nodes[nodeId];
     const existing = new Set(node.connections);
     const newConns = addedConns.filter(c => !existing.has(c));
-    if (newConns.length > 0) {
-      nodes[nodeId] = { ...node, connections: [...node.connections, ...newConns] };
-    }
+    nodes[nodeId] = { ...node, connections: [...node.connections, ...newConns] };
   }
 
   for (const [nodeId, credIds] of Object.entries(credentialHintPatch)) {
     const node = nodes[nodeId];
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- same as above
-    if (!node) continue;
     const existing = new Set(node.credentialHints);
     const newCredIds = credIds.filter(c => !existing.has(c));
-    if (newCredIds.length > 0) {
-      nodes[nodeId] = { ...node, credentialHints: [...node.credentialHints, ...newCredIds] };
-    }
+    nodes[nodeId] = { ...node, credentialHints: [...node.credentialHints, ...newCredIds] };
   }
 
   return {
