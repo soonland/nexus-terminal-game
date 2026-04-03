@@ -12,6 +12,7 @@ interface NodeDelta {
   accessLevel: AccessLevel;
   compromised: boolean;
   locked?: boolean;
+  lockedFilePaths?: string[]; // file paths locked by the 31% watchlist
   cachedFileContents: Record<string, string>; // path → AI-generated content only
 }
 
@@ -53,6 +54,7 @@ const toSaveState = (state: GameState): SaveState => {
         cachedFileContents[f.path] = f.content;
       }
     });
+    const lockedFilePaths = node.files.filter(f => f.locked).map(f => f.path);
     const delta: NodeDelta = {
       discovered: node.discovered,
       accessLevel: node.accessLevel,
@@ -60,6 +62,7 @@ const toSaveState = (state: GameState): SaveState => {
       cachedFileContents,
     };
     if (node.locked !== undefined) delta.locked = node.locked;
+    if (lockedFilePaths.length > 0) delta.lockedFilePaths = lockedFilePaths;
     nodeDelta[id] = delta;
   }
 
@@ -123,8 +126,10 @@ const fromSaveState = (save: SaveState): GameState => {
     node.accessLevel = delta.accessLevel;
     node.compromised = delta.compromised;
     if (delta.locked !== undefined) node.locked = delta.locked;
-    // Restore AI-generated file content
+    // Restore file-level locks and AI-generated content
+    const lockedPaths = new Set(delta.lockedFilePaths ?? []);
     node.files.forEach(f => {
+      if (lockedPaths.has(f.path)) f.locked = true;
       if (f.path in delta.cachedFileContents) f.content = delta.cachedFileContents[f.path];
     });
   }

@@ -1,5 +1,5 @@
 import type { GameState, LiveNode } from '../types/game';
-import { buildNodeMap, ANCHOR_CREDENTIALS } from '../data/anchorNodes';
+import { buildNodeMap, ANCHOR_CREDENTIALS, LAYER_ENTRY_NODES } from '../data/anchorNodes';
 import { generateFillerNodes } from './generateFillerNodes';
 import { generateEmployeePool } from './generateEmployeePool';
 import { buildCredentialChains } from './buildCredentialChains';
@@ -111,11 +111,68 @@ export const currentNode = (state: GameState): LiveNode => {
   return node;
 };
 
+export const TRACE_THRESHOLDS = [31, 61, 86] as const;
+export const thresholdFlag = (pct: number): string => `threshold_${String(pct)}_crossed`;
+
 export const addTrace = (state: GameState, amount: number): GameState => {
-  const trace = Math.min(100, state.player.trace + amount);
-  return {
+  const prevTrace = state.player.trace;
+  const trace = Math.min(100, prevTrace + amount);
+  let next: GameState = {
     ...state,
     player: { ...state.player, trace },
     phase: trace >= 100 ? 'burned' : state.phase,
+  };
+
+  // Stamp flags for newly crossed thresholds (each fires exactly once per run).
+  for (const pct of TRACE_THRESHOLDS) {
+    const flag = thresholdFlag(pct);
+    if (prevTrace < pct && trace >= pct && !state.flags[flag]) {
+      next = { ...next, flags: { ...next.flags, [flag]: true } };
+    }
+  }
+
+  return next;
+};
+
+/**
+ * Produce a playable state from a burned session:
+ * - Reset trace to 0 and phase to 'playing'.
+ * - Move player to the entry node of the layer they burned in.
+ * - Reset all nodes in that layer to pre-compromise state (access revoked, exploits undone).
+ * - Preserve exfiltrated files and obtained credentials.
+ * - Clear threshold flags so alerts can fire again.
+ *
+ * Note: node.discovered is intentionally NOT reset. Network topology knowledge
+ * (which nodes exist, their IPs) persists across retries — the player paid for it
+ * with trace cost. Only access and compromise state rolls back.
+ */
+export const burnRetry = (state: GameState): GameState => {
+  const burnedNode = state.network.nodes[state.network.currentNodeId];
+  const burnedLayer = burnedNode?.layer ?? 0;
+  const entryNodeId = LAYER_ENTRY_NODES[burnedLayer] ?? 'contractor_portal';
+
+  const nodes = { ...state.network.nodes };
+  for (const [id, n] of Object.entries(nodes)) {
+    if (!n || n.layer !== burnedLayer) continue;
+    nodes[id] = {
+      ...n,
+      accessLevel: 'none',
+      compromised: false,
+      files: n.files.map(f => ({ ...f, locked: false })),
+      services: n.services.map(s => ({ ...s, patched: false })),
+    };
+  }
+
+  const thresholdFlagsToRemove = new Set(TRACE_THRESHOLDS.map(thresholdFlag));
+  const flags = Object.fromEntries(
+    Object.entries(state.flags).filter(([k]) => !thresholdFlagsToRemove.has(k)),
+  );
+
+  return {
+    ...state,
+    phase: 'playing',
+    player: { ...state.player, trace: 0 },
+    network: { ...state.network, currentNodeId: entryNodeId, previousNodeId: null, nodes },
+    flags,
   };
 };

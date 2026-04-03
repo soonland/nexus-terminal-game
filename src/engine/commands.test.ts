@@ -1659,3 +1659,108 @@ describe('resolveCommand — trace meter', () => {
     expect((result.nextState as GameState).player.trace).toBe(0);
   });
 });
+
+describe('resolveCommand — threshold alerts (applyThresholdEffects)', () => {
+  let state: GameState;
+
+  beforeEach(() => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false }));
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('should append a system alert line when trace crosses 31% for the first time', async () => {
+    state = produce(createInitialState(), s => {
+      s.player.trace = 30;
+    });
+    const result = await resolveCommand('scan', state);
+    const contents = result.lines.map(l => l.content);
+    expect(contents.some(c => c.includes('Anomalous activity flagged'))).toBe(true);
+    const alertLine = result.lines.find(l => l.content.includes('Anomalous activity flagged'));
+    expect(alertLine?.type).toBe('system');
+  });
+
+  it('should not repeat the 31% alert when the flag is already set', async () => {
+    state = produce(createInitialState(), s => {
+      s.player.trace = 30;
+      s.flags['threshold_31_crossed'] = true;
+    });
+    const result = await resolveCommand('scan', state);
+    const count = result.lines.filter(l => l.content.includes('Anomalous activity flagged')).length;
+    expect(count).toBe(0);
+  });
+
+  it('should append an error alert line when trace crosses 86%', async () => {
+    state = produce(createInitialState(), s => {
+      s.player.trace = 85;
+    });
+    const result = await resolveCommand('scan', state);
+    const alertLine = result.lines.find(l => l.content.includes('One more detection event'));
+    expect(alertLine).toBeDefined();
+    expect(alertLine?.type).toBe('error');
+  });
+
+  it('should append a system alert line (not error) when trace crosses 61%', async () => {
+    state = produce(createInitialState(), s => {
+      s.player.trace = 60;
+    });
+    const result = await resolveCommand('scan', state);
+    const alertLine = result.lines.find(l => l.content.includes('Active intrusion response'));
+    expect(alertLine).toBeDefined();
+    expect(alertLine?.type).toBe('system');
+  });
+
+  it('should lock up to 2 non-tripwire files on compromised nodes at 31%', async () => {
+    state = produce(createInitialState(), s => {
+      s.player.trace = 30;
+      const node = s.network.nodes['contractor_portal']!;
+      node.compromised = true;
+      node.accessLevel = 'user';
+    });
+    const result = await resolveCommand('scan', state);
+    const nextState = result.nextState as GameState;
+    const node = nextState.network.nodes['contractor_portal']!;
+    const lockedFiles = node.files.filter(f => f.locked);
+    expect(lockedFiles.length).toBeGreaterThanOrEqual(1);
+    expect(lockedFiles.length).toBeLessThanOrEqual(2);
+  });
+
+  it('should not lock files on nodes that are not compromised at 31%', async () => {
+    state = produce(createInitialState(), s => {
+      s.player.trace = 30;
+      s.network.nodes['contractor_portal']!.compromised = false;
+    });
+    const result = await resolveCommand('scan', state);
+    const nextState = result.nextState as GameState;
+    const node = nextState.network.nodes['contractor_portal']!;
+    expect(node.files.every(f => !f.locked)).toBe(true);
+  });
+});
+
+describe('resolveCommand — cat locked file', () => {
+  it('should deny access to a locked file with a watchlist message', async () => {
+    const state = produce(createInitialState(), s => {
+      s.network.nodes['contractor_portal']!.accessLevel = 'user';
+      const file = s.network.nodes['contractor_portal']!.files.find(f => f.name === 'welcome.txt');
+      if (file) file.locked = true;
+    });
+    const result = await resolveCommand('cat welcome.txt', state);
+    expect(result.lines[0].type).toBe('error');
+    expect(result.lines[0].content).toMatch(/watchlist/i);
+  });
+});
+
+describe('resolveCommand — exfil locked file', () => {
+  it('should deny exfiltration of a locked file with a watchlist message', async () => {
+    const state = produce(createInitialState(), s => {
+      s.network.nodes['contractor_portal']!.accessLevel = 'user';
+      const file = s.network.nodes['contractor_portal']!.files.find(f => f.name === 'welcome.txt');
+      if (file) file.locked = true;
+    });
+    const result = await resolveCommand('exfil welcome.txt', state);
+    expect(result.lines[0].type).toBe('error');
+    expect(result.lines[0].content).toMatch(/watchlist/i);
+  });
+});

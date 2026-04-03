@@ -12,7 +12,7 @@ import { useBootSequence } from './hooks/useBootSequence';
 import type { TerminalLine } from './types/terminal';
 import { makeLine } from './types/terminal';
 import type { GameState } from './types/game';
-import { createInitialState, currentNode } from './engine/state';
+import { createInitialState, currentNode, burnRetry } from './engine/state';
 import { resolveCommand } from './engine/commands';
 import {
   saveGame,
@@ -106,6 +106,28 @@ export const App = () => {
 
   const handleSubmit = useCallback(
     async (raw: string) => {
+      // ── Burned: retry ──────────────────────────────────────
+      if (appPhase === 'burned') {
+        if (raw.trim() !== '') {
+          push([makeLine('error', '// No commands accepted — press ENTER to reconnect.')]);
+          return;
+        }
+        if (!gameState) return;
+        const retryState = burnRetry(gameState);
+        saveGame(retryState); // overwrites the burned-state save; no clearSave needed
+        setGameState(retryState);
+        setSessionLines([]);
+        setAiSuggestions([]);
+        push([
+          makeLine('separator', ''),
+          makeLine('system', 'Reconnecting...'),
+          makeLine('system', '// Session resumed at layer entry point.'),
+          makeLine('separator', ''),
+        ]);
+        setAppPhase('playing');
+        return;
+      }
+
       // ── Login: username ────────────────────────────────────
       if (appPhase === 'login_user') {
         const user = raw.trim();
@@ -218,12 +240,14 @@ export const App = () => {
         if (next.phase === 'burned') {
           out.push(
             makeLine('separator', ''),
-            makeLine('error', 'TRACE LIMIT REACHED — CONNECTION BURNED.'),
-            makeLine('system', 'Exfiltrated assets retained. Restarting session...'),
+            makeLine('error', '// CRITICAL: TRACE LIMIT REACHED — CONNECTION BURNED.'),
+            makeLine('system', 'Exfiltrated assets retained. Session credentials preserved.'),
+            makeLine('system', 'Press ENTER to reconnect at layer entry point.'),
             makeLine('separator', ''),
           );
+          saveGame(next); // persist burned state so a refresh restores the reconnect prompt
           setAppPhase('burned');
-          clearSave();
+          // Do NOT clearSave here — state is needed for burnRetry on Enter.
         }
       }
 
@@ -237,14 +261,17 @@ export const App = () => {
   );
 
   // ── Prompt and masking per phase ───────────────────────────
-  const promptStr = appPhase === 'login_user' ? '' : appPhase === 'login_pass' ? '' : 'nexus $';
+  const promptStr =
+    appPhase === 'login_user'
+      ? ''
+      : appPhase === 'login_pass'
+        ? ''
+        : appPhase === 'burned'
+          ? '[RECONNECT]'
+          : 'nexus $';
   const isMasked = appPhase === 'login_pass';
   const isNoHistory = appPhase === 'login_user' || appPhase === 'login_pass';
-  const inputDisabled =
-    appPhase === 'scanning' ||
-    appPhase === 'booting' ||
-    appPhase === 'burned' ||
-    spinnerLine !== null;
+  const inputDisabled = appPhase === 'scanning' || appPhase === 'booting' || spinnerLine !== null;
 
   const node = gameState ? currentNode(gameState) : null;
   const nodeIp = node?.ip ?? '---';

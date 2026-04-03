@@ -1,6 +1,6 @@
 import type { GameState, CommandOutput, AccessLevel } from '../types/game';
 import { hasAccess } from '../types/game';
-import { currentNode, addTrace } from './state';
+import { currentNode, addTrace, thresholdFlag, TRACE_THRESHOLDS } from './state';
 import produce from './produce';
 
 interface WorldAIResponse {
@@ -113,10 +113,65 @@ export const resolveCommand = async (raw: string, state: GameState): Promise<Com
   return cmdWorldAI(raw, state);
 };
 
+// ── Threshold alert messages ──────────────────────────────
+// Derived from the canonical TRACE_THRESHOLDS in state.ts — do not add raw numbers here.
+// onCross: optional state mutation to apply when this threshold is first crossed.
+const THRESHOLD_ALERT_META: Record<
+  (typeof TRACE_THRESHOLDS)[number],
+  { msg: string; type: 'system' | 'error'; onCross?: (s: GameState) => GameState }
+> = {
+  31: {
+    msg: '// ALERT: Anomalous activity flagged. Watchlist active.',
+    type: 'system',
+    onCross: s =>
+      produce(s, draft => {
+        for (const node of Object.values(draft.network.nodes)) {
+          if (!node?.compromised) continue;
+          let locked = 0;
+          for (const f of node.files) {
+            if (locked >= 2) break;
+            if (!f.tripwire && !f.locked) {
+              f.locked = true;
+              locked++;
+            }
+          }
+        }
+      }),
+  },
+  61: { msg: '// ALERT: Active intrusion response initiated.', type: 'system' },
+  86: { msg: '// CRITICAL: One more detection event triggers full lockout.', type: 'error' },
+};
+
+/**
+ * Detect newly crossed thresholds and:
+ *   - Append the corresponding alert line to the output.
+ *   - Run any onCross side-effect defined in THRESHOLD_ALERT_META.
+ */
+const applyThresholdEffects = (prevState: GameState, result: CommandOutput): CommandOutput => {
+  const nextState = result.nextState as GameState | undefined;
+  if (!nextState) return result;
+
+  const alertLines: Out = [];
+  let mutated = nextState;
+
+  for (const pct of TRACE_THRESHOLDS) {
+    const flag = thresholdFlag(pct);
+    if (!prevState.flags[flag] && nextState.flags[flag]) {
+      const { msg, type, onCross } = THRESHOLD_ALERT_META[pct];
+      alertLines.push(sep(), line(msg, type), sep());
+      if (onCross) mutated = onCross(mutated);
+    }
+  }
+
+  if (alertLines.length === 0) return result;
+  return { ...result, lines: [...result.lines, ...alertLines], nextState: mutated };
+};
+
 // ── Merge turn tracking into any CommandOutput ────────────
 const withTurn = (result: CommandOutput, raw: string, baseState: GameState): CommandOutput => {
   const base = (result.nextState ?? baseState) as GameState;
-  return { ...result, nextState: advanceTurn(base, raw) };
+  const withAlerts = applyThresholdEffects(baseState, { ...result, nextState: base });
+  return { ...withAlerts, nextState: advanceTurn(withAlerts.nextState as GameState, raw) };
 };
 
 // ── Track command in recentCommands / turnCount ───────────
@@ -173,7 +228,7 @@ const cmdWorldAI = async (raw: string, state: GameState): Promise<CommandOutput>
   }
 
   // Apply state mutations from AI response
-  let next = advanceTurn(state, raw);
+  let next = state;
 
   if (aiResponse.traceChange > 0) {
     next = addTrace(next, aiResponse.traceChange);
@@ -214,7 +269,9 @@ const cmdWorldAI = async (raw: string, state: GameState): Promise<CommandOutput>
     ? rawSuggestions.filter((s): s is string => typeof s === 'string')
     : [];
 
-  return { lines, nextState: next, suggestions };
+  // Route through withTurn so turnCount and recentCommands are updated consistently.
+  // applyThresholdEffects is already called inside withTurn — do not call it here.
+  return withTurn({ lines, nextState: next, suggestions }, raw, state);
 };
 
 // ── whoami ────────────────────────────────────────────────
@@ -498,6 +555,9 @@ const cmdCat = async (args: string[], state: GameState): Promise<CommandOutput> 
   if (!hasAccess(node.accessLevel, file.accessRequired)) {
     return { lines: [err(`Permission denied: ${file.name}`)] };
   }
+  if (file.locked) {
+    return { lines: [err(`// ACCESS DENIED: ${file.name} — secured by watchlist protocol`)] };
+  }
 
   let next = state;
   let traceFeedback: { msg: string; type: 'error' | 'system' } | null = null;
@@ -659,8 +719,13 @@ const cmdExfil = (args: string[], state: GameState): CommandOutput => {
     return { lines: [err(`Permission denied: ${file.name}`)] };
   }
 
+  // Check idempotency before locked — already-exfiltrated files are always safe to re-query.
   const already = state.player.exfiltrated.some(f => f.path === file.path);
   if (already) return { lines: [sys(`Already exfiltrated: ${file.name}`)] };
+
+  if (file.locked) {
+    return { lines: [err(`// ACCESS DENIED: ${file.name} — secured by watchlist protocol`)] };
+  }
 
   const next = produce(addTrace(state, 3), s => {
     s.player.exfiltrated.push({ ...file });
