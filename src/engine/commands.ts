@@ -604,15 +604,19 @@ const cmdExploit = (args: string[], state: GameState): CommandOutput => {
   }
 
   if (svc.patched) {
+    const nextState = addTrace(state, 10);
+    const applied = nextState.player.trace - state.player.trace;
     return {
-      lines: [err(`${service}: patched — exploit unavailable (+10 trace)`)],
-      nextState: addTrace(state, 10),
+      lines: [err(`${service}: patched — exploit unavailable (+${String(applied)} trace)`)],
+      nextState,
     };
   }
   if (!svc.vulnerable) {
+    const nextState = addTrace(state, 10);
+    const applied = nextState.player.trace - state.player.trace;
     return {
-      lines: [err(`${service}: no known vulnerability (+10 trace)`)],
-      nextState: addTrace(state, 10),
+      lines: [err(`${service}: no known vulnerability (+${String(applied)} trace)`)],
+      nextState,
     };
   }
 
