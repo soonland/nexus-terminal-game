@@ -39,11 +39,13 @@ const tryPatchNode = (state: GameState): { state: GameState; lines: SentinelLine
   );
   if (candidates.length === 0) return null;
 
-  // Pick most recently compromised (highest compromisedAtTurn), tie-break by id
+  // Pick most recently compromised (highest compromisedAtTurn), tie-break by id ascending
   const target = candidates.reduce((best, n) => {
     const bestTurn = best.compromisedAtTurn ?? 0;
     const nTurn = n.compromisedAtTurn ?? 0;
-    return nTurn > bestTurn ? n : best;
+    if (nTurn > bestTurn) return n;
+    if (nTurn < bestTurn) return best;
+    return n.id < best.id ? n : best;
   });
 
   const event = makeMutationEvent('patch_node', state.turnCount, { nodeId: target.id });
@@ -68,7 +70,6 @@ const tryPatchNode = (state: GameState): { state: GameState; lines: SentinelLine
 
 const REVOKED_PASSWORD_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const generatePassword = (seed: number): string => {
-  // Simple deterministic-looking password from seed
   let n = seed;
   let result = '';
   for (let i = 0; i < 8; i++) {
@@ -86,7 +87,9 @@ const tryRevokeCredential = (
 
   const primaryNodeId = target.validOnNodes[0];
   const newPassword = generatePassword(Date.now() % 1_000_000);
-  const newCredId = `${target.id}_renewed`;
+  // Strip any existing _rN suffix before appending a new turn-stamped one
+  const baseId = target.id.replace(/_r\d+$/, '');
+  const newCredId = `${baseId}_r${String(state.turnCount)}`;
 
   const event = makeMutationEvent('revoke_credential', state.turnCount, {
     credentialId: target.id,
@@ -109,10 +112,11 @@ const tryRevokeCredential = (
       source: primaryNodeId ? `${primaryNodeId}/workstation` : undefined,
     });
 
-    // Plant a file on the primary node so the player can find the new password
+    // Plant a file on the primary node so the player can find the new password.
+    // Use a turn-stamped path to avoid duplicate entries if multiple revocations occur.
     if (primaryNodeId) {
       const node = s.network.nodes[primaryNodeId];
-      if (node) {
+      if (node && !node.files.some(f => f.name === 'RESET_NOTICE.txt')) {
         node.files.push({
           name: 'RESET_NOTICE.txt',
           path: '/home/admin/RESET_NOTICE.txt',
@@ -120,6 +124,7 @@ const tryRevokeCredential = (
           content: `SECURITY NOTICE — CREDENTIAL RESET\n\nYour account credentials have been automatically rotated by IronGate\nsecurity policy. Your new temporary password is listed below.\n\n  Username : ${target.username}\n  Password : ${newPassword}\n\nChange your password immediately upon next login.\n\n-- IronGate IT Security`,
           exfiltrable: false,
           accessRequired: 'user',
+          planted: true,
         });
       }
     }
@@ -141,15 +146,25 @@ const tryRevokeCredential = (
 // ── Priority 3: delete exfiltrated file source after 3-turn delay ─────────
 
 const tryDeleteFile = (state: GameState): { state: GameState; lines: SentinelLine[] } | null => {
-  const pending = state.sentinel.pendingFileDeletes.find(p => p.targetTurn <= state.turnCount);
-  if (!pending) return null;
+  const duePending = state.sentinel.pendingFileDeletes.filter(p => p.targetTurn <= state.turnCount);
+  if (duePending.length === 0) return null;
 
-  const event = makeMutationEvent('delete_file', state.turnCount, {
-    nodeId: pending.nodeId,
-    filePath: pending.filePath,
-  });
+  // Silently discard entries targeting Aria (layer 5) nodes
+  const ariaEntries = duePending.filter(p => state.network.nodes[p.nodeId]?.layer === 5);
+  const pending = duePending.find(p => state.network.nodes[p.nodeId]?.layer !== 5);
+
+  if (!pending && ariaEntries.length === 0) return null;
 
   const next = produce(state, s => {
+    // Clear Aria entries without acting on them
+    for (const aria of ariaEntries) {
+      s.sentinel.pendingFileDeletes = s.sentinel.pendingFileDeletes.filter(
+        p => p.filePath !== aria.filePath || p.nodeId !== aria.nodeId,
+      );
+    }
+
+    if (!pending) return;
+
     const node = s.network.nodes[pending.nodeId];
     if (node) {
       const file = node.files.find(f => f.path === pending.filePath);
@@ -158,8 +173,15 @@ const tryDeleteFile = (state: GameState): { state: GameState; lines: SentinelLin
     s.sentinel.pendingFileDeletes = s.sentinel.pendingFileDeletes.filter(
       p => p.filePath !== pending.filePath || p.nodeId !== pending.nodeId,
     );
-    s.sentinel.mutationLog.push(event);
+    s.sentinel.mutationLog.push(
+      makeMutationEvent('delete_file', state.turnCount, {
+        nodeId: pending.nodeId,
+        filePath: pending.filePath,
+      }),
+    );
   });
+
+  if (!pending) return { state: next, lines: [] };
 
   const fileName = pending.filePath.split('/').pop() ?? pending.filePath;
   return {
@@ -175,7 +197,7 @@ const tryDeleteFile = (state: GameState): { state: GameState; lines: SentinelLin
 
 // ── Priority 4: spawn reinforcement security node ─────────────────────────
 
-const trySpawnNode = (state: GameState): { state: GameState; lines: SentinelLine[] } | null => {
+const trySpawnNode = (state: GameState): { state: GameState; lines: SentinelLine[] } => {
   const ip = generateSentinelIp(state);
   const nodeId = `sentinel_node_${String(spawnedNodeCount(state) + 1)}`;
 
@@ -240,10 +262,11 @@ const trySpawnNode = (state: GameState): { state: GameState; lines: SentinelLine
 // ── Main entry point ──────────────────────────────────────────────────────
 
 export const runSentinelTurn = (state: GameState): { state: GameState; lines: SentinelLine[] } => {
-  // Sentinel only acts when trace >= 61
-  if (state.player.trace < 61) return { state, lines: [] };
+  // Sentinel activates when trace first crosses 61 and stays active even if trace drops.
+  const shouldAct = state.sentinel.active || state.player.trace >= 61;
+  if (!shouldAct) return { state, lines: [] };
 
-  // Activate sentinel on first eligible turn
+  // Flip active flag on first eligible turn
   let current = state;
   if (!current.sentinel.active) {
     current = produce(current, s => {
@@ -252,12 +275,10 @@ export const runSentinelTurn = (state: GameState): { state: GameState; lines: Se
   }
 
   // Evaluate priority queue — one action per turn
-  const result =
+  return (
     tryPatchNode(current) ??
     tryRevokeCredential(current) ??
     tryDeleteFile(current) ??
-    trySpawnNode(current);
-
-  if (!result) return { state: current, lines: [] };
-  return result;
+    trySpawnNode(current)
+  );
 };

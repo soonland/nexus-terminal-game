@@ -49,6 +49,7 @@ export interface GameFile {
   traceOnRead?: number; // 1–3 extra trace added when cat'd (non-tripwire files); omit or 0 = no extra cost
   locked?: boolean; // set at 31% threshold; blocks cat and exfil
   deleted?: boolean; // set by sentinel after 3-turn delay post-exfil
+  planted?: boolean; // dynamically added at runtime (e.g. sentinel RESET_NOTICE); persisted in full
 }
 
 export interface Service {

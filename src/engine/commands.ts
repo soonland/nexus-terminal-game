@@ -525,7 +525,9 @@ const cmdLs = (args: string[], state: GameState): CommandOutput => {
   }
 
   const path = args[0] ?? '/';
-  const accessible = node.files.filter(f => hasAccess(node.accessLevel, f.accessRequired));
+  const accessible = node.files.filter(
+    f => !f.deleted && hasAccess(node.accessLevel, f.accessRequired),
+  );
 
   if (accessible.length === 0) {
     return { lines: [sys(`${path}: no accessible files`)] };
@@ -576,7 +578,7 @@ const cmdCat = async (args: string[], state: GameState): Promise<CommandOutput> 
   }
 
   const file = node.files.find(
-    f => f.name === args[0] || f.path === args[0] || f.path.endsWith(`/${args[0]}`),
+    f => !f.deleted && (f.name === args[0] || f.path === args[0] || f.path.endsWith(`/${args[0]}`)),
   );
   if (!file) return { lines: [err(`File not found: ${args[0]}`)] };
   if (!hasAccess(node.accessLevel, file.accessRequired)) {
@@ -811,7 +813,7 @@ const cmdExfil = (args: string[], state: GameState): CommandOutput => {
   if (node.accessLevel === 'none') return { lines: [err('Not authenticated')] };
 
   const file = node.files.find(
-    f => f.name === args[0] || f.path === args[0] || f.path.endsWith(`/${args[0]}`),
+    f => !f.deleted && (f.name === args[0] || f.path === args[0] || f.path.endsWith(`/${args[0]}`)),
   );
   if (!file) return { lines: [err(`File not found: ${args[0]}`)] };
   if (!file.exfiltrable) return { lines: [err(`${file.name}: exfiltration blocked`)] };
@@ -829,12 +831,15 @@ const cmdExfil = (args: string[], state: GameState): CommandOutput => {
 
   const next = produce(addTrace(state, 3), s => {
     s.player.exfiltrated.push({ ...file });
-    // Queue sentinel file-delete: source is destroyed 3 turns after exfil
-    s.sentinel.pendingFileDeletes.push({
-      filePath: file.path,
-      nodeId: node.id,
-      targetTurn: s.turnCount + 3,
-    });
+    // Queue sentinel file-delete for non-Aria nodes.
+    // Sentinel processes after turnCount is incremented, so +4 here achieves a true 3-turn delay.
+    if (node.layer !== 5) {
+      s.sentinel.pendingFileDeletes.push({
+        filePath: file.path,
+        nodeId: node.id,
+        targetTurn: s.turnCount + 4,
+      });
+    }
   });
 
   return {
