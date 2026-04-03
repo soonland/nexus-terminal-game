@@ -138,9 +138,13 @@ export const addTrace = (state: GameState, amount: number): GameState => {
  * Produce a playable state from a burned session:
  * - Reset trace to 0 and phase to 'playing'.
  * - Move player to the entry node of the layer they burned in.
- * - Reset all nodes in that layer to pre-compromise state.
+ * - Reset all nodes in that layer to pre-compromise state (access revoked, exploits undone).
  * - Preserve exfiltrated files and obtained credentials.
  * - Clear threshold flags so alerts can fire again.
+ *
+ * Note: node.discovered is intentionally NOT reset. Network topology knowledge
+ * (which nodes exist, their IPs) persists across retries — the player paid for it
+ * with trace cost. Only access and compromise state rolls back.
  */
 export const burnRetry = (state: GameState): GameState => {
   const burnedNode = state.network.nodes[state.network.currentNodeId];

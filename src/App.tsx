@@ -108,6 +108,10 @@ export const App = () => {
     async (raw: string) => {
       // ── Burned: retry ──────────────────────────────────────
       if (appPhase === 'burned') {
+        if (raw.trim() !== '') {
+          push([makeLine('error', '// No commands accepted — press ENTER to reconnect.')]);
+          return;
+        }
         if (!gameState) return;
         const retryState = burnRetry(gameState);
         clearSave();
@@ -117,7 +121,7 @@ export const App = () => {
         push([
           makeLine('separator', ''),
           makeLine('system', 'Reconnecting...'),
-          makeLine('system', `// Session resumed at layer entry point.`),
+          makeLine('system', '// Session resumed at layer entry point.'),
           makeLine('separator', ''),
         ]);
         setAppPhase('playing');

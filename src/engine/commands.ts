@@ -226,7 +226,7 @@ const cmdWorldAI = async (raw: string, state: GameState): Promise<CommandOutput>
   }
 
   // Apply state mutations from AI response
-  let next = advanceTurn(state, raw);
+  let next = state;
 
   if (aiResponse.traceChange > 0) {
     next = addTrace(next, aiResponse.traceChange);
@@ -267,7 +267,9 @@ const cmdWorldAI = async (raw: string, state: GameState): Promise<CommandOutput>
     ? rawSuggestions.filter((s): s is string => typeof s === 'string')
     : [];
 
-  return applyThresholdEffects(state, { lines, nextState: next, suggestions });
+  // Route through withTurn so turnCount and recentCommands are updated consistently.
+  // applyThresholdEffects is already called inside withTurn — do not call it here.
+  return withTurn({ lines, nextState: next, suggestions }, raw, state);
 };
 
 // ── whoami ────────────────────────────────────────────────
