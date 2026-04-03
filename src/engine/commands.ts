@@ -829,7 +829,7 @@ const cmdExfil = (args: string[], state: GameState): CommandOutput => {
     return { lines: [err(`// ACCESS DENIED: ${file.name} — secured by watchlist protocol`)] };
   }
 
-  const isAriaKey = file.name === 'aria_key.bin';
+  const isAriaKey = file.path === '/root/.aria/aria_key.bin';
 
   const next = produce(addTrace(state, 3), s => {
     s.player.exfiltrated.push({ ...file });
@@ -844,26 +844,27 @@ const cmdExfil = (args: string[], state: GameState): CommandOutput => {
     }
 
     if (isAriaKey) {
-      // Add aria-key tool if not already held
-      if (!s.player.tools.some(t => t.id === 'aria-key')) {
-        s.player.tools.push({
-          id: 'aria-key',
-          name: 'Aria Key',
-          description:
-            'Authentication token granting access to the Aria subnetwork (172.16.0.0/16).',
-        });
-      }
+      s.player.tools.push({
+        id: 'aria-key',
+        name: 'Aria Key',
+        description: 'Authentication token granting access to the Aria subnetwork (172.16.0.0/16).',
+      });
       // Unlock Aria subnetwork
       s.aria.discovered = true;
-      s.phase = 'aria';
+      if (s.phase === 'playing') s.phase = 'aria';
       // Mark all layer-5 nodes as discovered
       for (const n of Object.values(s.network.nodes)) {
         if (n?.layer === 5) n.discovered = true;
       }
-      // Add aria_surveillance to exec_ceo's connections so the subnet is reachable
+      // Add aria_surveillance to exec_ceo's connections so the subnet is reachable,
+      // and satisfy the existing layer-gating rules that require the current
+      // layer's key anchor to be compromised before cross-layer connects.
       const ceo = s.network.nodes['exec_ceo'];
-      if (ceo && !ceo.connections.includes('aria_surveillance')) {
-        ceo.connections = [...ceo.connections, 'aria_surveillance'];
+      if (ceo) {
+        ceo.compromised = true;
+        if (!ceo.connections.includes('aria_surveillance')) {
+          ceo.connections = [...ceo.connections, 'aria_surveillance'];
+        }
       }
     }
   });

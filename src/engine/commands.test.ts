@@ -1648,17 +1648,20 @@ describe('resolveCommand — exfil aria_key.bin', () => {
     expect(ariaLines.some(l => l.content.includes('ARIA KEY ACQUIRED'))).toBe(true);
   });
 
-  it('should not duplicate aria-key tool when exfiled a second time', async () => {
-    const withAriaKey = produce(state, s => {
-      s.player.tools.push({
-        id: 'aria-key',
-        name: 'Aria Key',
-        description: 'Authentication token granting access to the Aria subnetwork (172.16.0.0/16).',
+  it('should return already-exfiltrated message when exfiltrated a second time', async () => {
+    const afterFirst = produce(state, s => {
+      s.player.exfiltrated.push({
+        name: 'aria_key.bin',
+        path: '/root/.aria/aria_key.bin',
+        type: 'binary',
+        content: null,
+        accessRequired: 'admin',
+        exfiltrable: true,
       });
     });
-    const result = await resolveCommand('exfil aria_key.bin', withAriaKey);
-    const tools = (result.nextState as GameState).player.tools;
-    expect(tools.filter(t => t.id === 'aria-key').length).toBe(1);
+    const result = await resolveCommand('exfil aria_key.bin', afterFirst);
+    expect(result.lines.some(l => l.content.includes('Already exfiltrated'))).toBe(true);
+    expect((result.nextState as GameState).aria.discovered).toBe(false);
   });
 
   it('should not set aria.discovered or change phase when exfiling a non-aria-key file', async () => {

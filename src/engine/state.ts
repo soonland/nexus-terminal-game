@@ -177,7 +177,7 @@ export const burnRetry = (state: GameState): GameState => {
 
   return {
     ...state,
-    phase: 'playing',
+    phase: state.aria.discovered ? 'aria' : 'playing',
     player: { ...state.player, trace: 0 },
     network: { ...state.network, currentNodeId: entryNodeId, previousNodeId: null, nodes },
     flags,
