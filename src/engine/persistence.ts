@@ -103,8 +103,8 @@ const toSaveState = (state: GameState): SaveState => {
     .filter(([id, n]) => isSentinelNode(id) && !!n)
     .map(([, n]) => n as LiveNode);
 
-  // World credentials added dynamically by sentinel (not in seed-reconstructed set)
-  const worldCredentialsAdded = state.worldCredentials.filter(c => c.id.match(/_r\d+$/));
+  // World credentials added dynamically by sentinel (explicitly flagged at creation time)
+  const worldCredentialsAdded = state.worldCredentials.filter(c => c.sentinelRenewed);
 
   return {
     version: SAVE_VERSION,

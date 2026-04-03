@@ -391,6 +391,7 @@ describe('loadGame — round-trip', () => {
         accessLevel: 'user',
         validOnNodes: ['contractor_portal'],
         obtained: false,
+        sentinelRenewed: true,
       });
     });
     const loaded = roundTrip(state);

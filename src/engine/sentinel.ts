@@ -86,10 +86,16 @@ const tryRevokeCredential = (
   if (!target) return null;
 
   const primaryNodeId = target.validOnNodes[0];
-  const newPassword = generatePassword(Date.now() % 1_000_000);
+  // Skip P2 when the credential has no associated node (nowhere to file the reset notice)
+  if (!primaryNodeId) return null;
+
+  // Deterministic password derived from turn count — reproducible per save/run
+  const newPassword = generatePassword(state.turnCount);
   // Strip any existing _rN suffix before appending a new turn-stamped one
   const baseId = target.id.replace(/_r\d+$/, '');
   const newCredId = `${baseId}_r${String(state.turnCount)}`;
+
+  const resetContent = `SECURITY NOTICE — CREDENTIAL RESET\n\nYour account credentials have been automatically rotated by IronGate\nsecurity policy. Your new temporary password is listed below.\n\n  Username : ${target.username}\n  Password : ${newPassword}\n\nChange your password immediately upon next login.\n\n-- IronGate IT Security`;
 
   const event = makeMutationEvent('revoke_credential', state.turnCount, {
     credentialId: target.id,
@@ -109,19 +115,24 @@ const tryRevokeCredential = (
       accessLevel: target.accessLevel,
       validOnNodes: target.validOnNodes,
       obtained: false,
-      source: primaryNodeId ? `${primaryNodeId}/workstation` : undefined,
+      sentinelRenewed: true,
+      source: `${primaryNodeId}/workstation`,
     });
 
-    // Plant a file on the primary node so the player can find the new password.
-    // Use a turn-stamped path to avoid duplicate entries if multiple revocations occur.
-    if (primaryNodeId) {
-      const node = s.network.nodes[primaryNodeId];
-      if (node && !node.files.some(f => f.name === 'RESET_NOTICE.txt')) {
+    // Plant or update RESET_NOTICE.txt on the primary node.
+    // If a notice already exists (e.g. from a prior revocation), update its content
+    // so the player always finds the latest password rather than a stale one.
+    const node = s.network.nodes[primaryNodeId];
+    if (node) {
+      const existing = node.files.find(f => f.name === 'RESET_NOTICE.txt');
+      if (existing) {
+        existing.content = resetContent;
+      } else {
         node.files.push({
           name: 'RESET_NOTICE.txt',
           path: '/home/admin/RESET_NOTICE.txt',
           type: 'document',
-          content: `SECURITY NOTICE — CREDENTIAL RESET\n\nYour account credentials have been automatically rotated by IronGate\nsecurity policy. Your new temporary password is listed below.\n\n  Username : ${target.username}\n  Password : ${newPassword}\n\nChange your password immediately upon next login.\n\n-- IronGate IT Security`,
+          content: resetContent,
           exfiltrable: false,
           accessRequired: 'user',
           planted: true,
@@ -144,27 +155,14 @@ const tryRevokeCredential = (
 };
 
 // ── Priority 3: delete exfiltrated file source after 3-turn delay ─────────
+// Note: cmdExfil already gates queue insertion behind `node.layer !== 5`, so
+// pendingFileDeletes will never contain Aria-layer entries — no Aria check needed here.
 
 const tryDeleteFile = (state: GameState): { state: GameState; lines: SentinelLine[] } | null => {
-  const duePending = state.sentinel.pendingFileDeletes.filter(p => p.targetTurn <= state.turnCount);
-  if (duePending.length === 0) return null;
-
-  // Silently discard entries targeting Aria (layer 5) nodes
-  const ariaEntries = duePending.filter(p => state.network.nodes[p.nodeId]?.layer === 5);
-  const pending = duePending.find(p => state.network.nodes[p.nodeId]?.layer !== 5);
-
-  if (!pending && ariaEntries.length === 0) return null;
+  const pending = state.sentinel.pendingFileDeletes.find(p => p.targetTurn <= state.turnCount);
+  if (!pending) return null;
 
   const next = produce(state, s => {
-    // Clear Aria entries without acting on them
-    for (const aria of ariaEntries) {
-      s.sentinel.pendingFileDeletes = s.sentinel.pendingFileDeletes.filter(
-        p => p.filePath !== aria.filePath || p.nodeId !== aria.nodeId,
-      );
-    }
-
-    if (!pending) return;
-
     const node = s.network.nodes[pending.nodeId];
     if (node) {
       const file = node.files.find(f => f.path === pending.filePath);
@@ -180,8 +178,6 @@ const tryDeleteFile = (state: GameState): { state: GameState; lines: SentinelLin
       }),
     );
   });
-
-  if (!pending) return { state: next, lines: [] };
 
   const fileName = pending.filePath.split('/').pop() ?? pending.filePath;
   return {
