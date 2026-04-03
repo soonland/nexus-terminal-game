@@ -48,6 +48,7 @@ export interface GameFile {
   tripwire?: boolean; // reading costs +25 trace
   traceOnRead?: number; // 1–3 extra trace added when cat'd (non-tripwire files); omit or 0 = no extra cost
   locked?: boolean; // set at 31% threshold; blocks cat and exfil
+  deleted?: boolean; // set by sentinel after 3-turn delay post-exfil
 }
 
 export interface Service {
@@ -74,6 +75,7 @@ export interface LiveNode {
   files: GameFile[];
   accessLevel: AccessLevel; // player's current access on this node
   compromised: boolean;
+  compromisedAtTurn?: number; // turn when node was first compromised; used by sentinel priority ordering
   discovered: boolean;
   locked?: boolean; // Phase 4: locked nodes cannot be connected until unlocked
   sentinelPatched?: boolean; // Sentinel has hardened this node — exploit costs +1 charge
@@ -88,6 +90,7 @@ export interface Credential {
   accessLevel: AccessLevel;
   validOnNodes: string[]; // node IDs where login works
   obtained: boolean;
+  revoked?: boolean; // set by sentinel — login with this credential will fail
   source?: string;
 }
 
@@ -129,6 +132,25 @@ export interface AriaState {
   messageHistory: AriaMessage[];
 }
 
+// ── Sentinel ───────────────────────────────────────────────
+export type SentinelAction = 'patch_node' | 'revoke_credential' | 'delete_file' | 'spawn_node';
+
+export interface MutationEvent {
+  id: string;
+  agent: 'sentinel';
+  action: SentinelAction;
+  turnCount: number;
+  nodeId?: string;
+  credentialId?: string;
+  filePath?: string;
+}
+
+export interface SentinelState {
+  active: boolean; // true once trace has crossed 61
+  mutationLog: MutationEvent[];
+  pendingFileDeletes: Array<{ filePath: string; nodeId: string; targetTurn: number }>;
+}
+
 // ── Session ────────────────────────────────────────────────
 export type GamePhase = 'boot' | 'playing' | 'burned' | 'ended';
 
@@ -152,6 +174,7 @@ export interface GameState {
   flags: Record<string, boolean>;
   employees: Employee[]; // Phase 4: procedurally generated employee pool
   worldCredentials: Credential[]; // Phase 4: un-obtained credentials that exist in the world
+  sentinel: SentinelState;
 }
 
 // ── Command result ─────────────────────────────────────────

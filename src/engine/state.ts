@@ -102,6 +102,11 @@ export const createInitialState = (sessionSeed?: number): GameState => {
     flags: {},
     employees,
     worldCredentials: employeeCredentials,
+    sentinel: {
+      active: false,
+      mutationLog: [],
+      pendingFileDeletes: [],
+    },
   };
 };
 
@@ -174,5 +179,6 @@ export const burnRetry = (state: GameState): GameState => {
     player: { ...state.player, trace: 0 },
     network: { ...state.network, currentNodeId: entryNodeId, previousNodeId: null, nodes },
     flags,
+    sentinel: { active: false, mutationLog: [], pendingFileDeletes: [] },
   };
 };
