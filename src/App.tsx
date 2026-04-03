@@ -114,8 +114,7 @@ export const App = () => {
         }
         if (!gameState) return;
         const retryState = burnRetry(gameState);
-        saveGame(retryState);
-        clearSave();
+        saveGame(retryState); // overwrites the burned-state save; no clearSave needed
         setGameState(retryState);
         setSessionLines([]);
         setAiSuggestions([]);

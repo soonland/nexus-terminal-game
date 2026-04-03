@@ -115,11 +115,29 @@ export const resolveCommand = async (raw: string, state: GameState): Promise<Com
 
 // ── Threshold alert messages ──────────────────────────────
 // Derived from the canonical TRACE_THRESHOLDS in state.ts — do not add raw numbers here.
+// onCross: optional state mutation to apply when this threshold is first crossed.
 const THRESHOLD_ALERT_META: Record<
   (typeof TRACE_THRESHOLDS)[number],
-  { msg: string; type: 'system' | 'error' }
+  { msg: string; type: 'system' | 'error'; onCross?: (s: GameState) => GameState }
 > = {
-  31: { msg: '// ALERT: Anomalous activity flagged. Watchlist active.', type: 'system' },
+  31: {
+    msg: '// ALERT: Anomalous activity flagged. Watchlist active.',
+    type: 'system',
+    onCross: s =>
+      produce(s, draft => {
+        for (const node of Object.values(draft.network.nodes)) {
+          if (!node?.compromised) continue;
+          let locked = 0;
+          for (const f of node.files) {
+            if (locked >= 2) break;
+            if (!f.tripwire && !f.locked) {
+              f.locked = true;
+              locked++;
+            }
+          }
+        }
+      }),
+  },
   61: { msg: '// ALERT: Active intrusion response initiated.', type: 'system' },
   86: { msg: '// CRITICAL: One more detection event triggers full lockout.', type: 'error' },
 };
@@ -127,7 +145,7 @@ const THRESHOLD_ALERT_META: Record<
 /**
  * Detect newly crossed thresholds and:
  *   - Append the corresponding alert line to the output.
- *   - At 31%: lock up to 2 non-tripwire files on every already-compromised node.
+ *   - Run any onCross side-effect defined in THRESHOLD_ALERT_META.
  */
 const applyThresholdEffects = (prevState: GameState, result: CommandOutput): CommandOutput => {
   const nextState = result.nextState as GameState | undefined;
@@ -139,25 +157,9 @@ const applyThresholdEffects = (prevState: GameState, result: CommandOutput): Com
   for (const pct of TRACE_THRESHOLDS) {
     const flag = thresholdFlag(pct);
     if (!prevState.flags[flag] && nextState.flags[flag]) {
-      const { msg, type } = THRESHOLD_ALERT_META[pct];
+      const { msg, type, onCross } = THRESHOLD_ALERT_META[pct];
       alertLines.push(sep(), line(msg, type), sep());
-
-      // At 31%: lock up to 2 non-tripwire files per compromised node.
-      if (pct === 31) {
-        mutated = produce(mutated, s => {
-          for (const node of Object.values(s.network.nodes)) {
-            if (!node?.compromised) continue;
-            let locked = 0;
-            for (const f of node.files) {
-              if (locked >= 2) break;
-              if (!f.tripwire && !f.locked) {
-                f.locked = true;
-                locked++;
-              }
-            }
-          }
-        });
-      }
+      if (onCross) mutated = onCross(mutated);
     }
   }
 
