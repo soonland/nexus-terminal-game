@@ -820,6 +820,16 @@ const ANCHOR_NODES: LiveNode[] = [
   },
 ];
 
+// First anchor node reachable when entering each layer — used by burnRetry.
+export const LAYER_ENTRY_NODES: Record<number, string> = {
+  0: 'contractor_portal',
+  1: 'ops_cctv_ctrl',
+  2: 'sec_access_ctrl',
+  3: 'fin_payments_db',
+  4: 'exec_cfo',
+  5: 'aria_surveillance',
+};
+
 export const buildNodeMap = (): Record<string, LiveNode> => {
   return Object.fromEntries(ANCHOR_NODES.map(n => [n.id, { ...n }]));
 };

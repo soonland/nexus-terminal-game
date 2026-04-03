@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createInitialState, currentNode, addTrace } from './state';
+import { createInitialState, currentNode, addTrace, burnRetry, thresholdFlag } from './state';
 import produce from './produce';
 
 describe('addTrace', () => {
@@ -153,5 +153,238 @@ describe('createInitialState', () => {
   it('should have contractor_portal accessLevel of "none"', () => {
     const state = createInitialState();
     expect(state.network.nodes['contractor_portal']!.accessLevel).toBe('none');
+  });
+});
+
+describe('addTrace — threshold flags', () => {
+  it('should set threshold_31_crossed flag when trace crosses 31', () => {
+    const state = produce(createInitialState(), s => {
+      s.player.trace = 20;
+    });
+    const next = addTrace(state, 15);
+    expect(next.flags[thresholdFlag(31)]).toBe(true);
+  });
+
+  it('should set threshold_61_crossed flag when trace crosses 61', () => {
+    const state = produce(createInitialState(), s => {
+      s.player.trace = 50;
+    });
+    const next = addTrace(state, 15);
+    expect(next.flags[thresholdFlag(61)]).toBe(true);
+  });
+
+  it('should set threshold_86_crossed flag when trace crosses 86', () => {
+    const state = produce(createInitialState(), s => {
+      s.player.trace = 80;
+    });
+    const next = addTrace(state, 10);
+    expect(next.flags[thresholdFlag(86)]).toBe(true);
+  });
+
+  it('should not set a threshold flag if it is already present', () => {
+    const flag = thresholdFlag(31);
+    const state = produce(createInitialState(), s => {
+      s.player.trace = 20;
+      s.flags[flag] = true;
+    });
+    // Would cross 31 again, but flag already set — should remain true and not be re-set
+    const next = addTrace(state, 15);
+    // Flag stays true (was already set), no error — implementation guard prevents duplicate stamp
+    expect(next.flags[flag]).toBe(true);
+    // Verify by also checking the flag was present on the input (not freshly stamped)
+    expect(state.flags[flag]).toBe(true);
+  });
+
+  it('should not set a flag when trace stays below the threshold', () => {
+    const state = produce(createInitialState(), s => {
+      s.player.trace = 20;
+    });
+    const next = addTrace(state, 5); // 25 — still below 31
+    expect(next.flags[thresholdFlag(31)]).toBeUndefined();
+  });
+
+  it('should set multiple flags in a single call when jumping across several thresholds', () => {
+    const state = createInitialState(); // trace = 0
+    const next = addTrace(state, 90); // 0 → 90, crosses 31, 61, and 86
+    expect(next.flags[thresholdFlag(31)]).toBe(true);
+    expect(next.flags[thresholdFlag(61)]).toBe(true);
+    expect(next.flags[thresholdFlag(86)]).toBe(true);
+  });
+
+  it('should not set threshold_31_crossed flag when trace lands exactly at 30', () => {
+    const state = createInitialState(); // trace = 0
+    const next = addTrace(state, 30); // exactly 30 — does not reach 31
+    expect(next.flags[thresholdFlag(31)]).toBeUndefined();
+  });
+});
+
+describe('burnRetry', () => {
+  it('should reset trace to 0', () => {
+    const state = produce(createInitialState(), s => {
+      s.player.trace = 100;
+      s.phase = 'burned';
+    });
+    const next = burnRetry(state);
+    expect(next.player.trace).toBe(0);
+  });
+
+  it('should set phase back to "playing"', () => {
+    const state = produce(createInitialState(), s => {
+      s.player.trace = 100;
+      s.phase = 'burned';
+    });
+    const next = burnRetry(state);
+    expect(next.phase).toBe('playing');
+  });
+
+  it('should move currentNodeId to contractor_portal when burned in layer 0', () => {
+    // Layer 0 — contractor_portal is the current (and entry) node
+    const state = produce(createInitialState(), s => {
+      s.player.trace = 100;
+      s.phase = 'burned';
+      s.network.currentNodeId = 'contractor_portal';
+    });
+    const next = burnRetry(state);
+    expect(next.network.currentNodeId).toBe('contractor_portal');
+  });
+
+  it('should move currentNodeId to ops_cctv_ctrl when burned in layer 1', () => {
+    const state = produce(createInitialState(), s => {
+      s.player.trace = 100;
+      s.phase = 'burned';
+      s.network.currentNodeId = 'ops_cctv_ctrl';
+      s.network.nodes['ops_cctv_ctrl']!.compromised = true;
+      s.network.nodes['ops_cctv_ctrl']!.accessLevel = 'admin';
+    });
+    const next = burnRetry(state);
+    expect(next.network.currentNodeId).toBe('ops_cctv_ctrl');
+  });
+
+  it('should set previousNodeId to null', () => {
+    const state = produce(createInitialState(), s => {
+      s.player.trace = 100;
+      s.phase = 'burned';
+      s.network.previousNodeId = 'vpn_gateway';
+    });
+    const next = burnRetry(state);
+    expect(next.network.previousNodeId).toBeNull();
+  });
+
+  it('should reset compromised nodes in the burned layer to accessLevel "none" and compromised false', () => {
+    const state = produce(createInitialState(), s => {
+      s.player.trace = 100;
+      s.phase = 'burned';
+      s.network.currentNodeId = 'ops_cctv_ctrl';
+      s.network.nodes['ops_cctv_ctrl']!.compromised = true;
+      s.network.nodes['ops_cctv_ctrl']!.accessLevel = 'admin';
+      s.network.nodes['ops_hr_db']!.compromised = true;
+      s.network.nodes['ops_hr_db']!.accessLevel = 'user';
+    });
+    const next = burnRetry(state);
+    expect(next.network.nodes['ops_cctv_ctrl']!.compromised).toBe(false);
+    expect(next.network.nodes['ops_cctv_ctrl']!.accessLevel).toBe('none');
+    expect(next.network.nodes['ops_hr_db']!.compromised).toBe(false);
+    expect(next.network.nodes['ops_hr_db']!.accessLevel).toBe('none');
+  });
+
+  it('should not reset nodes in other layers', () => {
+    const state = produce(createInitialState(), s => {
+      s.player.trace = 100;
+      s.phase = 'burned';
+      s.network.currentNodeId = 'ops_cctv_ctrl'; // burned in layer 1
+      // Compromise a layer 0 node (should survive the retry)
+      s.network.nodes['contractor_portal']!.compromised = true;
+      s.network.nodes['contractor_portal']!.accessLevel = 'admin';
+    });
+    const next = burnRetry(state);
+    expect(next.network.nodes['contractor_portal']!.compromised).toBe(true);
+    expect(next.network.nodes['contractor_portal']!.accessLevel).toBe('admin');
+  });
+
+  it('should preserve player.exfiltrated', () => {
+    const state = produce(createInitialState(), s => {
+      s.player.trace = 100;
+      s.phase = 'burned';
+      s.player.exfiltrated = [
+        {
+          name: 'payroll.csv',
+          path: '/data/payroll.csv',
+          type: 'document',
+          content: 'salary data',
+          exfiltrable: true,
+          accessRequired: 'user',
+        },
+      ];
+    });
+    const next = burnRetry(state);
+    expect(next.player.exfiltrated).toHaveLength(1);
+    expect(next.player.exfiltrated[0]?.name).toBe('payroll.csv');
+  });
+
+  it('should preserve player.credentials including obtained ones', () => {
+    const state = produce(createInitialState(), s => {
+      s.player.trace = 100;
+      s.phase = 'burned';
+      if (s.player.credentials[0]) {
+        s.player.credentials[0].obtained = true;
+      }
+    });
+    const next = burnRetry(state);
+    expect(next.player.credentials[0]?.obtained).toBe(true);
+  });
+
+  it('should clear threshold flags', () => {
+    const state = produce(createInitialState(), s => {
+      s.player.trace = 100;
+      s.phase = 'burned';
+      s.flags[thresholdFlag(31)] = true;
+      s.flags[thresholdFlag(61)] = true;
+      s.flags[thresholdFlag(86)] = true;
+    });
+    const next = burnRetry(state);
+    expect(next.flags[thresholdFlag(31)]).toBeUndefined();
+    expect(next.flags[thresholdFlag(61)]).toBeUndefined();
+    expect(next.flags[thresholdFlag(86)]).toBeUndefined();
+  });
+
+  it('should preserve non-threshold flags', () => {
+    const state = produce(createInitialState(), s => {
+      s.player.trace = 100;
+      s.phase = 'burned';
+      s.flags['some_story_flag'] = true;
+      s.flags[thresholdFlag(31)] = true;
+    });
+    const next = burnRetry(state);
+    expect(next.flags['some_story_flag']).toBe(true);
+  });
+
+  it('should unlock files that were locked in the burned layer', () => {
+    const state = produce(createInitialState(), s => {
+      s.player.trace = 100;
+      s.phase = 'burned';
+      s.network.currentNodeId = 'ops_cctv_ctrl';
+      const node = s.network.nodes['ops_cctv_ctrl']!;
+      if (node.files[0]) {
+        node.files[0].locked = true;
+      }
+    });
+    const next = burnRetry(state);
+    const node = next.network.nodes['ops_cctv_ctrl']!;
+    expect(node.files.every(f => !f.locked)).toBe(true);
+  });
+
+  it('should reset patched services to unpatched in the burned layer', () => {
+    const state = produce(createInitialState(), s => {
+      s.player.trace = 100;
+      s.phase = 'burned';
+      s.network.currentNodeId = 'ops_cctv_ctrl';
+      const node = s.network.nodes['ops_cctv_ctrl']!;
+      if (node.services[0]) {
+        node.services[0].patched = true;
+      }
+    });
+    const next = burnRetry(state);
+    const node = next.network.nodes['ops_cctv_ctrl']!;
+    expect(node.services.every(s => !s.patched)).toBe(true);
   });
 });

@@ -1,6 +1,6 @@
 import type { GameState, CommandOutput, AccessLevel } from '../types/game';
 import { hasAccess } from '../types/game';
-import { currentNode, addTrace } from './state';
+import { currentNode, addTrace, thresholdFlag } from './state';
 import produce from './produce';
 
 interface WorldAIResponse {
@@ -113,10 +113,66 @@ export const resolveCommand = async (raw: string, state: GameState): Promise<Com
   return cmdWorldAI(raw, state);
 };
 
+// ── Threshold alert messages ──────────────────────────────
+const THRESHOLD_ALERTS = [
+  {
+    pct: 31,
+    msg: '// ALERT: Anomalous activity flagged. Watchlist active.',
+    type: 'system' as const,
+  },
+  { pct: 61, msg: '// ALERT: Active intrusion response initiated.', type: 'error' as const },
+  {
+    pct: 86,
+    msg: '// CRITICAL: One more detection event triggers full lockout.',
+    type: 'error' as const,
+  },
+] as const;
+
+/**
+ * Detect newly crossed thresholds and:
+ *   - Append the corresponding alert line to the output.
+ *   - At 31%: lock up to 2 non-tripwire files on every already-compromised node.
+ */
+const applyThresholdEffects = (prevState: GameState, result: CommandOutput): CommandOutput => {
+  const nextState = result.nextState as GameState | undefined;
+  if (!nextState) return result;
+
+  const alertLines: Out = [];
+  let mutated = nextState;
+
+  for (const { pct, msg, type } of THRESHOLD_ALERTS) {
+    const flag = thresholdFlag(pct);
+    if (!prevState.flags[flag] && nextState.flags[flag]) {
+      alertLines.push(sep(), line(msg, type), sep());
+
+      // At 31%: lock up to 2 non-tripwire files per compromised node.
+      if (pct === 31) {
+        mutated = produce(mutated, s => {
+          for (const node of Object.values(s.network.nodes)) {
+            if (!node?.compromised) continue;
+            let locked = 0;
+            for (const f of node.files) {
+              if (locked >= 2) break;
+              if (!f.tripwire && !f.locked) {
+                f.locked = true;
+                locked++;
+              }
+            }
+          }
+        });
+      }
+    }
+  }
+
+  if (alertLines.length === 0) return result;
+  return { ...result, lines: [...result.lines, ...alertLines], nextState: mutated };
+};
+
 // ── Merge turn tracking into any CommandOutput ────────────
 const withTurn = (result: CommandOutput, raw: string, baseState: GameState): CommandOutput => {
   const base = (result.nextState ?? baseState) as GameState;
-  return { ...result, nextState: advanceTurn(base, raw) };
+  const withAlerts = applyThresholdEffects(baseState, { ...result, nextState: base });
+  return { ...withAlerts, nextState: advanceTurn(withAlerts.nextState as GameState, raw) };
 };
 
 // ── Track command in recentCommands / turnCount ───────────
@@ -214,7 +270,7 @@ const cmdWorldAI = async (raw: string, state: GameState): Promise<CommandOutput>
     ? rawSuggestions.filter((s): s is string => typeof s === 'string')
     : [];
 
-  return { lines, nextState: next, suggestions };
+  return applyThresholdEffects(state, { lines, nextState: next, suggestions });
 };
 
 // ── whoami ────────────────────────────────────────────────
@@ -498,6 +554,9 @@ const cmdCat = async (args: string[], state: GameState): Promise<CommandOutput> 
   if (!hasAccess(node.accessLevel, file.accessRequired)) {
     return { lines: [err(`Permission denied: ${file.name}`)] };
   }
+  if (file.locked) {
+    return { lines: [err(`// ACCESS DENIED: ${file.name} — secured by watchlist protocol`)] };
+  }
 
   let next = state;
   let traceFeedback: { msg: string; type: 'error' | 'system' } | null = null;
@@ -657,6 +716,9 @@ const cmdExfil = (args: string[], state: GameState): CommandOutput => {
   if (!file.exfiltrable) return { lines: [err(`${file.name}: exfiltration blocked`)] };
   if (!hasAccess(node.accessLevel, file.accessRequired)) {
     return { lines: [err(`Permission denied: ${file.name}`)] };
+  }
+  if (file.locked) {
+    return { lines: [err(`// ACCESS DENIED: ${file.name} — secured by watchlist protocol`)] };
   }
 
   const already = state.player.exfiltrated.some(f => f.path === file.path);

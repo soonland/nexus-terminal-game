@@ -22,6 +22,7 @@ import {
   disclaimerRequired,
   recordDisclaimerAgreement,
 } from './engine/persistence';
+import { burnRetry } from './engine/state';
 
 // Nexus Corp operative credentials
 const OPERATIVE_USER = 'ghost';
@@ -106,6 +107,23 @@ export const App = () => {
 
   const handleSubmit = useCallback(
     async (raw: string) => {
+      // ── Burned: retry ──────────────────────────────────────
+      if (appPhase === 'burned') {
+        if (!gameState) return;
+        const retryState = burnRetry(gameState);
+        clearSave();
+        setGameState(retryState);
+        setSessionLines([]);
+        push([
+          makeLine('separator', ''),
+          makeLine('system', 'Reconnecting...'),
+          makeLine('system', `// Session resumed at layer entry point.`),
+          makeLine('separator', ''),
+        ]);
+        setAppPhase('playing');
+        return;
+      }
+
       // ── Login: username ────────────────────────────────────
       if (appPhase === 'login_user') {
         const user = raw.trim();
@@ -218,12 +236,13 @@ export const App = () => {
         if (next.phase === 'burned') {
           out.push(
             makeLine('separator', ''),
-            makeLine('error', 'TRACE LIMIT REACHED — CONNECTION BURNED.'),
-            makeLine('system', 'Exfiltrated assets retained. Restarting session...'),
+            makeLine('error', '// CRITICAL: TRACE LIMIT REACHED — CONNECTION BURNED.'),
+            makeLine('system', 'Exfiltrated assets retained. Session credentials preserved.'),
+            makeLine('system', 'Press ENTER to reconnect at layer entry point.'),
             makeLine('separator', ''),
           );
           setAppPhase('burned');
-          clearSave();
+          // Do NOT clearSave here — state is needed for burnRetry on Enter.
         }
       }
 
@@ -237,14 +256,17 @@ export const App = () => {
   );
 
   // ── Prompt and masking per phase ───────────────────────────
-  const promptStr = appPhase === 'login_user' ? '' : appPhase === 'login_pass' ? '' : 'nexus $';
+  const promptStr =
+    appPhase === 'login_user'
+      ? ''
+      : appPhase === 'login_pass'
+        ? ''
+        : appPhase === 'burned'
+          ? '[RECONNECT]'
+          : 'nexus $';
   const isMasked = appPhase === 'login_pass';
   const isNoHistory = appPhase === 'login_user' || appPhase === 'login_pass';
-  const inputDisabled =
-    appPhase === 'scanning' ||
-    appPhase === 'booting' ||
-    appPhase === 'burned' ||
-    spinnerLine !== null;
+  const inputDisabled = appPhase === 'scanning' || appPhase === 'booting' || spinnerLine !== null;
 
   const node = gameState ? currentNode(gameState) : null;
   const nodeIp = node?.ip ?? '---';
