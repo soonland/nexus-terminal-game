@@ -718,12 +718,14 @@ const cmdExfil = (args: string[], state: GameState): CommandOutput => {
   if (!hasAccess(node.accessLevel, file.accessRequired)) {
     return { lines: [err(`Permission denied: ${file.name}`)] };
   }
+
+  // Check idempotency before locked — already-exfiltrated files are always safe to re-query.
+  const already = state.player.exfiltrated.some(f => f.path === file.path);
+  if (already) return { lines: [sys(`Already exfiltrated: ${file.name}`)] };
+
   if (file.locked) {
     return { lines: [err(`// ACCESS DENIED: ${file.name} — secured by watchlist protocol`)] };
   }
-
-  const already = state.player.exfiltrated.some(f => f.path === file.path);
-  if (already) return { lines: [sys(`Already exfiltrated: ${file.name}`)] };
 
   const next = produce(addTrace(state, 3), s => {
     s.player.exfiltrated.push({ ...file });

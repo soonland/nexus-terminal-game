@@ -245,6 +245,7 @@ export const App = () => {
             makeLine('system', 'Press ENTER to reconnect at layer entry point.'),
             makeLine('separator', ''),
           );
+          saveGame(next); // persist burned state so a refresh restores the reconnect prompt
           setAppPhase('burned');
           // Do NOT clearSave here — state is needed for burnRetry on Enter.
         }
