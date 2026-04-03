@@ -163,7 +163,9 @@ export const burnRetry = (state: GameState): GameState => {
       ...n,
       accessLevel: 'none',
       compromised: false,
-      files: n.files.map(f => ({ ...f, locked: false })),
+      compromisedAtTurn: undefined,
+      sentinelPatched: false,
+      files: n.files.map(f => ({ ...f, locked: false, deleted: false })),
       services: n.services.map(s => ({ ...s, patched: false })),
     };
   }
