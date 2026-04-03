@@ -1,7 +1,6 @@
 ---
 name: implement-feature
 description: Implement a feature from a GitHub Issue feature spec. Use this skill when the user asks to "implement a feature from an issue", "build this feature spec", "implement issue #N", or provides a GitHub issue URL or number to implement.
-version: 1.0.0
 ---
 
 # Feature Implementation Skill
@@ -25,11 +24,12 @@ If no issue number or URL was provided, ask the user for one before proceeding.
 Ask only what cannot be inferred from the spec:
 
 1. **Which repo?** — default to the current working directory's repo (run `gh repo view --json nameWithOwner`). Only ask if ambiguous.
-2. **Are there any constraints?** — deadline, must-not-break areas, or dependencies on other in-progress work.
-3. **Scope confirmation** — summarise what you plan to build in 3–5 bullet points and ask for explicit confirmation before touching any files.
+2. **Scope confirmation** — summarise what you plan to build in 3–5 bullet points and ask for explicit confirmation before touching any files.
 
 The project board URL is always `https://github.com/users/soonland/projects/5` — do NOT ask the user for it.
 Set `PROJECT_OWNER=soonland` and `PROJECT_NUMBER=5` directly.
+
+Do not ask about constraints, deadlines, or dependencies — proceed directly to scope confirmation.
 
 Do not ask questions already answered in the spec.
 

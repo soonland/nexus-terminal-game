@@ -512,11 +512,6 @@ describe('resolveCommand — scan (no args, subnet scan)', () => {
     state = createInitialState();
   });
 
-  it('should add 1 trace', async () => {
-    const result = await resolveCommand('scan', state);
-    expect((result.nextState as GameState).player.trace).toBe(1);
-  });
-
   it('should discover connected nodes', async () => {
     const result = await resolveCommand('scan', state);
     const nextNodes = (result.nextState as GameState).network.nodes;
@@ -577,11 +572,6 @@ describe('resolveCommand — scan [ip] (specific IP scan)', () => {
     const result = await resolveCommand('scan 10.0.0.2', state);
     const contents = result.lines.map(l => l.content);
     expect(contents.some(c => c.includes('[VULNERABLE]'))).toBe(true);
-  });
-
-  it('should add 1 trace even when scanning a specific IP', async () => {
-    const result = await resolveCommand('scan 10.0.0.2', state);
-    expect((result.nextState as GameState).player.trace).toBe(1);
   });
 
   it('should show ACTIVE status for non-compromised node', async () => {
@@ -1042,7 +1032,7 @@ describe('resolveCommand — cat', () => {
       s.network.nodes['ops_hr_db']!.discovered = true;
     });
     const result = await resolveCommand('cat whistleblower_complaint_draft.txt', atHrDb);
-    expect((result.nextState as GameState).player.trace).toBe(10);
+    expect((result.nextState as GameState).player.trace).toBe(25);
   });
 
   it('should fetch and display generated content for files with null content', async () => {
@@ -1489,5 +1479,183 @@ describe('resolveCommand — AI suggestions', () => {
     );
     const result = await resolveCommand('frobnicate', state);
     expect(result.suggestions).toEqual(['scan', 'ls']);
+  });
+});
+
+// ── Trace meter ────────────────────────────────────────────
+
+describe('resolveCommand — trace meter', () => {
+  let state: GameState;
+
+  beforeEach(() => {
+    state = createInitialState();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // ── scan: random +1 or +2 ──────────────────────────────
+
+  it('should add 1 trace when Math.random returns a value below 0.5', async () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.4);
+    const result = await resolveCommand('scan', state);
+    expect((result.nextState as GameState).player.trace).toBe(1);
+  });
+
+  it('should add 2 trace when Math.random returns a value at or above 0.5', async () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.6);
+    const result = await resolveCommand('scan', state);
+    expect((result.nextState as GameState).player.trace).toBe(2);
+  });
+
+  // ── cat: tripwire shows [!] TRIPWIRE TRIGGERED ─────────
+
+  it('should include a [!] TRIPWIRE TRIGGERED error line when cat reads a tripwire file', async () => {
+    const atHrDb = produce(state, s => {
+      s.network.currentNodeId = 'ops_hr_db';
+      s.network.nodes['ops_hr_db']!.accessLevel = 'admin';
+      s.network.nodes['ops_hr_db']!.discovered = true;
+    });
+    const result = await resolveCommand('cat whistleblower_complaint_draft.txt', atHrDb);
+    const tripwireLine = result.lines.find(
+      l => l.type === 'error' && l.content.includes('[!] TRIPWIRE TRIGGERED'),
+    );
+    expect(tripwireLine).toBeDefined();
+  });
+
+  // ── cat: traceOnRead adds trace for non-tripwire files ──
+
+  it('should add 2 trace when cat reads vpn_users.conf which has traceOnRead: 2', async () => {
+    const atVpn = produce(state, s => {
+      s.network.currentNodeId = 'vpn_gateway';
+      s.network.nodes['vpn_gateway']!.accessLevel = 'admin';
+      s.network.nodes['vpn_gateway']!.discovered = true;
+    });
+    const result = await resolveCommand('cat vpn_users.conf', atVpn);
+    expect((result.nextState as GameState).player.trace).toBe(2);
+  });
+
+  it('should add 0 trace when cat reads welcome.txt which has no traceOnRead', async () => {
+    const withUser = produce(state, s => {
+      s.network.nodes['contractor_portal']!.accessLevel = 'user';
+    });
+    const result = await resolveCommand('cat welcome.txt', withUser);
+    expect((result.nextState as GameState).player.trace).toBe(0);
+  });
+
+  // ── cat: traceOnRead shows +N trace line in output ──────
+
+  it('should include a +2 trace system line in output when reading a file with traceOnRead: 2', async () => {
+    const atVpn = produce(state, s => {
+      s.network.currentNodeId = 'vpn_gateway';
+      s.network.nodes['vpn_gateway']!.accessLevel = 'admin';
+      s.network.nodes['vpn_gateway']!.discovered = true;
+    });
+    const result = await resolveCommand('cat vpn_users.conf', atVpn);
+    const traceLine = result.lines.find(l => l.content.includes('+2 trace'));
+    expect(traceLine).toBeDefined();
+  });
+
+  // ── exploit: failed exploit (patched service) adds +10 trace
+
+  it('should add 10 trace when exploiting a patched service', async () => {
+    const withPatched = produce(state, s => {
+      const svc = s.network.nodes['contractor_portal']!.services.find(sv => sv.name === 'http');
+      if (svc) svc.patched = true;
+    });
+    const result = await resolveCommand('exploit http', withPatched);
+    expect((result.nextState as GameState).player.trace).toBe(10);
+  });
+
+  // ── exploit: failed exploit (not vulnerable) adds +10 trace
+
+  it('should add 10 trace when exploiting a service that is not vulnerable', async () => {
+    // contractor_portal ssh: vulnerable: false
+    const result = await resolveCommand('exploit ssh', state);
+    expect((result.nextState as GameState).player.trace).toBe(10);
+  });
+
+  // ── exploit: successful exploit uses traceContribution ──
+
+  it('should add 2 trace (traceContribution) when successfully exploiting contractor_portal http', async () => {
+    // contractor_portal http has traceContribution: 2
+    const result = await resolveCommand('exploit http', state);
+    expect((result.nextState as GameState).player.trace).toBe(2);
+  });
+
+  it('should add 0 trace when successfully exploiting exec_ceo aria-socket (traceContribution: 0)', async () => {
+    const atCeo = produce(state, s => {
+      s.network.currentNodeId = 'exec_ceo';
+      s.network.nodes['exec_ceo']!.discovered = true;
+      // exploitCost is 0 so no charges consumed; charges don't matter but keep them
+    });
+    const result = await resolveCommand('exploit aria-socket', atCeo);
+    expect((result.nextState as GameState).player.trace).toBe(0);
+  });
+
+  it('should not include a +N trace line in output when traceContribution is 0', async () => {
+    const atCeo = produce(state, s => {
+      s.network.currentNodeId = 'exec_ceo';
+      s.network.nodes['exec_ceo']!.discovered = true;
+    });
+    const result = await resolveCommand('exploit aria-socket', atCeo);
+    const traceLine = result.lines.find(l => l.type === 'system' && l.content.includes('trace'));
+    expect(traceLine).toBeUndefined();
+  });
+
+  // ── exploit: no trace added when player has insufficient charges ──
+
+  it('should not add any trace when player has 0 charges and exploit fails for that reason', async () => {
+    const noCharges = produce(state, s => {
+      s.player.charges = 0;
+    });
+    // http costs 1 charge; player has 0 — fails before trace logic
+    const result = await resolveCommand('exploit http', noCharges);
+    expect((result.nextState as GameState).player.trace).toBe(0);
+  });
+
+  it('should not add trace when player has 0 charges even if service is patched', async () => {
+    const noChargesPatched = produce(state, s => {
+      s.player.charges = 0;
+      const n = s.network.nodes['contractor_portal'];
+      if (n) {
+        const svc = n.services.find(x => x.name === 'http');
+        if (svc) svc.patched = true;
+      }
+    });
+    const result = await resolveCommand('exploit http', noChargesPatched);
+    expect((result.nextState as GameState).player.trace).toBe(0);
+  });
+
+  // ── spoof: reduces trace by 20 ────────────────────────────
+
+  it('should reduce trace by 20 when player has spoof-id tool', async () => {
+    const withSpoof = produce(state, s => {
+      s.player.trace = 30;
+      s.player.tools.push({ id: 'spoof-id', name: 'Spoof ID', description: 'Spoofs identity.' });
+    });
+    const result = await resolveCommand('spoof', withSpoof);
+    expect((result.nextState as GameState).player.trace).toBe(10);
+  });
+
+  it('should return an error line and no state change when player lacks spoof-id tool', async () => {
+    const noSpoof = produce(state, s => {
+      s.player.tools = s.player.tools.filter(t => t.id !== 'spoof-id');
+    });
+    const result = await resolveCommand('spoof', noSpoof);
+    expect(result.lines[0].type).toBe('error');
+    expect(result.lines[0].content).toMatch(/spoof-id/);
+    // Trace should be unchanged (only turn tracking applied, no trace delta)
+    expect((result.nextState as GameState).player.trace).toBe(0);
+  });
+
+  it('should not reduce trace below 0 when trace is already below 20', async () => {
+    const withSpoof = produce(state, s => {
+      s.player.trace = 5;
+      s.player.tools.push({ id: 'spoof-id', name: 'Spoof ID', description: 'Spoofs identity.' });
+    });
+    const result = await resolveCommand('spoof', withSpoof);
+    expect((result.nextState as GameState).player.trace).toBe(0);
   });
 });
