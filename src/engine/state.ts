@@ -102,6 +102,11 @@ export const createInitialState = (sessionSeed?: number): GameState => {
     flags: {},
     employees,
     worldCredentials: employeeCredentials,
+    sentinel: {
+      active: false,
+      mutationLog: [],
+      pendingFileDeletes: [],
+    },
   };
 };
 
@@ -158,7 +163,9 @@ export const burnRetry = (state: GameState): GameState => {
       ...n,
       accessLevel: 'none',
       compromised: false,
-      files: n.files.map(f => ({ ...f, locked: false })),
+      compromisedAtTurn: undefined,
+      sentinelPatched: false,
+      files: n.files.map(f => ({ ...f, locked: false, deleted: false })),
       services: n.services.map(s => ({ ...s, patched: false })),
     };
   }
@@ -174,5 +181,6 @@ export const burnRetry = (state: GameState): GameState => {
     player: { ...state.player, trace: 0 },
     network: { ...state.network, currentNodeId: entryNodeId, previousNodeId: null, nodes },
     flags,
+    sentinel: { active: false, mutationLog: [], pendingFileDeletes: [] },
   };
 };

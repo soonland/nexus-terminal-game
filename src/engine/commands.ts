@@ -3,6 +3,7 @@ import { hasAccess } from '../types/game';
 import { currentNode, addTrace, thresholdFlag, TRACE_THRESHOLDS } from './state';
 import produce from './produce';
 import { LAYER_KEY_ANCHOR } from './buildConnectivity';
+import { runSentinelTurn } from './sentinel';
 
 interface WorldAIResponse {
   narrative: string;
@@ -171,7 +172,13 @@ const applyThresholdEffects = (prevState: GameState, result: CommandOutput): Com
 const withTurn = (result: CommandOutput, raw: string, baseState: GameState): CommandOutput => {
   const base = (result.nextState ?? baseState) as GameState;
   const withAlerts = applyThresholdEffects(baseState, { ...result, nextState: base });
-  return { ...withAlerts, nextState: advanceTurn(withAlerts.nextState as GameState, raw) };
+  const advanced = advanceTurn(withAlerts.nextState as GameState, raw);
+  const sentinel = runSentinelTurn(advanced);
+  return {
+    ...withAlerts,
+    lines: [...withAlerts.lines, ...sentinel.lines],
+    nextState: sentinel.state,
+  };
 };
 
 // ── Track command in recentCommands / turnCount ───────────
@@ -474,6 +481,15 @@ const cmdLogin = (args: string[], state: GameState): CommandOutput => {
     };
   }
 
+  // Sentinel may have revoked this credential — deny login even though password matched.
+  if (match.revoked) {
+    const next = addTrace(state, 5);
+    return {
+      lines: [err(`CREDENTIAL REVOKED — account locked by security policy. (+5 trace)`)],
+      nextState: next,
+    };
+  }
+
   // Grant access, mark credential as obtained, and promote world credentials into
   // player.credentials so they persist and appear in whoami / inventory.
   const next = produce(state, s => {
@@ -509,7 +525,9 @@ const cmdLs = (args: string[], state: GameState): CommandOutput => {
   }
 
   const path = args[0] ?? '/';
-  const accessible = node.files.filter(f => hasAccess(node.accessLevel, f.accessRequired));
+  const accessible = node.files.filter(
+    f => !f.deleted && hasAccess(node.accessLevel, f.accessRequired),
+  );
 
   if (accessible.length === 0) {
     return { lines: [sys(`${path}: no accessible files`)] };
@@ -560,7 +578,7 @@ const cmdCat = async (args: string[], state: GameState): Promise<CommandOutput> 
   }
 
   const file = node.files.find(
-    f => f.name === args[0] || f.path === args[0] || f.path.endsWith(`/${args[0]}`),
+    f => !f.deleted && (f.name === args[0] || f.path === args[0] || f.path.endsWith(`/${args[0]}`)),
   );
   if (!file) return { lines: [err(`File not found: ${args[0]}`)] };
   if (!hasAccess(node.accessLevel, file.accessRequired)) {
@@ -751,6 +769,7 @@ const cmdExploit = async (args: string[], state: GameState): Promise<CommandOutp
       const n = s.network.nodes[node.id];
       if (n) {
         n.compromised = true;
+        n.compromisedAtTurn = s.turnCount;
         if (aiResponse.newAccessLevel) n.accessLevel = aiResponse.newAccessLevel as AccessLevel;
       }
     });
@@ -794,7 +813,7 @@ const cmdExfil = (args: string[], state: GameState): CommandOutput => {
   if (node.accessLevel === 'none') return { lines: [err('Not authenticated')] };
 
   const file = node.files.find(
-    f => f.name === args[0] || f.path === args[0] || f.path.endsWith(`/${args[0]}`),
+    f => !f.deleted && (f.name === args[0] || f.path === args[0] || f.path.endsWith(`/${args[0]}`)),
   );
   if (!file) return { lines: [err(`File not found: ${args[0]}`)] };
   if (!file.exfiltrable) return { lines: [err(`${file.name}: exfiltration blocked`)] };
@@ -812,6 +831,15 @@ const cmdExfil = (args: string[], state: GameState): CommandOutput => {
 
   const next = produce(addTrace(state, 3), s => {
     s.player.exfiltrated.push({ ...file });
+    // Queue sentinel file-delete for non-Aria nodes.
+    // Sentinel processes after turnCount is incremented, so +4 here achieves a true 3-turn delay.
+    if (node.layer !== 5) {
+      s.sentinel.pendingFileDeletes.push({
+        filePath: file.path,
+        nodeId: node.id,
+        targetTurn: s.turnCount + 4,
+      });
+    }
   });
 
   return {
