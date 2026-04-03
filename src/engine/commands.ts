@@ -699,7 +699,8 @@ const cmdExploit = async (args: string[], state: GameState): Promise<CommandOutp
     s.player.charges -= effectiveCost;
   });
 
-  // Route to World AI to narrate outcome and determine access
+  // Route to World AI to narrate outcome and determine access.
+  // Payload mirrors the cmdWorldAI shape so the handler gets full context.
   const payload = {
     command: `exploit ${service}`,
     context: 'exploit',
@@ -710,7 +711,11 @@ const cmdExploit = async (args: string[], state: GameState): Promise<CommandOutp
       layer: node.layer,
       sentinelPatched: node.sentinelPatched ?? false,
       accessLevel: node.accessLevel,
-      service: { name: svc.name, port: svc.port, accessGained: svc.accessGained },
+      services: node.services.map(s => ({ name: s.name, port: s.port, vulnerable: s.vulnerable })),
+      files: node.files
+        .filter(f => hasAccess(node.accessLevel, f.accessRequired))
+        .map(f => ({ name: f.name, type: f.type })),
+      exploitTarget: { name: svc.name, port: svc.port, accessGained: svc.accessGained },
     },
     playerState: {
       handle: state.player.handle,
@@ -729,28 +734,26 @@ const cmdExploit = async (args: string[], state: GameState): Promise<CommandOutp
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
+    if (!res.ok) throw new Error(`World AI returned ${String(res.status)}`);
     aiResponse = (await res.json()) as WorldAIResponse;
   } catch {
     aiResponse = WORLD_AI_FALLBACK;
   }
 
-  const traceAdded =
-    (svc.traceContribution ?? 2) + (aiResponse.traceChange > 0 ? aiResponse.traceChange : 0);
+  // Apply trace: service's base contribution + any AI-supplied delta (negative = silent exploit).
+  const traceAdded = (svc.traceContribution ?? 2) + aiResponse.traceChange;
   const stateAfterTrace = addTrace(stateAfterCharges, traceAdded);
   const applied = stateAfterTrace.player.trace - state.player.trace;
 
   let next = stateAfterTrace;
-  if (aiResponse.accessGranted && aiResponse.newAccessLevel) {
+  if (aiResponse.accessGranted) {
     next = produce(next, s => {
       const n = s.network.nodes[node.id];
       if (n) {
-        n.accessLevel = aiResponse.newAccessLevel as AccessLevel;
         n.compromised = true;
+        if (aiResponse.newAccessLevel) n.accessLevel = aiResponse.newAccessLevel as AccessLevel;
       }
     });
-  } else if (!aiResponse.accessGranted) {
-    // AI denied access — mark compromised only if node was already compromised
-    // (charges already deducted above)
   }
 
   if (Object.keys(aiResponse.flagsSet).length > 0) {

@@ -1296,6 +1296,10 @@ describe('resolveCommand — exploit', () => {
     state = createInitialState();
   });
 
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it('should return a usage error when no service is provided', async () => {
     const result = await resolveCommand('exploit', state);
     expect(result.lines[0].type).toBe('error');
@@ -1389,6 +1393,21 @@ describe('resolveCommand — exploit', () => {
   });
 
   it('should add 2 trace on a successful exploit', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        makeOkFetchResponse({
+          narrative: 'Exploit successful.',
+          traceChange: 0,
+          accessGranted: true,
+          newAccessLevel: 'user',
+          flagsSet: {},
+          nodesUnlocked: [],
+          isUnknown: false,
+        }),
+      ),
+    );
+    // http.traceContribution = 2, AI traceChange = 0 → total trace = 2
     const result = await resolveCommand('exploit http', state);
     expect((result.nextState as GameState).player.trace).toBe(2);
   });
