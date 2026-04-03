@@ -637,3 +637,95 @@ describe('runSentinelTurn — strict one-action-per-turn guarantee', () => {
     expect(result.state.sentinel.mutationLog[0].action).toBe('patch_node');
   });
 });
+
+describe('runSentinelTurn — priority 1: reduce tie-break branches', () => {
+  it('should prefer the node with a lower compromisedAtTurn when the other has a higher value', () => {
+    // Two compromised nodes: nodeA (turn 5) and nodeB (turn 3).
+    // nodeB has a lower turn — sentinel should pick nodeA (most recent = highest turn).
+    const state = produce(activeState(), s => {
+      const nodeA = s.network.nodes['contractor_portal'];
+      if (nodeA) {
+        nodeA.compromised = true;
+        nodeA.compromisedAtTurn = 5;
+        nodeA.layer = 1;
+      }
+      const nodeB = s.network.nodes['vpn_gateway'];
+      if (nodeB) {
+        nodeB.compromised = true;
+        nodeB.compromisedAtTurn = 3;
+        nodeB.layer = 1;
+        nodeB.discovered = true;
+      }
+    });
+    const result = runSentinelTurn(state);
+    // nodeA has higher compromisedAtTurn → most recently compromised → should be patched
+    expect(result.state.network.nodes['contractor_portal']?.sentinelPatched).toBe(true);
+    expect(result.state.network.nodes['vpn_gateway']?.sentinelPatched).toBeFalsy();
+  });
+
+  it('should use id ascending as tie-break when compromisedAtTurn values are equal', () => {
+    // Two compromised nodes with the same compromisedAtTurn — pick lower id alphabetically.
+    // contractor_portal < vpn_gateway alphabetically so contractor_portal should be picked.
+    const state = produce(activeState(), s => {
+      const nodeA = s.network.nodes['contractor_portal'];
+      if (nodeA) {
+        nodeA.compromised = true;
+        nodeA.compromisedAtTurn = 5;
+        nodeA.layer = 1;
+      }
+      const nodeB = s.network.nodes['vpn_gateway'];
+      if (nodeB) {
+        nodeB.compromised = true;
+        nodeB.compromisedAtTurn = 5;
+        nodeB.layer = 1;
+        nodeB.discovered = true;
+      }
+    });
+    const result = runSentinelTurn(state);
+    expect(result.state.network.nodes['contractor_portal']?.sentinelPatched).toBe(true);
+    expect(result.state.network.nodes['vpn_gateway']?.sentinelPatched).toBeFalsy();
+  });
+});
+
+describe('runSentinelTurn — priority 3: Aria-only pending delete', () => {
+  it('should silently discard an Aria-only due pending delete and return empty lines', () => {
+    // P1 and P2 blocked; only Aria-layer pending delete is due.
+    const state = produce(activeState(), s => {
+      // Ensure no P1 candidates (all compromised nodes already patched)
+      for (const n of Object.values(s.network.nodes)) {
+        if (n?.compromised) n.sentinelPatched = true;
+      }
+      // Ensure no P2 candidates
+      for (const c of s.player.credentials) {
+        c.obtained = false;
+      }
+
+      // Add a file to an Aria node (layer 5)
+      const ariaNode = Object.values(s.network.nodes).find(n => n && n.layer === 5);
+      if (ariaNode) {
+        ariaNode.files.push({
+          name: 'aria_secret.txt',
+          path: '/aria/secret.txt',
+          type: 'document',
+          content: 'secret',
+          exfiltrable: true,
+          accessRequired: 'user',
+        });
+        // Queue this Aria file for deletion (already due)
+        s.sentinel.pendingFileDeletes.push({
+          filePath: '/aria/secret.txt',
+          nodeId: ariaNode.id,
+          targetTurn: 0,
+        });
+      }
+    });
+
+    const result = runSentinelTurn(state);
+    // Should produce empty lines (Aria-only — no action taken, just discarded)
+    expect(result.lines).toHaveLength(0);
+    // Pending delete should be cleared
+    expect(result.state.sentinel.pendingFileDeletes).toHaveLength(0);
+    // No mutation logged for the discarded Aria entry
+    expect(result.state.sentinel.mutationLog.some(e => e.action === 'delete_file')).toBe(false);
+  });
+});

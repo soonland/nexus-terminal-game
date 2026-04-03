@@ -250,6 +250,154 @@ describe('loadGame — round-trip', () => {
     expect(loaded?.aria.discovered).toBe(true);
     expect(loaded?.aria.trustScore).toBe(42);
   });
+
+  it('restores compromisedAtTurn on node delta', () => {
+    const state = produce(createInitialState(), s => {
+      const node = s.network.nodes['contractor_portal'];
+      if (node) {
+        node.discovered = true;
+        node.compromised = true;
+        node.compromisedAtTurn = 7;
+      }
+    });
+    const loaded = roundTrip(state);
+    expect(loaded?.network.nodes['contractor_portal']?.compromisedAtTurn).toBe(7);
+  });
+
+  it('restores sentinelPatched flag on node delta', () => {
+    const state = produce(createInitialState(), s => {
+      const node = s.network.nodes['contractor_portal'];
+      if (node) {
+        node.discovered = true;
+        node.sentinelPatched = true;
+      }
+    });
+    const loaded = roundTrip(state);
+    expect(loaded?.network.nodes['contractor_portal']?.sentinelPatched).toBe(true);
+  });
+
+  it('restores planted files on nodes', () => {
+    const state = produce(createInitialState(), s => {
+      const node = s.network.nodes['contractor_portal'];
+      if (node) {
+        node.discovered = true;
+        node.files.push({
+          name: 'RESET_NOTICE.txt',
+          path: '/home/admin/RESET_NOTICE.txt',
+          type: 'document',
+          content: 'new password: XY-1234',
+          exfiltrable: false,
+          accessRequired: 'user',
+          planted: true,
+        });
+      }
+    });
+    const loaded = roundTrip(state);
+    const node = loaded?.network.nodes['contractor_portal'];
+    const planted = node?.files.find(f => f.name === 'RESET_NOTICE.txt');
+    expect(planted).toBeDefined();
+    expect(planted?.content).toBe('new password: XY-1234');
+  });
+
+  it('restores deleted file paths on nodes', () => {
+    const state = produce(createInitialState(), s => {
+      const node = s.network.nodes['contractor_portal'];
+      if (node) {
+        const file = node.files.find(f => f.name === 'welcome.txt');
+        if (file) file.deleted = true;
+      }
+    });
+    const loaded = roundTrip(state);
+    const node = loaded?.network.nodes['contractor_portal'];
+    const file = node?.files.find(f => f.name === 'welcome.txt');
+    expect(file?.deleted).toBe(true);
+  });
+
+  it('restores sentinel-spawned nodes from sentinelNodes list', () => {
+    const state = produce(createInitialState(), s => {
+      s.network.nodes['sentinel_node_1'] = {
+        id: 'sentinel_node_1',
+        ip: '10.9.0.1',
+        template: 'security_node',
+        label: 'SEC-REINFORCE',
+        description: 'Sentinel node',
+        layer: 2,
+        anchor: false,
+        connections: [],
+        services: [],
+        files: [],
+        accessLevel: 'none',
+        compromised: false,
+        discovered: true,
+        sentinelPatched: true,
+        credentialHints: [],
+      };
+      s.sentinel.mutationLog.push({
+        id: 'evt-1',
+        agent: 'sentinel',
+        action: 'spawn_node',
+        turnCount: 5,
+        nodeId: 'sentinel_node_1',
+      });
+    });
+    const loaded = roundTrip(state);
+    expect(loaded?.network.nodes['sentinel_node_1']).toBeDefined();
+    expect(loaded?.network.nodes['sentinel_node_1']?.ip).toBe('10.9.0.1');
+  });
+
+  it('restores sentinel state (active, mutationLog, pendingFileDeletes)', () => {
+    const state = produce(createInitialState(), s => {
+      s.sentinel.active = true;
+      s.sentinel.mutationLog.push({
+        id: 'evt-1',
+        agent: 'sentinel',
+        action: 'patch_node',
+        turnCount: 3,
+        nodeId: 'contractor_portal',
+      });
+      s.sentinel.pendingFileDeletes.push({
+        filePath: '/tmp/test.txt',
+        nodeId: 'contractor_portal',
+        targetTurn: 10,
+      });
+    });
+    const loaded = roundTrip(state);
+    expect(loaded?.sentinel.active).toBe(true);
+    expect(loaded?.sentinel.mutationLog).toHaveLength(1);
+    expect(loaded?.sentinel.mutationLog[0]?.action).toBe('patch_node');
+    expect(loaded?.sentinel.pendingFileDeletes).toHaveLength(1);
+    expect(loaded?.sentinel.pendingFileDeletes[0]?.filePath).toBe('/tmp/test.txt');
+  });
+
+  it('restores revoked credential flag', () => {
+    const state = produce(createInitialState(), s => {
+      const cred = s.player.credentials.find(c => c.id === 'cred_contractor');
+      if (cred) {
+        cred.obtained = true;
+        cred.revoked = true;
+      }
+    });
+    const loaded = roundTrip(state);
+    const cred = loaded?.player.credentials.find(c => c.id === 'cred_contractor');
+    expect(cred?.revoked).toBe(true);
+  });
+
+  it('restores dynamically added world credentials (sentinel P2 renewals)', () => {
+    const state = produce(createInitialState(), s => {
+      s.worldCredentials.push({
+        id: 'cred_contractor_r42',
+        username: 'contractor',
+        password: 'ABCD-EFGH',
+        accessLevel: 'user',
+        validOnNodes: ['contractor_portal'],
+        obtained: false,
+      });
+    });
+    const loaded = roundTrip(state);
+    const renewed = loaded?.worldCredentials.find(c => c.id === 'cred_contractor_r42');
+    expect(renewed).toBeDefined();
+    expect(renewed?.password).toBe('ABCD-EFGH');
+  });
 });
 
 describe('clearSave', () => {
