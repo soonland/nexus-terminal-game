@@ -114,6 +114,7 @@ export const App = () => {
         }
         if (!gameState) return;
         const retryState = burnRetry(gameState);
+        saveGame(retryState);
         clearSave();
         setGameState(retryState);
         setSessionLines([]);

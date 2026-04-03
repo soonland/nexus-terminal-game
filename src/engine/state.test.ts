@@ -260,6 +260,18 @@ describe('burnRetry', () => {
     expect(next.network.currentNodeId).toBe('ops_cctv_ctrl');
   });
 
+  it('should move to ops_cctv_ctrl when burned at ops_hr_db (non-entry layer-1 node)', () => {
+    const state = produce(createInitialState(), s => {
+      s.player.trace = 100;
+      s.phase = 'burned';
+      s.network.currentNodeId = 'ops_hr_db';
+      s.network.nodes['ops_hr_db']!.compromised = true;
+      s.network.nodes['ops_hr_db']!.accessLevel = 'admin';
+    });
+    const next = burnRetry(state);
+    expect(next.network.currentNodeId).toBe('ops_cctv_ctrl');
+  });
+
   it('should set previousNodeId to null', () => {
     const state = produce(createInitialState(), s => {
       s.player.trace = 100;

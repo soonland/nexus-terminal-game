@@ -120,7 +120,7 @@ const THRESHOLD_ALERT_META: Record<
   { msg: string; type: 'system' | 'error' }
 > = {
   31: { msg: '// ALERT: Anomalous activity flagged. Watchlist active.', type: 'system' },
-  61: { msg: '// ALERT: Active intrusion response initiated.', type: 'error' },
+  61: { msg: '// ALERT: Active intrusion response initiated.', type: 'system' },
   86: { msg: '// CRITICAL: One more detection event triggers full lockout.', type: 'error' },
 };
 

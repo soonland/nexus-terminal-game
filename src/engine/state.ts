@@ -163,8 +163,9 @@ export const burnRetry = (state: GameState): GameState => {
     };
   }
 
+  const thresholdFlagsToRemove = new Set(TRACE_THRESHOLDS.map(thresholdFlag));
   const flags = Object.fromEntries(
-    Object.entries(state.flags).filter(([k]) => !k.startsWith('threshold_')),
+    Object.entries(state.flags).filter(([k]) => !thresholdFlagsToRemove.has(k)),
   );
 
   return {
