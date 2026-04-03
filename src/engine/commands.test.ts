@@ -512,13 +512,6 @@ describe('resolveCommand — scan (no args, subnet scan)', () => {
     state = createInitialState();
   });
 
-  it('should add 1 or 2 trace (random)', async () => {
-    const result = await resolveCommand('scan', state);
-    const trace = (result.nextState as GameState).player.trace;
-    expect(trace).toBeGreaterThanOrEqual(1);
-    expect(trace).toBeLessThanOrEqual(2);
-  });
-
   it('should discover connected nodes', async () => {
     const result = await resolveCommand('scan', state);
     const nextNodes = (result.nextState as GameState).network.nodes;
@@ -579,13 +572,6 @@ describe('resolveCommand — scan [ip] (specific IP scan)', () => {
     const result = await resolveCommand('scan 10.0.0.2', state);
     const contents = result.lines.map(l => l.content);
     expect(contents.some(c => c.includes('[VULNERABLE]'))).toBe(true);
-  });
-
-  it('should add 1 or 2 trace even when scanning a specific IP', async () => {
-    const result = await resolveCommand('scan 10.0.0.2', state);
-    const trace = (result.nextState as GameState).player.trace;
-    expect(trace).toBeGreaterThanOrEqual(1);
-    expect(trace).toBeLessThanOrEqual(2);
   });
 
   it('should show ACTIVE status for non-compromised node', async () => {

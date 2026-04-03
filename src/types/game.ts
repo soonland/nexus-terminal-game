@@ -46,7 +46,7 @@ export interface GameFile {
   accessRequired: AccessLevel;
   ariaPlanted?: boolean;
   tripwire?: boolean; // reading costs +25 trace
-  traceOnRead?: number; // 0–3 extra trace added when cat'd (non-tripwire files)
+  traceOnRead?: number; // 1–3 extra trace added when cat'd (non-tripwire files); omit or 0 = no extra cost
 }
 
 export interface Service {

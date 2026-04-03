@@ -503,10 +503,12 @@ const cmdCat = async (args: string[], state: GameState): Promise<CommandOutput> 
   let traceFeedback: { msg: string; type: 'error' | 'system' } | null = null;
   if (file.tripwire) {
     next = addTrace(state, 25);
-    traceFeedback = { msg: '  [!] TRIPWIRE TRIGGERED  +25 trace', type: 'error' };
+    const applied = next.player.trace - state.player.trace;
+    traceFeedback = { msg: `  [!] TRIPWIRE TRIGGERED  +${String(applied)} trace`, type: 'error' };
   } else if (file.traceOnRead != null && file.traceOnRead > 0) {
     next = addTrace(state, file.traceOnRead);
-    traceFeedback = { msg: `  +${String(file.traceOnRead)} trace`, type: 'system' };
+    const applied = next.player.trace - state.player.trace;
+    traceFeedback = { msg: `  +${String(applied)} trace`, type: 'system' };
   }
 
   let content = file.content;
@@ -548,8 +550,9 @@ const cmdCat = async (args: string[], state: GameState): Promise<CommandOutput> 
   }
 
   const lines: Out = [sep()];
-  if (traceFeedback) lines.push(line(traceFeedback.msg, traceFeedback.type));
+  if (file.tripwire && traceFeedback) lines.push(line(traceFeedback.msg, traceFeedback.type));
   content.split('\n').forEach(l => lines.push(out(l)));
+  if (!file.tripwire && traceFeedback) lines.push(line(traceFeedback.msg, traceFeedback.type));
   lines.push(sep());
 
   return { lines, nextState: next };
@@ -602,19 +605,21 @@ const cmdExploit = (args: string[], state: GameState): CommandOutput => {
 
   if (svc.patched) {
     return {
-      lines: [err(`${service}: patched — exploit unavailable  (+10 trace)`)],
+      lines: [err(`${service}: patched — exploit unavailable (+10 trace)`)],
       nextState: addTrace(state, 10),
     };
   }
   if (!svc.vulnerable) {
     return {
-      lines: [err(`${service}: no known vulnerability  (+10 trace)`)],
+      lines: [err(`${service}: no known vulnerability (+10 trace)`)],
       nextState: addTrace(state, 10),
     };
   }
 
   const traceAdded = svc.traceContribution ?? 2;
-  const next = produce(addTrace(state, traceAdded), s => {
+  const stateAfterTrace = addTrace(state, traceAdded);
+  const applied = stateAfterTrace.player.trace - state.player.trace;
+  const next = produce(stateAfterTrace, s => {
     s.player.charges -= svc.exploitCost;
     const n = s.network.nodes[node.id];
     if (n) {
@@ -629,7 +634,7 @@ const cmdExploit = (args: string[], state: GameState): CommandOutput => {
     sys(`  Access gained: ${svc.accessGained.toUpperCase()}`),
     sys(`  Charges remaining: ${String(next.player.charges)}`),
   ];
-  if (traceAdded > 0) exploitLines.push(sys(`  +${String(traceAdded)} trace`));
+  if (applied > 0) exploitLines.push(sys(`  +${String(applied)} trace`));
 
   return { lines: exploitLines, nextState: next };
 };
@@ -668,15 +673,15 @@ const cmdWipeLogs = (state: GameState): CommandOutput => {
   const hasTool = state.player.tools.some(t => t.id === 'log-wiper');
   if (!hasTool) return { lines: [err('log-wiper tool required')] };
 
-  const reduction = 15;
   const next = produce(state, s => {
-    s.player.trace = Math.max(0, s.player.trace - reduction);
+    s.player.trace = Math.max(0, s.player.trace - 15);
   });
+  const applied = state.player.trace - next.player.trace;
 
   return {
     lines: [
       out('Wiping logs...'),
-      sys(`  -${String(reduction)} trace. Now: ${String(next.player.trace)}%`),
+      sys(`  -${String(applied)} trace. Now: ${String(next.player.trace)}%`),
     ],
     nextState: next,
   };
@@ -687,15 +692,15 @@ const cmdSpoof = (state: GameState): CommandOutput => {
   const hasTool = state.player.tools.some(t => t.id === 'spoof-id');
   if (!hasTool) return { lines: [err('spoof-id tool required')] };
 
-  const reduction = 20;
   const next = produce(state, s => {
-    s.player.trace = Math.max(0, s.player.trace - reduction);
+    s.player.trace = Math.max(0, s.player.trace - 20);
   });
+  const applied = state.player.trace - next.player.trace;
 
   return {
     lines: [
       out('Spoofing identity signature...'),
-      sys(`  -${String(reduction)} trace. Now: ${String(next.player.trace)}%`),
+      sys(`  -${String(applied)} trace. Now: ${String(next.player.trace)}%`),
     ],
     nextState: next,
   };
