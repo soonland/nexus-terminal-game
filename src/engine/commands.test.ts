@@ -668,7 +668,7 @@ describe('resolveCommand — connect', () => {
         template: 'workstation',
         label: 'WORKSTATION-01',
         description: null,
-        layer: 1,
+        layer: 0,
         anchor: false,
         connections: [],
         services: [],
@@ -699,7 +699,7 @@ describe('resolveCommand — connect', () => {
         template: 'workstation',
         label: 'WORKSTATION-01',
         description: null,
-        layer: 1,
+        layer: 0,
         anchor: false,
         connections: [],
         services: [],
@@ -730,7 +730,7 @@ describe('resolveCommand — connect', () => {
         template: 'workstation',
         label: 'WORKSTATION-01',
         description: 'Already generated description.',
-        layer: 1,
+        layer: 0,
         anchor: false,
         connections: [],
         services: [],
@@ -759,7 +759,7 @@ describe('resolveCommand — connect', () => {
         template: 'workstation',
         label: 'WORKSTATION-01',
         description: null,
-        layer: 1,
+        layer: 0,
         anchor: false,
         connections: [],
         services: [],
@@ -789,7 +789,7 @@ describe('resolveCommand — connect', () => {
         template: 'workstation',
         label: 'WORKSTATION-01',
         description: null,
-        layer: 1,
+        layer: 0,
         anchor: false,
         connections: [],
         services: [],
@@ -833,7 +833,7 @@ describe('resolveCommand — connect', () => {
         template: 'workstation',
         label: 'WORKSTATION-01',
         description: null,
-        layer: 1,
+        layer: 0,
         anchor: false,
         ariaInfluence: 0.7,
         connections: [],
@@ -851,6 +851,95 @@ describe('resolveCommand — connect', () => {
     expect(fetchMock).toHaveBeenCalledOnce();
     const requestBody = JSON.parse(fetchMock.mock.calls[0][1].body);
     expect(requestBody.ariaInfluence).toBe(0.7);
+  });
+
+  // ── Layer gating tests ─────────────────────────────────────
+
+  it('should block cross-layer connect when key anchor is not compromised', async () => {
+    // contractor_portal is layer 0; the fake anchor is layer 1.
+    // vpn_gateway is the layer-0 key anchor and must be compromised to advance — it is not.
+    const withLayer1 = produce(state, s => {
+      s.network.nodes['layer1_target'] = {
+        id: 'layer1_target',
+        ip: '10.0.1.99',
+        template: 'workstation',
+        label: 'LAYER-1-TARGET',
+        description: 'A node in layer 1.',
+        layer: 1,
+        anchor: true,
+        connections: [],
+        services: [],
+        files: [],
+        accessLevel: 'none',
+        compromised: false,
+        discovered: true,
+        credentialHints: [],
+      };
+      s.network.nodes['contractor_portal']!.connections.push('layer1_target');
+    });
+
+    const result = await resolveCommand('connect 10.0.1.99', withLayer1);
+    expect(result.lines[0].type).toBe('error');
+    expect(result.lines[0].content).toMatch(/ACCESS DENIED/);
+    expect(result.lines[0].content).toMatch(/current layer incomplete/);
+  });
+
+  it('should allow cross-layer connect when key anchor is compromised', async () => {
+    // vpn_gateway (layer-0 key anchor) is compromised — advance to layer 1 is allowed.
+    const withLayer1 = produce(state, s => {
+      s.network.nodes['vpn_gateway']!.compromised = true;
+      s.network.nodes['layer1_target'] = {
+        id: 'layer1_target',
+        ip: '10.0.1.99',
+        template: 'workstation',
+        label: 'LAYER-1-TARGET',
+        description: 'A node in layer 1.',
+        layer: 1,
+        anchor: true,
+        connections: [],
+        services: [],
+        files: [],
+        accessLevel: 'none',
+        compromised: false,
+        discovered: true,
+        credentialHints: [],
+      };
+      s.network.nodes['contractor_portal']!.connections.push('layer1_target');
+    });
+
+    const result = await resolveCommand('connect 10.0.1.99', withLayer1);
+    expect(result.lines[0].type).not.toBe('error');
+    const contents = result.lines.map(l => l.content);
+    expect(contents.some(c => c.includes('10.0.1.99') || c.includes('LAYER-1-TARGET'))).toBe(true);
+  });
+
+  it('should allow same-layer connect regardless of key anchor state', async () => {
+    // A layer-0 filler node — same layer as contractor_portal.
+    // vpn_gateway is NOT compromised; the layer gate must not apply.
+    const withSameLayer = produce(state, s => {
+      s.network.nodes['layer0_peer'] = {
+        id: 'layer0_peer',
+        ip: '10.0.0.99',
+        template: 'workstation',
+        label: 'LAYER-0-PEER',
+        description: 'A peer in layer 0.',
+        layer: 0,
+        anchor: false,
+        connections: [],
+        services: [],
+        files: [],
+        accessLevel: 'none',
+        compromised: false,
+        discovered: true,
+        credentialHints: [],
+      };
+      s.network.nodes['contractor_portal']!.connections.push('layer0_peer');
+    });
+
+    const result = await resolveCommand('connect 10.0.0.99', withSameLayer);
+    const contents = result.lines.map(l => l.content);
+    expect(contents.some(c => c.includes('ACCESS DENIED'))).toBe(false);
+    expect(contents.some(c => c.includes('10.0.0.99') || c.includes('LAYER-0-PEER'))).toBe(true);
   });
 });
 
@@ -1254,6 +1343,20 @@ describe('resolveCommand — exploit', () => {
   });
 
   it('should grant access on a successful exploit', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        makeOkFetchResponse({
+          narrative: 'Exploit successful.',
+          traceChange: 0,
+          accessGranted: true,
+          newAccessLevel: 'user',
+          flagsSet: {},
+          nodesUnlocked: [],
+          isUnknown: false,
+        }),
+      ),
+    );
     const result = await resolveCommand('exploit http', state);
     const nextNode = (result.nextState as GameState).network.nodes['contractor_portal']!;
     expect(nextNode.accessLevel).toBe('user');
@@ -1266,6 +1369,20 @@ describe('resolveCommand — exploit', () => {
   });
 
   it('should mark the node as compromised on success', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        makeOkFetchResponse({
+          narrative: 'Exploit successful.',
+          traceChange: 0,
+          accessGranted: true,
+          newAccessLevel: 'user',
+          flagsSet: {},
+          nodesUnlocked: [],
+          isUnknown: false,
+        }),
+      ),
+    );
     const result = await resolveCommand('exploit http', state);
     const nextNode = (result.nextState as GameState).network.nodes['contractor_portal']!;
     expect(nextNode.compromised).toBe(true);
@@ -1277,9 +1394,103 @@ describe('resolveCommand — exploit', () => {
   });
 
   it('should include the access level gained in output', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        makeOkFetchResponse({
+          narrative: 'Exploit successful.',
+          traceChange: 0,
+          accessGranted: true,
+          newAccessLevel: 'user',
+          flagsSet: {},
+          nodesUnlocked: [],
+          isUnknown: false,
+        }),
+      ),
+    );
     const result = await resolveCommand('exploit http', state);
     const contents = result.lines.map(l => l.content);
     expect(contents.some(c => c.includes('USER'))).toBe(true);
+  });
+
+  // ── sentinelPatched cost tests ─────────────────────────────
+
+  it('should apply +1 effective cost on sentinelPatched node', async () => {
+    // http exploitCost = 1; sentinelPatched raises effective cost to 2.
+    // With only 1 charge the player cannot afford the exploit.
+    const patched = produce(state, s => {
+      s.network.nodes['contractor_portal']!.sentinelPatched = true;
+      s.player.charges = 1;
+    });
+    const result = await resolveCommand('exploit http', patched);
+    expect(result.lines[0].type).toBe('error');
+    expect(result.lines[0].content).toMatch(/Insufficient charges/);
+    expect(result.lines[0].content).toMatch(/need 2/);
+  });
+
+  it('should succeed on sentinelPatched node when charges cover the increased cost', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        makeOkFetchResponse({
+          narrative: 'Exploit successful.',
+          traceChange: 0,
+          accessGranted: true,
+          newAccessLevel: 'user',
+          flagsSet: {},
+          nodesUnlocked: [],
+          isUnknown: false,
+        }),
+      ),
+    );
+    // effective cost = 1 (http) + 1 (sentinelPatched) = 2; player starts with 3
+    const patched = produce(state, s => {
+      s.network.nodes['contractor_portal']!.sentinelPatched = true;
+    });
+    const result = await resolveCommand('exploit http', patched);
+    expect((result.nextState as GameState).player.charges).toBe(1);
+  });
+
+  // ── AI response tests ──────────────────────────────────────
+
+  it('should not mark node compromised when AI returns accessGranted: false', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        makeOkFetchResponse({
+          narrative: 'Exploit failed.',
+          traceChange: 0,
+          accessGranted: false,
+          newAccessLevel: null,
+          flagsSet: {},
+          nodesUnlocked: [],
+          isUnknown: false,
+        }),
+      ),
+    );
+    const result = await resolveCommand('exploit http', state);
+    const nextNode = (result.nextState as GameState).network.nodes['contractor_portal']!;
+    expect(nextNode.compromised).toBe(false);
+  });
+
+  it('should add both service traceContribution and AI traceChange to trace', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        makeOkFetchResponse({
+          narrative: 'Exploit successful.',
+          traceChange: 3,
+          accessGranted: true,
+          newAccessLevel: 'user',
+          flagsSet: {},
+          nodesUnlocked: [],
+          isUnknown: false,
+        }),
+      ),
+    );
+    // http traceContribution = 2; AI traceChange = 3; total = 5
+    const result = await resolveCommand('exploit http', state);
+    expect((result.nextState as GameState).player.trace).toBe(5);
   });
 });
 

@@ -22,6 +22,11 @@ export const DIVISION_ANCHORS: Record<string, { entry: string; key: string } | u
   executive: { entry: 'exec_cfo', key: 'exec_ceo' },
 };
 
+/** Maps layer number → the key anchor ID that must be compromised before advancing. */
+export const LAYER_KEY_ANCHOR: Partial<Record<number, string>> = Object.fromEntries(
+  Object.entries(DIVISION_LAYER).map(([div, layer]) => [layer, DIVISION_ANCHORS[div]?.key]),
+);
+
 const MIN_CONNECTIONS = 2;
 const MAX_CONNECTIONS = 4;
 
