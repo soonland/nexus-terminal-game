@@ -12,7 +12,7 @@ import { useBootSequence } from './hooks/useBootSequence';
 import type { TerminalLine } from './types/terminal';
 import { makeLine } from './types/terminal';
 import type { GameState } from './types/game';
-import { createInitialState, currentNode } from './engine/state';
+import { createInitialState, currentNode, burnRetry } from './engine/state';
 import { resolveCommand } from './engine/commands';
 import {
   saveGame,
@@ -22,7 +22,6 @@ import {
   disclaimerRequired,
   recordDisclaimerAgreement,
 } from './engine/persistence';
-import { burnRetry } from './engine/state';
 
 // Nexus Corp operative credentials
 const OPERATIVE_USER = 'ghost';
@@ -114,6 +113,7 @@ export const App = () => {
         clearSave();
         setGameState(retryState);
         setSessionLines([]);
+        setAiSuggestions([]);
         push([
           makeLine('separator', ''),
           makeLine('system', 'Reconnecting...'),

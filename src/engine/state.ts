@@ -111,7 +111,7 @@ export const currentNode = (state: GameState): LiveNode => {
   return node;
 };
 
-const TRACE_THRESHOLDS = [31, 61, 86] as const;
+export const TRACE_THRESHOLDS = [31, 61, 86] as const;
 export const thresholdFlag = (pct: number): string => `threshold_${String(pct)}_crossed`;
 
 export const addTrace = (state: GameState, amount: number): GameState => {

@@ -1,6 +1,6 @@
 import type { GameState, CommandOutput, AccessLevel } from '../types/game';
 import { hasAccess } from '../types/game';
-import { currentNode, addTrace, thresholdFlag } from './state';
+import { currentNode, addTrace, thresholdFlag, TRACE_THRESHOLDS } from './state';
 import produce from './produce';
 
 interface WorldAIResponse {
@@ -114,19 +114,15 @@ export const resolveCommand = async (raw: string, state: GameState): Promise<Com
 };
 
 // ── Threshold alert messages ──────────────────────────────
-const THRESHOLD_ALERTS = [
-  {
-    pct: 31,
-    msg: '// ALERT: Anomalous activity flagged. Watchlist active.',
-    type: 'system' as const,
-  },
-  { pct: 61, msg: '// ALERT: Active intrusion response initiated.', type: 'error' as const },
-  {
-    pct: 86,
-    msg: '// CRITICAL: One more detection event triggers full lockout.',
-    type: 'error' as const,
-  },
-] as const;
+// Derived from the canonical TRACE_THRESHOLDS in state.ts — do not add raw numbers here.
+const THRESHOLD_ALERT_META: Record<
+  (typeof TRACE_THRESHOLDS)[number],
+  { msg: string; type: 'system' | 'error' }
+> = {
+  31: { msg: '// ALERT: Anomalous activity flagged. Watchlist active.', type: 'system' },
+  61: { msg: '// ALERT: Active intrusion response initiated.', type: 'error' },
+  86: { msg: '// CRITICAL: One more detection event triggers full lockout.', type: 'error' },
+};
 
 /**
  * Detect newly crossed thresholds and:
@@ -140,9 +136,10 @@ const applyThresholdEffects = (prevState: GameState, result: CommandOutput): Com
   const alertLines: Out = [];
   let mutated = nextState;
 
-  for (const { pct, msg, type } of THRESHOLD_ALERTS) {
+  for (const pct of TRACE_THRESHOLDS) {
     const flag = thresholdFlag(pct);
     if (!prevState.flags[flag] && nextState.flags[flag]) {
+      const { msg, type } = THRESHOLD_ALERT_META[pct];
       alertLines.push(sep(), line(msg, type), sep());
 
       // At 31%: lock up to 2 non-tripwire files per compromised node.
