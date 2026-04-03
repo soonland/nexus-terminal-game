@@ -2,6 +2,7 @@ import type { GameState, CommandOutput, AccessLevel } from '../types/game';
 import { hasAccess } from '../types/game';
 import { currentNode, addTrace, thresholdFlag, TRACE_THRESHOLDS } from './state';
 import produce from './produce';
+import { LAYER_KEY_ANCHOR } from './buildConnectivity';
 
 interface WorldAIResponse {
   narrative: string;
@@ -95,8 +96,7 @@ export const resolveCommand = async (raw: string, state: GameState): Promise<Com
       result = cmdDisconnect(state);
       break;
     case 'exploit':
-      result = cmdExploit(args, state);
-      break;
+      return withTurn(await cmdExploit(args, state), raw, state);
     case 'exfil':
       result = cmdExfil(args, state);
       break;
@@ -381,6 +381,17 @@ const cmdConnect = async (args: string[], state: GameState): Promise<CommandOutp
     return { lines: [err(`No direct route from ${node.ip} to ${target.ip}`)] };
   }
 
+  // Layer gating: cross-layer connect blocked unless current layer's key anchor is compromised.
+  if (target.layer > node.layer) {
+    const keyAnchorId = LAYER_KEY_ANCHOR[node.layer];
+    if (keyAnchorId) {
+      const keyAnchor = state.network.nodes[keyAnchorId];
+      if (!keyAnchor?.compromised) {
+        return { lines: [err('// ACCESS DENIED — current layer incomplete')] };
+      }
+    }
+  }
+
   let next = produce(state, s => {
     s.network.previousNodeId = s.network.currentNodeId;
     s.network.currentNodeId = target.id;
@@ -641,7 +652,7 @@ const cmdDisconnect = (state: GameState): CommandOutput => {
 };
 
 // ── exploit ───────────────────────────────────────────────
-const cmdExploit = (args: string[], state: GameState): CommandOutput => {
+const cmdExploit = async (args: string[], state: GameState): Promise<CommandOutput> => {
   if (!args[0]) return { lines: [err('Usage: exploit [service]')] };
 
   const hasTool = state.player.tools.some(t => t.id === 'exploit-kit');
@@ -653,11 +664,14 @@ const cmdExploit = (args: string[], state: GameState): CommandOutput => {
 
   if (!svc) return { lines: [err(`Service not found on ${node.ip}: ${service}`)] };
 
-  if (state.player.charges < svc.exploitCost) {
+  // sentinelPatched nodes cost +1 charge to exploit
+  const effectiveCost = svc.exploitCost + (node.sentinelPatched ? 1 : 0);
+
+  if (state.player.charges < effectiveCost) {
     return {
       lines: [
         err(
-          `Insufficient charges (need ${String(svc.exploitCost)}, have ${String(state.player.charges)})`,
+          `Insufficient charges (need ${String(effectiveCost)}, have ${String(state.player.charges)})`,
         ),
       ],
     };
@@ -680,24 +694,93 @@ const cmdExploit = (args: string[], state: GameState): CommandOutput => {
     };
   }
 
-  const traceAdded = svc.traceContribution ?? 2;
-  const stateAfterTrace = addTrace(state, traceAdded);
-  const applied = stateAfterTrace.player.trace - state.player.trace;
-  const next = produce(stateAfterTrace, s => {
-    s.player.charges -= svc.exploitCost;
-    const n = s.network.nodes[node.id];
-    if (n) {
-      n.accessLevel = svc.accessGained;
-      n.compromised = true;
-    }
+  // Deduct charges upfront before AI call
+  const stateAfterCharges = produce(state, s => {
+    s.player.charges -= effectiveCost;
   });
+
+  // Route to World AI to narrate outcome and determine access.
+  // Payload mirrors the cmdWorldAI shape so the handler gets full context.
+  const payload = {
+    command: `exploit ${service}`,
+    context: 'exploit',
+    currentNode: {
+      id: node.id,
+      ip: node.ip,
+      label: node.label,
+      layer: node.layer,
+      sentinelPatched: node.sentinelPatched ?? false,
+      accessLevel: node.accessLevel,
+      services: node.services.map(s => ({ name: s.name, port: s.port, vulnerable: s.vulnerable })),
+      files: node.files
+        .filter(f => hasAccess(node.accessLevel, f.accessRequired))
+        .map(f => ({ name: f.name, type: f.type })),
+      exploitTarget: { name: svc.name, port: svc.port, accessGained: svc.accessGained },
+    },
+    playerState: {
+      handle: state.player.handle,
+      trace: state.player.trace,
+      charges: stateAfterCharges.player.charges,
+      tools: state.player.tools.map(t => ({ id: t.id })),
+    },
+    recentCommands: state.recentCommands,
+    turnCount: state.turnCount,
+  };
+
+  let aiResponse: WorldAIResponse;
+  try {
+    const res = await fetch('/api/world', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error(`World AI returned ${String(res.status)}`);
+    aiResponse = (await res.json()) as WorldAIResponse;
+  } catch {
+    aiResponse = WORLD_AI_FALLBACK;
+  }
+
+  // Apply trace: service's base contribution + any AI-supplied delta (negative = silent exploit).
+  const traceAdded = (svc.traceContribution ?? 2) + aiResponse.traceChange;
+  const stateAfterTrace = addTrace(stateAfterCharges, traceAdded);
+  const applied = stateAfterTrace.player.trace - state.player.trace;
+
+  let next = stateAfterTrace;
+  if (aiResponse.accessGranted) {
+    next = produce(next, s => {
+      const n = s.network.nodes[node.id];
+      if (n) {
+        n.compromised = true;
+        if (aiResponse.newAccessLevel) n.accessLevel = aiResponse.newAccessLevel as AccessLevel;
+      }
+    });
+  }
+
+  if (Object.keys(aiResponse.flagsSet).length > 0) {
+    next = produce(next, s => {
+      Object.assign(s.flags, aiResponse.flagsSet);
+    });
+  }
+
+  if (aiResponse.nodesUnlocked.length > 0) {
+    next = produce(next, s => {
+      for (const nodeId of aiResponse.nodesUnlocked) {
+        const target = s.network.nodes[nodeId];
+        if (!target) continue;
+        target.discovered = true;
+        target.locked = false;
+      }
+    });
+  }
 
   const exploitLines: Out = [
     out(`Exploiting ${service} on ${node.ip}...`),
-    sys(`  Vulnerability confirmed.`),
-    sys(`  Access gained: ${svc.accessGained.toUpperCase()}`),
-    sys(`  Charges remaining: ${String(next.player.charges)}`),
+    { type: aiResponse.isUnknown ? 'error' : 'output', content: aiResponse.narrative },
   ];
+  if (aiResponse.accessGranted && aiResponse.newAccessLevel) {
+    exploitLines.push(sys(`  Access gained: ${aiResponse.newAccessLevel.toUpperCase()}`));
+  }
+  exploitLines.push(sys(`  Charges remaining: ${String(next.player.charges)}`));
   if (applied > 0) exploitLines.push(sys(`  +${String(applied)} trace`));
 
   return { lines: exploitLines, nextState: next };

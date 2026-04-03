@@ -76,6 +76,7 @@ export interface LiveNode {
   compromised: boolean;
   discovered: boolean;
   locked?: boolean; // Phase 4: locked nodes cannot be connected until unlocked
+  sentinelPatched?: boolean; // Sentinel has hardened this node — exploit costs +1 charge
   credentialHints: string[]; // credential IDs findable here
 }
 
