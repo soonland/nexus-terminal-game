@@ -154,7 +154,7 @@ export interface SentinelState {
 }
 
 // ── Session ────────────────────────────────────────────────
-export type GamePhase = 'boot' | 'playing' | 'burned' | 'ended';
+export type GamePhase = 'boot' | 'playing' | 'aria' | 'burned' | 'ended';
 
 import type { Employee } from './employee';
 

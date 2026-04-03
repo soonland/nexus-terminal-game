@@ -73,7 +73,7 @@ export const App = () => {
 
   // Auto-save on state changes during play
   useEffect(() => {
-    if (gameState?.phase === 'playing') saveGame(gameState);
+    if (gameState?.phase === 'playing' || gameState?.phase === 'aria') saveGame(gameState);
   }, [gameState]);
 
   // Refocus terminal input whenever all modals close
