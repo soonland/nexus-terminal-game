@@ -200,6 +200,7 @@ export const App = () => {
 
       // ── Login: password ────────────────────────────────────
       if (appPhase === 'login_pass') {
+        if (!raw) return;
         push([makeLine('input', '********')]);
 
         if (username === OPERATIVE_USER && raw === OPERATIVE_PASS) {
