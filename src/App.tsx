@@ -190,6 +190,7 @@ export const App = () => {
 
       // ── Login: username ────────────────────────────────────
       if (appPhase === 'login_user') {
+        if (!raw.trim()) return;
         const user = raw.trim();
         setUsername(user);
         setAppPhase('login_pass');

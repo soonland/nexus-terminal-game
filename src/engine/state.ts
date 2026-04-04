@@ -172,6 +172,9 @@ export const burnRetry = (state: GameState): GameState => {
     } else if (n.files.some(f => f.locked)) {
       // Clear watchlist locks that accumulated on other layers but preserve
       // access/compromise state — the player earned those.
+      // Note: deleted files are intentionally NOT restored here (unlike the
+      // burned-layer reset above). Deletions on other layers are permanent
+      // within a run; only the burned layer is fully rewound.
       nodes[id] = { ...n, files: n.files.map(f => ({ ...f, locked: false })) };
     }
   }

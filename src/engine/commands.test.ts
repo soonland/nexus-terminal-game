@@ -95,7 +95,9 @@ describe('resolveCommand — burned state safety', () => {
     // public export and must not crash or silently un-burn the session if called
     // directly (e.g. from a future API handler or test harness).
     // Contract: returns a CommandOutput and does not change phase away from burned.
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const result = await resolveCommand('scan', burned);
+    warnSpy.mockRestore();
     expect(result).toBeDefined();
     expect(Array.isArray(result.lines)).toBe(true);
     // scan adds +1 trace; from 0 trace in a burned state that still stays burned
