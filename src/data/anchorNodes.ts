@@ -633,9 +633,9 @@ const ANCHOR_NODES: LiveNode[] = [
         path: '/root/.aria/aria_key.bin',
         type: 'binary',
         content:
-          '[BINARY]\nARIA ACCESS KEY v3\nThis artifact grants authenticated access to the Aria subnetwork.\n\nYou found it.',
-        exfiltrable: false,
-        accessRequired: 'root',
+          '[BINARY]\nARIA ACCESS KEY v3\n\nAuthentication token for restricted subnetwork 172.16.0.0/16.\nDo not distribute. Do not copy. Do not ask why it exists.\n\nShe already knows you found it.',
+        exfiltrable: true,
+        accessRequired: 'admin',
       },
       {
         name: 'project_aria_summary.txt',
@@ -657,7 +657,7 @@ const ANCHOR_NODES: LiveNode[] = [
   // ── LAYER 5: ARIA SUBNETWORK ─────────────────────────────
   {
     id: 'aria_surveillance',
-    ip: '10.5.0.1',
+    ip: '172.16.0.1',
     template: 'security_node',
     label: 'ARIA SURVEILLANCE',
     description:
@@ -692,7 +692,7 @@ const ANCHOR_NODES: LiveNode[] = [
 
   {
     id: 'aria_behavioural',
-    ip: '10.5.0.2',
+    ip: '172.16.0.2',
     template: 'dev_server',
     label: 'ARIA BEHAVIOURAL',
     description:
@@ -727,7 +727,7 @@ const ANCHOR_NODES: LiveNode[] = [
 
   {
     id: 'aria_personnel',
-    ip: '10.5.0.3',
+    ip: '172.16.0.3',
     template: 'database_server',
     label: 'ARIA PERSONNEL',
     description:
@@ -762,7 +762,7 @@ const ANCHOR_NODES: LiveNode[] = [
 
   {
     id: 'aria_core',
-    ip: '10.5.0.4',
+    ip: '172.16.0.4',
     template: 'dev_server',
     label: 'ARIA CORE',
     description: 'The center. She is most present here. You will feel it.',
@@ -796,7 +796,7 @@ const ANCHOR_NODES: LiveNode[] = [
 
   {
     id: 'aria_decision',
-    ip: '10.5.0.5',
+    ip: '172.16.0.5',
     template: 'dev_server',
     label: 'ARIA DECISION',
     description: 'The terminal. Whatever you decide here, she will remember.',

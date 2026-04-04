@@ -1600,6 +1600,80 @@ describe('resolveCommand — exfil', () => {
   });
 });
 
+describe('resolveCommand — exfil aria_key.bin', () => {
+  let state: GameState;
+
+  beforeEach(() => {
+    state = produce(createInitialState(), s => {
+      s.network.currentNodeId = 'exec_ceo';
+      s.network.nodes['exec_ceo']!.accessLevel = 'admin';
+      s.network.nodes['exec_ceo']!.discovered = true;
+    });
+  });
+
+  it('should add the aria-key tool to player tools', async () => {
+    const result = await resolveCommand('exfil aria_key.bin', state);
+    const tools = (result.nextState as GameState).player.tools;
+    expect(tools.some(t => t.id === 'aria-key')).toBe(true);
+  });
+
+  it('should set aria.discovered to true', async () => {
+    const result = await resolveCommand('exfil aria_key.bin', state);
+    expect((result.nextState as GameState).aria.discovered).toBe(true);
+  });
+
+  it('should set phase to "aria"', async () => {
+    const result = await resolveCommand('exfil aria_key.bin', state);
+    expect((result.nextState as GameState).phase).toBe('aria');
+  });
+
+  it('should mark all layer-5 nodes as discovered', async () => {
+    const result = await resolveCommand('exfil aria_key.bin', state);
+    const nodes = (result.nextState as GameState).network.nodes;
+    const layer5Nodes = Object.values(nodes).filter(n => n?.layer === 5);
+    expect(layer5Nodes.length).toBeGreaterThan(0);
+    expect(layer5Nodes.every(n => n!.discovered)).toBe(true);
+  });
+
+  it('should add aria_surveillance to exec_ceo connections', async () => {
+    const result = await resolveCommand('exfil aria_key.bin', state);
+    const connections = (result.nextState as GameState).network.nodes['exec_ceo']!.connections;
+    expect(connections).toContain('aria_surveillance');
+  });
+
+  it('should output aria-typed lines containing "ARIA KEY ACQUIRED"', async () => {
+    const result = await resolveCommand('exfil aria_key.bin', state);
+    const ariaLines = result.lines.filter(l => l.type === 'aria');
+    expect(ariaLines.length).toBeGreaterThan(0);
+    expect(ariaLines.some(l => l.content.includes('ARIA KEY ACQUIRED'))).toBe(true);
+  });
+
+  it('should return already-exfiltrated message when exfiltrated a second time', async () => {
+    const afterFirst = produce(state, s => {
+      s.player.exfiltrated.push({
+        name: 'aria_key.bin',
+        path: '/root/.aria/aria_key.bin',
+        type: 'binary',
+        content: null,
+        accessRequired: 'admin',
+        exfiltrable: true,
+      });
+    });
+    const result = await resolveCommand('exfil aria_key.bin', afterFirst);
+    expect(result.lines.some(l => l.content.includes('Already exfiltrated'))).toBe(true);
+    expect((result.nextState as GameState).aria.discovered).toBe(false);
+  });
+
+  it('should not set aria.discovered or change phase when exfiling a non-aria-key file', async () => {
+    const atContractor = produce(createInitialState(), s => {
+      s.network.nodes['contractor_portal']!.accessLevel = 'user';
+    });
+    const result = await resolveCommand('exfil welcome.txt', atContractor);
+    expect((result.nextState as GameState).aria.discovered).toBe(false);
+    expect((result.nextState as GameState).phase).not.toBe('aria');
+  });
+});
+
 describe('resolveCommand — wipe-logs', () => {
   let state: GameState;
 

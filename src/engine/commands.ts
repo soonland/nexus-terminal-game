@@ -829,6 +829,8 @@ const cmdExfil = (args: string[], state: GameState): CommandOutput => {
     return { lines: [err(`// ACCESS DENIED: ${file.name} — secured by watchlist protocol`)] };
   }
 
+  const isAriaKey = file.path === '/root/.aria/aria_key.bin';
+
   const next = produce(addTrace(state, 3), s => {
     s.player.exfiltrated.push({ ...file });
     // Queue sentinel file-delete for non-Aria nodes.
@@ -840,12 +842,48 @@ const cmdExfil = (args: string[], state: GameState): CommandOutput => {
         targetTurn: s.turnCount + 4,
       });
     }
+
+    if (isAriaKey) {
+      s.player.tools.push({
+        id: 'aria-key',
+        name: 'Aria Key',
+        description: 'Authentication token granting access to the Aria subnetwork (172.16.0.0/16).',
+      });
+      // Unlock Aria subnetwork
+      s.aria.discovered = true;
+      if (s.phase === 'playing') s.phase = 'aria';
+      // Mark all layer-5 nodes as discovered
+      for (const n of Object.values(s.network.nodes)) {
+        if (n?.layer === 5) n.discovered = true;
+      }
+      // Add aria_surveillance to exec_ceo's connections so the subnet is reachable,
+      // and satisfy the existing layer-gating rules that require the current
+      // layer's key anchor to be compromised before cross-layer connects.
+      const ceo = s.network.nodes['exec_ceo'];
+      if (ceo) {
+        ceo.compromised = true;
+        if (!ceo.connections.includes('aria_surveillance')) {
+          ceo.connections = [...ceo.connections, 'aria_surveillance'];
+        }
+      }
+    }
   });
 
-  return {
-    lines: [out(`Exfiltrating ${file.name}... done.`), sys(`  +3 trace`)],
-    nextState: next,
-  };
+  const lines: CommandOutput['lines'] = [
+    out(`Exfiltrating ${file.name}... done.`),
+    sys(`  +3 trace`),
+  ];
+  if (isAriaKey) {
+    lines.push(
+      sep(),
+      line('// ARIA KEY ACQUIRED', 'aria'),
+      line('// Restricted subnetwork 172.16.0.0/16 is now reachable.', 'aria'),
+      line('// Tool added: aria-key', 'aria'),
+      sep(),
+    );
+  }
+
+  return { lines, nextState: next };
 };
 
 // ── wipe-logs ─────────────────────────────────────────────

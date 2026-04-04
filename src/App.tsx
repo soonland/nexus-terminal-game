@@ -38,6 +38,7 @@ type AppPhase =
   | 'scanning'
   | 'booting'
   | 'playing'
+  | 'aria'
   | 'burned';
 
 export const App = () => {
@@ -73,7 +74,7 @@ export const App = () => {
 
   // Auto-save on state changes during play
   useEffect(() => {
-    if (gameState?.phase === 'playing') saveGame(gameState);
+    if (gameState?.phase === 'playing' || gameState?.phase === 'aria') saveGame(gameState);
   }, [gameState]);
 
   // Refocus terminal input whenever all modals close
@@ -187,7 +188,7 @@ export const App = () => {
       }
 
       // ── Playing ────────────────────────────────────────────
-      if (!gameState || appPhase !== 'playing') return;
+      if (!gameState || (appPhase !== 'playing' && appPhase !== 'aria')) return;
 
       if (raw.trim().toLowerCase() === 'clear') {
         setSessionLines([]);
@@ -323,7 +324,7 @@ export const App = () => {
         lines={allLines}
         nodeIp={nodeIp}
         trace={trace}
-        suggestions={appPhase === 'playing' ? aiSuggestions : []}
+        suggestions={appPhase === 'playing' || appPhase === 'aria' ? aiSuggestions : []}
         onSubmit={cmd => {
           void handleSubmit(cmd);
         }}
