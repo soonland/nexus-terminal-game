@@ -665,7 +665,7 @@ const cmdConnect = async (args: string[], state: GameState): Promise<CommandOutp
     s.network.currentNodeId = target.id;
   });
 
-  let description = target.description;
+  let description = (target.anchor ? target.flavourDescription : undefined) ?? target.description;
 
   // Generate flavour description on first visit to a filler node
   if (!target.anchor && description === null) {
