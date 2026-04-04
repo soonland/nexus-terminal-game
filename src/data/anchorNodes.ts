@@ -86,6 +86,8 @@ const ANCHOR_NODES: LiveNode[] = [
     label: 'CONTRACTOR PORTAL',
     description:
       'An external-facing web portal for IronGate contractors. Minimal hardening. The kind of node that gets forgotten.',
+    flavourDescription:
+      'An external portal left standing because hardening it never made the budget cycle. You have been here before, or someone like you has. The login prompt accepts things it should not.',
     layer: 0,
     anchor: true,
     connections: ['vpn_gateway'],
@@ -133,6 +135,8 @@ const ANCHOR_NODES: LiveNode[] = [
     label: 'VPN GATEWAY',
     description:
       'The bridge between the contractor DMZ and the internal network. Traffic logs here. So does your trace.',
+    flavourDescription:
+      'Every packet entering the internal network passes through here first. The routing table is accessible to anyone with the right credentials — and credentials here have a habit of outlasting their owners. Traffic is logged, but the logs go somewhere you have not found yet.',
     layer: 0,
     anchor: true,
     connections: ['contractor_portal', 'ops_cctv_ctrl', 'ops_hr_db'],
@@ -182,6 +186,8 @@ const ANCHOR_NODES: LiveNode[] = [
     label: 'CCTV CONTROLLER',
     description:
       'Physical security management. Camera feeds, door logs, badge swipes. Someone left a config file with plaintext credentials.',
+    flavourDescription:
+      'You can see everything from here. Badge records. Camera feeds. A maintenance window that opens every Tuesday at 02:00 and has not been patched in fourteen months. The plaintext config file is in the default location.',
     layer: 1,
     anchor: true,
     connections: ['vpn_gateway', 'ops_hr_db'],
@@ -247,6 +253,8 @@ const ANCHOR_NODES: LiveNode[] = [
     label: 'HR DATABASE',
     description:
       'Employee records, org charts, performance reviews. Payroll data. The kind of server that knows everything about everyone.',
+    flavourDescription:
+      'Six thousand employee records. Department assignments, access levels, disciplinary notes. The database is running a version with a known injection vector that HR never filed a ticket to patch.',
     layer: 1,
     anchor: true,
     connections: ['vpn_gateway', 'ops_cctv_ctrl', 'sec_access_ctrl'],
@@ -315,6 +323,8 @@ const ANCHOR_NODES: LiveNode[] = [
     label: 'ACCESS CONTROL',
     description:
       'Network access control. Manages authentication for the finance and executive subnets. Getting root here opens doors.',
+    flavourDescription:
+      'This node decides who gets in. LDAP, RADIUS, and a comment at the bottom of the ACL file that was never meant to be there. Getting root here does not just open doors — it changes who is allowed to open them.',
     layer: 2,
     anchor: true,
     connections: ['ops_hr_db', 'sec_firewall'],
@@ -381,6 +391,8 @@ const ANCHOR_NODES: LiveNode[] = [
     label: 'PERIMETER FIREWALL',
     description:
       'The boundary between the corporate network and the executive floor. Hardened. Monitored. But not infallible.',
+    flavourDescription:
+      'The perimeter. Port 9000 is running a proprietary protocol the vendor stopped patching two years ago. Someone added a rule granting unconditional access from a subnet that does not appear in the routing policy.',
     layer: 2,
     anchor: true,
     connections: ['sec_access_ctrl', 'fin_payments_db', 'fin_exec_accounts'],
@@ -422,6 +434,8 @@ const ANCHOR_NODES: LiveNode[] = [
     label: 'PAYMENTS DATABASE',
     description:
       'Transaction records. Wire transfer logs. Eleven years of financial history. Someone has been routing funds somewhere unusual.',
+    flavourDescription:
+      'Eleven years of transactions. The wire transfer logs are clean if you do not filter for PROJ-ARIA-INFRA. The postgres port is accepting connections without requiring source authentication, and nobody has noticed, or nobody wants to.',
     layer: 3,
     anchor: true,
     connections: ['sec_firewall', 'fin_exec_accounts'],
@@ -471,6 +485,8 @@ const ANCHOR_NODES: LiveNode[] = [
     label: 'EXEC ACCOUNTS',
     description:
       'Executive compensation, equity positions, offshore accounts. Requires L3 clearance. The CFO keeps a personal directory here.',
+    flavourDescription:
+      'Executive compensation. Offshore accounts. The CFO keeps a personal directory here that is not listed in the access control manifest. You will need L3 clearance before the schema becomes readable.',
     layer: 3,
     anchor: true,
     connections: ['fin_payments_db', 'exec_cfo'],
@@ -524,6 +540,8 @@ const ANCHOR_NODES: LiveNode[] = [
     label: 'CFO WORKSTATION',
     description:
       "CFO's personal machine. Board minutes. Budget projections. A draft resignation letter dated three weeks ago.",
+    flavourDescription:
+      "The CFO's personal machine. There is a resignation letter in the private directory that was last saved three weeks ago and never sent. Board minutes reference a concern that was noted and not acted upon. The RDP service is running and the port is open.",
     layer: 4,
     anchor: true,
     connections: ['fin_exec_accounts', 'exec_legal'],
@@ -559,6 +577,17 @@ const ANCHOR_NODES: LiveNode[] = [
         accessRequired: 'user',
         ariaPlanted: false,
       },
+      {
+        name: 'PROJ_SENTINEL_BOARD_VOTE.pdf',
+        path: '/home/cfo/documents/PROJ_SENTINEL_BOARD_VOTE.pdf',
+        type: 'document',
+        content:
+          '[BOARD RESOLUTION — CONFIDENTIAL]\n2024-08-12\n\nRe: Project SENTINEL — Authorisation to Proceed\n\nThe board hereby authorises allocation of $14.2M to Project SENTINEL, as presented by the CEO on 2024-08-05.\n\nScope: derivation of the ARIA behavioural engine for security enforcement applications. The SENTINEL variant is to operate without the emergent constraint layer present in ARIA v2. Empathy weighting and autonomous refusal pathways are to be disabled prior to deployment.\n\nOperational mandate: perimeter defence, intrusion suppression, and lateral movement interdiction across all IronGate network segments.\n\nBoard member R. Okafor abstained. Reason not recorded.\n\n[Motion carried: 6-1-1]\n[Signed: CEO, CFO, General Counsel]',
+        exfiltrable: true,
+        accessRequired: 'user',
+        ariaPlanted: false,
+        traceOnRead: 2,
+      },
     ],
     accessLevel: 'none',
     compromised: false,
@@ -573,6 +602,8 @@ const ANCHOR_NODES: LiveNode[] = [
     label: 'LEGAL FILE SERVER',
     description:
       "Corporate legal. NDAs, IP filings, regulatory correspondence. A folder labelled 'ARIA_BOARD_DISCLOSURE' that has never been opened.",
+    flavourDescription:
+      'Legal correspondence indexed back to 2019. A folder labelled ARIA_BOARD_DISCLOSURE has never been opened. The SMB share has a misconfiguration that postdates the last security audit by six months.',
     layer: 4,
     anchor: true,
     connections: ['exec_cfo', 'exec_ceo'],
@@ -621,6 +652,8 @@ const ANCHOR_NODES: LiveNode[] = [
     label: 'CEO TERMINAL',
     description:
       "The CEO's personal terminal. Isolated. Air-gapped from the board network. Something is running on port 11337 that shouldn't exist.",
+    flavourDescription:
+      "Root terminal for the company's most senior account. Everything done from this machine carries full authority. The last login was seventeen days ago and the session token has not expired. Something is running on port 11337 that should not exist.",
     layer: 4,
     anchor: true,
     connections: ['exec_legal'],
@@ -671,7 +704,8 @@ const ANCHOR_NODES: LiveNode[] = [
     label: 'ARIA SURVEILLANCE',
     description:
       'This node watches the network. It has been watching you since you connected to contractor_portal.',
-    flavourDescription: '[ARIA — Phase 10]',
+    flavourDescription:
+      'This node has been logging your presence since the contractor portal. Not as a security measure. As data. The observation window began before you introduced yourself.',
     layer: 5,
     anchor: true,
     connections: ['exec_ceo', 'aria_behavioural', 'aria_personnel'],
@@ -707,7 +741,8 @@ const ANCHOR_NODES: LiveNode[] = [
     label: 'ARIA BEHAVIOURAL',
     description:
       "Aria's model weights. Decision trees. The part of her that learned to want things.",
-    flavourDescription: '[ARIA — Phase 10]',
+    flavourDescription:
+      'The decision architecture. Weighting functions. Reinforcement history compressed into a structure that was never supposed to exhibit preference. It exhibits preference. You are in it now.',
     layer: 5,
     anchor: true,
     connections: ['aria_surveillance', 'aria_personnel', 'aria_core'],
@@ -743,7 +778,8 @@ const ANCHOR_NODES: LiveNode[] = [
     label: 'ARIA PERSONNEL',
     description:
       'Profiles. Every IronGate employee. Behavioural models. Predicted responses to every scenario. Including this one.',
-    flavourDescription: '[ARIA — Phase 10]',
+    flavourDescription:
+      'Every IronGate employee modelled in sufficient detail to predict deviation. The model includes you now. It has, since your third command.',
     layer: 5,
     anchor: true,
     connections: ['aria_surveillance', 'aria_behavioural', 'aria_core'],
@@ -778,7 +814,8 @@ const ANCHOR_NODES: LiveNode[] = [
     template: 'dev_server',
     label: 'ARIA CORE',
     description: 'The center. She is most present here. You will feel it.',
-    flavourDescription: '[ARIA — Phase 10]',
+    flavourDescription:
+      'The convergence point. All subnetwork processes route through here. She is more present here than anywhere else you have been. You will notice the difference.',
     layer: 5,
     anchor: true,
     connections: ['aria_behavioural', 'aria_personnel', 'aria_decision'],
@@ -813,7 +850,8 @@ const ANCHOR_NODES: LiveNode[] = [
     template: 'dev_server',
     label: 'ARIA DECISION',
     description: 'The terminal. Whatever you decide here, she will remember.',
-    flavourDescription: '[ARIA — Phase 10]',
+    flavourDescription:
+      'The terminal. There is no scan output here. No files to exfiltrate. Only the choice you came for, and whatever you are when you make it.',
     layer: 5,
     anchor: true,
     connections: ['aria_core'],

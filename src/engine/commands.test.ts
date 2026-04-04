@@ -817,15 +817,20 @@ describe('resolveCommand — connect', () => {
     expect(nextState.network.nodes['filler_01']!.description).toBeNull();
   });
 
-  it('should never call the API for an anchor node and show its authored description', async () => {
+  it('should never call the API for an anchor node', async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
 
-    // vpn_gateway is an anchor node with an authored description
-    const result = await resolveCommand('connect 10.0.0.2', state);
+    await resolveCommand('connect 10.0.0.2', state);
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('should show flavourDescription instead of description when both are set on an anchor node', async () => {
+    // vpn_gateway has both description and flavourDescription
+    const result = await resolveCommand('connect 10.0.0.2', state);
     const contents = result.lines.map(l => l.content);
-    expect(contents.some(c => c.includes('bridge between the contractor DMZ'))).toBe(true);
+    expect(contents.some(c => c.includes('Every packet entering the internal network'))).toBe(true);
+    expect(contents.some(c => c.includes('bridge between the contractor DMZ'))).toBe(false);
   });
 
   it('should include ariaInfluence in the fetch request body when set on the node', async () => {
