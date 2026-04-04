@@ -91,7 +91,8 @@ const tryRevokeCredential = (
   });
   if (!target) return null;
 
-  const primaryNodeId = target.validOnNodes[0];
+   
+  const primaryNodeId = target.validOnNodes[0]; // find predicate guarantees this is defined
 
   // Deterministic password derived from turn count — reproducible per save/run
   const newPassword = generatePassword(state.turnCount);
