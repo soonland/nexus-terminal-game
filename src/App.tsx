@@ -12,6 +12,7 @@ import { useBootSequence } from './hooks/useBootSequence';
 import type { TerminalLine } from './types/terminal';
 import { makeLine } from './types/terminal';
 import type { GameState } from './types/game';
+import { hasAccess } from './types/game';
 import { createInitialState, currentNode, burnRetry } from './engine/state';
 import { resolveCommand } from './engine/commands';
 import {
@@ -42,9 +43,14 @@ const computeContextSuggestions = (state: GameState): string[] => {
     }
   } else {
     suggestions.push('ls');
-    const firstFile = node.files.find(f => !f.deleted && !f.locked && node.accessLevel !== 'none');
+    const firstFile = node.files.find(
+      f => !f.deleted && !f.locked && hasAccess(node.accessLevel, f.accessRequired),
+    );
     if (firstFile) suggestions.push(`cat ${firstFile.name}`);
-    const exfilable = node.files.find(f => !f.deleted && !f.locked && f.exfiltrable);
+    const exfilable = node.files.find(
+      f =>
+        !f.deleted && !f.locked && f.exfiltrable && hasAccess(node.accessLevel, f.accessRequired),
+    );
     if (exfilable) suggestions.push(`exfil ${exfilable.name}`);
   }
 

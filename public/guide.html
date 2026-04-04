@@ -5,7 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Nexus Terminal — Gameplay Guide</title>
     <style>
-      @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+      @font-face {
+        font-family: 'IBM VGA 8x16';
+        src: url('/fonts/Web437_IBM_VGA_8x16-2x.woff') format('woff');
+        font-weight: normal;
+        font-style: normal;
+      }
 
       :root {
         --bg: #0000aa;
@@ -39,7 +44,7 @@
       body {
         background: var(--bg);
         color: var(--text);
-        font-family: 'Share Tech Mono', 'Courier New', monospace;
+        font-family: 'IBM VGA 8x16', 'Courier New', monospace;
         font-size: 14px;
         line-height: 1.6;
         min-height: 100vh;
@@ -79,12 +84,10 @@
         color: var(--text);
         text-decoration: none;
         font-size: 12px;
-        transition:
-          color 0.1s,
-          background 0.1s;
       }
 
-      nav a:hover {
+      nav a:hover,
+      nav a:focus-visible {
         color: var(--text-hi);
         background: rgba(85, 85, 255, 0.2);
       }

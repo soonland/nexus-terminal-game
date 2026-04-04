@@ -543,7 +543,7 @@ const cmdLs = (args: string[], state: GameState): CommandOutput => {
   });
   if (hasTripwire || hasNoExfil) {
     lines.push(sep());
-    if (hasTripwire) lines.push(sys('  [!] reading this file triggers a +25 trace alarm'));
+    if (hasTripwire) lines.push(sys('  [!] reading this file triggers up to +25 trace'));
     if (hasNoExfil) lines.push(sys('  [no-exfil] file is locked to this node'));
   }
   return { lines };
