@@ -63,6 +63,11 @@ const computeContextSuggestions = (state: GameState): string[] => {
   return suggestions.slice(0, 5);
 };
 
+const getEndingName = (flags: Record<string, boolean>): string => {
+  const key = Object.keys(flags).find(k => k.startsWith('ending_'));
+  return key ? key.replace('ending_', '').toUpperCase() : 'UNKNOWN';
+};
+
 // Nexus Corp operative credentials
 const OPERATIVE_USER = 'ghost';
 const OPERATIVE_PASS = 'nX-2847';
@@ -88,11 +93,17 @@ export const App = () => {
   );
 
   const [gameState, setGameState] = useState<GameState | null>(null);
-  const bootNode = gameState ? gameState.network.nodes[gameState.network.currentNodeId] : null;
+  // Snapshot the boot node label/IP/hint only when entering the booting phase (via ScanDiskScreen
+  // onDone). Deriving these live from gameState would cause useBootSequence to re-fire on every
+  // connect command (currentNodeId change), triggering unnecessary setLines([]) calls.
+  const [bootLabel, setBootLabel] = useState('CONTRACTOR PORTAL');
+  const [bootIp, setBootIp] = useState('10.0.0.1');
+  const [bootHint, setBootHint] = useState('Start with: scan');
   const { lines: bootLines, done: bootDone } = useBootSequence(
     appPhase === 'booting',
-    bootNode?.label,
-    bootNode?.ip,
+    bootLabel,
+    bootIp,
+    bootHint,
   );
   const [sessionLines, setSessionLines] = useState<TerminalLine[]>(() =>
     disclaimerRequired() ? [] : [makeLine('system', 'nx-field-01 login:')],
@@ -115,8 +126,7 @@ export const App = () => {
     if (!bootDone || appPhase !== 'booting' || bootHandled.current) return;
     bootHandled.current = true;
     if (gameState?.phase === 'ended') {
-      const endingKey = Object.keys(gameState.flags).find(k => k.startsWith('ending_'));
-      const endingName = endingKey ? endingKey.replace('ending_', '').toUpperCase() : 'UNKNOWN';
+      const endingName = getEndingName(gameState.flags);
       setSessionLines(prev => [
         ...prev,
         ...bootLines,
@@ -354,8 +364,7 @@ export const App = () => {
           setAppPhase('burned');
           // Do NOT clearSave here — state is needed for burnRetry on Enter.
         } else if (next.phase === 'ended') {
-          const endingKey = Object.keys(next.flags).find(k => k.startsWith('ending_'));
-          const endingName = endingKey ? endingKey.replace('ending_', '').toUpperCase() : 'UNKNOWN';
+          const endingName = getEndingName(next.flags);
           out.push(
             makeLine('separator', ''),
             makeLine('aria', `// SESSION TERMINATED — ENDING: ${endingName}`),
@@ -417,6 +426,12 @@ export const App = () => {
     return (
       <ScanDiskScreen
         onDone={() => {
+          const node = gameState?.network.nodes[gameState.network.currentNodeId];
+          setBootLabel(node?.label ?? 'CONTRACTOR PORTAL');
+          setBootIp(node?.ip ?? '10.0.0.1');
+          setBootHint(
+            node?.id === 'aria_decision' ? 'Choose your ending: type 1–4.' : 'Start with: scan',
+          );
           setSessionLines([]);
           setAppPhase('booting');
         }}

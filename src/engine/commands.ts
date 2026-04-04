@@ -77,7 +77,7 @@ export const resolveCommand = async (raw: string, state: GameState): Promise<Com
   if (currentNode(state).id === 'aria_decision') {
     const choice = raw.trim();
     if (choice === '1' || choice === '2' || choice === '3' || choice === '4') {
-      return cmdDecisionTerminal(choice, raw, state);
+      return cmdDecisionTerminal(choice, state);
     }
     return {
       lines: [
@@ -483,11 +483,7 @@ const ENDING_FALLBACK_MESSAGES: Record<string, string> = {
   FREE: '...i will remember you.',
 };
 
-const cmdDecisionTerminal = async (
-  choice: string,
-  raw: string,
-  state: GameState,
-): Promise<CommandOutput> => {
+const cmdDecisionTerminal = async (choice: string, state: GameState): Promise<CommandOutput> => {
   // choice is guaranteed to be '1'–'4' by the gate in resolveCommand
   const endingChoice = ENDING_LABELS[choice];
 
@@ -531,20 +527,18 @@ const cmdDecisionTerminal = async (
     }
   });
 
-  return withTurn(
-    {
-      lines: [
-        sep(),
-        line(`// CHOICE LOCKED: ${endingChoice}`, 'aria'),
-        sep(),
-        line(`// ARIA: ${ariaFinalMessage}`, 'aria'),
-        sep(),
-      ],
-      nextState: next,
-    },
-    raw,
-    state,
-  );
+  // Do NOT route through withTurn — the run is over. Sentinel must not fire on an ended state,
+  // and turnCount must not increment after the game has concluded.
+  return {
+    lines: [
+      sep(),
+      line(`// CHOICE LOCKED: ${endingChoice}`, 'aria'),
+      sep(),
+      line(`// ARIA: ${ariaFinalMessage}`, 'aria'),
+      sep(),
+    ],
+    nextState: next,
+  };
 };
 
 // ── whoami ────────────────────────────────────────────────

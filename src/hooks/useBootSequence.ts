@@ -57,11 +57,12 @@ const BASE_BOOT_LINES: Array<{
 const buildBootLines = (
   nodeLabel: string,
   nodeIp: string,
+  startHint: string,
 ): Array<{ type: Parameters<typeof makeLine>[0]; content: string; delay: number }> => [
   ...BASE_BOOT_LINES,
   {
     type: 'system',
-    content: `You are at ${nodeLabel} (${nodeIp}). Start with: scan`,
+    content: `You are at ${nodeLabel} (${nodeIp}). ${startHint}`,
     delay: BANNER_DONE + 1500,
   },
 ];
@@ -70,6 +71,7 @@ export const useBootSequence = (
   ready: boolean,
   nodeLabel = 'CONTRACTOR PORTAL',
   nodeIp = '10.0.0.1',
+  startHint = 'Start with: scan',
 ): { lines: TerminalLine[]; done: boolean } => {
   const [lines, setLines] = useState<TerminalLine[]>([]);
   const [done, setDone] = useState(false);
@@ -82,7 +84,7 @@ export const useBootSequence = (
     }
 
     const timers: ReturnType<typeof setTimeout>[] = [];
-    const BOOT_LINES = buildBootLines(nodeLabel, nodeIp);
+    const BOOT_LINES = buildBootLines(nodeLabel, nodeIp, startHint);
 
     BOOT_LINES.forEach(({ type, content, delay }) => {
       timers.push(
@@ -102,7 +104,7 @@ export const useBootSequence = (
     return () => {
       timers.forEach(clearTimeout);
     };
-  }, [ready, nodeLabel, nodeIp]);
+  }, [ready, nodeLabel, nodeIp, startHint]);
 
   return { lines, done };
 };
