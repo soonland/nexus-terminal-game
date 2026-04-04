@@ -128,12 +128,13 @@ const LINES: Array<{ text: string; color: string; margin?: string }> = [
     color: 'var(--color-separator)',
     margin: '0.5rem',
   },
-  {
-    text: '  Press Enter to access your field terminal.',
-    color: 'var(--color-system)',
-    margin: '0.5rem',
-  },
 ];
+
+const PROMPT_LINE = {
+  text: '  Press Enter to access your field terminal.',
+  color: 'var(--color-system)',
+  margin: '0.5rem',
+};
 
 export const PrologueScreen = ({ onContinue }: Props) => {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -158,49 +159,66 @@ export const PrologueScreen = ({ onContinue }: Props) => {
         background: 'var(--color-bg)',
         display: 'flex',
         flexDirection: 'column',
-        justifyContent: 'center',
-        alignItems: 'center',
         fontFamily: 'var(--font-mono)',
         fontSize: 'var(--font-size)',
         lineHeight: 'var(--line-height)',
         cursor: 'text',
-        padding: '2rem',
+        overflow: 'hidden',
       }}>
-      <div style={{ width: '100%', maxWidth: '68ch', whiteSpace: 'pre' }}>
-        {LINES.map((line, i) => (
-          <div key={i} style={{ color: line.color, marginBottom: line.margin ?? '0' }}>
-            {line.text}
+      {/* Scrollable content */}
+      <div
+        style={{
+          flex: 1,
+          overflowY: 'auto',
+          display: 'flex',
+          justifyContent: 'center',
+          padding: '2rem 2rem 1rem',
+        }}>
+        <div style={{ width: '100%', maxWidth: '68ch', whiteSpace: 'pre' }}>
+          {LINES.map((line, i) => (
+            <div key={i} style={{ color: line.color, marginBottom: line.margin ?? '0' }}>
+              {line.text}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Pinned input area */}
+      <div style={{ display: 'flex', justifyContent: 'center', padding: '0 2rem 1.5rem' }}>
+        <div style={{ width: '100%', maxWidth: '68ch', whiteSpace: 'pre' }}>
+          <div style={{ color: PROMPT_LINE.color, marginBottom: PROMPT_LINE.margin }}>
+            {PROMPT_LINE.text}
           </div>
-        ))}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.75rem',
-            borderTop: '1px solid var(--color-border)',
-            paddingTop: '0.5rem',
-          }}>
-          <span style={{ color: 'var(--color-system)', userSelect: 'none' }}>{'>'}</span>
-          <input
-            ref={inputRef}
-            type="text"
-            autoComplete="off"
-            autoCorrect="off"
-            autoCapitalize="off"
-            spellCheck={false}
-            onKeyDown={handleKeyDown}
+          <div
             style={{
-              flex: 1,
-              background: 'transparent',
-              border: 'none',
-              outline: 'none',
-              color: 'var(--color-output)',
-              fontFamily: 'var(--font-mono)',
-              fontSize: 'var(--font-size)',
-              lineHeight: 'var(--line-height)',
-              caretColor: 'var(--color-output)',
-            }}
-          />
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.75rem',
+              borderTop: '1px solid var(--color-border)',
+              paddingTop: '0.5rem',
+            }}>
+            <span style={{ color: 'var(--color-system)', userSelect: 'none' }}>{'>'}</span>
+            <input
+              ref={inputRef}
+              type="text"
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck={false}
+              onKeyDown={handleKeyDown}
+              style={{
+                flex: 1,
+                background: 'transparent',
+                border: 'none',
+                outline: 'none',
+                color: 'var(--color-output)',
+                fontFamily: 'var(--font-mono)',
+                fontSize: 'var(--font-size)',
+                lineHeight: 'var(--line-height)',
+                caretColor: 'var(--color-output)',
+              }}
+            />
+          </div>
         </div>
       </div>
     </div>

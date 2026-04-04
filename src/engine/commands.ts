@@ -38,11 +38,19 @@ const err = (content: string) => line(content, 'error');
 const sep = () => line('', 'separator');
 
 // ── Command resolution ─────────────────────────────────────
+/**
+ * Resolve a raw command string against the current game state.
+ *
+ * Callers are responsible for gating on `state.phase` before invoking this
+ * function. In particular, commands should not be dispatched when
+ * `state.phase === 'burned'` — `App.tsx` handles that guard at the UI layer.
+ */
 export const resolveCommand = async (raw: string, state: GameState): Promise<CommandOutput> => {
   if (state.phase === 'burned') {
-    return {
-      lines: [err('SESSION TERMINATED — trace limit reached. Restarting...')],
-    };
+    // Callers should gate on state.phase before invoking (see JSDoc above).
+    // Return an empty result rather than executing commands on a burned session.
+    console.warn('resolveCommand called with burned state — returning empty result');
+    return { lines: [] };
   }
 
   const [cmd, ...args] = raw.trim().split(/\s+/);
@@ -229,6 +237,7 @@ const cmdWorldAI = async (raw: string, state: GameState): Promise<CommandOutput>
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
+    if (!res.ok) throw new Error(`World AI returned ${String(res.status)}`);
     aiResponse = (await res.json()) as WorldAIResponse;
   } catch {
     aiResponse = WORLD_AI_FALLBACK;
@@ -394,7 +403,8 @@ const cmdConnect = async (args: string[], state: GameState): Promise<CommandOutp
     if (keyAnchorId) {
       const keyAnchor = state.network.nodes[keyAnchorId];
       if (!keyAnchor?.compromised) {
-        return { lines: [err('// ACCESS DENIED — current layer incomplete')] };
+        const hint = keyAnchor ? ` — gain a foothold on ${keyAnchor.ip} first` : '';
+        return { lines: [err(`// ACCESS DENIED — current layer incomplete${hint}`)] };
       }
     }
   }
@@ -490,11 +500,20 @@ const cmdLogin = (args: string[], state: GameState): CommandOutput => {
     };
   }
 
-  // Grant access, mark credential as obtained, and promote world credentials into
+  // Grant access, mark node as compromised, and promote world credentials into
   // player.credentials so they persist and appear in whoami / inventory.
   const next = produce(state, s => {
     const n = s.network.nodes[node.id];
-    if (n) n.accessLevel = match.accessLevel;
+    if (n) {
+      const wasCompromised = n.compromised;
+      n.accessLevel = match.accessLevel;
+      n.compromised = true;
+      // Only stamp the turn on first compromise — re-authentication must not
+      // reset this value and skew Sentinel targeting.
+      if (!wasCompromised || n.compromisedAtTurn === undefined) {
+        n.compromisedAtTurn = s.turnCount;
+      }
+    }
     if (matchInPlayer) {
       // produce clones the state — the credential found before the clone is always present after
       const credIdx = s.player.credentials.findIndex(c => c.id === match.id);
@@ -535,16 +554,19 @@ const cmdLs = (args: string[], state: GameState): CommandOutput => {
 
   const hasTripwire = accessible.some(f => f.tripwire);
   const hasNoExfil = accessible.some(f => !f.exfiltrable);
+  const hasLocked = accessible.some(f => f.locked);
   const lines: Out = [sys(`${path}:`)];
   accessible.forEach(f => {
     const tripwire = f.tripwire ? '  [!]' : '';
     const exfil = f.exfiltrable ? '' : '  [no-exfil]';
-    lines.push(sys(`  ${f.name}${tripwire}${exfil}`));
+    const locked = f.locked ? '  [LOCKED]' : '';
+    lines.push(sys(`  ${f.name}${tripwire}${exfil}${locked}`));
   });
-  if (hasTripwire || hasNoExfil) {
+  if (hasTripwire || hasNoExfil || hasLocked) {
     lines.push(sep());
     if (hasTripwire) lines.push(sys('  [!] reading this file triggers up to +25 trace'));
     if (hasNoExfil) lines.push(sys('  [no-exfil] file is locked to this node'));
+    if (hasLocked) lines.push(sys('  [LOCKED] file is locked — cat will be denied'));
   }
   return { lines };
 };
@@ -767,7 +789,17 @@ const cmdExploit = async (args: string[], state: GameState): Promise<CommandOutp
     if (!res.ok) throw new Error(`World AI returned ${String(res.status)}`);
     aiResponse = (await res.json()) as WorldAIResponse;
   } catch {
-    aiResponse = WORLD_AI_FALLBACK;
+    // AI unavailable — grant access using the service's configured level so
+    // charges are not permanently lost and offline play remains viable.
+    aiResponse = {
+      narrative: '[World AI unavailable — local exploit module engaged. Access granted.]',
+      accessGranted: true,
+      newAccessLevel: svc.accessGained,
+      traceChange: 0,
+      flagsSet: {},
+      nodesUnlocked: [],
+      isUnknown: false,
+    };
   }
 
   // Apply trace: service's base contribution + any AI-supplied delta (negative = silent exploit).
@@ -780,8 +812,11 @@ const cmdExploit = async (args: string[], state: GameState): Promise<CommandOutp
     next = produce(next, s => {
       const n = s.network.nodes[node.id];
       if (n) {
+        const wasCompromised = n.compromised;
         n.compromised = true;
-        n.compromisedAtTurn = s.turnCount;
+        if (!wasCompromised || n.compromisedAtTurn === undefined) {
+          n.compromisedAtTurn = s.turnCount;
+        }
         if (aiResponse.newAccessLevel) n.accessLevel = aiResponse.newAccessLevel as AccessLevel;
       }
     });

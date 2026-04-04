@@ -385,6 +385,26 @@ describe('burnRetry', () => {
     expect(node.files.every(f => !f.locked)).toBe(true);
   });
 
+  it('should clear locked files on nodes outside the burned layer without resetting their access', () => {
+    // Burn at layer-1 (ops); a layer-0 node has a locked file from the 31% threshold callback.
+    const state = produce(createInitialState(), s => {
+      s.player.trace = 100;
+      s.phase = 'burned';
+      s.network.currentNodeId = 'ops_cctv_ctrl'; // layer 1
+      const portal = s.network.nodes['contractor_portal']!; // layer 0
+      portal.accessLevel = 'user';
+      portal.compromised = true;
+      if (portal.files[0]) portal.files[0].locked = true;
+    });
+    const next = burnRetry(state);
+    const portal = next.network.nodes['contractor_portal']!;
+    // Lock cleared
+    expect(portal.files.every(f => !f.locked)).toBe(true);
+    // Access/compromise state preserved
+    expect(portal.accessLevel).toBe('user');
+    expect(portal.compromised).toBe(true);
+  });
+
   it('should reset patched services to unpatched in the burned layer', () => {
     const state = produce(createInitialState(), s => {
       s.player.trace = 100;

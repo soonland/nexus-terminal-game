@@ -88,13 +88,21 @@ describe('resolveCommand — turn tracking', () => {
   });
 });
 
-describe('resolveCommand — burned phase guard', () => {
-  it('should return a SESSION TERMINATED error and no nextState when phase is burned', async () => {
+describe('resolveCommand — burned state safety', () => {
+  it('should not throw and should not clear the burned phase when called directly', async () => {
     const burned: GameState = { ...createInitialState(), phase: 'burned' };
-    const result = await resolveCommand('help', burned);
-    expect(result.lines[0].type).toBe('error');
-    expect(result.lines[0].content).toMatch(/SESSION TERMINATED/);
-    expect(result.nextState).toBeUndefined();
+    // App.tsx is the authoritative gate for burned state — resolveCommand is a
+    // public export and must not crash or silently un-burn the session if called
+    // directly (e.g. from a future API handler or test harness).
+    // Contract: returns a CommandOutput and does not change phase away from burned.
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const result = await resolveCommand('scan', burned);
+    warnSpy.mockRestore();
+    expect(result).toBeDefined();
+    expect(Array.isArray(result.lines)).toBe(true);
+    // In the burned-state guard, commands are not executed; the session must remain burned.
+    const nextPhase = (result.nextState as GameState | undefined)?.phase ?? burned.phase;
+    expect(nextPhase).toBe('burned');
   });
 });
 
@@ -987,6 +995,24 @@ describe('resolveCommand — login', () => {
     expect(contents.some(c => c.includes('contractor'))).toBe(true);
   });
 
+  it('should mark the node as compromised on successful login', async () => {
+    const result = await resolveCommand('login contractor Welcome1!', state);
+    const nextNode = (result.nextState as GameState).network.nodes['contractor_portal']!;
+    expect(nextNode.compromised).toBe(true);
+    expect(nextNode.compromisedAtTurn).toBeDefined();
+  });
+
+  it('should not reset compromisedAtTurn when logging in again on an already-compromised node', async () => {
+    const alreadyCompromised = produce(state, s => {
+      s.network.nodes['contractor_portal']!.compromised = true;
+      s.network.nodes['contractor_portal']!.compromisedAtTurn = 3;
+      s.turnCount = 10;
+    });
+    const result = await resolveCommand('login contractor Welcome1!', alreadyCompromised);
+    const nextNode = (result.nextState as GameState).network.nodes['contractor_portal']!;
+    expect(nextNode.compromisedAtTurn).toBe(3); // preserved, not overwritten with 10
+  });
+
   it('should fail when username is correct but node is wrong', async () => {
     // Move player to vpn_gateway — contractor cred is valid there too, but test with wrong node
     const atOps = produce(state, s => {
@@ -1052,6 +1078,19 @@ describe('resolveCommand — ls', () => {
     const result = await resolveCommand('ls', withAdmin);
     const contents = result.lines.map(l => l.content);
     expect(contents.some(c => c.includes('[no-exfil]'))).toBe(true);
+  });
+
+  it('should mark locked files with [LOCKED] and include a legend line', async () => {
+    const withLocked = produce(createInitialState(), s => {
+      s.network.nodes['contractor_portal']!.accessLevel = 'user';
+      if (s.network.nodes['contractor_portal']!.files[0]) {
+        s.network.nodes['contractor_portal']!.files[0].locked = true;
+      }
+    });
+    const result = await resolveCommand('ls', withLocked);
+    const contents = result.lines.map(l => l.content);
+    expect(contents.some(c => c.includes('[LOCKED]'))).toBe(true);
+    expect(contents.some(c => c.includes('file is locked'))).toBe(true);
   });
 
   it('should show a "no accessible files" message when nothing is accessible', async () => {
@@ -1510,6 +1549,35 @@ describe('resolveCommand — exploit', () => {
     // http traceContribution = 2; AI traceChange = 3; total = 5
     const result = await resolveCommand('exploit http', state);
     expect((result.nextState as GameState).player.trace).toBe(5);
+  });
+
+  it('should grant access using service accessGained when AI endpoint is unavailable', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('Network error')));
+    const result = await resolveCommand('exploit http', state);
+    const nextNode = (result.nextState as GameState).network.nodes['contractor_portal']!;
+    // Fallback grants access and marks node compromised — charges not permanently lost
+    expect(nextNode.compromised).toBe(true);
+    expect(nextNode.accessLevel).not.toBe('none');
+  });
+
+  it('should not let trace go below 0 when AI returns a large negative traceChange', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        makeOkFetchResponse({
+          narrative: 'Silent exploit.',
+          traceChange: -50,
+          accessGranted: true,
+          newAccessLevel: 'user',
+          flagsSet: {},
+          nodesUnlocked: [],
+          isUnknown: false,
+        }),
+      ),
+    );
+    // http traceContribution = 2; AI traceChange = -50; total would be -48 without floor
+    const result = await resolveCommand('exploit http', state);
+    expect((result.nextState as GameState).player.trace).toBeGreaterThanOrEqual(0);
   });
 });
 

@@ -149,10 +149,10 @@ export const App = () => {
     async (raw: string) => {
       // ── Burned: retry ──────────────────────────────────────
       if (appPhase === 'burned') {
-        if (raw.trim() !== '') {
-          push([makeLine('error', '// No commands accepted — press ENTER to reconnect.')]);
-          return;
-        }
+        // Non-empty input is silently discarded — the burn screen already shows
+        // "Press ENTER to reconnect" and the [RECONNECT] prompt makes the state
+        // clear. Re-printing an error on every keystroke adds noise with no value.
+        if (raw.trim() !== '') return;
         if (!gameState) return;
 
         // Compute summary before retry resets state
@@ -190,6 +190,7 @@ export const App = () => {
 
       // ── Login: username ────────────────────────────────────
       if (appPhase === 'login_user') {
+        if (!raw.trim()) return;
         const user = raw.trim();
         setUsername(user);
         setAppPhase('login_pass');
@@ -199,6 +200,7 @@ export const App = () => {
 
       // ── Login: password ────────────────────────────────────
       if (appPhase === 'login_pass') {
+        if (!raw) return;
         push([makeLine('input', '********')]);
 
         if (username === OPERATIVE_USER && raw === OPERATIVE_PASS) {
@@ -229,6 +231,7 @@ export const App = () => {
       // ── Resume prompt ──────────────────────────────────────
       if (appPhase === 'resume_prompt') {
         const answer = raw.trim().toLowerCase();
+        if (!answer) return; // empty Enter is a no-op — don't fall into the else and wipe the save
         push([makeLine('input', raw)]);
         if (answer === 'yes' || answer === 'y') {
           const saved = loadGame();
@@ -248,6 +251,7 @@ export const App = () => {
 
       // ── Playing ────────────────────────────────────────────
       if (!gameState || (appPhase !== 'playing' && appPhase !== 'aria')) return;
+      if (!raw.trim()) return;
 
       if (raw.trim().toLowerCase() === 'clear') {
         setSessionLines([]);
