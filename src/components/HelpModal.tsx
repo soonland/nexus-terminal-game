@@ -68,7 +68,7 @@ const BODY: HelpLine[] = [
   },
   { text: r(), color: 'var(--color-system)' },
   { text: r('FILE MARKERS:'), color: 'var(--color-output)' },
-  { text: r('  [!]       -tripwire: reading costs +25 trace'), color: 'var(--color-system)' },
+  { text: r('  [!]       -tripwire: reading costs up to +25 trace'), color: 'var(--color-system)' },
   { text: r('  [no-exfil]-file cannot be exfiltrated'), color: 'var(--color-system)' },
   { text: r(), color: 'var(--color-system)' },
   { text: r('ACCESS LEVELS:  none < user < admin < root'), color: 'var(--color-system)' },
