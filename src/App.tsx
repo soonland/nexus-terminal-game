@@ -87,8 +87,13 @@ export const App = () => {
     disclaimerRequired() ? 'welcome' : 'login_user',
   );
 
-  const { lines: bootLines, done: bootDone } = useBootSequence(appPhase === 'booting');
   const [gameState, setGameState] = useState<GameState | null>(null);
+  const bootNode = gameState ? gameState.network.nodes[gameState.network.currentNodeId] : null;
+  const { lines: bootLines, done: bootDone } = useBootSequence(
+    appPhase === 'booting',
+    bootNode?.label,
+    bootNode?.ip,
+  );
   const [sessionLines, setSessionLines] = useState<TerminalLine[]>(() =>
     disclaimerRequired() ? [] : [makeLine('system', 'nx-field-01 login:')],
   );

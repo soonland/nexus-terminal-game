@@ -21,43 +21,56 @@ const BANNER = [
 
 const BANNER_DONE = BANNER.length * 60 + 200;
 
-const BOOT_LINES: Array<{ type: Parameters<typeof makeLine>[0]; content: string; delay: number }> =
-  [
-    ...BANNER.map((line, i) => ({ type: 'output' as const, content: line, delay: i * 60 })),
-    { type: 'separator', content: '', delay: BANNER_DONE },
-    {
-      type: 'system',
-      content: 'Authorized use only. All sessions are recorded.',
-      delay: BANNER_DONE + 150,
-    },
-    { type: 'separator', content: '', delay: BANNER_DONE + 300 },
-    {
-      type: 'output',
-      content: 'Welcome to nx-field-01.ops.nexuscorp.int',
-      delay: BANNER_DONE + 450,
-    },
-    { type: 'system', content: 'Nexus OS 4.1.0-hardened (x86_64)', delay: BANNER_DONE + 550 },
-    { type: 'separator', content: '', delay: BANNER_DONE + 700 },
-    {
-      type: 'system',
-      content: `Last login: ${lastLoginStr} from 10.99.0.44`,
-      delay: BANNER_DONE + 900,
-    },
-    { type: 'separator', content: '', delay: BANNER_DONE + 1100 },
-    {
-      type: 'system',
-      content: "Type 'help' to list available commands.",
-      delay: BANNER_DONE + 1300,
-    },
-    {
-      // Coupled to contractor_portal in anchorNodes.ts (id, ip, label) — update here if the entry node changes.
-      type: 'system',
-      content: 'You are at CONTRACTOR PORTAL (10.0.0.1). Start with: scan',
-      delay: BANNER_DONE + 1500,
-    },
-  ];
+const BASE_BOOT_LINES: Array<{
+  type: Parameters<typeof makeLine>[0];
+  content: string;
+  delay: number;
+}> = [
+  ...BANNER.map((line, i) => ({ type: 'output' as const, content: line, delay: i * 60 })),
+  { type: 'separator', content: '', delay: BANNER_DONE },
+  {
+    type: 'system',
+    content: 'Authorized use only. All sessions are recorded.',
+    delay: BANNER_DONE + 150,
+  },
+  { type: 'separator', content: '', delay: BANNER_DONE + 300 },
+  {
+    type: 'output',
+    content: 'Welcome to nx-field-01.ops.nexuscorp.int',
+    delay: BANNER_DONE + 450,
+  },
+  { type: 'system', content: 'Nexus OS 4.1.0-hardened (x86_64)', delay: BANNER_DONE + 550 },
+  { type: 'separator', content: '', delay: BANNER_DONE + 700 },
+  {
+    type: 'system',
+    content: `Last login: ${lastLoginStr} from 10.99.0.44`,
+    delay: BANNER_DONE + 900,
+  },
+  { type: 'separator', content: '', delay: BANNER_DONE + 1100 },
+  {
+    type: 'system',
+    content: "Type 'help' to list available commands.",
+    delay: BANNER_DONE + 1300,
+  },
+];
 
-export const useBootSequence = (ready: boolean): { lines: TerminalLine[]; done: boolean } => {
+const buildBootLines = (
+  nodeLabel: string,
+  nodeIp: string,
+): Array<{ type: Parameters<typeof makeLine>[0]; content: string; delay: number }> => [
+  ...BASE_BOOT_LINES,
+  {
+    type: 'system',
+    content: `You are at ${nodeLabel} (${nodeIp}). Start with: scan`,
+    delay: BANNER_DONE + 1500,
+  },
+];
+
+export const useBootSequence = (
+  ready: boolean,
+  nodeLabel = 'CONTRACTOR PORTAL',
+  nodeIp = '10.0.0.1',
+): { lines: TerminalLine[]; done: boolean } => {
   const [lines, setLines] = useState<TerminalLine[]>([]);
   const [done, setDone] = useState(false);
 
@@ -65,6 +78,7 @@ export const useBootSequence = (ready: boolean): { lines: TerminalLine[]; done: 
     if (!ready) return;
 
     const timers: ReturnType<typeof setTimeout>[] = [];
+    const BOOT_LINES = buildBootLines(nodeLabel, nodeIp);
 
     BOOT_LINES.forEach(({ type, content, delay }) => {
       timers.push(
@@ -84,7 +98,7 @@ export const useBootSequence = (ready: boolean): { lines: TerminalLine[]; done: 
     return () => {
       timers.forEach(clearTimeout);
     };
-  }, [ready]);
+  }, [ready, nodeLabel, nodeIp]);
 
   return { lines, done };
 };
