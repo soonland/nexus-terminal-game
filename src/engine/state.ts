@@ -121,7 +121,7 @@ export const thresholdFlag = (pct: number): string => `threshold_${String(pct)}_
 
 export const addTrace = (state: GameState, amount: number): GameState => {
   const prevTrace = state.player.trace;
-  const trace = Math.min(100, prevTrace + amount);
+  const trace = Math.max(0, Math.min(100, prevTrace + amount));
   let next: GameState = {
     ...state,
     player: { ...state.player, trace },
@@ -158,16 +158,22 @@ export const burnRetry = (state: GameState): GameState => {
 
   const nodes = { ...state.network.nodes };
   for (const [id, n] of Object.entries(nodes)) {
-    if (!n || n.layer !== burnedLayer) continue;
-    nodes[id] = {
-      ...n,
-      accessLevel: 'none',
-      compromised: false,
-      compromisedAtTurn: undefined,
-      sentinelPatched: false,
-      files: n.files.map(f => ({ ...f, locked: false, deleted: false })),
-      services: n.services.map(s => ({ ...s, patched: false })),
-    };
+    if (!n) continue;
+    if (n.layer === burnedLayer) {
+      nodes[id] = {
+        ...n,
+        accessLevel: 'none',
+        compromised: false,
+        compromisedAtTurn: undefined,
+        sentinelPatched: false,
+        files: n.files.map(f => ({ ...f, locked: false, deleted: false })),
+        services: n.services.map(s => ({ ...s, patched: false })),
+      };
+    } else if (n.files.some(f => f.locked)) {
+      // Clear watchlist locks that accumulated on other layers but preserve
+      // access/compromise state — the player earned those.
+      nodes[id] = { ...n, files: n.files.map(f => ({ ...f, locked: false })) };
+    }
   }
 
   const thresholdFlagsToRemove = new Set(TRACE_THRESHOLDS.map(thresholdFlag));

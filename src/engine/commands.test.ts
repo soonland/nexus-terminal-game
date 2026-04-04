@@ -88,16 +88,6 @@ describe('resolveCommand — turn tracking', () => {
   });
 });
 
-describe('resolveCommand — burned phase guard', () => {
-  it('should return a SESSION TERMINATED error and no nextState when phase is burned', async () => {
-    const burned: GameState = { ...createInitialState(), phase: 'burned' };
-    const result = await resolveCommand('help', burned);
-    expect(result.lines[0].type).toBe('error');
-    expect(result.lines[0].content).toMatch(/SESSION TERMINATED/);
-    expect(result.nextState).toBeUndefined();
-  });
-});
-
 describe('resolveCommand — AI routing happy path', () => {
   let state: GameState;
 
@@ -1510,6 +1500,35 @@ describe('resolveCommand — exploit', () => {
     // http traceContribution = 2; AI traceChange = 3; total = 5
     const result = await resolveCommand('exploit http', state);
     expect((result.nextState as GameState).player.trace).toBe(5);
+  });
+
+  it('should grant access using service accessGained when AI endpoint is unavailable', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('Network error')));
+    const result = await resolveCommand('exploit http', state);
+    const nextNode = (result.nextState as GameState).network.nodes['contractor_portal']!;
+    // Fallback grants access and marks node compromised — charges not permanently lost
+    expect(nextNode.compromised).toBe(true);
+    expect(nextNode.accessLevel).not.toBe('none');
+  });
+
+  it('should not let trace go below 0 when AI returns a large negative traceChange', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        makeOkFetchResponse({
+          narrative: 'Silent exploit.',
+          traceChange: -50,
+          accessGranted: true,
+          newAccessLevel: 'user',
+          flagsSet: {},
+          nodesUnlocked: [],
+          isUnknown: false,
+        }),
+      ),
+    );
+    // http traceContribution = 2; AI traceChange = -50; total would be -48 without floor
+    const result = await resolveCommand('exploit http', state);
+    expect((result.nextState as GameState).player.trace).toBeGreaterThanOrEqual(0);
   });
 });
 
