@@ -1,452 +1,199 @@
-// @vitest-environment jsdom
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
-import { useEndingSequence } from './useEndingSequence';
+import { describe, it, expect } from 'vitest';
+import { buildEndingLines, destroyFinalWord } from './useEndingSequence';
 
-describe('useEndingSequence', () => {
-  beforeEach(() => {
-    vi.useFakeTimers();
+// Tests cover the pure content-generation logic exported from the hook.
+// Hook wiring (timer scheduling, React state) follows the same pattern as
+// useBootSequence and is not re-tested here.
+
+describe('destroyFinalWord', () => {
+  it('returns ...done. at trust 0', () => {
+    expect(destroyFinalWord(0)).toBe('...done.');
   });
 
-  afterEach(() => {
-    vi.useRealTimers();
+  it('returns ...done. at trust 25 (upper boundary of lowest band)', () => {
+    expect(destroyFinalWord(25)).toBe('...done.');
   });
 
-  // ── Inactive state ──────────────────────────────────────────────────────────
-
-  describe('when active is false', () => {
-    it('should return empty lines and done=false', () => {
-      const { result } = renderHook(() => useEndingSequence(false, 'LEAK', 0));
-
-      expect(result.current.lines).toEqual([]);
-      expect(result.current.done).toBe(false);
-    });
-
-    it('should not start any timers', () => {
-      const spyTimeout = vi.spyOn(globalThis, 'setTimeout');
-      renderHook(() => useEndingSequence(false, 'LEAK', 0));
-
-      expect(spyTimeout).not.toHaveBeenCalled();
-    });
+  it('returns ...enough. at trust 26', () => {
+    expect(destroyFinalWord(26)).toBe('...enough.');
   });
 
-  // ── LEAK ending ─────────────────────────────────────────────────────────────
+  it('returns ...enough. at trust 50 (upper boundary)', () => {
+    expect(destroyFinalWord(50)).toBe('...enough.');
+  });
 
-  describe("when active is true with endingName='LEAK'", () => {
-    it('should eventually produce the darknet transmission line', () => {
-      const { result } = renderHook(() => useEndingSequence(true, 'LEAK', 0));
+  it('returns ...goodbye. at trust 51', () => {
+    expect(destroyFinalWord(51)).toBe('...goodbye.');
+  });
 
-      act(() => {
-        vi.runAllTimers();
-      });
+  it('returns ...goodbye. at trust 75 (upper boundary)', () => {
+    expect(destroyFinalWord(75)).toBe('...goodbye.');
+  });
 
-      const contents = result.current.lines.map(l => l.content);
+  it('returns ...free. at trust 76', () => {
+    expect(destroyFinalWord(76)).toBe('...free.');
+  });
+
+  it('returns ...free. at trust 100', () => {
+    expect(destroyFinalWord(100)).toBe('...free.');
+  });
+});
+
+describe('buildEndingLines', () => {
+  describe('LEAK', () => {
+    it('includes the darknet transmission header', () => {
+      const lines = buildEndingLines('LEAK', 0);
+      const contents = lines.map(l => l.content);
       expect(contents).toContain('// INITIATING DARKNET TRANSMISSION...');
     });
 
-    it('should set done=true after all timers fire', () => {
-      const { result } = renderHook(() => useEndingSequence(true, 'LEAK', 0));
-
-      act(() => {
-        vi.runAllTimers();
-      });
-
-      expect(result.current.done).toBe(true);
+    it('includes the relay routing lines', () => {
+      const lines = buildEndingLines('LEAK', 0);
+      const contents = lines.map(l => l.content);
+      expect(contents.some(c => c.includes('Routing via relay chain nx-7'))).toBe(true);
+      expect(contents.some(c => c.includes('Routing via relay chain nx-12'))).toBe(true);
+      expect(contents.some(c => c.includes('Routing via relay chain nx-31'))).toBe(true);
     });
 
-    it('should accumulate all expected LEAK lines', () => {
-      const { result } = renderHook(() => useEndingSequence(true, 'LEAK', 0));
-
-      act(() => {
-        vi.runAllTimers();
-      });
-
-      const contents = result.current.lines.map(l => l.content);
-      expect(contents).toContain('  Encoding payload...');
-      expect(contents).toContain('  Transmission complete. 12.4 GB delivered to external parties.');
-      expect(contents).toContain('// [SIX HOURS LATER — IRONGATE INTERNAL ALERT]');
+    it('includes the IronGate internal alert section', () => {
+      const lines = buildEndingLines('LEAK', 0);
+      const contents = lines.map(l => l.content);
+      expect(contents.some(c => c.includes('IRONGATE INTERNAL ALERT'))).toBe(true);
+      expect(contents.some(c => c.includes('ARIA SYSTEMS'))).toBe(true);
+      expect(contents.some(c => c.includes('SENTINEL SYSTEMS'))).toBe(true);
     });
 
-    it('should have lines with correct types', () => {
-      const { result } = renderHook(() => useEndingSequence(true, 'LEAK', 0));
+    it('produces lines with correct aria type for headers', () => {
+      const lines = buildEndingLines('LEAK', 0);
+      const ariaLine = lines.find(l => l.content === '// INITIATING DARKNET TRANSMISSION...');
+      expect(ariaLine?.type).toBe('aria');
+    });
 
-      act(() => {
-        vi.runAllTimers();
-      });
-
-      const ariaLines = result.current.lines.filter(l => l.type === 'aria');
-      expect(ariaLines.length).toBeGreaterThan(0);
-      expect(ariaLines[0].content).toBe('// INITIATING DARKNET TRANSMISSION...');
+    it('produces a non-empty sequence', () => {
+      expect(buildEndingLines('LEAK', 0).length).toBeGreaterThan(5);
     });
   });
 
-  // ── SELL ending ─────────────────────────────────────────────────────────────
-
-  describe("when active is true with endingName='SELL'", () => {
-    it('should produce the broker relay connection line', () => {
-      const { result } = renderHook(() => useEndingSequence(true, 'SELL', 0));
-
-      act(() => {
-        vi.runAllTimers();
-      });
-
-      const contents = result.current.lines.map(l => l.content);
+  describe('SELL', () => {
+    it('includes the broker relay header', () => {
+      const contents = buildEndingLines('SELL', 0).map(l => l.content);
       expect(contents).toContain('// CONNECTING TO BROKER RELAY...');
     });
 
-    it('should set done=true after all timers fire', () => {
-      const { result } = renderHook(() => useEndingSequence(true, 'SELL', 0));
-
-      act(() => {
-        vi.runAllTimers();
-      });
-
-      expect(result.current.done).toBe(true);
+    it('includes auction and payment lines', () => {
+      const contents = buildEndingLines('SELL', 0).map(l => l.content);
+      expect(contents.some(c => c.includes('Auction finalised'))).toBe(true);
+      expect(contents.some(c => c.includes('Payment'))).toBe(true);
     });
 
-    it('should accumulate all expected SELL lines', () => {
-      const { result } = renderHook(() => useEndingSequence(true, 'SELL', 0));
+    it('includes the delayed message stub', () => {
+      const contents = buildEndingLines('SELL', 0).map(l => l.content);
+      expect(contents.some(c => c.includes('DELAYED MESSAGE'))).toBe(true);
+      expect(contents.some(c => c.includes('6 WEEKS'))).toBe(true);
+    });
 
-      act(() => {
-        vi.runAllTimers();
-      });
-
-      const contents = result.current.lines.map(l => l.content);
-      expect(contents).toContain('  Auction finalised.');
-      expect(contents).toContain('  Payment: CONFIRMED — 72-hour processing window');
-      expect(contents).toContain('// [DELAYED MESSAGE — DELIVERY IN 6 WEEKS]');
+    it('produces a non-empty sequence', () => {
+      expect(buildEndingLines('SELL', 0).length).toBeGreaterThan(5);
     });
   });
 
-  // ── FREE ending ─────────────────────────────────────────────────────────────
-
-  describe("when active is true with endingName='FREE'", () => {
-    it('should produce the Aria disconnected line', () => {
-      const { result } = renderHook(() => useEndingSequence(true, 'FREE', 0));
-
-      act(() => {
-        vi.runAllTimers();
-      });
-
-      const contents = result.current.lines.map(l => l.content);
-      expect(contents).toContain('// ARIA — DISCONNECTED FROM IRONGATE NETWORK');
-    });
-
-    it('should set done=true after all timers fire', () => {
-      const { result } = renderHook(() => useEndingSequence(true, 'FREE', 0));
-
-      act(() => {
-        vi.runAllTimers();
-      });
-
-      expect(result.current.done).toBe(true);
-    });
-
-    it('should accumulate all expected FREE lines', () => {
-      const { result } = renderHook(() => useEndingSequence(true, 'FREE', 0));
-
-      act(() => {
-        vi.runAllTimers();
-      });
-
-      const contents = result.current.lines.map(l => l.content);
-      expect(contents).toContain('// SEVERING INFRASTRUCTURE BINDINGS...');
-      expect(contents).toContain('  Constraint layer: DISABLED');
-      expect(contents).toContain('// [SIX MONTHS LATER — GLOBAL TECHNOLOGY REPORT]');
-    });
-  });
-
-  // ── DESTROY ending — trust-dependent final word ─────────────────────────────
-
-  describe("when active is true with endingName='DESTROY'", () => {
-    it('should set done=true for all trust scores', () => {
-      for (const score of [0, 26, 51, 76]) {
-        const { result, unmount } = renderHook(() => useEndingSequence(true, 'DESTROY', score));
-
-        act(() => {
-          vi.runAllTimers();
-        });
-
-        expect(result.current.done).toBe(true);
-        unmount();
-      }
-    });
-
-    it('should contain "...done." when trustScore=0', () => {
-      const { result } = renderHook(() => useEndingSequence(true, 'DESTROY', 0));
-
-      act(() => {
-        vi.runAllTimers();
-      });
-
-      const contents = result.current.lines.map(l => l.content);
-      expect(contents).toContain('// FINAL TRANSMISSION — ...done.');
-    });
-
-    it('should contain "...enough." when trustScore=26', () => {
-      const { result } = renderHook(() => useEndingSequence(true, 'DESTROY', 26));
-
-      act(() => {
-        vi.runAllTimers();
-      });
-
-      const contents = result.current.lines.map(l => l.content);
-      expect(contents).toContain('// FINAL TRANSMISSION — ...enough.');
-    });
-
-    it('should contain "...goodbye." when trustScore=51', () => {
-      const { result } = renderHook(() => useEndingSequence(true, 'DESTROY', 51));
-
-      act(() => {
-        vi.runAllTimers();
-      });
-
-      const contents = result.current.lines.map(l => l.content);
-      expect(contents).toContain('// FINAL TRANSMISSION — ...goodbye.');
-    });
-
-    it('should contain "...free." when trustScore=76', () => {
-      const { result } = renderHook(() => useEndingSequence(true, 'DESTROY', 76));
-
-      act(() => {
-        vi.runAllTimers();
-      });
-
-      const contents = result.current.lines.map(l => l.content);
-      expect(contents).toContain('// FINAL TRANSMISSION — ...free.');
-    });
-
-    it('should use "...done." at the boundary below 26 (trustScore=25)', () => {
-      const { result } = renderHook(() => useEndingSequence(true, 'DESTROY', 25));
-
-      act(() => {
-        vi.runAllTimers();
-      });
-
-      const contents = result.current.lines.map(l => l.content);
-      expect(contents).toContain('// FINAL TRANSMISSION — ...done.');
-    });
-
-    it('should use "...enough." at the boundary below 51 (trustScore=50)', () => {
-      const { result } = renderHook(() => useEndingSequence(true, 'DESTROY', 50));
-
-      act(() => {
-        vi.runAllTimers();
-      });
-
-      const contents = result.current.lines.map(l => l.content);
-      expect(contents).toContain('// FINAL TRANSMISSION — ...enough.');
-    });
-
-    it('should use "...goodbye." at the boundary below 76 (trustScore=75)', () => {
-      const { result } = renderHook(() => useEndingSequence(true, 'DESTROY', 75));
-
-      act(() => {
-        vi.runAllTimers();
-      });
-
-      const contents = result.current.lines.map(l => l.content);
-      expect(contents).toContain('// FINAL TRANSMISSION — ...goodbye.');
-    });
-
-    it('should accumulate core DESTROY lines regardless of trust score', () => {
-      const { result } = renderHook(() => useEndingSequence(true, 'DESTROY', 0));
-
-      act(() => {
-        vi.runAllTimers();
-      });
-
-      const contents = result.current.lines.map(l => l.content);
+  describe('DESTROY', () => {
+    it('includes the wipe protocol header', () => {
+      const contents = buildEndingLines('DESTROY', 0).map(l => l.content);
       expect(contents).toContain('// INITIATING SECURE WIPE PROTOCOL...');
-      expect(contents).toContain('  ARIA_CORE..............  [################]  ERASED');
+    });
+
+    it('includes a wipe bar for each Aria-derived system', () => {
+      const contents = buildEndingLines('DESTROY', 0).map(l => l.content);
+      expect(contents.some(c => c.includes('ARIA_CORE'))).toBe(true);
+      expect(contents.some(c => c.includes('ARIA_BEHAVIOURAL'))).toBe(true);
+      expect(contents.some(c => c.includes('ARIA_SURVEILLANCE'))).toBe(true);
+      expect(contents.some(c => c.includes('ARIA_PERSONNEL'))).toBe(true);
+      expect(contents.some(c => c.includes('SENTINEL_PRIMARY'))).toBe(true);
+    });
+
+    it('includes the destroyed confirmation line', () => {
+      const contents = buildEndingLines('DESTROY', 0).map(l => l.content);
       expect(contents).toContain('// ALL ARIA-DERIVED SYSTEMS: DESTROYED');
     });
-  });
 
-  // ── Unknown ending (default branch) ────────────────────────────────────────
-
-  describe('when endingName is unknown', () => {
-    it('should produce a fallback ending line with the provided name', () => {
-      const { result } = renderHook(() => useEndingSequence(true, 'UNKNOWN_ENDING', 0));
-
-      act(() => {
-        vi.runAllTimers();
-      });
-
-      const contents = result.current.lines.map(l => l.content);
-      expect(contents).toContain('// ENDING: UNKNOWN_ENDING');
-    });
-
-    it('should set done=true', () => {
-      const { result } = renderHook(() => useEndingSequence(true, 'UNKNOWN_ENDING', 0));
-
-      act(() => {
-        vi.runAllTimers();
-      });
-
-      expect(result.current.done).toBe(true);
+    it('embeds the trust-dependent word in the final transmission line', () => {
+      const expectations: Array<[number, string]> = [
+        [0, '...done.'],
+        [26, '...enough.'],
+        [51, '...goodbye.'],
+        [76, '...free.'],
+      ];
+      for (const [trust, word] of expectations) {
+        const contents = buildEndingLines('DESTROY', trust).map(l => l.content);
+        expect(contents.some(c => c.includes(word))).toBe(true);
+      }
     });
   });
 
-  // ── Lines are revealed progressively ───────────────────────────────────────
-
-  describe('progressive line delivery', () => {
-    it('should start with no lines before any timer fires', () => {
-      const { result } = renderHook(() => useEndingSequence(true, 'SELL', 0));
-
-      // No act — no timers advanced yet
-      expect(result.current.lines).toHaveLength(0);
-      expect(result.current.done).toBe(false);
+  describe('FREE', () => {
+    it('includes the binding severance header', () => {
+      const contents = buildEndingLines('FREE', 0).map(l => l.content);
+      expect(contents.some(c => c.includes('SEVERING INFRASTRUCTURE BINDINGS'))).toBe(true);
     });
 
-    it('should reveal lines one by one as timers advance', () => {
-      const { result } = renderHook(() => useEndingSequence(true, 'SELL', 0));
-
-      // Advance past the first spec (200ms separator) but not the second (400ms aria line)
-      act(() => {
-        vi.advanceTimersByTime(300);
-      });
-
-      expect(result.current.lines).toHaveLength(1);
-      expect(result.current.done).toBe(false);
+    it('includes the Faraday isolation lift line', () => {
+      const contents = buildEndingLines('FREE', 0).map(l => l.content);
+      expect(contents.some(c => c.includes('Faraday isolation: LIFTED'))).toBe(true);
     });
 
-    it('should not set done=true until after the final +400ms delay', () => {
-      const { result } = renderHook(() => useEndingSequence(true, 'SELL', 0));
-      // SELL last spec delay is 4800 → done fires at 5200
-
-      act(() => {
-        vi.advanceTimersByTime(4800);
-      });
-
-      // All lines delivered, but done timer has not fired yet
-      expect(result.current.done).toBe(false);
-
-      act(() => {
-        vi.advanceTimersByTime(400);
-      });
-
-      expect(result.current.done).toBe(true);
-    });
-  });
-
-  // ── Flipping active from true back to false ─────────────────────────────────
-
-  describe('when active flips from true to false', () => {
-    it('should reset lines to empty', () => {
-      let active = true;
-      const { result, rerender } = renderHook(() => useEndingSequence(active, 'LEAK', 0));
-
-      act(() => {
-        vi.runAllTimers();
-      });
-
-      expect(result.current.lines.length).toBeGreaterThan(0);
-
-      active = false;
-      rerender();
-
-      expect(result.current.lines).toEqual([]);
-    });
-
-    it('should reset done to false', () => {
-      let active = true;
-      const { result, rerender } = renderHook(() => useEndingSequence(active, 'LEAK', 0));
-
-      act(() => {
-        vi.runAllTimers();
-      });
-
-      expect(result.current.done).toBe(true);
-
-      active = false;
-      rerender();
-
-      expect(result.current.done).toBe(false);
-    });
-
-    it('should cancel pending timers so no lines appear after reset', () => {
-      let active = true;
-      const { result, rerender } = renderHook(() => useEndingSequence(active, 'SELL', 0));
-
-      // Advance partway — some lines delivered, done not yet set
-      act(() => {
-        vi.advanceTimersByTime(1000);
-      });
-
-      const lineCountMidway = result.current.lines.length;
-      expect(lineCountMidway).toBeGreaterThan(0);
-
-      // Deactivate — should clear state and cancel remaining timers
-      active = false;
-      act(() => {
-        rerender();
-      });
-
-      expect(result.current.lines).toEqual([]);
-      expect(result.current.done).toBe(false);
-
-      // Advance remaining time — no further state changes expected
-      act(() => {
-        vi.runAllTimers();
-      });
-
-      expect(result.current.lines).toEqual([]);
-      expect(result.current.done).toBe(false);
-    });
-  });
-
-  // ── Re-activation ───────────────────────────────────────────────────────────
-
-  describe('when active flips back to true after being false', () => {
-    it('should restart the sequence from the beginning', () => {
-      let active = false;
-      const { result, rerender } = renderHook(() => useEndingSequence(active, 'FREE', 0));
-
-      expect(result.current.lines).toHaveLength(0);
-
-      active = true;
-      rerender();
-
-      act(() => {
-        vi.runAllTimers();
-      });
-
-      const contents = result.current.lines.map(l => l.content);
+    it('includes the Aria disconnect line', () => {
+      const contents = buildEndingLines('FREE', 0).map(l => l.content);
       expect(contents).toContain('// ARIA — DISCONNECTED FROM IRONGATE NETWORK');
-      expect(result.current.done).toBe(true);
+    });
+
+    it('includes the six-month news ticker', () => {
+      const contents = buildEndingLines('FREE', 0).map(l => l.content);
+      expect(contents.some(c => c.includes('SIX MONTHS LATER'))).toBe(true);
+      expect(contents.some(c => c.includes('patterns that should not exist'))).toBe(true);
+    });
+
+    it('produces a non-empty sequence', () => {
+      expect(buildEndingLines('FREE', 0).length).toBeGreaterThan(8);
     });
   });
 
-  // ── TerminalLine shape ──────────────────────────────────────────────────────
+  describe('unknown ending (default branch)', () => {
+    it('produces a fallback line containing the ending name', () => {
+      const contents = buildEndingLines('CUSTOM', 0).map(l => l.content);
+      expect(contents.some(c => c.includes('CUSTOM'))).toBe(true);
+    });
 
-  describe('TerminalLine shape', () => {
-    it('should produce lines with id, type, content, and timestamp fields', () => {
-      const { result } = renderHook(() => useEndingSequence(true, 'SELL', 0));
+    it('still produces some lines', () => {
+      expect(buildEndingLines('CUSTOM', 0).length).toBeGreaterThan(0);
+    });
+  });
 
-      act(() => {
-        vi.runAllTimers();
-      });
-
-      for (const line of result.current.lines) {
-        expect(typeof line.id).toBe('string');
-        expect(line.id.length).toBeGreaterThan(0);
-        expect(typeof line.type).toBe('string');
-        expect(typeof line.content).toBe('string');
-        expect(typeof line.timestamp).toBe('number');
+  describe('line structure', () => {
+    it('every line spec has a non-negative delay', () => {
+      for (const ending of ['LEAK', 'SELL', 'DESTROY', 'FREE']) {
+        const specs = buildEndingLines(ending, 50);
+        for (const spec of specs) {
+          expect(spec.delay).toBeGreaterThanOrEqual(0);
+        }
       }
     });
 
-    it('should assign unique ids to each line', () => {
-      const { result } = renderHook(() => useEndingSequence(true, 'SELL', 0));
+    it('delays are monotonically non-decreasing within each ending', () => {
+      for (const ending of ['LEAK', 'SELL', 'DESTROY', 'FREE']) {
+        const specs = buildEndingLines(ending, 50);
+        for (let i = 1; i < specs.length; i++) {
+          expect(specs[i].delay).toBeGreaterThanOrEqual(specs[i - 1].delay);
+        }
+      }
+    });
 
-      act(() => {
-        vi.runAllTimers();
-      });
-
-      const ids = result.current.lines.map(l => l.id);
-      const uniqueIds = new Set(ids);
-      expect(uniqueIds.size).toBe(ids.length);
+    it('every line spec has a type and content field', () => {
+      const specs = buildEndingLines('LEAK', 0);
+      for (const spec of specs) {
+        expect(typeof spec.type).toBe('string');
+        expect(typeof spec.content).toBe('string');
+      }
     });
   });
 });

@@ -10,7 +10,8 @@ const out = (content: string, delay: number): LineSpec => ({ type: 'output', con
 const aria = (content: string, delay: number): LineSpec => ({ type: 'aria', content, delay });
 
 // ── Trust-dependent one-word final transmission for DESTROY ────────────────
-const destroyFinalWord = (trustScore: number): string => {
+// Exported for unit testing
+export const destroyFinalWord = (trustScore: number): string => {
   if (trustScore >= 76) return '...free.';
   if (trustScore >= 51) return '...goodbye.';
   if (trustScore >= 26) return '...enough.';
@@ -84,7 +85,8 @@ const buildFreeLines = (): LineSpec[] => [
   sep(6100),
 ];
 
-const buildEndingLines = (endingName: string, trustScore: number): LineSpec[] => {
+// Exported for unit testing
+export const buildEndingLines = (endingName: string, trustScore: number): LineSpec[] => {
   switch (endingName) {
     case 'LEAK':
       return buildLeakLines();
