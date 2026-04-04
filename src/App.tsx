@@ -79,7 +79,8 @@ type AppPhase =
   | 'booting'
   | 'playing'
   | 'aria'
-  | 'burned';
+  | 'burned'
+  | 'ended';
 
 export const App = () => {
   const [appPhase, setAppPhase] = useState<AppPhase>(() =>
@@ -114,7 +115,12 @@ export const App = () => {
 
   // Auto-save on state changes during play
   useEffect(() => {
-    if (gameState?.phase === 'playing' || gameState?.phase === 'aria') saveGame(gameState);
+    if (
+      gameState?.phase === 'playing' ||
+      gameState?.phase === 'aria' ||
+      gameState?.phase === 'ended'
+    )
+      saveGame(gameState);
   }, [gameState]);
 
   // Refocus terminal input whenever all modals close
@@ -185,6 +191,17 @@ export const App = () => {
           makeLine('separator', ''),
         ]);
         setAppPhase('playing');
+        return;
+      }
+
+      // ── Ended: new run prompt ─────────────────────────────
+      if (appPhase === 'ended') {
+        if (raw.trim() !== '') return;
+        clearSave();
+        setGameState(createInitialState());
+        setSessionLines([]);
+        setAiSuggestions([]);
+        setAppPhase('scanning');
         return;
       }
 
@@ -312,6 +329,18 @@ export const App = () => {
           saveGame(next); // persist burned state so a refresh restores the reconnect prompt
           setAppPhase('burned');
           // Do NOT clearSave here — state is needed for burnRetry on Enter.
+        } else if (next.phase === 'ended') {
+          const endingKey = Object.keys(next.flags).find(k => k.startsWith('ending_'));
+          const endingName = endingKey ? endingKey.replace('ending_', '').toUpperCase() : 'UNKNOWN';
+          out.push(
+            makeLine('separator', ''),
+            makeLine('aria', `// SESSION TERMINATED — ENDING: ${endingName}`),
+            makeLine('separator', ''),
+            makeLine('system', 'Press ENTER to start a new run.'),
+            makeLine('separator', ''),
+          );
+          saveGame(next);
+          setAppPhase('ended');
         }
       }
 
@@ -332,7 +361,9 @@ export const App = () => {
         ? ''
         : appPhase === 'burned'
           ? '[RECONNECT]'
-          : 'nexus $';
+          : appPhase === 'ended'
+            ? '[ENDED]'
+            : 'nexus $';
   const isMasked = appPhase === 'login_pass';
   const isNoHistory = appPhase === 'login_user' || appPhase === 'login_pass';
   const inputDisabled = appPhase === 'scanning' || appPhase === 'booting' || spinnerLine !== null;
