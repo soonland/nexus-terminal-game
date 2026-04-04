@@ -340,10 +340,11 @@ describe('runSentinelTurn — priority 2: revoke credential', () => {
 
   it('should skip P2 and fall through to P4 when the credential primary node is layer 5', () => {
     // aria_surveillance is a real game node at layer 5 — sentinel must never act on it
-    const state = produce(patchAllCompromised(activeState()), s => {
-      // Verify the assumption that aria_surveillance is layer 5
-      expect(s.network.nodes['aria_surveillance']?.layer).toBe(5);
+    const base = patchAllCompromised(activeState());
+    // Verify the assumption that aria_surveillance is layer 5 before building state
+    expect(base.network.nodes['aria_surveillance']?.layer).toBe(5);
 
+    const state = produce(base, s => {
       // Inject a fake credential whose only valid node is the Aria subnet
       s.player.credentials.push({
         id: 'aria_test_cred',
@@ -360,7 +361,8 @@ describe('runSentinelTurn — priority 2: revoke credential', () => {
 
     // P2 must not have fired — credential stays unrevoked
     const injected = result.state.player.credentials.find(c => c.id === 'aria_test_cred');
-    expect(injected?.revoked).toBeFalsy();
+    expect(injected).toBeDefined();
+    expect(injected?.revoked).toBe(false);
 
     // No revoke_credential entry in the mutation log
     const revokeEvents = result.state.sentinel.mutationLog.filter(
@@ -370,6 +372,48 @@ describe('runSentinelTurn — priority 2: revoke credential', () => {
 
     // Fell through to P4 (spawn_node) as expected
     expect(result.state.sentinel.mutationLog[0]?.action).toBe('spawn_node');
+  });
+
+  it('should revoke a non-layer-5 credential even when an aria-only credential appears first', () => {
+    // Aria-only credential first in the array must not block revocation of the next eligible one
+    const base = patchAllCompromised(activeState());
+    const state = produce(base, s => {
+      // All existing credentials unobtained so only our injected ones matter
+      for (const c of s.player.credentials) c.obtained = false;
+
+      // First: Aria-only credential (should be skipped)
+      s.player.credentials.push({
+        id: 'aria_only_cred',
+        username: 'aria.observer',
+        password: 'secret',
+        accessLevel: 'user',
+        validOnNodes: ['aria_surveillance'],
+        obtained: true,
+        revoked: false,
+      });
+
+      // Second: normal credential eligible for revocation
+      s.player.credentials.push({
+        id: 'normal_cred',
+        username: 'ops.admin',
+        password: 'IronG8te#Ops',
+        accessLevel: 'admin',
+        validOnNodes: ['contractor_portal'],
+        obtained: true,
+        revoked: false,
+      });
+    });
+
+    const result = runSentinelTurn(state);
+
+    // P2 must have fired on the normal credential, not the aria one
+    expect(result.state.sentinel.mutationLog[0]?.action).toBe('revoke_credential');
+    expect(result.state.sentinel.mutationLog[0]?.credentialId).toBe('normal_cred');
+
+    // Aria-only credential untouched
+    const ariaOnly = result.state.player.credentials.find(c => c.id === 'aria_only_cred');
+    expect(ariaOnly).toBeDefined();
+    expect(ariaOnly?.revoked).toBe(false);
   });
 });
 
