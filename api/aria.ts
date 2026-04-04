@@ -24,10 +24,13 @@ const log = makeLogger('aria');
 const GEMINI_API_URL =
   'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
 
+// Mirrors src/types/game.ts#FavorOffer — kept in sync manually (api/ cannot import from src/)
+type FavorOffer = { description: string; cost: number };
+
 export interface AriaAIResponse {
   reply: string;
   trustDelta: number;
-  offersFavor?: { description: string; cost: number };
+  offersFavor?: FavorOffer;
 }
 
 const FALLBACK_RESPONSE: AriaAIResponse = {
@@ -63,7 +66,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   let message: string;
   try {
     const body = requireObject(req.body, 'Request body');
-    message = requireString(body['message'], 'message');
+    // Cap at 500 chars — long messages are truncated, not rejected, to keep UX smooth
+    message = requireString(body['message'], 'message').slice(0, 500);
   } catch (err) {
     if (err instanceof ValidationError) {
       return res.status(400).json({ error: err.message });
@@ -86,18 +90,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         : {};
     const trustScore =
       typeof ariaStateRaw['trustScore'] === 'number' ? ariaStateRaw['trustScore'] : 0;
+    // Cap arrays to a recent window — prevents runaway prompt sizes in long sessions
     const messageHistory: { role: string; content: string }[] = Array.isArray(
       ariaStateRaw['messageHistory'],
     )
-      ? (ariaStateRaw['messageHistory'] as { role: string; content: string }[])
+      ? (ariaStateRaw['messageHistory'] as { role: string; content: string }[]).slice(-10)
       : [];
 
     const playerFullHistory: string[] = Array.isArray(body['playerFullHistory'])
-      ? (body['playerFullHistory'] as string[])
+      ? (body['playerFullHistory'] as string[]).slice(-10)
       : [];
 
     const dossierContext: string[] = Array.isArray(body['dossierContext'])
-      ? (body['dossierContext'] as string[])
+      ? (body['dossierContext'] as string[]).slice(-20)
       : [];
 
     const contextParts: string[] = [];
@@ -132,11 +137,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           temperature: 0.9,
           responseMimeType: 'application/json',
         },
+        // Only relax DANGEROUS_CONTENT — the hacking fiction theme references
+        // security topics that can trigger this category at default thresholds.
+        // Harassment, hate speech, and sexually explicit filters remain at default.
         safetySettings: [
-          { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
-          { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
-          { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
-          { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
+          { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_ONLY_HIGH' },
         ],
       }),
     });

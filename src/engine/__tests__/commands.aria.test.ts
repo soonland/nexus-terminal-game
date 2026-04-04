@@ -160,13 +160,14 @@ describe('aria: prefix routing', () => {
   });
 
   it('should apply negative trustDelta to aria.trustScore', async () => {
+    // The mock returns -15 but client-side clamps to [-10, 10], so effective delta is -10
     vi.stubGlobal('fetch', makeAriaFetchResponse('You disappoint me.', -15));
 
     const state = makeState({ aria: { discovered: false, trustScore: 40, messageHistory: [] } });
     const result = await resolveCommand('aria: do that', state);
 
     const nextState = result.nextState as GameState;
-    expect(nextState.aria.trustScore).toBe(25);
+    expect(nextState.aria.trustScore).toBe(30); // 40 + clamp(-15, -10, 10) = 40 - 10 = 30
   });
 
   it('should clamp trustScore to 0 when delta would go negative', async () => {
@@ -234,7 +235,7 @@ describe('aria: prefix routing', () => {
     expect(offerLine).toBeDefined();
     expect(offerLine!.content).toContain('Unlock an executive terminal.');
 
-    const costLine = result.lines.find(l => l.type === 'system' && l.content.includes('Cost:'));
+    const costLine = result.lines.find(l => l.type === 'aria' && l.content.includes('Cost:'));
     expect(costLine).toBeDefined();
     expect(costLine!.content).toContain('15');
   });
@@ -384,7 +385,7 @@ describe('pending favor — accept', () => {
     const state = stateWithFavor();
     const result = await resolveCommand('yes', state);
 
-    const traceLine = result.lines.find(l => l.type === 'system' && l.content.includes('8'));
+    const traceLine = result.lines.find(l => l.type === 'aria' && l.content.includes('8'));
     expect(traceLine).toBeDefined();
   });
 

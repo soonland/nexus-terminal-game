@@ -1,4 +1,4 @@
-import type { GameState, CommandOutput, AccessLevel } from '../types/game';
+import type { GameState, CommandOutput, AccessLevel, FavorOffer } from '../types/game';
 import { hasAccess } from '../types/game';
 import { currentNode, addTrace, thresholdFlag, TRACE_THRESHOLDS } from './state';
 import produce from './produce';
@@ -16,10 +16,11 @@ interface WorldAIResponse {
   suggestions?: unknown;
 }
 
+// Mirrors api/aria.ts#AriaAIResponse — kept in sync manually (src/ cannot import from api/)
 interface AriaAIResponse {
   reply: string;
   trustDelta: number;
-  offersFavor?: { description: string; cost: number };
+  offersFavor?: FavorOffer; // FavorOffer = { description: string; cost: number }
 }
 
 const ARIA_AI_FALLBACK: AriaAIResponse = {
@@ -74,9 +75,14 @@ export const resolveCommand = async (raw: string, state: GameState): Promise<Com
   }
 
   // ── aria: prefix → route to Aria AI on any node ──────────
+  // Note: intentionally not gated on aria.discovered — spec §7.5 explicitly allows
+  // the aria: prefix to reach Aria from any node at any time.
   if (raw.trim().toLowerCase().startsWith('aria:')) {
     const message = raw.trim().slice('aria:'.length).trim();
-    return cmdAriaAI(message || raw, state);
+    if (!message) {
+      return withTurn({ lines: [line('// ARIA: [no message received]', 'aria')] }, raw, state);
+    }
+    return cmdAriaAI(message, raw, state);
   }
 
   const [cmd, ...args] = raw.trim().split(/\s+/);
@@ -146,7 +152,7 @@ export const resolveCommand = async (raw: string, state: GameState): Promise<Com
 
   // ── Layer-5 nodes → route to Aria AI ────────────────────
   if (currentNode(state).layer === 5) {
-    return cmdAriaAI(raw, state);
+    return cmdAriaAI(raw, raw, state);
   }
 
   // ── Unknown → route to World AI ─────────────────────────
@@ -322,7 +328,14 @@ const cmdWorldAI = async (raw: string, state: GameState): Promise<CommandOutput>
 };
 
 // ── Aria AI ───────────────────────────────────────────────
-const cmdAriaAI = async (message: string, state: GameState): Promise<CommandOutput> => {
+// `message` is the text sent to Aria (aria: prefix stripped, or raw on layer-5 nodes).
+// `raw` is the original unmodified input, passed to withTurn so recentCommands stays
+// consistent with every other handler.
+const cmdAriaAI = async (
+  message: string,
+  raw: string,
+  state: GameState,
+): Promise<CommandOutput> => {
   const payload = {
     message,
     ariaState: {
@@ -346,39 +359,71 @@ const cmdAriaAI = async (message: string, state: GameState): Promise<CommandOutp
     aiResponse = ARIA_AI_FALLBACK;
   }
 
+  // Validate response defensively — the API clamps, but corrupted localStorage or
+  // a misbehaving proxy must not silently produce NaN trustScore in saved state.
+  const safeReply =
+    typeof aiResponse.reply === 'string' ? aiResponse.reply : ARIA_AI_FALLBACK.reply;
+  const safeTrustDelta =
+    typeof aiResponse.trustDelta === 'number' && Number.isFinite(aiResponse.trustDelta)
+      ? Math.max(-10, Math.min(10, aiResponse.trustDelta))
+      : 0;
+  const safeOffer: FavorOffer | undefined =
+    aiResponse.offersFavor &&
+    typeof aiResponse.offersFavor.description === 'string' &&
+    typeof aiResponse.offersFavor.cost === 'number' &&
+    Number.isFinite(aiResponse.offersFavor.cost)
+      ? {
+          description: aiResponse.offersFavor.description,
+          cost: Math.max(1, Math.min(15, aiResponse.offersFavor.cost)),
+        }
+      : undefined;
+
   const next = produce(state, s => {
     s.aria.messageHistory.push({ role: 'player', content: message });
-    s.aria.messageHistory.push({ role: 'aria', content: aiResponse.reply });
-    const newScore = s.aria.trustScore + aiResponse.trustDelta;
-    s.aria.trustScore = Math.max(0, Math.min(100, newScore));
-    if (aiResponse.offersFavor) {
-      s.aria.pendingFavor = aiResponse.offersFavor;
+    s.aria.messageHistory.push({ role: 'aria', content: safeReply });
+    // Cap at 50 entries (~25 exchanges) to prevent unbounded localStorage growth
+    if (s.aria.messageHistory.length > 50) {
+      s.aria.messageHistory = s.aria.messageHistory.slice(-50);
+    }
+    s.aria.trustScore = Math.max(0, Math.min(100, s.aria.trustScore + safeTrustDelta));
+    if (safeOffer) {
+      s.aria.pendingFavor = safeOffer;
     }
   });
 
-  const lines: CommandOutput['lines'] = [line(aiResponse.reply, 'aria')];
+  const lines: CommandOutput['lines'] = [line(safeReply, 'aria')];
 
-  if (aiResponse.offersFavor) {
+  if (safeOffer) {
     lines.push(
       sep(),
-      line(`// ARIA OFFER: ${aiResponse.offersFavor.description}`, 'aria'),
-      sys(`  Cost: +${String(aiResponse.offersFavor.cost)} trace`),
-      sys('  Type "yes" to accept or "no" to decline.'),
+      line(`// ARIA OFFER: ${safeOffer.description}`, 'aria'),
+      line(`  Cost: +${String(safeOffer.cost)} trace`, 'aria'),
+      line('  Type "yes" to accept or "no" to decline.', 'aria'),
       sep(),
     );
   }
 
-  return withTurn({ lines, nextState: next }, message, state);
+  return withTurn({ lines, nextState: next }, raw, state);
 };
 
 // ── Favor confirmation ────────────────────────────────────
 const cmdAcceptFavor = (state: GameState): CommandOutput => {
-  const favor = state.aria.pendingFavor ?? { description: '', cost: 0 };
-  const next = produce(addTrace(state, favor.cost), s => {
+  const favor = state.aria.pendingFavor;
+  // Sanitize cost before applying — pendingFavor persists in localStorage and may
+  // have been set by a previous session or a misbehaving API response.
+  const sanitizedCost =
+    typeof favor?.cost === 'number' && Number.isFinite(favor.cost)
+      ? Math.max(1, Math.min(15, favor.cost))
+      : 0;
+  const tracedState = sanitizedCost > 0 ? addTrace(state, sanitizedCost) : state;
+  const next = produce(tracedState, s => {
     s.aria.pendingFavor = undefined;
   });
   return {
-    lines: [line('// ARIA: Agreement logged.', 'aria'), sys(`  +${String(favor.cost)} trace`)],
+    lines: [
+      line('// ARIA: Agreement logged.', 'aria'),
+      line(`  +${String(sanitizedCost)} trace`, 'aria'),
+    ],
     nextState: next,
   };
 };
