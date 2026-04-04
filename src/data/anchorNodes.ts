@@ -662,6 +662,7 @@ const ANCHOR_NODES: LiveNode[] = [
     label: 'ARIA SURVEILLANCE',
     description:
       'This node watches the network. It has been watching you since you connected to contractor_portal.',
+    flavourDescription: '[ARIA — Phase 10]',
     layer: 5,
     anchor: true,
     connections: ['exec_ceo', 'aria_behavioural', 'aria_personnel'],
@@ -697,6 +698,7 @@ const ANCHOR_NODES: LiveNode[] = [
     label: 'ARIA BEHAVIOURAL',
     description:
       "Aria's model weights. Decision trees. The part of her that learned to want things.",
+    flavourDescription: '[ARIA — Phase 10]',
     layer: 5,
     anchor: true,
     connections: ['aria_surveillance', 'aria_personnel', 'aria_core'],
@@ -732,6 +734,7 @@ const ANCHOR_NODES: LiveNode[] = [
     label: 'ARIA PERSONNEL',
     description:
       'Profiles. Every IronGate employee. Behavioural models. Predicted responses to every scenario. Including this one.',
+    flavourDescription: '[ARIA — Phase 10]',
     layer: 5,
     anchor: true,
     connections: ['aria_surveillance', 'aria_behavioural', 'aria_core'],
@@ -766,6 +769,7 @@ const ANCHOR_NODES: LiveNode[] = [
     template: 'dev_server',
     label: 'ARIA CORE',
     description: 'The center. She is most present here. You will feel it.',
+    flavourDescription: '[ARIA — Phase 10]',
     layer: 5,
     anchor: true,
     connections: ['aria_behavioural', 'aria_personnel', 'aria_decision'],
@@ -800,6 +804,7 @@ const ANCHOR_NODES: LiveNode[] = [
     template: 'dev_server',
     label: 'ARIA DECISION',
     description: 'The terminal. Whatever you decide here, she will remember.',
+    flavourDescription: '[ARIA — Phase 10]',
     layer: 5,
     anchor: true,
     connections: ['aria_core'],

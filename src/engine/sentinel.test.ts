@@ -337,6 +337,40 @@ describe('runSentinelTurn — priority 2: revoke credential', () => {
     const result = runSentinelTurn(noneObtained);
     expect(result.state.sentinel.mutationLog[0]?.action).not.toBe('revoke_credential');
   });
+
+  it('should skip P2 and fall through to P4 when the credential primary node is layer 5', () => {
+    // aria_surveillance is a real game node at layer 5 — sentinel must never act on it
+    const state = produce(patchAllCompromised(activeState()), s => {
+      // Verify the assumption that aria_surveillance is layer 5
+      expect(s.network.nodes['aria_surveillance']?.layer).toBe(5);
+
+      // Inject a fake credential whose only valid node is the Aria subnet
+      s.player.credentials.push({
+        id: 'aria_test_cred',
+        username: 'aria.observer',
+        password: 'secret',
+        accessLevel: 'user',
+        validOnNodes: ['aria_surveillance'],
+        obtained: true,
+        revoked: false,
+      });
+    });
+
+    const result = runSentinelTurn(state);
+
+    // P2 must not have fired — credential stays unrevoked
+    const injected = result.state.player.credentials.find(c => c.id === 'aria_test_cred');
+    expect(injected?.revoked).toBeFalsy();
+
+    // No revoke_credential entry in the mutation log
+    const revokeEvents = result.state.sentinel.mutationLog.filter(
+      e => e.action === 'revoke_credential',
+    );
+    expect(revokeEvents).toHaveLength(0);
+
+    // Fell through to P4 (spawn_node) as expected
+    expect(result.state.sentinel.mutationLog[0]?.action).toBe('spawn_node');
+  });
 });
 
 // ── Priority 3: delete file ─────────────────────────────────

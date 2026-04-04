@@ -88,6 +88,8 @@ const tryRevokeCredential = (
   const primaryNodeId = target.validOnNodes[0];
   // Skip P2 when the credential has no associated node (nowhere to file the reset notice)
   if (!primaryNodeId) return null;
+  // Skip P2 when the primary node is in the Aria subnet — sentinel never acts on layer 5
+  if (state.network.nodes[primaryNodeId]?.layer === 5) return null;
 
   // Deterministic password derived from turn count — reproducible per save/run
   const newPassword = generatePassword(state.turnCount);
