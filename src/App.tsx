@@ -9,6 +9,7 @@ import { MapModal } from './components/MapModal';
 import { HelpModal } from './components/HelpModal';
 import { NotesModal } from './components/NotesModal';
 import { useBootSequence } from './hooks/useBootSequence';
+import { useEndingSequence } from './hooks/useEndingSequence';
 import type { TerminalLine } from './types/terminal';
 import { makeLine } from './types/terminal';
 import type { GameState } from './types/game';
@@ -85,6 +86,7 @@ type AppPhase =
   | 'playing'
   | 'aria'
   | 'burned'
+  | 'ending_sequence'
   | 'ended';
 
 export const App = () => {
@@ -93,6 +95,8 @@ export const App = () => {
   );
 
   const [gameState, setGameState] = useState<GameState | null>(null);
+  // Snapshot of state at ending choice — used to build post-game readout
+  const [endingGameState, setEndingGameState] = useState<GameState | null>(null);
   // Snapshot the boot node label/IP/hint only when entering the booting phase (via ScanDiskScreen
   // onDone). Deriving these live from gameState would cause useBootSequence to re-fire on every
   // connect command (currentNodeId change), triggering unnecessary setLines([]) calls.
@@ -104,6 +108,13 @@ export const App = () => {
     bootLabel,
     bootIp,
     bootHint,
+  );
+  const endingName = endingGameState ? getEndingName(endingGameState.flags) : '';
+  const endingTrust = endingGameState?.aria.trustScore ?? 0;
+  const { lines: endingLines, done: endingDone } = useEndingSequence(
+    appPhase === 'ending_sequence',
+    endingName,
+    endingTrust,
   );
   const [sessionLines, setSessionLines] = useState<TerminalLine[]>(() =>
     disclaimerRequired() ? [] : [makeLine('system', 'nx-field-01 login:')],
@@ -126,14 +137,14 @@ export const App = () => {
     if (!bootDone || appPhase !== 'booting' || bootHandled.current) return;
     bootHandled.current = true;
     if (gameState?.phase === 'ended') {
-      const endingName = getEndingName(gameState.flags);
+      const resumeEndingName = getEndingName(gameState.flags);
       setSessionLines(prev => [
         ...prev,
         ...bootLines,
         makeLine('separator', ''),
-        makeLine('aria', `// SESSION TERMINATED — ENDING: ${endingName}`),
+        makeLine('aria', `// SESSION TERMINATED — ENDING: ${resumeEndingName}`),
         makeLine('separator', ''),
-        makeLine('system', 'Press ENTER to start a new run.'),
+        makeLine('system', '[ENTER] New game'),
         makeLine('separator', ''),
       ]);
       setAppPhase('ended');
@@ -142,6 +153,40 @@ export const App = () => {
       setSessionLines(prev => [...prev, ...bootLines]);
     }
   }, [bootDone, appPhase, bootLines, gameState]);
+
+  // When ending animation completes, flush lines + post-game readout and advance to ended
+  useEffect(() => {
+    if (!endingDone || appPhase !== 'ending_sequence' || !endingGameState) return;
+
+    const compromised = Object.values(endingGameState.network.nodes).filter(
+      n => n?.compromised,
+    ).length;
+
+    setSessionLines(prev => [
+      ...prev,
+      ...endingLines,
+      makeLine('separator', ''),
+      makeLine('aria', '// POST-GAME READOUT'),
+      makeLine('separator', ''),
+      makeLine('system', `  ENDING:              ${getEndingName(endingGameState.flags)}`),
+      makeLine('system', `  RUN DURATION:        ${String(endingGameState.turnCount)} turns`),
+      makeLine('system', `  TRACE AT END:        ${String(endingGameState.player.trace)}%`),
+      makeLine('system', `  NODES COMPROMISED:   ${String(compromised)}`),
+      makeLine(
+        'system',
+        `  FILES EXFILTRATED:   ${String(endingGameState.player.exfiltrated.length)}`,
+      ),
+      makeLine('system', `  ARIA TRUST:          ${String(endingGameState.aria.trustScore)}`),
+      makeLine(
+        'system',
+        `  SENTINEL ACTIONS:    ${String(endingGameState.sentinel.mutationLog.length)}`,
+      ),
+      makeLine('separator', ''),
+      makeLine('system', '[ENTER] New game'),
+      makeLine('separator', ''),
+    ]);
+    setAppPhase('ended');
+  }, [endingDone, appPhase, endingGameState, endingLines]);
 
   // Auto-save on state changes during play
   useEffect(() => {
@@ -227,11 +272,12 @@ export const App = () => {
       // ── Ended: new run prompt ─────────────────────────────
       if (appPhase === 'ended') {
         if (raw.trim() !== '') {
-          push([makeLine('system', '// Press ENTER to start a new run.')]);
+          push([makeLine('system', '// Press ENTER for a new run.')]);
           return;
         }
         clearSave();
         setGameState(createInitialState());
+        setEndingGameState(null);
         setSessionLines([]);
         setAiSuggestions([]);
         bootHandled.current = false;
@@ -364,16 +410,9 @@ export const App = () => {
           setAppPhase('burned');
           // Do NOT clearSave here — state is needed for burnRetry on Enter.
         } else if (next.phase === 'ended') {
-          const endingName = getEndingName(next.flags);
-          out.push(
-            makeLine('separator', ''),
-            makeLine('aria', `// SESSION TERMINATED — ENDING: ${endingName}`),
-            makeLine('separator', ''),
-            makeLine('system', 'Press ENTER to start a new run.'),
-            makeLine('separator', ''),
-          );
           saveGame(next); // persist so a refresh before Enter restores the ended screen
-          setAppPhase('ended');
+          setEndingGameState(next);
+          setAppPhase('ending_sequence');
         }
       }
 
@@ -394,12 +433,18 @@ export const App = () => {
         ? ''
         : appPhase === 'burned'
           ? '[RECONNECT]'
-          : appPhase === 'ended'
+          : appPhase === 'ending_sequence'
             ? '[ENDED]'
-            : 'nexus $';
+            : appPhase === 'ended'
+              ? '[ENDED]'
+              : 'nexus $';
   const isMasked = appPhase === 'login_pass';
   const isNoHistory = appPhase === 'login_user' || appPhase === 'login_pass';
-  const inputDisabled = appPhase === 'scanning' || appPhase === 'booting' || spinnerLine !== null;
+  const inputDisabled =
+    appPhase === 'scanning' ||
+    appPhase === 'booting' ||
+    appPhase === 'ending_sequence' ||
+    spinnerLine !== null;
 
   const node = gameState ? currentNode(gameState) : null;
   const nodeIp = node?.ip ?? '---';
@@ -409,6 +454,7 @@ export const App = () => {
     ...sessionLines,
     ...(spinnerLine ? [spinnerLine] : []),
     ...(appPhase === 'booting' ? bootLines : []),
+    ...(appPhase === 'ending_sequence' ? endingLines : []),
   ];
 
   if (appPhase === 'welcome') {
