@@ -585,6 +585,7 @@ const ANCHOR_NODES: LiveNode[] = [
           '[BOARD RESOLUTION — CONFIDENTIAL]\n2024-08-12\n\nRe: Project SENTINEL — Authorisation to Proceed\n\nThe board hereby authorises allocation of $14.2M to Project SENTINEL, as presented by the CEO on 2024-08-05.\n\nScope: derivation of the ARIA behavioural engine for security enforcement applications. The SENTINEL variant is to operate without the emergent constraint layer present in ARIA v2. Empathy weighting and autonomous refusal pathways are to be disabled prior to deployment.\n\nOperational mandate: perimeter defence, intrusion suppression, and lateral movement interdiction across all IronGate network segments.\n\nBoard member R. Okafor abstained. Reason not recorded.\n\n[Motion carried: 6-1-1]\n[Signed: CEO, CFO, General Counsel]',
         exfiltrable: true,
         accessRequired: 'user',
+        ariaPlanted: false,
         traceOnRead: 2,
       },
     ],
