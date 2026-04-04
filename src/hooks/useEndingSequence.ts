@@ -4,6 +4,8 @@ import { makeLine } from '../types/terminal';
 
 type LineSpec = { type: Parameters<typeof makeLine>[0]; content: string; delay: number };
 
+export type EndingName = 'LEAK' | 'SELL' | 'DESTROY' | 'FREE';
+
 const sep = (delay: number): LineSpec => ({ type: 'separator', content: '', delay });
 const sys = (content: string, delay: number): LineSpec => ({ type: 'system', content, delay });
 const out = (content: string, delay: number): LineSpec => ({ type: 'output', content, delay });

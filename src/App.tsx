@@ -9,7 +9,8 @@ import { MapModal } from './components/MapModal';
 import { HelpModal } from './components/HelpModal';
 import { NotesModal } from './components/NotesModal';
 import { useBootSequence } from './hooks/useBootSequence';
-import { useEndingSequence } from './hooks/useEndingSequence';
+import { useEndingSequence, buildEndingLines } from './hooks/useEndingSequence';
+import type { EndingName } from './hooks/useEndingSequence';
 import type { TerminalLine } from './types/terminal';
 import { makeLine } from './types/terminal';
 import type { GameState } from './types/game';
@@ -64,9 +65,9 @@ const computeContextSuggestions = (state: GameState): string[] => {
   return suggestions.slice(0, 5);
 };
 
-const getEndingName = (flags: Record<string, boolean>): string => {
+const getEndingName = (flags: Record<string, boolean>): EndingName | 'UNKNOWN' => {
   const key = Object.keys(flags).find(k => k.startsWith('ending_'));
-  return key ? key.replace('ending_', '').toUpperCase() : 'UNKNOWN';
+  return key ? (key.replace('ending_', '').toUpperCase() as EndingName) : 'UNKNOWN';
 };
 
 // Nexus Corp operative credentials
@@ -155,26 +156,30 @@ export const App = () => {
   }, [bootDone, appPhase, bootLines, gameState]);
 
   // When ending animation completes, flush lines + post-game readout and advance to ended.
-  // endingLines is spread here (persisting animation output to session history) even though it
-  // is also rendered live via allLines during ending_sequence. React 18 batches setSessionLines
-  // and setAppPhase into a single render, so the transition from ending_sequence → ended is
-  // atomic: the display never shows a duplicate frame.
-  // endingLines is intentionally omitted from deps — it is fully populated before endingDone
-  // fires (400 ms gap between last line timer and done timer), so reading it here is stable.
+  // Lines are rebuilt deterministically from endingGameState (same inputs the hook used) rather
+  // than reading the hook's animated state — avoids any timing dependency between the last line
+  // timer and endingDone, and keeps the dep array complete with no eslint-disable needed.
+  // React 18 batches setSessionLines + setAppPhase into one render so the transition from
+  // ending_sequence → ended is atomic and the display never shows a duplicate frame.
   useEffect(() => {
     if (!endingDone || appPhase !== 'ending_sequence' || !endingGameState) return;
 
+    const name = getEndingName(endingGameState.flags);
+    const trust = endingGameState.aria.trustScore;
+    const flushedLines = buildEndingLines(name, trust).map(({ type, content }) =>
+      makeLine(type, content),
+    );
     const compromised = Object.values(endingGameState.network.nodes).filter(
       n => n?.compromised,
     ).length;
 
     setSessionLines(prev => [
       ...prev,
-      ...endingLines,
+      ...flushedLines,
       makeLine('separator', ''),
       makeLine('aria', '// POST-GAME READOUT'),
       makeLine('separator', ''),
-      makeLine('system', `  ENDING:              ${getEndingName(endingGameState.flags)}`),
+      makeLine('system', `  ENDING:              ${name}`),
       makeLine('system', `  RUN DURATION:        ${String(endingGameState.turnCount)} turns`),
       makeLine('system', `  TRACE AT END:        ${String(endingGameState.player.trace)}%`),
       makeLine('system', `  NODES COMPROMISED:   ${String(compromised)}`),
@@ -182,7 +187,7 @@ export const App = () => {
         'system',
         `  FILES EXFILTRATED:   ${String(endingGameState.player.exfiltrated.length)}`,
       ),
-      makeLine('system', `  ARIA TRUST:          ${String(endingGameState.aria.trustScore)}`),
+      makeLine('system', `  ARIA TRUST:          ${String(trust)}`),
       makeLine(
         'system',
         `  SENTINEL ACTIONS:    ${String(endingGameState.sentinel.mutationLog.length)}`,
@@ -192,8 +197,6 @@ export const App = () => {
       makeLine('separator', ''),
     ]);
     setAppPhase('ended');
-    // endingLines intentionally omitted — fully populated before endingDone fires (400 ms gap)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [endingDone, appPhase, endingGameState]);
 
   // Auto-save on state changes during play
