@@ -46,6 +46,13 @@ const sep = () => line('', 'separator');
  * `state.phase === 'burned'` — `App.tsx` handles that guard at the UI layer.
  */
 export const resolveCommand = async (raw: string, state: GameState): Promise<CommandOutput> => {
+  if (state.phase === 'burned') {
+    // Callers should gate on state.phase before invoking (see JSDoc above).
+    // Return an empty result rather than executing commands on a burned session.
+    console.warn('resolveCommand called with burned state — returning empty result');
+    return { lines: [] };
+  }
+
   const [cmd, ...args] = raw.trim().split(/\s+/);
   const verb = cmd.toLowerCase();
 
@@ -497,9 +504,14 @@ const cmdLogin = (args: string[], state: GameState): CommandOutput => {
   const next = produce(state, s => {
     const n = s.network.nodes[node.id];
     if (n) {
+      const wasCompromised = n.compromised;
       n.accessLevel = match.accessLevel;
       n.compromised = true;
-      n.compromisedAtTurn = s.turnCount;
+      // Only stamp the turn on first compromise — re-authentication must not
+      // reset this value and skew Sentinel targeting.
+      if (!wasCompromised || n.compromisedAtTurn === undefined) {
+        n.compromisedAtTurn = s.turnCount;
+      }
     }
     if (matchInPlayer) {
       // produce clones the state — the credential found before the clone is always present after

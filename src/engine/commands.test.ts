@@ -993,6 +993,24 @@ describe('resolveCommand — login', () => {
     expect(contents.some(c => c.includes('contractor'))).toBe(true);
   });
 
+  it('should mark the node as compromised on successful login', async () => {
+    const result = await resolveCommand('login contractor Welcome1!', state);
+    const nextNode = (result.nextState as GameState).network.nodes['contractor_portal']!;
+    expect(nextNode.compromised).toBe(true);
+    expect(nextNode.compromisedAtTurn).toBeDefined();
+  });
+
+  it('should not reset compromisedAtTurn when logging in again on an already-compromised node', async () => {
+    const alreadyCompromised = produce(state, s => {
+      s.network.nodes['contractor_portal']!.compromised = true;
+      s.network.nodes['contractor_portal']!.compromisedAtTurn = 3;
+      s.turnCount = 10;
+    });
+    const result = await resolveCommand('login contractor Welcome1!', alreadyCompromised);
+    const nextNode = (result.nextState as GameState).network.nodes['contractor_portal']!;
+    expect(nextNode.compromisedAtTurn).toBe(3); // preserved, not overwritten with 10
+  });
+
   it('should fail when username is correct but node is wrong', async () => {
     // Move player to vpn_gateway — contractor cred is valid there too, but test with wrong node
     const atOps = produce(state, s => {
@@ -1058,6 +1076,19 @@ describe('resolveCommand — ls', () => {
     const result = await resolveCommand('ls', withAdmin);
     const contents = result.lines.map(l => l.content);
     expect(contents.some(c => c.includes('[no-exfil]'))).toBe(true);
+  });
+
+  it('should mark locked files with [LOCKED] and include a legend line', async () => {
+    const withLocked = produce(createInitialState(), s => {
+      s.network.nodes['contractor_portal']!.accessLevel = 'user';
+      if (s.network.nodes['contractor_portal']!.files[0]) {
+        s.network.nodes['contractor_portal']!.files[0].locked = true;
+      }
+    });
+    const result = await resolveCommand('ls', withLocked);
+    const contents = result.lines.map(l => l.content);
+    expect(contents.some(c => c.includes('[LOCKED]'))).toBe(true);
+    expect(contents.some(c => c.includes('file is locked'))).toBe(true);
   });
 
   it('should show a "no accessible files" message when nothing is accessible', async () => {

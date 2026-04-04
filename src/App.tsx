@@ -229,6 +229,7 @@ export const App = () => {
       // ── Resume prompt ──────────────────────────────────────
       if (appPhase === 'resume_prompt') {
         const answer = raw.trim().toLowerCase();
+        if (!answer) return; // empty Enter is a no-op — don't fall into the else and wipe the save
         push([makeLine('input', raw)]);
         if (answer === 'yes' || answer === 'y') {
           const saved = loadGame();
