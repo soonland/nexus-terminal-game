@@ -22,6 +22,6 @@ export const handlers = [
   }),
 
   http.post('/api/aria', () => {
-    return HttpResponse.json({ message: '[MOCK ARIA RESPONSE]' });
+    return HttpResponse.json({ reply: '[ARIA: signal received]', trustDelta: 2 });
   }),
 ];

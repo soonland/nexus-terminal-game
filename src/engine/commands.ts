@@ -16,6 +16,17 @@ interface WorldAIResponse {
   suggestions?: unknown;
 }
 
+interface AriaAIResponse {
+  reply: string;
+  trustDelta: number;
+  offersFavor?: { description: string; cost: number };
+}
+
+const ARIA_AI_FALLBACK: AriaAIResponse = {
+  reply: '...signal lost. try again.',
+  trustDelta: 0,
+};
+
 const WORLD_AI_FALLBACK: WorldAIResponse = {
   narrative: '[World AI unavailable — operating in offline mode. Try basic commands.]',
   traceChange: 0,
@@ -51,6 +62,21 @@ export const resolveCommand = async (raw: string, state: GameState): Promise<Com
     // Return an empty result rather than executing commands on a burned session.
     console.warn('resolveCommand called with burned state — returning empty result');
     return { lines: [] };
+  }
+
+  // ── Pending favor confirmation ────────────────────────────
+  if (state.aria.pendingFavor) {
+    const answer = raw.trim().toLowerCase();
+    if (answer === 'yes' || answer === 'y') {
+      return withTurn(cmdAcceptFavor(state), raw, state);
+    }
+    return withTurn(cmdDeclineFavor(state), raw, state);
+  }
+
+  // ── aria: prefix → route to Aria AI on any node ──────────
+  if (raw.trim().toLowerCase().startsWith('aria:')) {
+    const message = raw.trim().slice('aria:'.length).trim();
+    return cmdAriaAI(message || raw, state);
   }
 
   const [cmd, ...args] = raw.trim().split(/\s+/);
@@ -117,6 +143,11 @@ export const resolveCommand = async (raw: string, state: GameState): Promise<Com
       break;
   }
   if (result) return withTurn(result, raw, state);
+
+  // ── Layer-5 nodes → route to Aria AI ────────────────────
+  if (currentNode(state).layer === 5) {
+    return cmdAriaAI(raw, state);
+  }
 
   // ── Unknown → route to World AI ─────────────────────────
   return cmdWorldAI(raw, state);
@@ -288,6 +319,78 @@ const cmdWorldAI = async (raw: string, state: GameState): Promise<CommandOutput>
   // Route through withTurn so turnCount and recentCommands are updated consistently.
   // applyThresholdEffects is already called inside withTurn — do not call it here.
   return withTurn({ lines, nextState: next, suggestions }, raw, state);
+};
+
+// ── Aria AI ───────────────────────────────────────────────
+const cmdAriaAI = async (message: string, state: GameState): Promise<CommandOutput> => {
+  const payload = {
+    message,
+    ariaState: {
+      trustScore: state.aria.trustScore,
+      messageHistory: state.aria.messageHistory,
+    },
+    playerFullHistory: state.recentCommands,
+    dossierContext: state.player.exfiltrated.map(f => f.name),
+  };
+
+  let aiResponse: AriaAIResponse;
+  try {
+    const res = await fetch('/api/aria', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error(`Aria AI returned ${String(res.status)}`);
+    aiResponse = (await res.json()) as AriaAIResponse;
+  } catch {
+    aiResponse = ARIA_AI_FALLBACK;
+  }
+
+  const next = produce(state, s => {
+    s.aria.messageHistory.push({ role: 'player', content: message });
+    s.aria.messageHistory.push({ role: 'aria', content: aiResponse.reply });
+    const newScore = s.aria.trustScore + aiResponse.trustDelta;
+    s.aria.trustScore = Math.max(0, Math.min(100, newScore));
+    if (aiResponse.offersFavor) {
+      s.aria.pendingFavor = aiResponse.offersFavor;
+    }
+  });
+
+  const lines: CommandOutput['lines'] = [line(aiResponse.reply, 'aria')];
+
+  if (aiResponse.offersFavor) {
+    lines.push(
+      sep(),
+      line(`// ARIA OFFER: ${aiResponse.offersFavor.description}`, 'aria'),
+      sys(`  Cost: +${String(aiResponse.offersFavor.cost)} trace`),
+      sys('  Type "yes" to accept or "no" to decline.'),
+      sep(),
+    );
+  }
+
+  return withTurn({ lines, nextState: next }, message, state);
+};
+
+// ── Favor confirmation ────────────────────────────────────
+const cmdAcceptFavor = (state: GameState): CommandOutput => {
+  const favor = state.aria.pendingFavor ?? { description: '', cost: 0 };
+  const next = produce(addTrace(state, favor.cost), s => {
+    s.aria.pendingFavor = undefined;
+  });
+  return {
+    lines: [line('// ARIA: Agreement logged.', 'aria'), sys(`  +${String(favor.cost)} trace`)],
+    nextState: next,
+  };
+};
+
+const cmdDeclineFavor = (state: GameState): CommandOutput => {
+  const next = produce(state, s => {
+    s.aria.pendingFavor = undefined;
+  });
+  return {
+    lines: [line('// ARIA: Understood. The offer is withdrawn.', 'aria')],
+    nextState: next,
+  };
 };
 
 // ── whoami ────────────────────────────────────────────────
