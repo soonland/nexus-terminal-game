@@ -347,7 +347,7 @@ const cmdAriaAI = async (
       trustScore: state.aria.trustScore,
       messageHistory: state.aria.messageHistory,
     },
-    playerFullHistory: state.recentCommands,
+    playerFullHistory: state.recentCommands.slice(-10),
     dossierContext: state.player.exfiltrated.map(f => f.name),
   };
 
@@ -370,7 +370,7 @@ const cmdAriaAI = async (
     typeof aiResponse.reply === 'string' ? aiResponse.reply : ARIA_AI_FALLBACK.reply;
   const safeTrustDelta =
     typeof aiResponse.trustDelta === 'number' && Number.isFinite(aiResponse.trustDelta)
-      ? Math.max(-10, Math.min(10, aiResponse.trustDelta))
+      ? Math.max(-10, Math.min(10, Math.trunc(aiResponse.trustDelta)))
       : 0;
   const safeOffer: FavorOffer | undefined =
     aiResponse.offersFavor &&
@@ -379,7 +379,7 @@ const cmdAriaAI = async (
     Number.isFinite(aiResponse.offersFavor.cost)
       ? {
           description: aiResponse.offersFavor.description.slice(0, 300),
-          cost: Math.max(1, Math.min(15, aiResponse.offersFavor.cost)),
+          cost: Math.max(1, Math.min(15, Math.trunc(aiResponse.offersFavor.cost))),
         }
       : undefined;
 
@@ -418,10 +418,13 @@ const cmdAcceptFavor = (state: GameState): CommandOutput => {
   // have been set by a previous session or a misbehaving API response.
   const sanitizedCost =
     typeof favor?.cost === 'number' && Number.isFinite(favor.cost)
-      ? Math.max(1, Math.min(15, favor.cost))
-      : 0;
-  const tracedState = sanitizedCost > 0 ? addTrace(state, sanitizedCost) : state;
-  const next = produce(tracedState, s => {
+      ? Math.max(1, Math.min(15, Math.trunc(favor.cost)))
+      : null;
+  // Treat invalid/missing cost as a failed validation — decline rather than free-accept.
+  if (sanitizedCost === null) {
+    return cmdDeclineFavor(state);
+  }
+  const next = produce(addTrace(state, sanitizedCost), s => {
     s.aria.pendingFavor = undefined;
   });
   return {

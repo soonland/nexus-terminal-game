@@ -88,8 +88,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       body['ariaState'] && typeof body['ariaState'] === 'object'
         ? (body['ariaState'] as Record<string, unknown>)
         : {};
-    const trustScore =
+    const rawTrustScore =
       typeof ariaStateRaw['trustScore'] === 'number' ? ariaStateRaw['trustScore'] : 0;
+    const trustScore = Number.isFinite(rawTrustScore)
+      ? Math.min(100, Math.max(0, Math.round(rawTrustScore)))
+      : 0;
     // Cap arrays to a recent window — prevents runaway prompt sizes in long sessions
     const messageHistory: { role: string; content: string }[] = Array.isArray(
       ariaStateRaw['messageHistory'],
@@ -180,14 +183,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       typeof parsed.offersFavor.cost === 'number'
         ? {
             description: parsed.offersFavor.description.slice(0, 300),
-            cost: Math.max(1, Math.min(15, parsed.offersFavor.cost)),
+            cost: Math.max(1, Math.min(15, Math.round(parsed.offersFavor.cost))),
           }
         : undefined;
 
     const response: AriaAIResponse = {
       reply: typeof parsed.reply === 'string' ? parsed.reply : FALLBACK_RESPONSE.reply,
       trustDelta:
-        typeof parsed.trustDelta === 'number' ? Math.max(-10, Math.min(10, parsed.trustDelta)) : 0,
+        typeof parsed.trustDelta === 'number'
+          ? Math.max(-10, Math.min(10, Math.trunc(parsed.trustDelta)))
+          : 0,
       ...(offersFavor ? { offersFavor } : {}),
     };
 
