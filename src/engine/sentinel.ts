@@ -82,12 +82,16 @@ const generatePassword = (seed: number): string => {
 const tryRevokeCredential = (
   state: GameState,
 ): { state: GameState; lines: SentinelLine[] } | null => {
-  const target = state.player.credentials.find(c => c.obtained && !c.revoked);
+  // Skip credentials with no primary node or whose primary node is layer 5 (Aria subnet)
+  const target = state.player.credentials.find(c => {
+    if (!c.obtained || c.revoked) return false;
+    const primaryNodeId = c.validOnNodes[0];
+    if (!primaryNodeId) return false;
+    return state.network.nodes[primaryNodeId]?.layer !== 5;
+  });
   if (!target) return null;
 
-  const primaryNodeId = target.validOnNodes[0];
-  // Skip P2 when the credential has no associated node (nowhere to file the reset notice)
-  if (!primaryNodeId) return null;
+  const primaryNodeId = target.validOnNodes[0]; // find predicate guarantees this is defined
 
   // Deterministic password derived from turn count — reproducible per save/run
   const newPassword = generatePassword(state.turnCount);

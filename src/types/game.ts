@@ -68,6 +68,7 @@ export interface LiveNode {
   template: NodeTemplate;
   label: string; // short display name
   description: string | null; // flavour text shown on connect; null = pending AI generation (filler nodes)
+  flavourDescription?: string; // extended atmospheric text (Aria nodes only; Phase 10 will author final content)
   layer: number; // 0=entry, 1=ops, 2=sec, 3=fin, 4=exec, 5=aria
   anchor: boolean;
   ariaInfluence?: number; // 0–1, how much Aria has shaped this node (Phase 4+)
