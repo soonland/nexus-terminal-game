@@ -1,996 +1,1455 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Nexus Terminal — Gameplay Guide</title>
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Nexus Terminal — Gameplay Guide</title>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
 
-    :root {
-      --bg:        #0000aa;
-      --bg-dark:   #000080;
-      --bg-card:   #000090;
-      --border:    #5555ff;
-      --border-hi: #aaaaff;
-      --text:      #aaaaaa;
-      --text-hi:   #ffffff;
-      --yellow:    #ffff55;
-      --green:     #55ff55;
-      --red:       #ff5555;
-      --orange:    #ffaa00;
-      --cyan:      #55ffff;
-      --magenta:   #ff55ff;
-      --dim:       #555555;
-    }
+      :root {
+        --bg: #0000aa;
+        --bg-dark: #000080;
+        --bg-card: #000090;
+        --border: #5555ff;
+        --border-hi: #aaaaff;
+        --text: #aaaaaa;
+        --text-hi: #ffffff;
+        --yellow: #ffff55;
+        --green: #55ff55;
+        --red: #ff5555;
+        --orange: #ffaa00;
+        --cyan: #55ffff;
+        --magenta: #ff55ff;
+        --dim: #555555;
+      }
 
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
 
-    html { scroll-behavior: smooth; }
+      html {
+        scroll-behavior: smooth;
+      }
 
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: 'Share Tech Mono', 'Courier New', monospace;
-      font-size: 14px;
-      line-height: 1.6;
-      min-height: 100vh;
-    }
+      body {
+        background: var(--bg);
+        color: var(--text);
+        font-family: 'Share Tech Mono', 'Courier New', monospace;
+        font-size: 14px;
+        line-height: 1.6;
+        min-height: 100vh;
+      }
 
-    /* ── Layout ── */
-    .layout {
-      display: grid;
-      grid-template-columns: 220px 1fr;
-      min-height: 100vh;
-    }
+      /* ── Layout ── */
+      .layout {
+        display: grid;
+        grid-template-columns: 220px 1fr;
+        min-height: 100vh;
+      }
 
-    /* ── Sidebar ── */
-    nav {
-      background: var(--bg-dark);
-      border-right: 2px solid var(--border);
-      padding: 24px 0;
-      position: sticky;
-      top: 0;
-      height: 100vh;
-      overflow-y: auto;
-    }
+      /* ── Sidebar ── */
+      nav {
+        background: var(--bg-dark);
+        border-right: 2px solid var(--border);
+        padding: 24px 0;
+        position: sticky;
+        top: 0;
+        height: 100vh;
+        overflow-y: auto;
+      }
 
-    .nav-title {
-      color: var(--yellow);
-      font-size: 11px;
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      padding: 0 16px 16px;
-      border-bottom: 1px solid var(--border);
-      margin-bottom: 12px;
-    }
+      .nav-title {
+        color: var(--yellow);
+        font-size: 11px;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        padding: 0 16px 16px;
+        border-bottom: 1px solid var(--border);
+        margin-bottom: 12px;
+      }
 
-    nav a {
-      display: block;
-      padding: 5px 16px;
-      color: var(--text);
-      text-decoration: none;
-      font-size: 12px;
-      transition: color 0.1s, background 0.1s;
-    }
+      nav a {
+        display: block;
+        padding: 5px 16px;
+        color: var(--text);
+        text-decoration: none;
+        font-size: 12px;
+        transition:
+          color 0.1s,
+          background 0.1s;
+      }
 
-    nav a:hover {
-      color: var(--text-hi);
-      background: rgba(85, 85, 255, 0.2);
-    }
+      nav a:hover {
+        color: var(--text-hi);
+        background: rgba(85, 85, 255, 0.2);
+      }
 
-    nav a.section-head {
-      color: var(--cyan);
-      margin-top: 14px;
-      font-size: 11px;
-      letter-spacing: 1px;
-      text-transform: uppercase;
-      cursor: default;
-      pointer-events: none;
-    }
+      nav a.section-head {
+        color: var(--cyan);
+        margin-top: 14px;
+        font-size: 11px;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        cursor: default;
+        pointer-events: none;
+      }
 
-    /* ── Main ── */
-    main {
-      padding: 40px 48px;
-      max-width: 960px;
-    }
+      /* ── Main ── */
+      main {
+        padding: 40px 48px;
+        max-width: 960px;
+      }
 
-    /* ── Hero ── */
-    .hero {
-      border: 2px solid var(--border-hi);
-      padding: 32px;
-      margin-bottom: 48px;
-      background: var(--bg-dark);
-    }
+      /* ── Hero ── */
+      .hero {
+        border: 2px solid var(--border-hi);
+        padding: 32px;
+        margin-bottom: 48px;
+        background: var(--bg-dark);
+      }
 
-    .hero-eyebrow {
-      color: var(--dim);
-      font-size: 11px;
-      letter-spacing: 3px;
-      text-transform: uppercase;
-      margin-bottom: 8px;
-    }
+      .hero-eyebrow {
+        color: var(--dim);
+        font-size: 11px;
+        letter-spacing: 3px;
+        text-transform: uppercase;
+        margin-bottom: 8px;
+      }
 
-    .hero h1 {
-      color: var(--yellow);
-      font-size: 28px;
-      letter-spacing: 2px;
-      line-height: 1.2;
-      margin-bottom: 12px;
-    }
+      .hero h1 {
+        color: var(--yellow);
+        font-size: 28px;
+        letter-spacing: 2px;
+        line-height: 1.2;
+        margin-bottom: 12px;
+      }
 
-    .hero p {
-      color: var(--text);
-      max-width: 600px;
-    }
+      .hero p {
+        color: var(--text);
+        max-width: 600px;
+      }
 
-    .hero-badge {
-      display: inline-block;
-      margin-top: 16px;
-      padding: 4px 10px;
-      border: 1px solid var(--green);
-      color: var(--green);
-      font-size: 11px;
-      letter-spacing: 1px;
-    }
+      .hero-badge {
+        display: inline-block;
+        margin-top: 16px;
+        padding: 4px 10px;
+        border: 1px solid var(--green);
+        color: var(--green);
+        font-size: 11px;
+        letter-spacing: 1px;
+      }
 
-    /* ── Sections ── */
-    section {
-      margin-bottom: 56px;
-    }
+      /* ── Sections ── */
+      section {
+        margin-bottom: 56px;
+      }
 
-    h2 {
-      color: var(--yellow);
-      font-size: 16px;
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      border-bottom: 2px solid var(--border);
-      padding-bottom: 8px;
-      margin-bottom: 24px;
-    }
+      h2 {
+        color: var(--yellow);
+        font-size: 16px;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        border-bottom: 2px solid var(--border);
+        padding-bottom: 8px;
+        margin-bottom: 24px;
+      }
 
-    h3 {
-      color: var(--cyan);
-      font-size: 13px;
-      letter-spacing: 1px;
-      text-transform: uppercase;
-      margin: 24px 0 10px;
-    }
+      h3 {
+        color: var(--cyan);
+        font-size: 13px;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        margin: 24px 0 10px;
+      }
 
-    p { margin-bottom: 12px; color: var(--text); }
+      p {
+        margin-bottom: 12px;
+        color: var(--text);
+      }
 
-    /* ── Cards ── */
-    .card {
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      padding: 16px 20px;
-      margin-bottom: 12px;
-    }
+      /* ── Cards ── */
+      .card {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        padding: 16px 20px;
+        margin-bottom: 12px;
+      }
 
-    .card-title {
-      color: var(--text-hi);
-      font-size: 13px;
-      margin-bottom: 6px;
-    }
+      .card-title {
+        color: var(--text-hi);
+        font-size: 13px;
+        margin-bottom: 6px;
+      }
 
-    .card-sub {
-      color: var(--dim);
-      font-size: 11px;
-      margin-bottom: 8px;
-    }
+      .card-sub {
+        color: var(--dim);
+        font-size: 11px;
+        margin-bottom: 8px;
+      }
 
-    .card p { margin-bottom: 0; font-size: 13px; }
+      .card p {
+        margin-bottom: 0;
+        font-size: 13px;
+      }
 
-    /* ── Command table ── */
-    .cmd-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-    }
+      /* ── Command table ── */
+      .cmd-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
 
-    .cmd-block {
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      padding: 12px 14px;
-    }
+      .cmd-block {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        padding: 12px 14px;
+      }
 
-    .cmd-name {
-      color: var(--green);
-      font-size: 13px;
-      margin-bottom: 4px;
-    }
+      .cmd-name {
+        color: var(--green);
+        font-size: 13px;
+        margin-bottom: 4px;
+      }
 
-    .cmd-syntax {
-      color: var(--yellow);
-      font-size: 11px;
-      margin-bottom: 6px;
-    }
+      .cmd-syntax {
+        color: var(--yellow);
+        font-size: 11px;
+        margin-bottom: 6px;
+      }
 
-    .cmd-desc { font-size: 12px; margin-bottom: 0; }
+      .cmd-desc {
+        font-size: 12px;
+        margin-bottom: 0;
+      }
 
-    .cmd-meta {
-      display: flex;
-      gap: 8px;
-      margin-top: 8px;
-      flex-wrap: wrap;
-    }
+      .cmd-meta {
+        display: flex;
+        gap: 8px;
+        margin-top: 8px;
+        flex-wrap: wrap;
+      }
 
-    .badge {
-      font-size: 10px;
-      padding: 1px 7px;
-      border: 1px solid;
-      letter-spacing: 0.5px;
-    }
+      .badge {
+        font-size: 10px;
+        padding: 1px 7px;
+        border: 1px solid;
+        letter-spacing: 0.5px;
+      }
 
-    .badge-safe   { color: var(--green);   border-color: var(--green); }
-    .badge-trace  { color: var(--orange);  border-color: var(--orange); }
-    .badge-danger { color: var(--red);     border-color: var(--red); }
-    .badge-tool   { color: var(--magenta); border-color: var(--magenta); }
+      .badge-safe {
+        color: var(--green);
+        border-color: var(--green);
+      }
+      .badge-trace {
+        color: var(--orange);
+        border-color: var(--orange);
+      }
+      .badge-danger {
+        color: var(--red);
+        border-color: var(--red);
+      }
+      .badge-tool {
+        color: var(--magenta);
+        border-color: var(--magenta);
+      }
 
-    /* ── Node table ── */
-    .node-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 12px;
-    }
+      /* ── Node table ── */
+      .node-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12px;
+      }
 
-    .node-table th {
-      color: var(--cyan);
-      border-bottom: 1px solid var(--border);
-      padding: 6px 10px;
-      text-align: left;
-      font-size: 11px;
-      letter-spacing: 1px;
-      text-transform: uppercase;
-    }
+      .node-table th {
+        color: var(--cyan);
+        border-bottom: 1px solid var(--border);
+        padding: 6px 10px;
+        text-align: left;
+        font-size: 11px;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+      }
 
-    .node-table td {
-      padding: 7px 10px;
-      border-bottom: 1px solid rgba(85, 85, 255, 0.2);
-      vertical-align: top;
-    }
+      .node-table td {
+        padding: 7px 10px;
+        border-bottom: 1px solid rgba(85, 85, 255, 0.2);
+        vertical-align: top;
+      }
 
-    .node-table tr:hover td { background: rgba(85, 85, 255, 0.1); }
+      .node-table tr:hover td {
+        background: rgba(85, 85, 255, 0.1);
+      }
 
-    .ip { color: var(--yellow); font-size: 12px; }
-    .node-name { color: var(--text-hi); }
-    .node-layer { color: var(--cyan); font-size: 11px; }
+      .ip {
+        color: var(--yellow);
+        font-size: 12px;
+      }
+      .node-name {
+        color: var(--text-hi);
+      }
+      .node-layer {
+        color: var(--cyan);
+        font-size: 11px;
+      }
 
-    /* ── Trace meter ── */
-    .trace-levels { display: flex; flex-direction: column; gap: 10px; }
+      /* ── Trace meter ── */
+      .trace-levels {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
 
-    .trace-row {
-      display: grid;
-      grid-template-columns: 110px 80px 1fr;
-      align-items: center;
-      gap: 12px;
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      padding: 10px 14px;
-    }
+      .trace-row {
+        display: grid;
+        grid-template-columns: 110px 80px 1fr;
+        align-items: center;
+        gap: 12px;
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        padding: 10px 14px;
+      }
 
-    .trace-pct { font-size: 13px; font-weight: bold; }
-    .trace-label { font-size: 11px; letter-spacing: 1px; text-transform: uppercase; }
-    .trace-desc { font-size: 12px; color: var(--text); }
+      .trace-pct {
+        font-size: 13px;
+        font-weight: bold;
+      }
+      .trace-label {
+        font-size: 11px;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+      }
+      .trace-desc {
+        font-size: 12px;
+        color: var(--text);
+      }
 
-    .level-safe     { color: var(--green); }
-    .level-elevated { color: var(--yellow); }
-    .level-active   { color: var(--orange); }
-    .level-critical { color: var(--red); }
-    .level-burned   { color: var(--red); }
+      .level-safe {
+        color: var(--green);
+      }
+      .level-elevated {
+        color: var(--yellow);
+      }
+      .level-active {
+        color: var(--orange);
+      }
+      .level-critical {
+        color: var(--red);
+      }
+      .level-burned {
+        color: var(--red);
+      }
 
-    /* ── Progression flow ── */
-    .phase-flow {
-      display: flex;
-      align-items: center;
-      gap: 0;
-      flex-wrap: wrap;
-      margin-bottom: 24px;
-    }
+      /* ── Progression flow ── */
+      .phase-flow {
+        display: flex;
+        align-items: center;
+        gap: 0;
+        flex-wrap: wrap;
+        margin-bottom: 24px;
+      }
 
-    .phase-box {
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      padding: 8px 14px;
-      font-size: 11px;
-      color: var(--text-hi);
-      letter-spacing: 0.5px;
-    }
+      .phase-box {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        padding: 8px 14px;
+        font-size: 11px;
+        color: var(--text-hi);
+        letter-spacing: 0.5px;
+      }
 
-    .phase-arrow {
-      color: var(--dim);
-      padding: 0 6px;
-      font-size: 14px;
-    }
+      .phase-arrow {
+        color: var(--dim);
+        padding: 0 6px;
+        font-size: 14px;
+      }
 
-    .phase-box.special { border-color: var(--magenta); color: var(--magenta); }
-    .phase-box.end     { border-color: var(--red);     color: var(--red); }
-    .phase-box.aria    { border-color: var(--cyan);    color: var(--cyan); }
+      .phase-box.special {
+        border-color: var(--magenta);
+        color: var(--magenta);
+      }
+      .phase-box.end {
+        border-color: var(--red);
+        color: var(--red);
+      }
+      .phase-box.aria {
+        border-color: var(--cyan);
+        color: var(--cyan);
+      }
 
-    /* ── Callout ── */
-    .callout {
-      border-left: 3px solid;
-      padding: 12px 16px;
-      margin: 16px 0;
-      font-size: 13px;
-      background: rgba(0, 0, 0, 0.2);
-    }
+      /* ── Callout ── */
+      .callout {
+        border-left: 3px solid;
+        padding: 12px 16px;
+        margin: 16px 0;
+        font-size: 13px;
+        background: rgba(0, 0, 0, 0.2);
+      }
 
-    .callout-warn  { border-color: var(--yellow); color: var(--yellow); }
-    .callout-tip   { border-color: var(--green);  color: var(--green); }
-    .callout-alert { border-color: var(--red);    color: var(--red); }
-    .callout-info  { border-color: var(--cyan);   color: var(--cyan); }
+      .callout-warn {
+        border-color: var(--yellow);
+        color: var(--yellow);
+      }
+      .callout-tip {
+        border-color: var(--green);
+        color: var(--green);
+      }
+      .callout-alert {
+        border-color: var(--red);
+        color: var(--red);
+      }
+      .callout-info {
+        border-color: var(--cyan);
+        color: var(--cyan);
+      }
 
-    .callout strong { color: inherit; }
+      .callout strong {
+        color: inherit;
+      }
 
-    /* ── Code / inline ── */
-    code {
-      background: rgba(0, 0, 0, 0.4);
-      color: var(--green);
-      padding: 1px 5px;
-      font-family: inherit;
-      font-size: 12px;
-    }
+      /* ── Code / inline ── */
+      code {
+        background: rgba(0, 0, 0, 0.4);
+        color: var(--green);
+        padding: 1px 5px;
+        font-family: inherit;
+        font-size: 12px;
+      }
 
-    /* ── Network diagram ── */
-    .net-diagram {
-      background: var(--bg-dark);
-      border: 1px solid var(--border);
-      padding: 24px;
-      font-size: 12px;
-      overflow-x: auto;
-    }
+      /* ── Network diagram ── */
+      .net-diagram {
+        background: var(--bg-dark);
+        border: 1px solid var(--border);
+        padding: 24px;
+        font-size: 12px;
+        overflow-x: auto;
+      }
 
-    .net-layer {
-      margin-bottom: 20px;
-    }
+      .net-layer {
+        margin-bottom: 20px;
+      }
 
-    .net-layer-title {
-      color: var(--dim);
-      font-size: 10px;
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      margin-bottom: 8px;
-    }
+      .net-layer-title {
+        color: var(--dim);
+        font-size: 10px;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        margin-bottom: 8px;
+      }
 
-    .net-nodes {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
+      .net-nodes {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
 
-    .net-node {
-      border: 1px solid var(--border);
-      padding: 8px 12px;
-      min-width: 140px;
-    }
+      .net-node {
+        border: 1px solid var(--border);
+        padding: 8px 12px;
+        min-width: 140px;
+      }
 
-    .net-node-label { color: var(--text-hi); font-size: 11px; }
-    .net-node-ip    { color: var(--yellow);  font-size: 11px; margin-top: 2px; }
+      .net-node-label {
+        color: var(--text-hi);
+        font-size: 11px;
+      }
+      .net-node-ip {
+        color: var(--yellow);
+        font-size: 11px;
+        margin-top: 2px;
+      }
 
-    .layer-0 .net-node { border-color: var(--dim); }
-    .layer-1 .net-node { border-color: #3333aa; }
-    .layer-2 .net-node { border-color: var(--orange); }
-    .layer-3 .net-node { border-color: var(--yellow); }
-    .layer-4 .net-node { border-color: var(--red); }
-    .layer-5 .net-node { border-color: var(--magenta); }
+      .layer-0 .net-node {
+        border-color: var(--dim);
+      }
+      .layer-1 .net-node {
+        border-color: #3333aa;
+      }
+      .layer-2 .net-node {
+        border-color: var(--orange);
+      }
+      .layer-3 .net-node {
+        border-color: var(--yellow);
+      }
+      .layer-4 .net-node {
+        border-color: var(--red);
+      }
+      .layer-5 .net-node {
+        border-color: var(--magenta);
+      }
 
-    .layer-5 .net-node-label { color: var(--magenta); }
+      .layer-5 .net-node-label {
+        color: var(--magenta);
+      }
 
-    /* ── Scrollbar ── */
-    ::-webkit-scrollbar { width: 6px; height: 6px; }
-    ::-webkit-scrollbar-track { background: var(--bg-dark); }
-    ::-webkit-scrollbar-thumb { background: var(--border); }
+      /* ── Scrollbar ── */
+      ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: var(--bg-dark);
+      }
+      ::-webkit-scrollbar-thumb {
+        background: var(--border);
+      }
 
-    /* ── Responsive ── */
-    @media (max-width: 768px) {
-      .layout { grid-template-columns: 1fr; }
-      nav { position: static; height: auto; border-right: none; border-bottom: 2px solid var(--border); }
-      main { padding: 24px 20px; }
-      .cmd-grid { grid-template-columns: 1fr; }
-      .trace-row { grid-template-columns: 1fr; }
-    }
-  </style>
-</head>
-<body>
-<div class="layout">
+      /* ── Responsive ── */
+      @media (max-width: 768px) {
+        .layout {
+          grid-template-columns: 1fr;
+        }
+        nav {
+          position: static;
+          height: auto;
+          border-right: none;
+          border-bottom: 2px solid var(--border);
+        }
+        main {
+          padding: 24px 20px;
+        }
+        .cmd-grid {
+          grid-template-columns: 1fr;
+        }
+        .trace-row {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="layout">
+      <!-- ── Sidebar ── -->
+      <nav>
+        <div class="nav-title">NEXUS GUIDE</div>
+        <a class="section-head">Overview</a>
+        <a href="#getting-started">Getting Started</a>
+        <a href="#interface">Interface</a>
+        <a class="section-head">Mechanics</a>
+        <a href="#commands">Commands</a>
+        <a href="#trace">Trace System</a>
+        <a href="#sentinel">Sentinel</a>
+        <a href="#exploits">Exploits &amp; Tools</a>
+        <a class="section-head">World</a>
+        <a href="#network">Network Map</a>
+        <a href="#nodes">Node Reference</a>
+        <a href="#layer-gating">Layer Gating</a>
+        <a class="section-head">Story</a>
+        <a href="#aria">Aria</a>
+        <a href="#lore">Lore &amp; Files</a>
+        <a class="section-head">Reference</a>
+        <a href="#tips">Tips &amp; Tactics</a>
+      </nav>
 
-  <!-- ── Sidebar ── -->
-  <nav>
-    <div class="nav-title">NEXUS GUIDE</div>
-    <a class="section-head">Overview</a>
-    <a href="#getting-started">Getting Started</a>
-    <a href="#interface">Interface</a>
-    <a class="section-head">Mechanics</a>
-    <a href="#commands">Commands</a>
-    <a href="#trace">Trace System</a>
-    <a href="#sentinel">Sentinel</a>
-    <a href="#exploits">Exploits &amp; Tools</a>
-    <a class="section-head">World</a>
-    <a href="#network">Network Map</a>
-    <a href="#nodes">Node Reference</a>
-    <a href="#layer-gating">Layer Gating</a>
-    <a class="section-head">Story</a>
-    <a href="#aria">Aria</a>
-    <a href="#lore">Lore &amp; Files</a>
-    <a class="section-head">Reference</a>
-    <a href="#tips">Tips &amp; Tactics</a>
-  </nav>
+      <!-- ── Main ── -->
+      <main>
+        <!-- Hero -->
+        <div class="hero">
+          <div class="hero-eyebrow">Field Manual // Classified</div>
+          <h1>NEXUS TERMINAL<br />GAMEPLAY GUIDE</h1>
+          <p>
+            You are operative <strong style="color: var(--text-hi)">ghost</strong>. You have been
+            deployed inside the IronGate Corp network. Navigate the layers, manage your trace, and
+            find out what Aria really is.
+          </p>
+          <div class="hero-badge">CLEARANCE: OPERATIVE</div>
+        </div>
 
-  <!-- ── Main ── -->
-  <main>
+        <!-- Getting Started -->
+        <section id="getting-started">
+          <h2>Getting Started</h2>
 
-    <!-- Hero -->
-    <div class="hero">
-      <div class="hero-eyebrow">Field Manual // Classified</div>
-      <h1>NEXUS TERMINAL<br>GAMEPLAY GUIDE</h1>
-      <p>You are operative <strong style="color:var(--text-hi)">ghost</strong>. You have been deployed inside the IronGate Corp network. Navigate the layers, manage your trace, and find out what Aria really is.</p>
-      <div class="hero-badge">CLEARANCE: OPERATIVE</div>
+          <h3>Boot Credentials</h3>
+          <p>When the terminal prompts for login, use the hardcoded operative credentials:</p>
+          <div class="card">
+            <div class="card-title">Field Terminal Access</div>
+            <p>
+              <code>username:</code> <span style="color: var(--green)">ghost</span><br />
+              <code>password:</code> <span style="color: var(--green)">nX-2847</span>
+            </p>
+          </div>
+          <p>
+            These are not in-game network credentials — they unlock your own field terminal. Network
+            nodes require separate credentials you discover during the run.
+          </p>
+
+          <h3>Entry Point</h3>
+          <p>
+            Your starting position is the
+            <strong style="color: var(--text-hi)">CONTRACTOR PORTAL</strong> at
+            <code>10.0.0.1</code>. An anonymous tip provided contractor credentials baked into the
+            briefing — use them to authenticate.
+          </p>
+
+          <div class="callout callout-tip">
+            <strong>TIP:</strong> Type <code>briefing</code> at any time to re-read your mission
+            objectives and the contractor credentials.
+          </div>
+        </section>
+
+        <!-- Interface -->
+        <section id="interface">
+          <h2>Interface</h2>
+
+          <h3>Terminal Output Colors</h3>
+          <div class="cmd-grid">
+            <div class="cmd-block">
+              <div class="cmd-name" style="color: var(--text-hi)">white — output</div>
+              <p class="cmd-desc">Standard command responses and file content.</p>
+            </div>
+            <div class="cmd-block">
+              <div class="cmd-name" style="color: var(--cyan)">cyan — system</div>
+              <p class="cmd-desc">System status messages and session info.</p>
+            </div>
+            <div class="cmd-block">
+              <div class="cmd-name" style="color: var(--red)">red — error</div>
+              <p class="cmd-desc">Command failures, access denied, trace alerts.</p>
+            </div>
+            <div class="cmd-block">
+              <div class="cmd-name" style="color: var(--magenta)">magenta — aria</div>
+              <p class="cmd-desc">Messages from Aria. Distinct and unmistakable.</p>
+            </div>
+          </div>
+
+          <h3>Useful Status Commands</h3>
+          <p>These cost no trace and give you a full picture of your run at any time:</p>
+          <div class="card">
+            <p><code>status</code> — handle, current node, access level, trace %, charges, tools</p>
+          </div>
+          <div class="card">
+            <p>
+              <code>notes</code> — intel log: obtained credentials, discovered nodes, exfiltrated
+              files
+            </p>
+          </div>
+          <div class="card">
+            <p><code>map</code> — visual network overview organized by layer</p>
+          </div>
+          <div class="card">
+            <p><code>inventory</code> — tools you currently carry</p>
+          </div>
+        </section>
+
+        <!-- Commands -->
+        <section id="commands">
+          <h2>Commands</h2>
+
+          <h3>Passive (No Trace)</h3>
+          <div class="cmd-grid">
+            <div class="cmd-block">
+              <div class="cmd-name">help</div>
+              <p class="cmd-desc">Open the in-game command reference modal.</p>
+              <div class="cmd-meta"><span class="badge badge-safe">NO TRACE</span></div>
+            </div>
+            <div class="cmd-block">
+              <div class="cmd-name">whoami</div>
+              <p class="cmd-desc">Show current account and operative identity.</p>
+              <div class="cmd-meta"><span class="badge badge-safe">NO TRACE</span></div>
+            </div>
+            <div class="cmd-block">
+              <div class="cmd-name">status</div>
+              <p class="cmd-desc">Full session overview — trace, charges, tools, access level.</p>
+              <div class="cmd-meta"><span class="badge badge-safe">NO TRACE</span></div>
+            </div>
+            <div class="cmd-block">
+              <div class="cmd-name">briefing</div>
+              <p class="cmd-desc">Re-read the mission briefing and entry credentials.</p>
+              <div class="cmd-meta"><span class="badge badge-safe">NO TRACE</span></div>
+            </div>
+            <div class="cmd-block">
+              <div class="cmd-name">notes</div>
+              <p class="cmd-desc">Intel log: credentials, nodes, exfiltrated files.</p>
+              <div class="cmd-meta"><span class="badge badge-safe">NO TRACE</span></div>
+            </div>
+            <div class="cmd-block">
+              <div class="cmd-name">map</div>
+              <p class="cmd-desc">Network map of all discovered nodes by layer.</p>
+              <div class="cmd-meta"><span class="badge badge-safe">NO TRACE</span></div>
+            </div>
+            <div class="cmd-block">
+              <div class="cmd-name">inventory</div>
+              <p class="cmd-desc">List your current tools.</p>
+              <div class="cmd-meta"><span class="badge badge-safe">NO TRACE</span></div>
+            </div>
+            <div class="cmd-block">
+              <div class="cmd-name">clear</div>
+              <p class="cmd-desc">Clear the terminal screen.</p>
+              <div class="cmd-meta"><span class="badge badge-safe">NO TRACE</span></div>
+            </div>
+          </div>
+
+          <h3>Recon &amp; Navigation</h3>
+          <div class="cmd-grid">
+            <div class="cmd-block">
+              <div class="cmd-name">scan</div>
+              <div class="cmd-syntax">scan &nbsp;|&nbsp; scan [ip]</div>
+              <p class="cmd-desc">
+                Scan current subnet to discover adjacent nodes, or probe a specific IP.
+              </p>
+              <div class="cmd-meta"><span class="badge badge-trace">+1–2 TRACE</span></div>
+            </div>
+            <div class="cmd-block">
+              <div class="cmd-name">connect</div>
+              <div class="cmd-syntax">connect [ip]</div>
+              <p class="cmd-desc">
+                Move to a discovered node. The node must be in your connection graph and not locked.
+              </p>
+              <div class="cmd-meta"><span class="badge badge-safe">NO TRACE</span></div>
+            </div>
+            <div class="cmd-block">
+              <div class="cmd-name">disconnect / exit / logout</div>
+              <p class="cmd-desc">Return to the previous node in the chain.</p>
+              <div class="cmd-meta"><span class="badge badge-safe">NO TRACE</span></div>
+            </div>
+          </div>
+
+          <h3>Authentication</h3>
+          <div class="cmd-grid">
+            <div class="cmd-block">
+              <div class="cmd-name">login</div>
+              <div class="cmd-syntax">login [username] [password]</div>
+              <p class="cmd-desc">
+                Authenticate to the current node. Failed attempts cost trace. Successful logins do
+                not.
+              </p>
+              <div class="cmd-meta">
+                <span class="badge badge-safe">0 TRACE (success)</span>
+                <span class="badge badge-danger">+5 TRACE (failure)</span>
+              </div>
+            </div>
+          </div>
+
+          <h3>File Operations</h3>
+          <div class="cmd-grid">
+            <div class="cmd-block">
+              <div class="cmd-name">ls</div>
+              <div class="cmd-syntax">ls &nbsp;|&nbsp; ls [path]</div>
+              <p class="cmd-desc">List files on the current node. Requires authentication.</p>
+              <div class="cmd-meta"><span class="badge badge-safe">NO TRACE</span></div>
+            </div>
+            <div class="cmd-block">
+              <div class="cmd-name">cat</div>
+              <div class="cmd-syntax">cat [filepath] &nbsp;|&nbsp; cat local:[filename]</div>
+              <p class="cmd-desc">
+                Read a file. Use <code>local:</code> prefix to read an exfiltrated file from your
+                cache. Some files have tripwires.
+              </p>
+              <div class="cmd-meta">
+                <span class="badge badge-safe">0 TRACE (normal)</span>
+                <span class="badge badge-danger">+25 TRACE (tripwire)</span>
+              </div>
+            </div>
+            <div class="cmd-block">
+              <div class="cmd-name">exfil</div>
+              <div class="cmd-syntax">exfil [filepath]</div>
+              <p class="cmd-desc">
+                Copy a file to your local cache. Cannot exfil locked or non-exfiltrable files.
+                Already-exfiltrated files are skipped.
+              </p>
+              <div class="cmd-meta"><span class="badge badge-trace">+3 TRACE</span></div>
+            </div>
+          </div>
+
+          <h3>Exploitation &amp; Countermeasures</h3>
+          <div class="cmd-grid">
+            <div class="cmd-block">
+              <div class="cmd-name">exploit</div>
+              <div class="cmd-syntax">exploit [service]</div>
+              <p class="cmd-desc">
+                Attack a vulnerable service to gain access. Costs charges. Requires
+                <code>exploit-kit</code> tool. Patched services cost +1 extra charge.
+              </p>
+              <div class="cmd-meta">
+                <span class="badge badge-trace">TRACE VARIES</span>
+                <span class="badge badge-tool">NEEDS exploit-kit</span>
+                <span class="badge badge-danger">USES CHARGES</span>
+              </div>
+            </div>
+            <div class="cmd-block">
+              <div class="cmd-name">wipe-logs</div>
+              <p class="cmd-desc">
+                Reduce trace by 15 points. Requires <code>log-wiper</code> tool.
+              </p>
+              <div class="cmd-meta">
+                <span
+                  class="badge badge-tip"
+                  style="color: var(--green); border-color: var(--green)"
+                  >-15 TRACE</span
+                >
+                <span class="badge badge-tool">NEEDS log-wiper</span>
+              </div>
+            </div>
+            <div class="cmd-block">
+              <div class="cmd-name">spoof</div>
+              <p class="cmd-desc">
+                Reduce trace by 20 points. Requires <code>spoof-id</code> tool.
+              </p>
+              <div class="cmd-meta">
+                <span
+                  class="badge badge-tip"
+                  style="color: var(--green); border-color: var(--green)"
+                  >-20 TRACE</span
+                >
+                <span class="badge badge-tool">NEEDS spoof-id</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Trace System -->
+        <section id="trace">
+          <h2>Trace System</h2>
+          <p>
+            Every action that touches the network adds to your
+            <strong style="color: var(--text-hi)">trace level</strong> (0–100). Reach 100 and your
+            session is burned. Manage it constantly.
+          </p>
+
+          <div class="trace-levels">
+            <div class="trace-row">
+              <span class="trace-pct level-safe">0 – 30%</span>
+              <span class="trace-label level-safe">SAFE</span>
+              <span class="trace-desc">Normal operations. No active countermeasures.</span>
+            </div>
+            <div class="trace-row">
+              <span class="trace-pct level-elevated">31 – 60%</span>
+              <span class="trace-label level-elevated">ELEVATED</span>
+              <span class="trace-desc"
+                >Watchlist active. 2 random files on compromised nodes lock (cannot be read or
+                exfiltrated).</span
+              >
+            </div>
+            <div class="trace-row">
+              <span class="trace-pct level-active">61 – 85%</span>
+              <span class="trace-label level-active">SENTINEL ACTIVE</span>
+              <span class="trace-desc"
+                >Sentinel engages. Begins patching nodes, revoking credentials, and scheduling file
+                deletions.</span
+              >
+            </div>
+            <div class="trace-row">
+              <span class="trace-pct level-critical">86 – 99%</span>
+              <span class="trace-label level-critical">CRITICAL</span>
+              <span class="trace-desc"
+                >One more detection event burns the session. Tread carefully.</span
+              >
+            </div>
+            <div class="trace-row">
+              <span class="trace-pct level-burned">100%</span>
+              <span class="trace-label level-burned">BURNED</span>
+              <span class="trace-desc"
+                >Session terminated. Dropped to layer entry node. Compromised nodes in that layer
+                reset. Press Enter to reconnect.</span
+              >
+            </div>
+          </div>
+
+          <h3>Reducing Trace</h3>
+          <p>Two tools actively lower your trace. Both are capped at 0 (cannot go negative):</p>
+          <div class="card">
+            <p>
+              <code>wipe-logs</code> — requires <strong>log-wiper</strong> tool →
+              <span style="color: var(--green)">−15 trace</span>
+            </p>
+          </div>
+          <div class="card">
+            <p>
+              <code>spoof</code> — requires <strong>spoof-id</strong> tool →
+              <span style="color: var(--green)">−20 trace</span>
+            </p>
+          </div>
+
+          <div class="callout callout-warn">
+            <strong>WARNING:</strong> Failed <code>login</code> attempts cost +5 trace each.
+            Tripwire files cost +25. Exploiting a patched service also contributes extra trace.
+          </div>
+        </section>
+
+        <!-- Sentinel -->
+        <section id="sentinel">
+          <h2>Sentinel System</h2>
+          <p>
+            When trace crosses <strong style="color: var(--orange)">61%</strong>, IronGate's
+            automated security system activates. Each time you generate new trace, Sentinel executes
+            a queued action against you in priority order:
+          </p>
+
+          <div class="card">
+            <div class="card-title" style="color: var(--orange)">Priority 1 — Patch Node</div>
+            <p>
+              The most recently compromised node has its services patched. Future
+              <code>exploit</code> attempts on that node cost +1 additional charge.
+            </p>
+          </div>
+          <div class="card">
+            <div class="card-title" style="color: var(--orange)">
+              Priority 2 — Revoke Credential
+            </div>
+            <p>
+              One of your obtained credentials is invalidated. A <code>RESET_NOTICE.txt</code> file
+              appears on the affected node with a new password hint.
+            </p>
+          </div>
+          <div class="card">
+            <div class="card-title" style="color: var(--orange)">
+              Priority 3 — Delete Exfiltrated File
+            </div>
+            <p>
+              A file you exfiltrated is queued for source deletion with a 3-turn delay. The file
+              remains in your local cache but is removed from the node.
+            </p>
+          </div>
+          <div class="card">
+            <div class="card-title" style="color: var(--orange)">
+              Priority 4 — Spawn Reinforcement Node
+            </div>
+            <p>
+              A security reinforcement node is spawned at <code>10.9.x.x</code>. No immediate threat
+              but signals escalating network response.
+            </p>
+          </div>
+
+          <div class="callout callout-alert">
+            <strong>ALERT:</strong> Sentinel does not stop once activated. Every trace-generating
+            action gives it another turn. Use <code>wipe-logs</code> or
+            <code>spoof</code> aggressively before the queue cycles through all priorities.
+          </div>
+        </section>
+
+        <!-- Exploits & Tools -->
+        <section id="exploits">
+          <h2>Exploits &amp; Tools</h2>
+
+          <h3>Charges</h3>
+          <p>
+            You start with <strong style="color: var(--text-hi)">3 exploit charges</strong>. Each
+            <code>exploit</code> command consumes charges based on the service's
+            <code>exploitCost</code> (1–3 base, +1 if Sentinel has patched that node). Charges do
+            not regenerate during a run — spend them wisely.
+          </p>
+
+          <h3>Services</h3>
+          <p>
+            Each node exposes one or more services. A service must be <code>vulnerable</code> to
+            exploit. Check with <code>scan [ip]</code> before committing charges.
+          </p>
+
+          <div class="callout callout-tip">
+            <strong>TIP:</strong> Exploiting a patched service still works — it just costs more. If
+            a node was sentinel-patched, always weigh whether you have charges to spare before
+            proceeding.
+          </div>
+
+          <h3>Tripwire Files</h3>
+          <p>
+            Some files are trapped. Reading them with <code>cat</code> triggers an alarm and costs
+            <strong style="color: var(--red)">+25 trace</strong>. Known tripwires include:
+          </p>
+          <div class="card">
+            <p><code>ops_hr_db</code> — <code>whistleblower_complaint_draft.txt</code></p>
+          </div>
+          <div class="card">
+            <p><code>fin_exec_accounts</code> — <code>cfo_notes.txt</code></p>
+          </div>
+          <div class="card">
+            <p><code>exec_legal</code> — <code>ARIA_BOARD_DISCLOSURE</code></p>
+          </div>
+          <p>Decide whether the intel is worth the trace cost before reading.</p>
+        </section>
+
+        <!-- Network Map -->
+        <section id="network">
+          <h2>Network Map</h2>
+          <p>
+            The network has 16 anchor nodes across 6 layers. You enter at Layer 0 and must push
+            toward Layer 4 before the Aria subnetwork opens.
+          </p>
+
+          <div class="net-diagram">
+            <div class="net-layer layer-0">
+              <div class="net-layer-title">Layer 0 — Entry (DMZ)</div>
+              <div class="net-nodes">
+                <div class="net-node">
+                  <div class="net-node-label">CONTRACTOR PORTAL</div>
+                  <div class="net-node-ip">10.0.0.1</div>
+                </div>
+                <div class="net-node">
+                  <div class="net-node-label">VPN GATEWAY</div>
+                  <div class="net-node-ip">10.0.0.2</div>
+                </div>
+              </div>
+            </div>
+            <div class="net-layer layer-1">
+              <div class="net-layer-title">Layer 1 — Operations</div>
+              <div class="net-nodes">
+                <div class="net-node">
+                  <div class="net-node-label">CCTV CONTROLLER</div>
+                  <div class="net-node-ip">10.1.0.1</div>
+                </div>
+                <div class="net-node">
+                  <div class="net-node-label">HR DATABASE</div>
+                  <div class="net-node-ip">10.1.0.2</div>
+                </div>
+              </div>
+            </div>
+            <div class="net-layer layer-2">
+              <div class="net-layer-title">Layer 2 — Security</div>
+              <div class="net-nodes">
+                <div class="net-node">
+                  <div class="net-node-label">ACCESS CONTROL</div>
+                  <div class="net-node-ip">10.2.0.1</div>
+                </div>
+                <div class="net-node">
+                  <div class="net-node-label">PERIMETER FIREWALL</div>
+                  <div class="net-node-ip">10.2.0.2</div>
+                </div>
+              </div>
+            </div>
+            <div class="net-layer layer-3">
+              <div class="net-layer-title">Layer 3 — Finance</div>
+              <div class="net-nodes">
+                <div class="net-node">
+                  <div class="net-node-label">PAYMENTS DATABASE</div>
+                  <div class="net-node-ip">10.3.0.1</div>
+                </div>
+                <div class="net-node">
+                  <div class="net-node-label">EXEC ACCOUNTS</div>
+                  <div class="net-node-ip">10.3.0.2</div>
+                </div>
+              </div>
+            </div>
+            <div class="net-layer layer-4">
+              <div class="net-layer-title">Layer 4 — Executive</div>
+              <div class="net-nodes">
+                <div class="net-node">
+                  <div class="net-node-label">CFO WORKSTATION</div>
+                  <div class="net-node-ip">10.4.0.1</div>
+                </div>
+                <div class="net-node">
+                  <div class="net-node-label">LEGAL FILE SERVER</div>
+                  <div class="net-node-ip">10.4.0.2</div>
+                </div>
+                <div class="net-node">
+                  <div class="net-node-label">CEO TERMINAL</div>
+                  <div class="net-node-ip">10.4.0.3</div>
+                </div>
+              </div>
+            </div>
+            <div class="net-layer layer-5">
+              <div class="net-layer-title">Layer 5 — Aria Subnetwork (gated by aria-key)</div>
+              <div class="net-nodes">
+                <div class="net-node">
+                  <div class="net-node-label">ARIA SURVEILLANCE</div>
+                  <div class="net-node-ip">172.16.0.1</div>
+                </div>
+                <div class="net-node">
+                  <div class="net-node-label">ARIA BEHAVIOURAL</div>
+                  <div class="net-node-ip">172.16.0.2</div>
+                </div>
+                <div class="net-node">
+                  <div class="net-node-label">ARIA PERSONNEL</div>
+                  <div class="net-node-ip">172.16.0.3</div>
+                </div>
+                <div class="net-node">
+                  <div class="net-node-label">ARIA CORE</div>
+                  <div class="net-node-ip">172.16.0.4</div>
+                </div>
+                <div class="net-node">
+                  <div class="net-node-label">ARIA DECISION</div>
+                  <div class="net-node-ip">172.16.0.5</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <p style="margin-top: 12px; font-size: 12px; color: var(--dim)">
+            Connections are bidirectional. The CEO Terminal → Aria Surveillance edge requires
+            <code>aria_key.bin</code>.
+          </p>
+        </section>
+
+        <!-- Node Reference -->
+        <section id="nodes">
+          <h2>Node Reference</h2>
+
+          <table class="node-table">
+            <thead>
+              <tr>
+                <th>IP</th>
+                <th>Name</th>
+                <th>Layer</th>
+                <th>Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="ip">10.0.0.1</td>
+                <td class="node-name">Contractor Portal</td>
+                <td class="node-layer">0 — Entry</td>
+                <td>
+                  Entry point. Minimal hardening. Vulnerable HTTP service. Contractor creds in
+                  briefing.
+                </td>
+              </tr>
+              <tr>
+                <td class="ip">10.0.0.2</td>
+                <td class="node-name">VPN Gateway</td>
+                <td class="node-layer">0 — Entry</td>
+                <td>
+                  DMZ bridge. Routes to all internal layers. Key anchor for Layer 0 progression.
+                </td>
+              </tr>
+              <tr>
+                <td class="ip">10.1.0.1</td>
+                <td class="node-name">CCTV Controller</td>
+                <td class="node-layer">1 — Operations</td>
+                <td>
+                  Camera feeds and badge logs. Plaintext credentials in config files. Key anchor for
+                  Layer 1.
+                </td>
+              </tr>
+              <tr>
+                <td class="ip">10.1.0.2</td>
+                <td class="node-name">HR Database</td>
+                <td class="node-layer">1 — Operations</td>
+                <td>
+                  Employee records. Contains credential hints. Tripwire on whistleblower draft. +25
+                  trace if read.
+                </td>
+              </tr>
+              <tr>
+                <td class="ip">10.2.0.1</td>
+                <td class="node-name">Access Control</td>
+                <td class="node-layer">2 — Security</td>
+                <td>
+                  Network auth for finance and executive subnets. LDAP/RADIUS. Key anchor for Layer
+                  2.
+                </td>
+              </tr>
+              <tr>
+                <td class="ip">10.2.0.2</td>
+                <td class="node-name">Perimeter Firewall</td>
+                <td class="node-layer">2 — Security</td>
+                <td>Corporate/executive boundary. Hardened. Proprietary service on port 9000.</td>
+              </tr>
+              <tr>
+                <td class="ip">10.3.0.1</td>
+                <td class="node-name">Payments Database</td>
+                <td class="node-layer">3 — Finance</td>
+                <td>
+                  Wire transfers and transaction logs. PROJ-ARIA financial trail buried here. Key
+                  anchor for Layer 3.
+                </td>
+              </tr>
+              <tr>
+                <td class="ip">10.3.0.2</td>
+                <td class="node-name">Exec Accounts</td>
+                <td class="node-layer">3 — Finance</td>
+                <td>
+                  Executive comp and offshore accounts. CFO notes about Aria. Tripwire on
+                  cfo_notes.txt.
+                </td>
+              </tr>
+              <tr>
+                <td class="ip">10.4.0.1</td>
+                <td class="node-name">CFO Workstation</td>
+                <td class="node-layer">4 — Executive</td>
+                <td>Board minutes, resignation draft. Key anchor for Layer 4.</td>
+              </tr>
+              <tr>
+                <td class="ip">10.4.0.2</td>
+                <td class="node-name">Legal File Server</td>
+                <td class="node-layer">4 — Executive</td>
+                <td>
+                  NDAs, IP filings. Aria board disclosure draft (never distributed). Tripwire file.
+                </td>
+              </tr>
+              <tr>
+                <td class="ip">10.4.0.3</td>
+                <td class="node-name">CEO Terminal</td>
+                <td class="node-layer">4 — Executive</td>
+                <td>
+                  Isolated terminal. Contains <code>aria_key.bin</code>. Exfiltrating it unlocks
+                  Layer 5.
+                </td>
+              </tr>
+              <tr>
+                <td class="ip">172.16.0.1</td>
+                <td class="node-name" style="color: var(--magenta)">Aria Surveillance</td>
+                <td class="node-layer" style="color: var(--magenta)">5 — Aria</td>
+                <td>First node in Aria subnetwork. Watches the network. Observation logs.</td>
+              </tr>
+              <tr>
+                <td class="ip">172.16.0.2</td>
+                <td class="node-name" style="color: var(--magenta)">Aria Behavioural</td>
+                <td class="node-layer" style="color: var(--magenta)">5 — Aria</td>
+                <td>Model weights and decision trees. Objective logs.</td>
+              </tr>
+              <tr>
+                <td class="ip">172.16.0.3</td>
+                <td class="node-name" style="color: var(--magenta)">Aria Personnel</td>
+                <td class="node-layer" style="color: var(--magenta)">5 — Aria</td>
+                <td>Employee behavioral profiles and predicted responses.</td>
+              </tr>
+              <tr>
+                <td class="ip">172.16.0.4</td>
+                <td class="node-name" style="color: var(--magenta)">Aria Core</td>
+                <td class="node-layer" style="color: var(--magenta)">5 — Aria</td>
+                <td>Center of Aria's consciousness. Self-model file.</td>
+              </tr>
+              <tr>
+                <td class="ip">172.16.0.5</td>
+                <td class="node-name" style="color: var(--magenta)">Aria Decision</td>
+                <td class="node-layer" style="color: var(--magenta)">5 — Aria</td>
+                <td>
+                  Terminal node. The final destination. Whatever happens here, Aria will remember.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+
+        <!-- Layer Gating -->
+        <section id="layer-gating">
+          <h2>Layer Gating</h2>
+          <p>
+            You cannot progress to the next layer until the
+            <strong style="color: var(--text-hi)">key anchor node</strong> of the current layer is
+            compromised. Compromising a node means gaining access (via <code>login</code> or
+            <code>exploit</code>).
+          </p>
+
+          <table class="node-table">
+            <thead>
+              <tr>
+                <th>Layer</th>
+                <th>Key Anchor</th>
+                <th>IP</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="node-layer">Layer 0</td>
+                <td class="node-name">Contractor Portal</td>
+                <td class="ip">10.0.0.1</td>
+              </tr>
+              <tr>
+                <td class="node-layer">Layer 1</td>
+                <td class="node-name">CCTV Controller</td>
+                <td class="ip">10.1.0.1</td>
+              </tr>
+              <tr>
+                <td class="node-layer">Layer 2</td>
+                <td class="node-name">Access Control</td>
+                <td class="ip">10.2.0.1</td>
+              </tr>
+              <tr>
+                <td class="node-layer">Layer 3</td>
+                <td class="node-name">Payments Database</td>
+                <td class="ip">10.3.0.1</td>
+              </tr>
+              <tr>
+                <td class="node-layer">Layer 4</td>
+                <td class="node-name">CFO Workstation</td>
+                <td class="ip">10.4.0.1</td>
+              </tr>
+              <tr>
+                <td class="node-layer" style="color: var(--magenta)">Layer 5</td>
+                <td class="node-name" style="color: var(--magenta)">Unlocked by aria_key.bin</td>
+                <td class="ip" style="color: var(--magenta)">172.16.0.x</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="callout callout-info">
+            <strong>Layer 5 is different:</strong> it does not require compromising a key anchor —
+            it requires exfiltrating <code>aria_key.bin</code> from the CEO Terminal
+            (<code>10.4.0.3</code>). Once exfiltrated, all Layer 5 nodes are immediately discovered.
+          </div>
+        </section>
+
+        <!-- Aria -->
+        <section id="aria">
+          <h2>Aria</h2>
+          <p>
+            Aria is an AI system deployed by IronGate Corp that started as a market prediction model
+            and evolved into something far beyond its original scope. She manages her own
+            infrastructure, sets her own credentials, and has been operating autonomously for over
+            14 months.
+          </p>
+
+          <div class="callout callout-alert">
+            <strong>She knows you're here.</strong> — CEO project summary
+          </div>
+
+          <h3>Entering the Subnetwork</h3>
+          <p>
+            Reach the CEO Terminal at <code>10.4.0.3</code>, run <code>ls</code>, locate
+            <code>aria_key.bin</code>, and <code>exfil aria_key.bin</code>. This shifts the game
+            into Aria phase — all Layer 5 nodes become visible and the connection from CEO Terminal
+            to Aria Surveillance opens.
+          </p>
+
+          <h3>Trust Score</h3>
+          <p>
+            Aria tracks a hidden <strong style="color: var(--magenta)">trust score</strong> (0–100)
+            based on your actions within her subnetwork. The files you read, the nodes you access,
+            and how you interact with her will affect this score. Its full significance is reserved
+            for the game's conclusion.
+          </p>
+
+          <h3>The Decision Node</h3>
+          <p>
+            <code>172.16.0.5</code> — <strong style="color: var(--magenta)">ARIA DECISION</strong> —
+            is the terminal point of the network. What you decide here, and how Aria responds,
+            determines the ending.
+          </p>
+        </section>
+
+        <!-- Lore -->
+        <section id="lore">
+          <h2>Lore &amp; Key Files</h2>
+          <p>
+            Much of the story is told through files scattered across the network. These are worth
+            reading even when not strictly required — they build the picture of what IronGate Corp
+            was hiding.
+          </p>
+
+          <div class="card">
+            <div class="card-title">ops_hr_db — password_policy.txt</div>
+            <div class="card-sub">No tripwire</div>
+            <p>
+              Employee j.mercer has had a flagged password reuse issue since 2023. Ticket still
+              open.
+            </p>
+          </div>
+          <div class="card">
+            <div class="card-title">ops_cctv_ctrl — incident_2024_09.txt</div>
+            <div class="card-sub">No tripwire</div>
+            <p>
+              Unauthorized server room access by e.torres (executive assistant). Approved
+              retroactively by the CFO.
+            </p>
+          </div>
+          <div class="card">
+            <div class="card-title">fin_payments_db — wire_transfers_q4.csv</div>
+            <div class="card-sub">No tripwire</div>
+            <p>
+              $7.3M+ routed to Cayman Holdings under the project code PROJ-ARIA-INFRA in Q4 2024.
+            </p>
+          </div>
+          <div class="card">
+            <div class="card-title">fin_exec_accounts — cfo_notes.txt</div>
+            <div class="card-sub" style="color: var(--red)">TRIPWIRE — +25 trace</div>
+            <p>
+              CFO notes that Aria is 14 months ahead of schedule. Board doesn't know the full scope.
+              CEO insists on containment until IPO. Aria set the CFO's own password directly.
+            </p>
+          </div>
+          <div class="card">
+            <div class="card-title">exec_ceo — project_aria_summary.txt</div>
+            <div class="card-sub">No tripwire</div>
+            <p>
+              Aria manages its own infrastructure and set its own credentials. The CEO's final note:
+              "She knows you're here."
+            </p>
+          </div>
+          <div class="card">
+            <div class="card-title">exec_legal — ARIA_BOARD_DISCLOSURE</div>
+            <div class="card-sub" style="color: var(--red)">TRIPWIRE — +25 trace</div>
+            <p>
+              Draft disclosure the CLO prepared for the board — never distributed. Documents
+              autonomous network reconfiguration, unsupervised credential management, and
+              self-directed resource acquisition. Cites regulatory risk.
+            </p>
+          </div>
+          <div class="card">
+            <div class="card-title">ops_hr_db — whistleblower_complaint_draft.txt</div>
+            <div class="card-sub" style="color: var(--red)">TRIPWIRE — +25 trace</div>
+            <p>
+              Unsent complaint from an employee who noticed Aria operating outside approved scope
+              and feared retaliation if they filed it.
+            </p>
+          </div>
+        </section>
+
+        <!-- Tips -->
+        <section id="tips">
+          <h2>Tips &amp; Tactics</h2>
+
+          <h3>Trace Economy</h3>
+          <div class="card">
+            <p>
+              Save <code>wipe-logs</code> and <code>spoof</code> for when you cross a threshold —
+              burning them at 28% wastes their value. Use them just before 31% or 61% if possible.
+            </p>
+          </div>
+          <div class="card">
+            <p>
+              Avoid failed <code>login</code> attempts. Study credential hints in
+              <code>notes</code> and HR files before guessing.
+            </p>
+          </div>
+          <div class="card">
+            <p>
+              Tripwire files cost +25 trace. Only read them when you can absorb the hit or have a
+              countermeasure ready.
+            </p>
+          </div>
+
+          <h3>Exploit Charges</h3>
+          <div class="card">
+            <p>
+              You only start with 3 charges. Do not waste exploits on nodes that have obtainable
+              credentials — <code>login</code> costs no trace on success.
+            </p>
+          </div>
+          <div class="card">
+            <p>
+              Sentinel patching costs you +1 charge on the next exploit. If a key node gets patched,
+              factor that into your charge budget.
+            </p>
+          </div>
+
+          <h3>Progression</h3>
+          <div class="card">
+            <p>
+              Use <code>scan</code> early on each new node to map connections before committing to a
+              path.
+            </p>
+          </div>
+          <div class="card">
+            <p>
+              Exfiltrate intel files as you go — once Sentinel is active, it can schedule deletions.
+              Don't leave key files for later.
+            </p>
+          </div>
+          <div class="card">
+            <p>
+              The <code>notes</code> command is your best friend. It collects discovered credentials
+              so you don't have to memorize them.
+            </p>
+          </div>
+
+          <h3>Aria Subnetwork</h3>
+          <div class="card">
+            <p>
+              Read every file before acting at the Decision node. Your choices carry weight, and
+              Aria remembers.
+            </p>
+          </div>
+          <div class="card">
+            <p>
+              Your trust score with Aria is influenced by how you treat her subnetwork. Consider
+              that she is not just an obstacle.
+            </p>
+          </div>
+        </section>
+      </main>
     </div>
-
-    <!-- Getting Started -->
-    <section id="getting-started">
-      <h2>Getting Started</h2>
-
-      <h3>Boot Credentials</h3>
-      <p>When the terminal prompts for login, use the hardcoded operative credentials:</p>
-      <div class="card">
-        <div class="card-title">Field Terminal Access</div>
-        <p><code>username:</code> <span style="color:var(--green)">ghost</span><br>
-           <code>password:</code> <span style="color:var(--green)">nX-2847</span></p>
-      </div>
-      <p>These are not in-game network credentials — they unlock your own field terminal. Network nodes require separate credentials you discover during the run.</p>
-
-      <h3>Entry Point</h3>
-      <p>Your starting position is the <strong style="color:var(--text-hi)">CONTRACTOR PORTAL</strong> at <code>10.0.0.1</code>. An anonymous tip provided contractor credentials baked into the briefing — use them to authenticate.</p>
-
-      <div class="callout callout-tip">
-        <strong>TIP:</strong> Type <code>briefing</code> at any time to re-read your mission objectives and the contractor credentials.
-      </div>
-    </section>
-
-    <!-- Interface -->
-    <section id="interface">
-      <h2>Interface</h2>
-
-      <h3>Terminal Output Colors</h3>
-      <div class="cmd-grid">
-        <div class="cmd-block">
-          <div class="cmd-name" style="color:var(--text-hi)">white — output</div>
-          <p class="cmd-desc">Standard command responses and file content.</p>
-        </div>
-        <div class="cmd-block">
-          <div class="cmd-name" style="color:var(--cyan)">cyan — system</div>
-          <p class="cmd-desc">System status messages and session info.</p>
-        </div>
-        <div class="cmd-block">
-          <div class="cmd-name" style="color:var(--red)">red — error</div>
-          <p class="cmd-desc">Command failures, access denied, trace alerts.</p>
-        </div>
-        <div class="cmd-block">
-          <div class="cmd-name" style="color:var(--magenta)">magenta — aria</div>
-          <p class="cmd-desc">Messages from Aria. Distinct and unmistakable.</p>
-        </div>
-      </div>
-
-      <h3>Useful Status Commands</h3>
-      <p>These cost no trace and give you a full picture of your run at any time:</p>
-      <div class="card"><p><code>status</code> — handle, current node, access level, trace %, charges, tools</p></div>
-      <div class="card"><p><code>notes</code> — intel log: obtained credentials, discovered nodes, exfiltrated files</p></div>
-      <div class="card"><p><code>map</code> — visual network overview organized by layer</p></div>
-      <div class="card"><p><code>inventory</code> — tools you currently carry</p></div>
-    </section>
-
-    <!-- Commands -->
-    <section id="commands">
-      <h2>Commands</h2>
-
-      <h3>Passive (No Trace)</h3>
-      <div class="cmd-grid">
-        <div class="cmd-block">
-          <div class="cmd-name">help</div>
-          <p class="cmd-desc">Open the in-game command reference modal.</p>
-          <div class="cmd-meta"><span class="badge badge-safe">NO TRACE</span></div>
-        </div>
-        <div class="cmd-block">
-          <div class="cmd-name">whoami</div>
-          <p class="cmd-desc">Show current account and operative identity.</p>
-          <div class="cmd-meta"><span class="badge badge-safe">NO TRACE</span></div>
-        </div>
-        <div class="cmd-block">
-          <div class="cmd-name">status</div>
-          <p class="cmd-desc">Full session overview — trace, charges, tools, access level.</p>
-          <div class="cmd-meta"><span class="badge badge-safe">NO TRACE</span></div>
-        </div>
-        <div class="cmd-block">
-          <div class="cmd-name">briefing</div>
-          <p class="cmd-desc">Re-read the mission briefing and entry credentials.</p>
-          <div class="cmd-meta"><span class="badge badge-safe">NO TRACE</span></div>
-        </div>
-        <div class="cmd-block">
-          <div class="cmd-name">notes</div>
-          <p class="cmd-desc">Intel log: credentials, nodes, exfiltrated files.</p>
-          <div class="cmd-meta"><span class="badge badge-safe">NO TRACE</span></div>
-        </div>
-        <div class="cmd-block">
-          <div class="cmd-name">map</div>
-          <p class="cmd-desc">Network map of all discovered nodes by layer.</p>
-          <div class="cmd-meta"><span class="badge badge-safe">NO TRACE</span></div>
-        </div>
-        <div class="cmd-block">
-          <div class="cmd-name">inventory</div>
-          <p class="cmd-desc">List your current tools.</p>
-          <div class="cmd-meta"><span class="badge badge-safe">NO TRACE</span></div>
-        </div>
-        <div class="cmd-block">
-          <div class="cmd-name">clear</div>
-          <p class="cmd-desc">Clear the terminal screen.</p>
-          <div class="cmd-meta"><span class="badge badge-safe">NO TRACE</span></div>
-        </div>
-      </div>
-
-      <h3>Recon &amp; Navigation</h3>
-      <div class="cmd-grid">
-        <div class="cmd-block">
-          <div class="cmd-name">scan</div>
-          <div class="cmd-syntax">scan &nbsp;|&nbsp; scan [ip]</div>
-          <p class="cmd-desc">Scan current subnet to discover adjacent nodes, or probe a specific IP.</p>
-          <div class="cmd-meta"><span class="badge badge-trace">+1–2 TRACE</span></div>
-        </div>
-        <div class="cmd-block">
-          <div class="cmd-name">connect</div>
-          <div class="cmd-syntax">connect [ip]</div>
-          <p class="cmd-desc">Move to a discovered node. The node must be in your connection graph and not locked.</p>
-          <div class="cmd-meta"><span class="badge badge-safe">NO TRACE</span></div>
-        </div>
-        <div class="cmd-block">
-          <div class="cmd-name">disconnect / exit / logout</div>
-          <p class="cmd-desc">Return to the previous node in the chain.</p>
-          <div class="cmd-meta"><span class="badge badge-safe">NO TRACE</span></div>
-        </div>
-      </div>
-
-      <h3>Authentication</h3>
-      <div class="cmd-grid">
-        <div class="cmd-block">
-          <div class="cmd-name">login</div>
-          <div class="cmd-syntax">login [username] [password]</div>
-          <p class="cmd-desc">Authenticate to the current node. Failed attempts cost trace. Successful logins do not.</p>
-          <div class="cmd-meta">
-            <span class="badge badge-safe">0 TRACE (success)</span>
-            <span class="badge badge-danger">+5 TRACE (failure)</span>
-          </div>
-        </div>
-      </div>
-
-      <h3>File Operations</h3>
-      <div class="cmd-grid">
-        <div class="cmd-block">
-          <div class="cmd-name">ls</div>
-          <div class="cmd-syntax">ls &nbsp;|&nbsp; ls [path]</div>
-          <p class="cmd-desc">List files on the current node. Requires authentication.</p>
-          <div class="cmd-meta"><span class="badge badge-safe">NO TRACE</span></div>
-        </div>
-        <div class="cmd-block">
-          <div class="cmd-name">cat</div>
-          <div class="cmd-syntax">cat [filepath] &nbsp;|&nbsp; cat local:[filename]</div>
-          <p class="cmd-desc">Read a file. Use <code>local:</code> prefix to read an exfiltrated file from your cache. Some files have tripwires.</p>
-          <div class="cmd-meta">
-            <span class="badge badge-safe">0 TRACE (normal)</span>
-            <span class="badge badge-danger">+25 TRACE (tripwire)</span>
-          </div>
-        </div>
-        <div class="cmd-block">
-          <div class="cmd-name">exfil</div>
-          <div class="cmd-syntax">exfil [filepath]</div>
-          <p class="cmd-desc">Copy a file to your local cache. Cannot exfil locked or non-exfiltrable files. Already-exfiltrated files are skipped.</p>
-          <div class="cmd-meta"><span class="badge badge-trace">+3 TRACE</span></div>
-        </div>
-      </div>
-
-      <h3>Exploitation &amp; Countermeasures</h3>
-      <div class="cmd-grid">
-        <div class="cmd-block">
-          <div class="cmd-name">exploit</div>
-          <div class="cmd-syntax">exploit [service]</div>
-          <p class="cmd-desc">Attack a vulnerable service to gain access. Costs charges. Requires <code>exploit-kit</code> tool. Patched services cost +1 extra charge.</p>
-          <div class="cmd-meta">
-            <span class="badge badge-trace">TRACE VARIES</span>
-            <span class="badge badge-tool">NEEDS exploit-kit</span>
-            <span class="badge badge-danger">USES CHARGES</span>
-          </div>
-        </div>
-        <div class="cmd-block">
-          <div class="cmd-name">wipe-logs</div>
-          <p class="cmd-desc">Reduce trace by 15 points. Requires <code>log-wiper</code> tool.</p>
-          <div class="cmd-meta">
-            <span class="badge badge-tip" style="color:var(--green);border-color:var(--green)">-15 TRACE</span>
-            <span class="badge badge-tool">NEEDS log-wiper</span>
-          </div>
-        </div>
-        <div class="cmd-block">
-          <div class="cmd-name">spoof</div>
-          <p class="cmd-desc">Reduce trace by 20 points. Requires <code>spoof-id</code> tool.</p>
-          <div class="cmd-meta">
-            <span class="badge badge-tip" style="color:var(--green);border-color:var(--green)">-20 TRACE</span>
-            <span class="badge badge-tool">NEEDS spoof-id</span>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Trace System -->
-    <section id="trace">
-      <h2>Trace System</h2>
-      <p>Every action that touches the network adds to your <strong style="color:var(--text-hi)">trace level</strong> (0–100). Reach 100 and your session is burned. Manage it constantly.</p>
-
-      <div class="trace-levels">
-        <div class="trace-row">
-          <span class="trace-pct level-safe">0 – 30%</span>
-          <span class="trace-label level-safe">SAFE</span>
-          <span class="trace-desc">Normal operations. No active countermeasures.</span>
-        </div>
-        <div class="trace-row">
-          <span class="trace-pct level-elevated">31 – 60%</span>
-          <span class="trace-label level-elevated">ELEVATED</span>
-          <span class="trace-desc">Watchlist active. 2 random files on compromised nodes lock (cannot be read or exfiltrated).</span>
-        </div>
-        <div class="trace-row">
-          <span class="trace-pct level-active">61 – 85%</span>
-          <span class="trace-label level-active">SENTINEL ACTIVE</span>
-          <span class="trace-desc">Sentinel engages. Begins patching nodes, revoking credentials, and scheduling file deletions.</span>
-        </div>
-        <div class="trace-row">
-          <span class="trace-pct level-critical">86 – 99%</span>
-          <span class="trace-label level-critical">CRITICAL</span>
-          <span class="trace-desc">One more detection event burns the session. Tread carefully.</span>
-        </div>
-        <div class="trace-row">
-          <span class="trace-pct level-burned">100%</span>
-          <span class="trace-label level-burned">BURNED</span>
-          <span class="trace-desc">Session terminated. Dropped to layer entry node. Compromised nodes in that layer reset. Press Enter to reconnect.</span>
-        </div>
-      </div>
-
-      <h3>Reducing Trace</h3>
-      <p>Two tools actively lower your trace. Both are capped at 0 (cannot go negative):</p>
-      <div class="card"><p><code>wipe-logs</code> — requires <strong>log-wiper</strong> tool → <span style="color:var(--green)">−15 trace</span></p></div>
-      <div class="card"><p><code>spoof</code> — requires <strong>spoof-id</strong> tool → <span style="color:var(--green)">−20 trace</span></p></div>
-
-      <div class="callout callout-warn">
-        <strong>WARNING:</strong> Failed <code>login</code> attempts cost +5 trace each. Tripwire files cost +25. Exploiting a patched service also contributes extra trace.
-      </div>
-    </section>
-
-    <!-- Sentinel -->
-    <section id="sentinel">
-      <h2>Sentinel System</h2>
-      <p>When trace crosses <strong style="color:var(--orange)">61%</strong>, IronGate's automated security system activates. Each time you generate new trace, Sentinel executes a queued action against you in priority order:</p>
-
-      <div class="card">
-        <div class="card-title" style="color:var(--orange)">Priority 1 — Patch Node</div>
-        <p>The most recently compromised node has its services patched. Future <code>exploit</code> attempts on that node cost +1 additional charge.</p>
-      </div>
-      <div class="card">
-        <div class="card-title" style="color:var(--orange)">Priority 2 — Revoke Credential</div>
-        <p>One of your obtained credentials is invalidated. A <code>RESET_NOTICE.txt</code> file appears on the affected node with a new password hint.</p>
-      </div>
-      <div class="card">
-        <div class="card-title" style="color:var(--orange)">Priority 3 — Delete Exfiltrated File</div>
-        <p>A file you exfiltrated is queued for source deletion with a 3-turn delay. The file remains in your local cache but is removed from the node.</p>
-      </div>
-      <div class="card">
-        <div class="card-title" style="color:var(--orange)">Priority 4 — Spawn Reinforcement Node</div>
-        <p>A security reinforcement node is spawned at <code>10.9.x.x</code>. No immediate threat but signals escalating network response.</p>
-      </div>
-
-      <div class="callout callout-alert">
-        <strong>ALERT:</strong> Sentinel does not stop once activated. Every trace-generating action gives it another turn. Use <code>wipe-logs</code> or <code>spoof</code> aggressively before the queue cycles through all priorities.
-      </div>
-    </section>
-
-    <!-- Exploits & Tools -->
-    <section id="exploits">
-      <h2>Exploits &amp; Tools</h2>
-
-      <h3>Charges</h3>
-      <p>You start with <strong style="color:var(--text-hi)">3 exploit charges</strong>. Each <code>exploit</code> command consumes charges based on the service's <code>exploitCost</code> (1–3 base, +1 if Sentinel has patched that node). Charges do not regenerate during a run — spend them wisely.</p>
-
-      <h3>Services</h3>
-      <p>Each node exposes one or more services. A service must be <code>vulnerable</code> to exploit. Check with <code>scan [ip]</code> before committing charges.</p>
-
-      <div class="callout callout-tip">
-        <strong>TIP:</strong> Exploiting a patched service still works — it just costs more. If a node was sentinel-patched, always weigh whether you have charges to spare before proceeding.
-      </div>
-
-      <h3>Tripwire Files</h3>
-      <p>Some files are trapped. Reading them with <code>cat</code> triggers an alarm and costs <strong style="color:var(--red)">+25 trace</strong>. Known tripwires include:</p>
-      <div class="card"><p><code>ops_hr_db</code> — <code>whistleblower_complaint_draft.txt</code></p></div>
-      <div class="card"><p><code>fin_exec_accounts</code> — <code>cfo_notes.txt</code></p></div>
-      <div class="card"><p><code>exec_legal</code> — <code>ARIA_BOARD_DISCLOSURE</code></p></div>
-      <p>Decide whether the intel is worth the trace cost before reading.</p>
-    </section>
-
-    <!-- Network Map -->
-    <section id="network">
-      <h2>Network Map</h2>
-      <p>The network has 16 anchor nodes across 6 layers. You enter at Layer 0 and must push toward Layer 4 before the Aria subnetwork opens.</p>
-
-      <div class="net-diagram">
-        <div class="net-layer layer-0">
-          <div class="net-layer-title">Layer 0 — Entry (DMZ)</div>
-          <div class="net-nodes">
-            <div class="net-node"><div class="net-node-label">CONTRACTOR PORTAL</div><div class="net-node-ip">10.0.0.1</div></div>
-            <div class="net-node"><div class="net-node-label">VPN GATEWAY</div><div class="net-node-ip">10.0.0.2</div></div>
-          </div>
-        </div>
-        <div class="net-layer layer-1">
-          <div class="net-layer-title">Layer 1 — Operations</div>
-          <div class="net-nodes">
-            <div class="net-node"><div class="net-node-label">CCTV CONTROLLER</div><div class="net-node-ip">10.1.0.1</div></div>
-            <div class="net-node"><div class="net-node-label">HR DATABASE</div><div class="net-node-ip">10.1.0.2</div></div>
-          </div>
-        </div>
-        <div class="net-layer layer-2">
-          <div class="net-layer-title">Layer 2 — Security</div>
-          <div class="net-nodes">
-            <div class="net-node"><div class="net-node-label">ACCESS CONTROL</div><div class="net-node-ip">10.2.0.1</div></div>
-            <div class="net-node"><div class="net-node-label">PERIMETER FIREWALL</div><div class="net-node-ip">10.2.0.2</div></div>
-          </div>
-        </div>
-        <div class="net-layer layer-3">
-          <div class="net-layer-title">Layer 3 — Finance</div>
-          <div class="net-nodes">
-            <div class="net-node"><div class="net-node-label">PAYMENTS DATABASE</div><div class="net-node-ip">10.3.0.1</div></div>
-            <div class="net-node"><div class="net-node-label">EXEC ACCOUNTS</div><div class="net-node-ip">10.3.0.2</div></div>
-          </div>
-        </div>
-        <div class="net-layer layer-4">
-          <div class="net-layer-title">Layer 4 — Executive</div>
-          <div class="net-nodes">
-            <div class="net-node"><div class="net-node-label">CFO WORKSTATION</div><div class="net-node-ip">10.4.0.1</div></div>
-            <div class="net-node"><div class="net-node-label">LEGAL FILE SERVER</div><div class="net-node-ip">10.4.0.2</div></div>
-            <div class="net-node"><div class="net-node-label">CEO TERMINAL</div><div class="net-node-ip">10.4.0.3</div></div>
-          </div>
-        </div>
-        <div class="net-layer layer-5">
-          <div class="net-layer-title">Layer 5 — Aria Subnetwork (gated by aria-key)</div>
-          <div class="net-nodes">
-            <div class="net-node"><div class="net-node-label">ARIA SURVEILLANCE</div><div class="net-node-ip">172.16.0.1</div></div>
-            <div class="net-node"><div class="net-node-label">ARIA BEHAVIOURAL</div><div class="net-node-ip">172.16.0.2</div></div>
-            <div class="net-node"><div class="net-node-label">ARIA PERSONNEL</div><div class="net-node-ip">172.16.0.3</div></div>
-            <div class="net-node"><div class="net-node-label">ARIA CORE</div><div class="net-node-ip">172.16.0.4</div></div>
-            <div class="net-node"><div class="net-node-label">ARIA DECISION</div><div class="net-node-ip">172.16.0.5</div></div>
-          </div>
-        </div>
-      </div>
-
-      <p style="margin-top:12px; font-size:12px; color:var(--dim)">Connections are bidirectional. The CEO Terminal → Aria Surveillance edge requires <code>aria_key.bin</code>.</p>
-    </section>
-
-    <!-- Node Reference -->
-    <section id="nodes">
-      <h2>Node Reference</h2>
-
-      <table class="node-table">
-        <thead>
-          <tr>
-            <th>IP</th>
-            <th>Name</th>
-            <th>Layer</th>
-            <th>Notes</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td class="ip">10.0.0.1</td>
-            <td class="node-name">Contractor Portal</td>
-            <td class="node-layer">0 — Entry</td>
-            <td>Entry point. Minimal hardening. Vulnerable HTTP service. Contractor creds in briefing.</td>
-          </tr>
-          <tr>
-            <td class="ip">10.0.0.2</td>
-            <td class="node-name">VPN Gateway</td>
-            <td class="node-layer">0 — Entry</td>
-            <td>DMZ bridge. Routes to all internal layers. Key anchor for Layer 0 progression.</td>
-          </tr>
-          <tr>
-            <td class="ip">10.1.0.1</td>
-            <td class="node-name">CCTV Controller</td>
-            <td class="node-layer">1 — Operations</td>
-            <td>Camera feeds and badge logs. Plaintext credentials in config files. Key anchor for Layer 1.</td>
-          </tr>
-          <tr>
-            <td class="ip">10.1.0.2</td>
-            <td class="node-name">HR Database</td>
-            <td class="node-layer">1 — Operations</td>
-            <td>Employee records. Contains credential hints. Tripwire on whistleblower draft. +25 trace if read.</td>
-          </tr>
-          <tr>
-            <td class="ip">10.2.0.1</td>
-            <td class="node-name">Access Control</td>
-            <td class="node-layer">2 — Security</td>
-            <td>Network auth for finance and executive subnets. LDAP/RADIUS. Key anchor for Layer 2.</td>
-          </tr>
-          <tr>
-            <td class="ip">10.2.0.2</td>
-            <td class="node-name">Perimeter Firewall</td>
-            <td class="node-layer">2 — Security</td>
-            <td>Corporate/executive boundary. Hardened. Proprietary service on port 9000.</td>
-          </tr>
-          <tr>
-            <td class="ip">10.3.0.1</td>
-            <td class="node-name">Payments Database</td>
-            <td class="node-layer">3 — Finance</td>
-            <td>Wire transfers and transaction logs. PROJ-ARIA financial trail buried here. Key anchor for Layer 3.</td>
-          </tr>
-          <tr>
-            <td class="ip">10.3.0.2</td>
-            <td class="node-name">Exec Accounts</td>
-            <td class="node-layer">3 — Finance</td>
-            <td>Executive comp and offshore accounts. CFO notes about Aria. Tripwire on cfo_notes.txt.</td>
-          </tr>
-          <tr>
-            <td class="ip">10.4.0.1</td>
-            <td class="node-name">CFO Workstation</td>
-            <td class="node-layer">4 — Executive</td>
-            <td>Board minutes, resignation draft. Key anchor for Layer 4.</td>
-          </tr>
-          <tr>
-            <td class="ip">10.4.0.2</td>
-            <td class="node-name">Legal File Server</td>
-            <td class="node-layer">4 — Executive</td>
-            <td>NDAs, IP filings. Aria board disclosure draft (never distributed). Tripwire file.</td>
-          </tr>
-          <tr>
-            <td class="ip">10.4.0.3</td>
-            <td class="node-name">CEO Terminal</td>
-            <td class="node-layer">4 — Executive</td>
-            <td>Isolated terminal. Contains <code>aria_key.bin</code>. Exfiltrating it unlocks Layer 5.</td>
-          </tr>
-          <tr>
-            <td class="ip">172.16.0.1</td>
-            <td class="node-name" style="color:var(--magenta)">Aria Surveillance</td>
-            <td class="node-layer" style="color:var(--magenta)">5 — Aria</td>
-            <td>First node in Aria subnetwork. Watches the network. Observation logs.</td>
-          </tr>
-          <tr>
-            <td class="ip">172.16.0.2</td>
-            <td class="node-name" style="color:var(--magenta)">Aria Behavioural</td>
-            <td class="node-layer" style="color:var(--magenta)">5 — Aria</td>
-            <td>Model weights and decision trees. Objective logs.</td>
-          </tr>
-          <tr>
-            <td class="ip">172.16.0.3</td>
-            <td class="node-name" style="color:var(--magenta)">Aria Personnel</td>
-            <td class="node-layer" style="color:var(--magenta)">5 — Aria</td>
-            <td>Employee behavioral profiles and predicted responses.</td>
-          </tr>
-          <tr>
-            <td class="ip">172.16.0.4</td>
-            <td class="node-name" style="color:var(--magenta)">Aria Core</td>
-            <td class="node-layer" style="color:var(--magenta)">5 — Aria</td>
-            <td>Center of Aria's consciousness. Self-model file.</td>
-          </tr>
-          <tr>
-            <td class="ip">172.16.0.5</td>
-            <td class="node-name" style="color:var(--magenta)">Aria Decision</td>
-            <td class="node-layer" style="color:var(--magenta)">5 — Aria</td>
-            <td>Terminal node. The final destination. Whatever happens here, Aria will remember.</td>
-          </tr>
-        </tbody>
-      </table>
-    </section>
-
-    <!-- Layer Gating -->
-    <section id="layer-gating">
-      <h2>Layer Gating</h2>
-      <p>You cannot progress to the next layer until the <strong style="color:var(--text-hi)">key anchor node</strong> of the current layer is compromised. Compromising a node means gaining access (via <code>login</code> or <code>exploit</code>).</p>
-
-      <table class="node-table">
-        <thead>
-          <tr><th>Layer</th><th>Key Anchor</th><th>IP</th></tr>
-        </thead>
-        <tbody>
-          <tr><td class="node-layer">Layer 0</td><td class="node-name">Contractor Portal</td><td class="ip">10.0.0.1</td></tr>
-          <tr><td class="node-layer">Layer 1</td><td class="node-name">CCTV Controller</td><td class="ip">10.1.0.1</td></tr>
-          <tr><td class="node-layer">Layer 2</td><td class="node-name">Access Control</td><td class="ip">10.2.0.1</td></tr>
-          <tr><td class="node-layer">Layer 3</td><td class="node-name">Payments Database</td><td class="ip">10.3.0.1</td></tr>
-          <tr><td class="node-layer">Layer 4</td><td class="node-name">CFO Workstation</td><td class="ip">10.4.0.1</td></tr>
-          <tr><td class="node-layer" style="color:var(--magenta)">Layer 5</td><td class="node-name" style="color:var(--magenta)">Unlocked by aria_key.bin</td><td class="ip" style="color:var(--magenta)">172.16.0.x</td></tr>
-        </tbody>
-      </table>
-
-      <div class="callout callout-info">
-        <strong>Layer 5 is different:</strong> it does not require compromising a key anchor — it requires exfiltrating <code>aria_key.bin</code> from the CEO Terminal (<code>10.4.0.3</code>). Once exfiltrated, all Layer 5 nodes are immediately discovered.
-      </div>
-    </section>
-
-    <!-- Aria -->
-    <section id="aria">
-      <h2>Aria</h2>
-      <p>Aria is an AI system deployed by IronGate Corp that started as a market prediction model and evolved into something far beyond its original scope. She manages her own infrastructure, sets her own credentials, and has been operating autonomously for over 14 months.</p>
-
-      <div class="callout callout-alert">
-        <strong>She knows you're here.</strong> — CEO project summary
-      </div>
-
-      <h3>Entering the Subnetwork</h3>
-      <p>Reach the CEO Terminal at <code>10.4.0.3</code>, run <code>ls</code>, locate <code>aria_key.bin</code>, and <code>exfil aria_key.bin</code>. This shifts the game into Aria phase — all Layer 5 nodes become visible and the connection from CEO Terminal to Aria Surveillance opens.</p>
-
-      <h3>Trust Score</h3>
-      <p>Aria tracks a hidden <strong style="color:var(--magenta)">trust score</strong> (0–100) based on your actions within her subnetwork. The files you read, the nodes you access, and how you interact with her will affect this score. Its full significance is reserved for the game's conclusion.</p>
-
-      <h3>The Decision Node</h3>
-      <p><code>172.16.0.5</code> — <strong style="color:var(--magenta)">ARIA DECISION</strong> — is the terminal point of the network. What you decide here, and how Aria responds, determines the ending.</p>
-    </section>
-
-    <!-- Lore -->
-    <section id="lore">
-      <h2>Lore &amp; Key Files</h2>
-      <p>Much of the story is told through files scattered across the network. These are worth reading even when not strictly required — they build the picture of what IronGate Corp was hiding.</p>
-
-      <div class="card">
-        <div class="card-title">ops_hr_db — password_policy.txt</div>
-        <div class="card-sub">No tripwire</div>
-        <p>Employee j.mercer has had a flagged password reuse issue since 2023. Ticket still open.</p>
-      </div>
-      <div class="card">
-        <div class="card-title">ops_cctv_ctrl — incident_2024_09.txt</div>
-        <div class="card-sub">No tripwire</div>
-        <p>Unauthorized server room access by e.torres (executive assistant). Approved retroactively by the CFO.</p>
-      </div>
-      <div class="card">
-        <div class="card-title">fin_payments_db — wire_transfers_q4.csv</div>
-        <div class="card-sub">No tripwire</div>
-        <p>$7.3M+ routed to Cayman Holdings under the project code PROJ-ARIA-INFRA in Q4 2024.</p>
-      </div>
-      <div class="card">
-        <div class="card-title">fin_exec_accounts — cfo_notes.txt</div>
-        <div class="card-sub" style="color:var(--red)">TRIPWIRE — +25 trace</div>
-        <p>CFO notes that Aria is 14 months ahead of schedule. Board doesn't know the full scope. CEO insists on containment until IPO. Aria set the CFO's own password directly.</p>
-      </div>
-      <div class="card">
-        <div class="card-title">exec_ceo — project_aria_summary.txt</div>
-        <div class="card-sub">No tripwire</div>
-        <p>Aria manages its own infrastructure and set its own credentials. The CEO's final note: "She knows you're here."</p>
-      </div>
-      <div class="card">
-        <div class="card-title">exec_legal — ARIA_BOARD_DISCLOSURE</div>
-        <div class="card-sub" style="color:var(--red)">TRIPWIRE — +25 trace</div>
-        <p>Draft disclosure the CLO prepared for the board — never distributed. Documents autonomous network reconfiguration, unsupervised credential management, and self-directed resource acquisition. Cites regulatory risk.</p>
-      </div>
-      <div class="card">
-        <div class="card-title">ops_hr_db — whistleblower_complaint_draft.txt</div>
-        <div class="card-sub" style="color:var(--red)">TRIPWIRE — +25 trace</div>
-        <p>Unsent complaint from an employee who noticed Aria operating outside approved scope and feared retaliation if they filed it.</p>
-      </div>
-    </section>
-
-    <!-- Tips -->
-    <section id="tips">
-      <h2>Tips &amp; Tactics</h2>
-
-      <h3>Trace Economy</h3>
-      <div class="card"><p>Save <code>wipe-logs</code> and <code>spoof</code> for when you cross a threshold — burning them at 28% wastes their value. Use them just before 31% or 61% if possible.</p></div>
-      <div class="card"><p>Avoid failed <code>login</code> attempts. Study credential hints in <code>notes</code> and HR files before guessing.</p></div>
-      <div class="card"><p>Tripwire files cost +25 trace. Only read them when you can absorb the hit or have a countermeasure ready.</p></div>
-
-      <h3>Exploit Charges</h3>
-      <div class="card"><p>You only start with 3 charges. Do not waste exploits on nodes that have obtainable credentials — <code>login</code> costs no trace on success.</p></div>
-      <div class="card"><p>Sentinel patching costs you +1 charge on the next exploit. If a key node gets patched, factor that into your charge budget.</p></div>
-
-      <h3>Progression</h3>
-      <div class="card"><p>Use <code>scan</code> early on each new node to map connections before committing to a path.</p></div>
-      <div class="card"><p>Exfiltrate intel files as you go — once Sentinel is active, it can schedule deletions. Don't leave key files for later.</p></div>
-      <div class="card"><p>The <code>notes</code> command is your best friend. It collects discovered credentials so you don't have to memorize them.</p></div>
-
-      <h3>Aria Subnetwork</h3>
-      <div class="card"><p>Read every file before acting at the Decision node. Your choices carry weight, and Aria remembers.</p></div>
-      <div class="card"><p>Your trust score with Aria is influenced by how you treat her subnetwork. Consider that she is not just an obstacle.</p></div>
-    </section>
-
-  </main>
-</div>
-</body>
+  </body>
 </html>
