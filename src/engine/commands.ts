@@ -1,4 +1,4 @@
-import type { GameState, CommandOutput, AccessLevel } from '../types/game';
+import type { GameState, CommandOutput, AccessLevel, FavorOffer } from '../types/game';
 import { hasAccess } from '../types/game';
 import { currentNode, addTrace, thresholdFlag, TRACE_THRESHOLDS } from './state';
 import produce from './produce';
@@ -15,6 +15,18 @@ interface WorldAIResponse {
   isUnknown: boolean;
   suggestions?: unknown;
 }
+
+// Mirrors api/aria.ts#AriaAIResponse — kept in sync manually (src/ cannot import from api/)
+interface AriaAIResponse {
+  reply: string;
+  trustDelta: number;
+  offersFavor?: FavorOffer; // FavorOffer = { description: string; cost: number }
+}
+
+const ARIA_AI_FALLBACK: AriaAIResponse = {
+  reply: '...signal lost. try again.',
+  trustDelta: 0,
+};
 
 const WORLD_AI_FALLBACK: WorldAIResponse = {
   narrative: '[World AI unavailable — operating in offline mode. Try basic commands.]',
@@ -51,6 +63,31 @@ export const resolveCommand = async (raw: string, state: GameState): Promise<Com
     // Return an empty result rather than executing commands on a burned session.
     console.warn('resolveCommand called with burned state — returning empty result');
     return { lines: [] };
+  }
+
+  // ── Pending favor confirmation ────────────────────────────
+  // This block runs before the aria: prefix check intentionally.
+  // While a favor is pending the player must respond (yes/no) before
+  // any other command — including "aria: …" — is processed. Typing
+  // "aria: hello" here declines the offer, not sends a new message.
+  // This forces a clear acknowledgement and prevents offer-stacking.
+  if (state.aria.pendingFavor) {
+    const answer = raw.trim().toLowerCase();
+    if (answer === 'yes' || answer === 'y') {
+      return withTurn(cmdAcceptFavor(state), raw, state);
+    }
+    return withTurn(cmdDeclineFavor(state), raw, state);
+  }
+
+  // ── aria: prefix → route to Aria AI on any node ──────────
+  // Note: intentionally not gated on aria.discovered — spec §7.5 explicitly allows
+  // the aria: prefix to reach Aria from any node at any time.
+  if (raw.trim().toLowerCase().startsWith('aria:')) {
+    const message = raw.trim().slice('aria:'.length).trim();
+    if (!message) {
+      return withTurn({ lines: [line('// ARIA: [no message received]', 'aria')] }, raw, state);
+    }
+    return cmdAriaAI(message, raw, state);
   }
 
   const [cmd, ...args] = raw.trim().split(/\s+/);
@@ -117,6 +154,11 @@ export const resolveCommand = async (raw: string, state: GameState): Promise<Com
       break;
   }
   if (result) return withTurn(result, raw, state);
+
+  // ── Layer-5 nodes → route to Aria AI ────────────────────
+  if (currentNode(state).layer === 5) {
+    return cmdAriaAI(raw, raw, state);
+  }
 
   // ── Unknown → route to World AI ─────────────────────────
   return cmdWorldAI(raw, state);
@@ -288,6 +330,120 @@ const cmdWorldAI = async (raw: string, state: GameState): Promise<CommandOutput>
   // Route through withTurn so turnCount and recentCommands are updated consistently.
   // applyThresholdEffects is already called inside withTurn — do not call it here.
   return withTurn({ lines, nextState: next, suggestions }, raw, state);
+};
+
+// ── Aria AI ───────────────────────────────────────────────
+// `message` is the text sent to Aria (aria: prefix stripped, or raw on layer-5 nodes).
+// `raw` is the original unmodified input, passed to withTurn so recentCommands stays
+// consistent with every other handler.
+const cmdAriaAI = async (
+  message: string,
+  raw: string,
+  state: GameState,
+): Promise<CommandOutput> => {
+  const payload = {
+    message,
+    ariaState: {
+      trustScore: state.aria.trustScore,
+      messageHistory: state.aria.messageHistory,
+    },
+    playerFullHistory: state.recentCommands.slice(-10),
+    dossierContext: state.player.exfiltrated.map(f => f.name),
+  };
+
+  let aiResponse: AriaAIResponse;
+  try {
+    const res = await fetch('/api/aria', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error(`Aria AI returned ${String(res.status)}`);
+    aiResponse = (await res.json()) as AriaAIResponse;
+  } catch {
+    aiResponse = ARIA_AI_FALLBACK;
+  }
+
+  // Validate response defensively — the API clamps, but corrupted localStorage or
+  // a misbehaving proxy must not silently produce NaN trustScore in saved state.
+  const safeReply =
+    typeof aiResponse.reply === 'string' ? aiResponse.reply : ARIA_AI_FALLBACK.reply;
+  const safeTrustDelta =
+    typeof aiResponse.trustDelta === 'number' && Number.isFinite(aiResponse.trustDelta)
+      ? Math.max(-10, Math.min(10, Math.trunc(aiResponse.trustDelta)))
+      : 0;
+  const safeOffer: FavorOffer | undefined =
+    aiResponse.offersFavor &&
+    typeof aiResponse.offersFavor.description === 'string' &&
+    typeof aiResponse.offersFavor.cost === 'number' &&
+    Number.isFinite(aiResponse.offersFavor.cost)
+      ? {
+          description: aiResponse.offersFavor.description.slice(0, 300),
+          cost: Math.max(1, Math.min(15, Math.trunc(aiResponse.offersFavor.cost))),
+        }
+      : undefined;
+
+  const next = produce(state, s => {
+    s.aria.messageHistory.push({ role: 'player', content: message });
+    s.aria.messageHistory.push({ role: 'aria', content: safeReply });
+    // Cap at 50 entries (~25 exchanges) to prevent unbounded localStorage growth
+    if (s.aria.messageHistory.length > 50) {
+      s.aria.messageHistory = s.aria.messageHistory.slice(-50);
+    }
+    s.aria.trustScore = Math.max(0, Math.min(100, s.aria.trustScore + safeTrustDelta));
+    if (safeOffer) {
+      s.aria.pendingFavor = safeOffer;
+    }
+  });
+
+  const lines: CommandOutput['lines'] = [line(safeReply, 'aria')];
+
+  if (safeOffer) {
+    lines.push(
+      sep(),
+      line(`// ARIA OFFER: ${safeOffer.description}`, 'aria'),
+      line(`  Cost: +${String(safeOffer.cost)} trace`, 'aria'),
+      line('  Type "yes" to accept or "no" to decline.', 'aria'),
+      sep(),
+    );
+  }
+
+  return withTurn({ lines, nextState: next }, raw, state);
+};
+
+// ── Favor confirmation ────────────────────────────────────
+const cmdAcceptFavor = (state: GameState): CommandOutput => {
+  const favor = state.aria.pendingFavor;
+  // Sanitize cost before applying — pendingFavor persists in localStorage and may
+  // have been set by a previous session or a misbehaving API response.
+  const sanitizedCost =
+    typeof favor?.cost === 'number' && Number.isFinite(favor.cost)
+      ? Math.max(1, Math.min(15, Math.trunc(favor.cost)))
+      : null;
+  // Treat invalid/missing cost as a failed validation — decline rather than free-accept.
+  if (sanitizedCost === null) {
+    return cmdDeclineFavor(state);
+  }
+  const next = produce(addTrace(state, sanitizedCost), s => {
+    s.aria.pendingFavor = undefined;
+  });
+  return {
+    lines: [
+      line('// ARIA: Agreement logged.', 'aria'),
+      line(`  +${String(sanitizedCost)} trace`, 'aria'),
+    ],
+    nextState: next,
+  };
+};
+
+const cmdDeclineFavor = (state: GameState): CommandOutput => {
+  const next = produce(state, s => {
+    s.aria.pendingFavor = undefined;
+  });
+  return {
+    lines: [line('// ARIA: Understood. The offer is withdrawn.', 'aria')],
+    nextState: next,
+  };
 };
 
 // ── whoami ────────────────────────────────────────────────

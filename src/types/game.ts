@@ -129,10 +129,16 @@ export interface AriaMessage {
   content: string;
 }
 
+export interface FavorOffer {
+  description: string;
+  cost: number; // trace penalty for accepting
+}
+
 export interface AriaState {
   discovered: boolean;
   trustScore: number; // 0–100, hidden from player
   messageHistory: AriaMessage[];
+  pendingFavor?: FavorOffer; // set when Aria offers a favor requiring confirmation
 }
 
 // ── Sentinel ───────────────────────────────────────────────
