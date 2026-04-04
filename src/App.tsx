@@ -35,7 +35,7 @@ const computeContextSuggestions = (state: GameState): string[] => {
       c => c.obtained && !c.revoked && c.validOnNodes.includes(node.id),
     );
     if (obtained) {
-      suggestions.push(`login ${obtained.username} ${obtained.password}`);
+      suggestions.push(`login ${obtained.username} <password>`);
     }
     const vulnerable = node.services.find(s => s.vulnerable && !s.patched);
     if (vulnerable && state.player.tools.some(t => t.id === 'exploit-kit')) {
@@ -161,7 +161,9 @@ export const App = () => {
         const resetNodes = Object.values(gameState.network.nodes).filter(
           n => n && n.layer === burnedLayer && n.compromised,
         );
-        const retainedCreds = gameState.player.credentials.filter(c => c.obtained).length;
+        const retainedCreds = gameState.player.credentials.filter(
+          c => c.obtained && !c.revoked,
+        ).length;
         const retainedExfils = gameState.player.exfiltrated.length;
 
         const retryState = burnRetry(gameState);

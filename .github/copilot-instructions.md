@@ -82,7 +82,8 @@ splash → login_user → login_pass → booting → resume_prompt → playing �
 
 ## Planned phases (do not implement ahead of time)
 
+- **Phase 3**: Vercel serverless functions `/api/world-ai`, `/api/file-content`, `/api/aria`; env vars `GROQ_API_KEY`, `GEMINI_API_KEY`
+- **Phase 4**: Procedural filler node generator seeded per run
+- **Phase 5**: Trace thresholds (31/61/86/100%) and Sentinel system
 - **Phase 6**: Aria subnetwork dialogue with trust score
 - **Phase 7**: Four endings — LEAK / SELL / DESTROY / FREE
-
-> Phases 3–5 are already implemented. The `/api` routes, procedural filler nodes, trace thresholds, and Sentinel system are all active. Do not rewrite or duplicate them — extend only when explicitly requested.
