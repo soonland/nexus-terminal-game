@@ -488,7 +488,8 @@ const cmdDecisionTerminal = async (
   raw: string,
   state: GameState,
 ): Promise<CommandOutput> => {
-  const endingChoice = ENDING_LABELS[choice] ?? 'LEAK';
+  // choice is guaranteed to be '1'–'4' by the gate in resolveCommand
+  const endingChoice = ENDING_LABELS[choice];
 
   // Call Aria for her final message with the ending choice as context.
   const message = `DECISION: ${endingChoice}`;

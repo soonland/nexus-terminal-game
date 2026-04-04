@@ -216,7 +216,10 @@ export const App = () => {
 
       // ── Ended: new run prompt ─────────────────────────────
       if (appPhase === 'ended') {
-        if (raw.trim() !== '') return;
+        if (raw.trim() !== '') {
+          push([makeLine('system', '// Press ENTER to start a new run.')]);
+          return;
+        }
         clearSave();
         setGameState(createInitialState());
         setSessionLines([]);
@@ -360,6 +363,7 @@ export const App = () => {
             makeLine('system', 'Press ENTER to start a new run.'),
             makeLine('separator', ''),
           );
+          saveGame(next); // persist so a refresh before Enter restores the ended screen
           setAppPhase('ended');
         }
       }
