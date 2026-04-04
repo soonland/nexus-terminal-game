@@ -118,6 +118,10 @@ export const useEndingSequence = (
       return;
     }
 
+    // Reset before scheduling so a dep-change while active restarts cleanly
+    setLines([]);
+    setDone(false);
+
     const specs = buildEndingLines(endingName, trustScore);
     const timers: ReturnType<typeof setTimeout>[] = [];
 
@@ -129,7 +133,7 @@ export const useEndingSequence = (
       );
     });
 
-    const lastDelay = (specs[specs.length - 1]?.delay ?? 0) + 400;
+    const lastDelay = specs[specs.length - 1].delay + 400;
     timers.push(
       setTimeout(() => {
         setDone(true);

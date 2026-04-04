@@ -154,7 +154,13 @@ export const App = () => {
     }
   }, [bootDone, appPhase, bootLines, gameState]);
 
-  // When ending animation completes, flush lines + post-game readout and advance to ended
+  // When ending animation completes, flush lines + post-game readout and advance to ended.
+  // endingLines is spread here (persisting animation output to session history) even though it
+  // is also rendered live via allLines during ending_sequence. React 18 batches setSessionLines
+  // and setAppPhase into a single render, so the transition from ending_sequence → ended is
+  // atomic: the display never shows a duplicate frame.
+  // endingLines is intentionally omitted from deps — it is fully populated before endingDone
+  // fires (400 ms gap between last line timer and done timer), so reading it here is stable.
   useEffect(() => {
     if (!endingDone || appPhase !== 'ending_sequence' || !endingGameState) return;
 
@@ -186,7 +192,9 @@ export const App = () => {
       makeLine('separator', ''),
     ]);
     setAppPhase('ended');
-  }, [endingDone, appPhase, endingGameState, endingLines]);
+    // endingLines intentionally omitted — fully populated before endingDone fires (400 ms gap)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [endingDone, appPhase, endingGameState]);
 
   // Auto-save on state changes during play
   useEffect(() => {
@@ -272,7 +280,7 @@ export const App = () => {
       // ── Ended: new run prompt ─────────────────────────────
       if (appPhase === 'ended') {
         if (raw.trim() !== '') {
-          push([makeLine('system', '// Press ENTER for a new run.')]);
+          push([makeLine('system', '// [ENTER] New game')]);
           return;
         }
         clearSave();
