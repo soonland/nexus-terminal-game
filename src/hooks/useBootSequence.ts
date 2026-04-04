@@ -75,7 +75,11 @@ export const useBootSequence = (
   const [done, setDone] = useState(false);
 
   useEffect(() => {
-    if (!ready) return;
+    if (!ready) {
+      setLines([]);
+      setDone(false);
+      return;
+    }
 
     const timers: ReturnType<typeof setTimeout>[] = [];
     const BOOT_LINES = buildBootLines(nodeLabel, nodeIp);

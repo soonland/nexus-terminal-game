@@ -79,16 +79,12 @@ export const resolveCommand = async (raw: string, state: GameState): Promise<Com
     if (choice === '1' || choice === '2' || choice === '3' || choice === '4') {
       return cmdDecisionTerminal(choice, raw, state);
     }
-    return withTurn(
-      {
-        lines: [
-          err('// INPUT REJECTED — the terminal awaits your decision.'),
-          sys('  [1] LEAK   [2] SELL   [3] DESTROY   [4] FREE'),
-        ],
-      },
-      raw,
-      state,
-    );
+    return {
+      lines: [
+        err('// INPUT REJECTED — the terminal awaits your decision.'),
+        sys('  [1] LEAK   [2] SELL   [3] DESTROY   [4] FREE'),
+      ],
+    };
   }
 
   // ── Pending favor confirmation ────────────────────────────
@@ -529,6 +525,9 @@ const cmdDecisionTerminal = async (
     s.flags[`ending_${endingChoice.toLowerCase()}`] = true;
     s.aria.messageHistory.push({ role: 'player', content: message });
     s.aria.messageHistory.push({ role: 'aria', content: ariaFinalMessage });
+    if (s.aria.messageHistory.length > 50) {
+      s.aria.messageHistory = s.aria.messageHistory.slice(-50);
+    }
   });
 
   return withTurn(

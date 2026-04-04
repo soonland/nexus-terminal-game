@@ -110,13 +110,28 @@ export const App = () => {
   const spinnerTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const spinnerFrame = useRef(0);
 
-  // Advance booting → playing once MOTD finishes
+  // Advance booting → playing (or → ended if restoring a completed run) once MOTD finishes
   useEffect(() => {
     if (!bootDone || appPhase !== 'booting' || bootHandled.current) return;
     bootHandled.current = true;
-    setAppPhase('playing');
-    setSessionLines(prev => [...prev, ...bootLines]);
-  }, [bootDone, appPhase, bootLines]);
+    if (gameState?.phase === 'ended') {
+      const endingKey = Object.keys(gameState.flags).find(k => k.startsWith('ending_'));
+      const endingName = endingKey ? endingKey.replace('ending_', '').toUpperCase() : 'UNKNOWN';
+      setSessionLines(prev => [
+        ...prev,
+        ...bootLines,
+        makeLine('separator', ''),
+        makeLine('aria', `// SESSION TERMINATED — ENDING: ${endingName}`),
+        makeLine('separator', ''),
+        makeLine('system', 'Press ENTER to start a new run.'),
+        makeLine('separator', ''),
+      ]);
+      setAppPhase('ended');
+    } else {
+      setAppPhase('playing');
+      setSessionLines(prev => [...prev, ...bootLines]);
+    }
+  }, [bootDone, appPhase, bootLines, gameState]);
 
   // Auto-save on state changes during play
   useEffect(() => {
@@ -206,6 +221,7 @@ export const App = () => {
         setGameState(createInitialState());
         setSessionLines([]);
         setAiSuggestions([]);
+        bootHandled.current = false;
         setAppPhase('scanning');
         return;
       }
@@ -344,7 +360,6 @@ export const App = () => {
             makeLine('system', 'Press ENTER to start a new run.'),
             makeLine('separator', ''),
           );
-          saveGame(next);
           setAppPhase('ended');
         }
       }
