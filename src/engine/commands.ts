@@ -779,7 +779,6 @@ const cmdExploit = async (args: string[], state: GameState): Promise<CommandOutp
       flagsSet: {},
       nodesUnlocked: [],
       isUnknown: false,
-      suggestions: [],
     };
   }
 

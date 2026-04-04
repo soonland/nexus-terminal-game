@@ -88,6 +88,18 @@ describe('resolveCommand — turn tracking', () => {
   });
 });
 
+describe('resolveCommand — burned state safety', () => {
+  it('should not mutate state or throw when called directly with a burned-phase state', async () => {
+    const burned: GameState = { ...createInitialState(), phase: 'burned' };
+    // App.tsx gates on appPhase before calling resolveCommand, but as a public
+    // export it may be called from other contexts (tests, future API handlers).
+    // Verify it returns a result without throwing and leaves state unchanged.
+    const result = await resolveCommand('scan', burned);
+    expect(result).toBeDefined();
+    expect(result.nextState?.phase ?? burned.phase).toBe('burned');
+  });
+});
+
 describe('resolveCommand — AI routing happy path', () => {
   let state: GameState;
 

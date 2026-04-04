@@ -245,6 +245,7 @@ export const App = () => {
 
       // ── Playing ────────────────────────────────────────────
       if (!gameState || (appPhase !== 'playing' && appPhase !== 'aria')) return;
+      if (!raw.trim()) return;
 
       if (raw.trim().toLowerCase() === 'clear') {
         setSessionLines([]);
