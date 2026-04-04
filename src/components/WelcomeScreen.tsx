@@ -8,6 +8,7 @@ interface Props {
 export const WelcomeScreen = ({ onAgree }: Props) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState(false);
+  const [guideFocused, setGuideFocused] = useState(false);
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -118,6 +119,34 @@ export const WelcomeScreen = ({ onAgree }: Props) => {
         )}
         <div style={{ color: 'var(--color-output)', marginBottom: '0.5rem' }}>
           {'  Type  AGREE  and press Enter to acknowledge and begin.'}
+        </div>
+
+        {/* Guide link */}
+        <div style={{ marginBottom: '1rem', textAlign: 'right' }}>
+          <a
+            href="/guide.html"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              color: 'var(--color-system)',
+              fontSize: '0.85em',
+              textDecoration: 'none',
+              opacity: guideFocused ? 1 : 0.6,
+            }}
+            onMouseEnter={() => {
+              setGuideFocused(true);
+            }}
+            onMouseLeave={() => {
+              setGuideFocused(false);
+            }}
+            onFocus={() => {
+              setGuideFocused(true);
+            }}
+            onBlur={() => {
+              setGuideFocused(false);
+            }}>
+            {'[ gameplay guide ]'}
+          </a>
         </div>
 
         {/* Input row */}

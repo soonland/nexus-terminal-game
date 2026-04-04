@@ -49,6 +49,12 @@ const BOOT_LINES: Array<{ type: Parameters<typeof makeLine>[0]; content: string;
       content: "Type 'help' to list available commands.",
       delay: BANNER_DONE + 1300,
     },
+    {
+      // Coupled to contractor_portal in anchorNodes.ts (id, ip, label) — update here if the entry node changes.
+      type: 'system',
+      content: 'You are at CONTRACTOR PORTAL (10.0.0.1). Start with: scan',
+      delay: BANNER_DONE + 1500,
+    },
   ];
 
 export const useBootSequence = (ready: boolean): { lines: TerminalLine[]; done: boolean } => {

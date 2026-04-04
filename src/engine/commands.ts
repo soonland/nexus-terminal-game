@@ -533,12 +533,19 @@ const cmdLs = (args: string[], state: GameState): CommandOutput => {
     return { lines: [sys(`${path}: no accessible files`)] };
   }
 
+  const hasTripwire = accessible.some(f => f.tripwire);
+  const hasNoExfil = accessible.some(f => !f.exfiltrable);
   const lines: Out = [sys(`${path}:`)];
   accessible.forEach(f => {
     const tripwire = f.tripwire ? '  [!]' : '';
     const exfil = f.exfiltrable ? '' : '  [no-exfil]';
     lines.push(sys(`  ${f.name}${tripwire}${exfil}`));
   });
+  if (hasTripwire || hasNoExfil) {
+    lines.push(sep());
+    if (hasTripwire) lines.push(sys('  [!] reading this file triggers up to +25 trace'));
+    if (hasNoExfil) lines.push(sys('  [no-exfil] file is locked to this node'));
+  }
   return { lines };
 };
 
@@ -663,8 +670,13 @@ const cmdDisconnect = (state: GameState): CommandOutput => {
     s.network.previousNodeId = null;
   });
 
+  const accessInfo =
+    prevNode.accessLevel === 'none' ? 'not authenticated' : prevNode.accessLevel.toUpperCase();
   return {
-    lines: [sys(`Disconnected. Returning to ${prevNode.ip} (${prevNode.label}).`)],
+    lines: [
+      sys(`Disconnected. Returning to ${prevNode.ip} (${prevNode.label}).`),
+      sys(`  Access: ${accessInfo}`),
+    ],
     nextState: next,
   };
 };
