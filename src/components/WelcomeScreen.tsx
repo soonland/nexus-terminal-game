@@ -133,10 +133,18 @@ export const WelcomeScreen = ({ onAgree }: Props) => {
               textDecoration: 'none',
               opacity: guideFocused ? 1 : 0.6,
             }}
-            onMouseEnter={() => { setGuideFocused(true); }}
-            onMouseLeave={() => { setGuideFocused(false); }}
-            onFocus={() => { setGuideFocused(true); }}
-            onBlur={() => { setGuideFocused(false); }}>
+            onMouseEnter={() => {
+              setGuideFocused(true);
+            }}
+            onMouseLeave={() => {
+              setGuideFocused(false);
+            }}
+            onFocus={() => {
+              setGuideFocused(true);
+            }}
+            onBlur={() => {
+              setGuideFocused(false);
+            }}>
             {'[ gameplay guide ]'}
           </a>
         </div>
