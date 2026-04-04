@@ -237,6 +237,7 @@ const cmdWorldAI = async (raw: string, state: GameState): Promise<CommandOutput>
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
+    if (!res.ok) throw new Error(`World AI returned ${String(res.status)}`);
     aiResponse = (await res.json()) as WorldAIResponse;
   } catch {
     aiResponse = WORLD_AI_FALLBACK;
@@ -811,8 +812,11 @@ const cmdExploit = async (args: string[], state: GameState): Promise<CommandOutp
     next = produce(next, s => {
       const n = s.network.nodes[node.id];
       if (n) {
+        const wasCompromised = n.compromised;
         n.compromised = true;
-        n.compromisedAtTurn = s.turnCount;
+        if (!wasCompromised || n.compromisedAtTurn === undefined) {
+          n.compromisedAtTurn = s.turnCount;
+        }
         if (aiResponse.newAccessLevel) n.accessLevel = aiResponse.newAccessLevel as AccessLevel;
       }
     });

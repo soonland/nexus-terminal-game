@@ -100,7 +100,7 @@ describe('resolveCommand — burned state safety', () => {
     warnSpy.mockRestore();
     expect(result).toBeDefined();
     expect(Array.isArray(result.lines)).toBe(true);
-    // scan adds +1 trace; from 0 trace in a burned state that still stays burned
+    // In the burned-state guard, commands are not executed; the session must remain burned.
     const nextPhase = (result.nextState as GameState | undefined)?.phase ?? burned.phase;
     expect(nextPhase).toBe('burned');
   });
