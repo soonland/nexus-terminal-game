@@ -66,6 +66,11 @@ export const resolveCommand = async (raw: string, state: GameState): Promise<Com
   }
 
   // ── Pending favor confirmation ────────────────────────────
+  // This block runs before the aria: prefix check intentionally.
+  // While a favor is pending the player must respond (yes/no) before
+  // any other command — including "aria: …" — is processed. Typing
+  // "aria: hello" here declines the offer, not sends a new message.
+  // This forces a clear acknowledgement and prevents offer-stacking.
   if (state.aria.pendingFavor) {
     const answer = raw.trim().toLowerCase();
     if (answer === 'yes' || answer === 'y') {
@@ -373,7 +378,7 @@ const cmdAriaAI = async (
     typeof aiResponse.offersFavor.cost === 'number' &&
     Number.isFinite(aiResponse.offersFavor.cost)
       ? {
-          description: aiResponse.offersFavor.description,
+          description: aiResponse.offersFavor.description.slice(0, 300),
           cost: Math.max(1, Math.min(15, aiResponse.offersFavor.cost)),
         }
       : undefined;

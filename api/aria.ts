@@ -179,7 +179,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       typeof parsed.offersFavor.description === 'string' &&
       typeof parsed.offersFavor.cost === 'number'
         ? {
-            description: parsed.offersFavor.description,
+            description: parsed.offersFavor.description.slice(0, 300),
             cost: Math.max(1, Math.min(15, parsed.offersFavor.cost)),
           }
         : undefined;

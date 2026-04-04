@@ -469,6 +469,24 @@ describe('pending favor — decline', () => {
     expect(fetchMock).not.toHaveBeenCalled();
     vi.unstubAllGlobals();
   });
+
+  it('should decline (not route to Aria AI) when player types "aria: hello" while a favor is pending', async () => {
+    // The pending-favor block runs before the aria: prefix check intentionally.
+    // Typing "aria: <msg>" while a favor is pending declines the offer, not sends a new message.
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    const state = stateWithFavor();
+    const result = await resolveCommand('aria: hello', state);
+
+    // Offer declined — no network call, pendingFavor cleared
+    expect(fetchMock).not.toHaveBeenCalled();
+    const nextState = result.nextState as GameState;
+    expect(nextState.aria.pendingFavor).toBeUndefined();
+    const ariaLine = result.lines.find(l => l.type === 'aria');
+    expect(ariaLine?.content).toContain('withdrawn');
+    vi.unstubAllGlobals();
+  });
 });
 
 // ── Aria fallback (fetch failure) ──────────────────────────
