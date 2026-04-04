@@ -63,6 +63,11 @@ const computeContextSuggestions = (state: GameState): string[] => {
   return suggestions.slice(0, 5);
 };
 
+const getEndingName = (flags: Record<string, boolean>): string => {
+  const key = Object.keys(flags).find(k => k.startsWith('ending_'));
+  return key ? key.replace('ending_', '').toUpperCase() : 'UNKNOWN';
+};
+
 // Nexus Corp operative credentials
 const OPERATIVE_USER = 'ghost';
 const OPERATIVE_PASS = 'nX-2847';
@@ -79,15 +84,27 @@ type AppPhase =
   | 'booting'
   | 'playing'
   | 'aria'
-  | 'burned';
+  | 'burned'
+  | 'ended';
 
 export const App = () => {
   const [appPhase, setAppPhase] = useState<AppPhase>(() =>
     disclaimerRequired() ? 'welcome' : 'login_user',
   );
 
-  const { lines: bootLines, done: bootDone } = useBootSequence(appPhase === 'booting');
   const [gameState, setGameState] = useState<GameState | null>(null);
+  // Snapshot the boot node label/IP/hint only when entering the booting phase (via ScanDiskScreen
+  // onDone). Deriving these live from gameState would cause useBootSequence to re-fire on every
+  // connect command (currentNodeId change), triggering unnecessary setLines([]) calls.
+  const [bootLabel, setBootLabel] = useState('CONTRACTOR PORTAL');
+  const [bootIp, setBootIp] = useState('10.0.0.1');
+  const [bootHint, setBootHint] = useState('Start with: scan');
+  const { lines: bootLines, done: bootDone } = useBootSequence(
+    appPhase === 'booting',
+    bootLabel,
+    bootIp,
+    bootHint,
+  );
   const [sessionLines, setSessionLines] = useState<TerminalLine[]>(() =>
     disclaimerRequired() ? [] : [makeLine('system', 'nx-field-01 login:')],
   );
@@ -104,17 +121,36 @@ export const App = () => {
   const spinnerTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const spinnerFrame = useRef(0);
 
-  // Advance booting → playing once MOTD finishes
+  // Advance booting → playing (or → ended if restoring a completed run) once MOTD finishes
   useEffect(() => {
     if (!bootDone || appPhase !== 'booting' || bootHandled.current) return;
     bootHandled.current = true;
-    setAppPhase('playing');
-    setSessionLines(prev => [...prev, ...bootLines]);
-  }, [bootDone, appPhase, bootLines]);
+    if (gameState?.phase === 'ended') {
+      const endingName = getEndingName(gameState.flags);
+      setSessionLines(prev => [
+        ...prev,
+        ...bootLines,
+        makeLine('separator', ''),
+        makeLine('aria', `// SESSION TERMINATED — ENDING: ${endingName}`),
+        makeLine('separator', ''),
+        makeLine('system', 'Press ENTER to start a new run.'),
+        makeLine('separator', ''),
+      ]);
+      setAppPhase('ended');
+    } else {
+      setAppPhase('playing');
+      setSessionLines(prev => [...prev, ...bootLines]);
+    }
+  }, [bootDone, appPhase, bootLines, gameState]);
 
   // Auto-save on state changes during play
   useEffect(() => {
-    if (gameState?.phase === 'playing' || gameState?.phase === 'aria') saveGame(gameState);
+    if (
+      gameState?.phase === 'playing' ||
+      gameState?.phase === 'aria' ||
+      gameState?.phase === 'ended'
+    )
+      saveGame(gameState);
   }, [gameState]);
 
   // Refocus terminal input whenever all modals close
@@ -185,6 +221,21 @@ export const App = () => {
           makeLine('separator', ''),
         ]);
         setAppPhase('playing');
+        return;
+      }
+
+      // ── Ended: new run prompt ─────────────────────────────
+      if (appPhase === 'ended') {
+        if (raw.trim() !== '') {
+          push([makeLine('system', '// Press ENTER to start a new run.')]);
+          return;
+        }
+        clearSave();
+        setGameState(createInitialState());
+        setSessionLines([]);
+        setAiSuggestions([]);
+        bootHandled.current = false;
+        setAppPhase('scanning');
         return;
       }
 
@@ -312,6 +363,17 @@ export const App = () => {
           saveGame(next); // persist burned state so a refresh restores the reconnect prompt
           setAppPhase('burned');
           // Do NOT clearSave here — state is needed for burnRetry on Enter.
+        } else if (next.phase === 'ended') {
+          const endingName = getEndingName(next.flags);
+          out.push(
+            makeLine('separator', ''),
+            makeLine('aria', `// SESSION TERMINATED — ENDING: ${endingName}`),
+            makeLine('separator', ''),
+            makeLine('system', 'Press ENTER to start a new run.'),
+            makeLine('separator', ''),
+          );
+          saveGame(next); // persist so a refresh before Enter restores the ended screen
+          setAppPhase('ended');
         }
       }
 
@@ -332,7 +394,9 @@ export const App = () => {
         ? ''
         : appPhase === 'burned'
           ? '[RECONNECT]'
-          : 'nexus $';
+          : appPhase === 'ended'
+            ? '[ENDED]'
+            : 'nexus $';
   const isMasked = appPhase === 'login_pass';
   const isNoHistory = appPhase === 'login_user' || appPhase === 'login_pass';
   const inputDisabled = appPhase === 'scanning' || appPhase === 'booting' || spinnerLine !== null;
@@ -362,6 +426,12 @@ export const App = () => {
     return (
       <ScanDiskScreen
         onDone={() => {
+          const node = gameState?.network.nodes[gameState.network.currentNodeId];
+          setBootLabel(node?.label ?? 'CONTRACTOR PORTAL');
+          setBootIp(node?.ip ?? '10.0.0.1');
+          setBootHint(
+            node?.id === 'aria_decision' ? 'Choose your ending: type 1–4.' : 'Start with: scan',
+          );
           setSessionLines([]);
           setAppPhase('booting');
         }}

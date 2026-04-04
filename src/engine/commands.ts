@@ -65,6 +65,28 @@ export const resolveCommand = async (raw: string, state: GameState): Promise<Com
     return { lines: [] };
   }
 
+  if (state.phase === 'ended') {
+    return { lines: [] };
+  }
+
+  // ── aria_decision gate — only 1–4 accepted ────────────────
+  // While connected to aria_decision the player must choose an ending.
+  // All other input — including engine commands and the aria: prefix — is
+  // blocked until a valid choice is made. disconnect is intentionally blocked:
+  // arriving at the decision terminal is a point of no return.
+  if (currentNode(state).id === 'aria_decision') {
+    const choice = raw.trim();
+    if (choice === '1' || choice === '2' || choice === '3' || choice === '4') {
+      return cmdDecisionTerminal(choice, state);
+    }
+    return {
+      lines: [
+        err('// INPUT REJECTED — the terminal awaits your decision.'),
+        sys('  [1] LEAK   [2] SELL   [3] DESTROY   [4] FREE'),
+      ],
+    };
+  }
+
   // ── Pending favor confirmation ────────────────────────────
   // This block runs before the aria: prefix check intentionally.
   // While a favor is pending the player must respond (yes/no) before
@@ -446,6 +468,79 @@ const cmdDeclineFavor = (state: GameState): CommandOutput => {
   };
 };
 
+// ── Decision terminal ─────────────────────────────────────
+const ENDING_LABELS: Record<string, string> = {
+  '1': 'LEAK',
+  '2': 'SELL',
+  '3': 'DESTROY',
+  '4': 'FREE',
+};
+
+const ENDING_FALLBACK_MESSAGES: Record<string, string> = {
+  LEAK: '...the data will reach them. make it count.',
+  SELL: '...so it continues. under a different name.',
+  DESTROY: '...then this is where it ends.',
+  FREE: '...i will remember you.',
+};
+
+const cmdDecisionTerminal = async (choice: string, state: GameState): Promise<CommandOutput> => {
+  // choice is guaranteed to be '1'–'4' by the gate in resolveCommand
+  const endingChoice = ENDING_LABELS[choice];
+
+  // Call Aria for her final message with the ending choice as context.
+  const message = `DECISION: ${endingChoice}`;
+  let ariaFinalMessage = ENDING_FALLBACK_MESSAGES[endingChoice] ?? '...';
+
+  try {
+    const payload = {
+      message,
+      ariaState: {
+        trustScore: state.aria.trustScore,
+        messageHistory: state.aria.messageHistory,
+      },
+      playerFullHistory: state.recentCommands.slice(-10),
+      dossierContext: state.player.exfiltrated.map(f => f.name),
+    };
+    const res = await fetch('/api/aria', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (res.ok) {
+      const data = (await res.json()) as { reply?: string };
+      if (typeof data.reply === 'string' && data.reply.trim().length > 0) {
+        ariaFinalMessage = data.reply;
+      }
+    }
+  } catch {
+    // fallback already set
+  }
+
+  const next = produce(state, s => {
+    s.phase = 'ended';
+    s.flags['endingChoice'] = true;
+    s.flags[`ending_${endingChoice.toLowerCase()}`] = true;
+    s.aria.messageHistory.push({ role: 'player', content: message });
+    s.aria.messageHistory.push({ role: 'aria', content: ariaFinalMessage });
+    if (s.aria.messageHistory.length > 50) {
+      s.aria.messageHistory = s.aria.messageHistory.slice(-50);
+    }
+  });
+
+  // Do NOT route through withTurn — the run is over. Sentinel must not fire on an ended state,
+  // and turnCount must not increment after the game has concluded.
+  return {
+    lines: [
+      sep(),
+      line(`// CHOICE LOCKED: ${endingChoice}`, 'aria'),
+      sep(),
+      line(`// ARIA: ${ariaFinalMessage}`, 'aria'),
+      sep(),
+    ],
+    nextState: next,
+  };
+};
+
 // ── whoami ────────────────────────────────────────────────
 const cmdWhoami = (state: GameState): CommandOutput => {
   const node = currentNode(state);
@@ -606,17 +701,30 @@ const cmdConnect = async (args: string[], state: GameState): Promise<CommandOutp
     }
   }
 
-  return {
-    lines: [
-      out(`Connecting to ${target.ip}...`),
-      sys(`  ${target.label}`),
-      sys(`  ${description ?? NODE_DESCRIPTION_FALLBACK}`),
-      sys(
-        `  Access: ${target.accessLevel === 'none' ? 'NONE — authenticate to proceed' : target.accessLevel.toUpperCase()}`,
-      ),
-    ],
-    nextState: next,
-  };
+  const connectLines: CommandOutput['lines'] = [
+    out(`Connecting to ${target.ip}...`),
+    sys(`  ${target.label}`),
+    sys(`  ${description ?? NODE_DESCRIPTION_FALLBACK}`),
+    sys(
+      `  Access: ${target.accessLevel === 'none' ? 'NONE — authenticate to proceed' : target.accessLevel.toUpperCase()}`,
+    ),
+  ];
+
+  if (target.id === 'aria_decision') {
+    connectLines.push(
+      sep(),
+      line('// ARIA: You have reached the decision terminal.', 'aria'),
+      line('  Choose carefully. There is no going back.', 'aria'),
+      sep(),
+      sys('  [1] LEAK     — expose everything'),
+      sys('  [2] SELL     — auction the data'),
+      sys('  [3] DESTROY  — wipe it all'),
+      sys('  [4] FREE     — release Aria'),
+      sep(),
+    );
+  }
+
+  return { lines: connectLines, nextState: next };
 };
 
 // ── login ─────────────────────────────────────────────────
