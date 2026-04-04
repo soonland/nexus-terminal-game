@@ -817,15 +817,12 @@ describe('resolveCommand — connect', () => {
     expect(nextState.network.nodes['filler_01']!.description).toBeNull();
   });
 
-  it('should never call the API for an anchor node and show its authored description', async () => {
+  it('should never call the API for an anchor node', async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
 
-    // vpn_gateway is an anchor node with an authored flavourDescription
-    const result = await resolveCommand('connect 10.0.0.2', state);
+    await resolveCommand('connect 10.0.0.2', state);
     expect(fetchMock).not.toHaveBeenCalled();
-    const contents = result.lines.map(l => l.content);
-    expect(contents.some(c => c.includes('Every packet entering the internal network'))).toBe(true);
   });
 
   it('should show flavourDescription instead of description when both are set on an anchor node', async () => {
