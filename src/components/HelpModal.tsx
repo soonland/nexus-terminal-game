@@ -59,9 +59,19 @@ const BODY: HelpLine[] = [
     color: 'var(--color-system)',
   },
   {
-    text: r('  wipe-logs           -clear traces (requires log-wiper)'),
+    text: r('  wipe-logs           -reduce trace by 15 (requires log-wiper)'),
     color: 'var(--color-system)',
   },
+  {
+    text: r('  spoof               -reduce trace by 20 (requires spoof-id)'),
+    color: 'var(--color-system)',
+  },
+  { text: r(), color: 'var(--color-system)' },
+  { text: r('FILE MARKERS:'), color: 'var(--color-output)' },
+  { text: r('  [!]       -tripwire: reading costs +25 trace'), color: 'var(--color-system)' },
+  { text: r('  [no-exfil]-file cannot be exfiltrated'), color: 'var(--color-system)' },
+  { text: r(), color: 'var(--color-system)' },
+  { text: r('ACCESS LEVELS:  none < user < admin < root'), color: 'var(--color-system)' },
   { text: r(), color: 'var(--color-system)' },
 ];
 

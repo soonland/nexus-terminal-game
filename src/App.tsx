@@ -23,6 +23,40 @@ import {
   recordDisclaimerAgreement,
 } from './engine/persistence';
 
+const computeContextSuggestions = (state: GameState): string[] => {
+  const node = state.network.nodes[state.network.currentNodeId];
+  if (!node) return [];
+  const suggestions: string[] = [];
+
+  if (node.accessLevel === 'none') {
+    suggestions.push('scan');
+    const obtained = state.player.credentials.find(
+      c => c.obtained && !c.revoked && c.validOnNodes.includes(node.id),
+    );
+    if (obtained) {
+      suggestions.push(`login ${obtained.username} ${obtained.password}`);
+    }
+    const vulnerable = node.services.find(s => s.vulnerable && !s.patched);
+    if (vulnerable && state.player.tools.some(t => t.id === 'exploit-kit')) {
+      suggestions.push(`exploit ${vulnerable.name}`);
+    }
+  } else {
+    suggestions.push('ls');
+    const firstFile = node.files.find(f => !f.deleted && !f.locked && node.accessLevel !== 'none');
+    if (firstFile) suggestions.push(`cat ${firstFile.name}`);
+    const exfilable = node.files.find(f => !f.deleted && !f.locked && f.exfiltrable);
+    if (exfilable) suggestions.push(`exfil ${exfilable.name}`);
+  }
+
+  if (state.network.previousNodeId) suggestions.push('disconnect');
+
+  if (state.player.tools.some(t => t.id === 'log-wiper') && state.player.trace > 20) {
+    suggestions.push('wipe-logs');
+  }
+
+  return suggestions.slice(0, 5);
+};
+
 // Nexus Corp operative credentials
 const OPERATIVE_USER = 'ghost';
 const OPERATIVE_PASS = 'nX-2847';
@@ -114,15 +148,32 @@ export const App = () => {
           return;
         }
         if (!gameState) return;
+
+        // Compute summary before retry resets state
+        const burnedNode = gameState.network.nodes[gameState.network.currentNodeId];
+        const burnedLayer = burnedNode?.layer ?? 0;
+        const resetNodes = Object.values(gameState.network.nodes).filter(
+          n => n && n.layer === burnedLayer && n.compromised,
+        );
+        const retainedCreds = gameState.player.credentials.filter(c => c.obtained).length;
+        const retainedExfils = gameState.player.exfiltrated.length;
+
         const retryState = burnRetry(gameState);
-        saveGame(retryState); // overwrites the burned-state save; no clearSave needed
+        saveGame(retryState);
         setGameState(retryState);
         setSessionLines([]);
         setAiSuggestions([]);
         push([
           makeLine('separator', ''),
           makeLine('system', 'Reconnecting...'),
-          makeLine('system', '// Session resumed at layer entry point.'),
+          makeLine(
+            'system',
+            `// Layer ${String(burnedLayer)} reset — ${String(resetNodes.length)} node(s) de-compromised.`,
+          ),
+          makeLine(
+            'system',
+            `// Retained: ${String(retainedCreds)} credential(s), ${String(retainedExfils)} exfil(s).`,
+          ),
           makeLine('separator', ''),
         ]);
         setAppPhase('playing');
@@ -324,7 +375,15 @@ export const App = () => {
         lines={allLines}
         nodeIp={nodeIp}
         trace={trace}
-        suggestions={appPhase === 'playing' || appPhase === 'aria' ? aiSuggestions : []}
+        suggestions={
+          appPhase === 'playing' || appPhase === 'aria'
+            ? aiSuggestions.length > 0
+              ? aiSuggestions
+              : gameState
+                ? computeContextSuggestions(gameState)
+                : []
+            : []
+        }
         onSubmit={cmd => {
           void handleSubmit(cmd);
         }}

@@ -49,6 +49,11 @@ const BOOT_LINES: Array<{ type: Parameters<typeof makeLine>[0]; content: string;
       content: "Type 'help' to list available commands.",
       delay: BANNER_DONE + 1300,
     },
+    {
+      type: 'system',
+      content: 'You are at CONTRACTOR PORTAL (10.0.0.1). Start with: scan',
+      delay: BANNER_DONE + 1500,
+    },
   ];
 
 export const useBootSequence = (ready: boolean): { lines: TerminalLine[]; done: boolean } => {

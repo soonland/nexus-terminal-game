@@ -41,17 +41,26 @@ export const MapModal = ({ gameState, onClose }: Props) => {
     layerNodes.forEach(n => {
       const current = n.id === currentNodeId ? ' ◄' : '';
       const access = n.accessLevel !== 'none' ? ` [${n.accessLevel.toUpperCase()}]` : '';
+      const compromised = n.compromised ? ' !' : '';
+      const patched = n.sentinelPatched ? ' [PATCHED]' : '';
       body.push({
-        text: r(`    ${n.ip}  ${n.label}${access}${current}`),
+        text: r(`    ${n.ip}  ${n.label}${access}${compromised}${patched}${current}`),
         color: n.id === currentNodeId ? 'var(--color-output)' : 'var(--color-system)',
       });
     });
     body.push({ text: r(), color: 'var(--color-system)' });
   });
 
+  const legend: MapLine[] = [
+    { text: r('LEGEND'), color: 'var(--color-output)' },
+    { text: r('  ◄  current node    !  compromised'), color: 'var(--color-system)' },
+    { text: r('  [PATCHED]  exploit cost +1 (sentinel)'), color: 'var(--color-system)' },
+    { text: r(), color: 'var(--color-system)' },
+  ];
+
   return (
     <DosModal title=" NETWORK MAP " innerWidth={IW} onClose={onClose}>
-      {body.map((line, i) => (
+      {[...body, ...legend].map((line, i) => (
         <div key={i} style={{ ...mono, color: line.color }}>
           {line.text}
         </div>

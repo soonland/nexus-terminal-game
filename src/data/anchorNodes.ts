@@ -358,6 +358,15 @@ const ANCHOR_NODES: LiveNode[] = [
         accessRequired: 'user',
         traceOnRead: 2,
       },
+      {
+        name: 'network_segments.txt',
+        path: '/etc/acl/network_segments.txt',
+        type: 'document',
+        content:
+          '# IronGate Network Segment Registry\n# Maintained by security division\n\n10.0.0.0/24   CONTRACTOR_DMZ      (external-facing)\n10.1.0.0/24   OPERATIONS          (internal)\n10.2.0.0/24   SECURITY            (internal)\n10.3.0.0/24   FINANCE             (restricted)\n10.4.0.0/24   EXECUTIVE           (restricted)\n172.16.0.0/16 [CLASSIFIED]        (no entry in routing policy — origin unknown)',
+        exfiltrable: true,
+        accessRequired: 'user',
+      },
     ],
     accessLevel: 'none',
     compromised: false,

@@ -104,6 +104,31 @@ const LINES: Array<{ text: string; color: string; margin?: string }> = [
     margin: '0.5rem',
   },
   {
+    text: '  OPERATIONAL NOTES',
+    color: 'var(--color-output)',
+    margin: '0.25rem',
+  },
+  {
+    text: '  Every action inside their network raises your TRACE level.',
+    color: 'var(--color-system)',
+    margin: '0.25rem',
+  },
+  {
+    text: '  Hit 100% and the session burns — you lose your foothold.',
+    color: 'var(--color-system)',
+    margin: '0.25rem',
+  },
+  {
+    text: '  Exfiltrated files and found credentials survive a burn.',
+    color: 'var(--color-system)',
+    margin: '1rem',
+  },
+  {
+    text: '  ─────────────────────────────────────────────────────────────',
+    color: 'var(--color-separator)',
+    margin: '0.5rem',
+  },
+  {
     text: '  Press Enter to access your field terminal.',
     color: 'var(--color-system)',
     margin: '0.5rem',

@@ -120,6 +120,24 @@ export const WelcomeScreen = ({ onAgree }: Props) => {
           {'  Type  AGREE  and press Enter to acknowledge and begin.'}
         </div>
 
+        {/* Guide link */}
+        <div style={{ marginBottom: '1rem', textAlign: 'right' }}>
+          <a
+            href="/guide.html"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              color: 'var(--color-system)',
+              fontSize: '0.85em',
+              textDecoration: 'none',
+              opacity: 0.6,
+            }}
+            onMouseEnter={e => ((e.currentTarget as HTMLAnchorElement).style.opacity = '1')}
+            onMouseLeave={e => ((e.currentTarget as HTMLAnchorElement).style.opacity = '0.6')}>
+            {'[ gameplay guide ]'}
+          </a>
+        </div>
+
         {/* Input row */}
         <div
           style={{
