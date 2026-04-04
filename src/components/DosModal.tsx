@@ -66,15 +66,29 @@ export const DosModal = ({ title, innerWidth: IW, children, onClose }: Props) =>
           }}
         />
         {/* Box */}
-        <div style={{ position: 'relative', background: 'var(--color-bg)' }}>
-          <div style={{ ...mono, color: borderColor }}>{TOP}</div>
+        <div
+          style={{
+            position: 'relative',
+            background: 'var(--color-bg)',
+            display: 'flex',
+            flexDirection: 'column',
+            maxHeight: 'calc(100vh - 4rem)',
+          }}>
+          <div style={{ ...mono, color: borderColor, flexShrink: 0 }}>{TOP}</div>
 
-          <div style={{ maxHeight: '60vh', overflowY: 'auto' }}>{children}</div>
+          <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>{children}</div>
 
-          <div style={{ ...mono, color: borderColor }}>{MID}</div>
+          <div style={{ ...mono, color: borderColor, flexShrink: 0 }}>{MID}</div>
 
           {/* Close row */}
-          <div style={{ ...mono, color: borderColor, display: 'flex', alignItems: 'baseline' }}>
+          <div
+            style={{
+              ...mono,
+              color: borderColor,
+              display: 'flex',
+              alignItems: 'baseline',
+              flexShrink: 0,
+            }}>
             <span>{`║${' '.repeat(cPad)}`}</span>
             <button
               ref={closeRef}
@@ -111,7 +125,7 @@ export const DosModal = ({ title, innerWidth: IW, children, onClose }: Props) =>
             <span>{`${' '.repeat(cRight)}║`}</span>
           </div>
 
-          <div style={{ ...mono, color: borderColor }}>{BOT}</div>
+          <div style={{ ...mono, color: borderColor, flexShrink: 0 }}>{BOT}</div>
         </div>
       </div>
     </div>

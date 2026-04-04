@@ -37,11 +37,9 @@ export const TerminalInput = forwardRef<HTMLInputElement, Props>(
 
       if (e.key === 'Enter') {
         const value = input.value;
-        if (value) {
-          if (!noHistory && !masked) push(value);
-          onSubmit(value);
-          input.value = '';
-        }
+        if (!noHistory && !masked && value) push(value);
+        onSubmit(value);
+        input.value = '';
         e.preventDefault();
         return;
       }

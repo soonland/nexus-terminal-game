@@ -149,10 +149,7 @@ export const App = () => {
     async (raw: string) => {
       // ── Burned: retry ──────────────────────────────────────
       if (appPhase === 'burned') {
-        if (raw.trim() !== '') {
-          push([makeLine('error', '// No commands accepted — press ENTER to reconnect.')]);
-          return;
-        }
+        if (raw.trim() !== '') return;
         if (!gameState) return;
 
         // Compute summary before retry resets state
