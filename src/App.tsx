@@ -149,6 +149,9 @@ export const App = () => {
     async (raw: string) => {
       // ── Burned: retry ──────────────────────────────────────
       if (appPhase === 'burned') {
+        // Non-empty input is silently discarded — the burn screen already shows
+        // "Press ENTER to reconnect" and the [RECONNECT] prompt makes the state
+        // clear. Re-printing an error on every keystroke adds noise with no value.
         if (raw.trim() !== '') return;
         if (!gameState) return;
 

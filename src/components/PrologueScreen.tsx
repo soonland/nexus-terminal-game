@@ -128,12 +128,13 @@ const LINES: Array<{ text: string; color: string; margin?: string }> = [
     color: 'var(--color-separator)',
     margin: '0.5rem',
   },
-  {
-    text: '  Press Enter to access your field terminal.',
-    color: 'var(--color-system)',
-    margin: '0.5rem',
-  },
 ];
+
+const PROMPT_LINE = {
+  text: '  Press Enter to access your field terminal.',
+  color: 'var(--color-system)',
+  margin: '0.5rem',
+};
 
 export const PrologueScreen = ({ onContinue }: Props) => {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -148,10 +149,6 @@ export const PrologueScreen = ({ onContinue }: Props) => {
       onContinue();
     }
   };
-
-  // The last LINES entry is the "Press Enter" prompt — keep it with the input.
-  const contentLines = LINES.slice(0, -1);
-  const promptLine = LINES[LINES.length - 1];
 
   return (
     <div
@@ -178,7 +175,7 @@ export const PrologueScreen = ({ onContinue }: Props) => {
           padding: '2rem 2rem 1rem',
         }}>
         <div style={{ width: '100%', maxWidth: '68ch', whiteSpace: 'pre' }}>
-          {contentLines.map((line, i) => (
+          {LINES.map((line, i) => (
             <div key={i} style={{ color: line.color, marginBottom: line.margin ?? '0' }}>
               {line.text}
             </div>
@@ -189,8 +186,8 @@ export const PrologueScreen = ({ onContinue }: Props) => {
       {/* Pinned input area */}
       <div style={{ display: 'flex', justifyContent: 'center', padding: '0 2rem 1.5rem' }}>
         <div style={{ width: '100%', maxWidth: '68ch', whiteSpace: 'pre' }}>
-          <div style={{ color: promptLine.color, marginBottom: promptLine.margin ?? '0.5rem' }}>
-            {promptLine.text}
+          <div style={{ color: PROMPT_LINE.color, marginBottom: PROMPT_LINE.margin }}>
+            {PROMPT_LINE.text}
           </div>
           <div
             style={{

@@ -38,6 +38,13 @@ const err = (content: string) => line(content, 'error');
 const sep = () => line('', 'separator');
 
 // ── Command resolution ─────────────────────────────────────
+/**
+ * Resolve a raw command string against the current game state.
+ *
+ * Callers are responsible for gating on `state.phase` before invoking this
+ * function. In particular, commands should not be dispatched when
+ * `state.phase === 'burned'` — `App.tsx` handles that guard at the UI layer.
+ */
 export const resolveCommand = async (raw: string, state: GameState): Promise<CommandOutput> => {
   const [cmd, ...args] = raw.trim().split(/\s+/);
   const verb = cmd.toLowerCase();

@@ -89,14 +89,18 @@ describe('resolveCommand — turn tracking', () => {
 });
 
 describe('resolveCommand — burned state safety', () => {
-  it('should not mutate state or throw when called directly with a burned-phase state', async () => {
+  it('should not throw and should not clear the burned phase when called directly', async () => {
     const burned: GameState = { ...createInitialState(), phase: 'burned' };
-    // App.tsx gates on appPhase before calling resolveCommand, but as a public
-    // export it may be called from other contexts (tests, future API handlers).
-    // Verify it returns a result without throwing and leaves state unchanged.
+    // App.tsx is the authoritative gate for burned state — resolveCommand is a
+    // public export and must not crash or silently un-burn the session if called
+    // directly (e.g. from a future API handler or test harness).
+    // Contract: returns a CommandOutput and does not change phase away from burned.
     const result = await resolveCommand('scan', burned);
     expect(result).toBeDefined();
-    expect(result.nextState?.phase ?? burned.phase).toBe('burned');
+    expect(Array.isArray(result.lines)).toBe(true);
+    // scan adds +1 trace; from 0 trace in a burned state that still stays burned
+    const nextPhase = (result.nextState as GameState | undefined)?.phase ?? burned.phase;
+    expect(nextPhase).toBe('burned');
   });
 });
 
