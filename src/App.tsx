@@ -65,9 +65,13 @@ const computeContextSuggestions = (state: GameState): string[] => {
   return suggestions.slice(0, 5);
 };
 
+const VALID_ENDINGS: ReadonlyArray<EndingName> = ['LEAK', 'SELL', 'DESTROY', 'FREE'];
+
 const getEndingName = (flags: Record<string, boolean>): EndingName | 'UNKNOWN' => {
   const key = Object.keys(flags).find(k => k.startsWith('ending_'));
-  return key ? (key.replace('ending_', '').toUpperCase() as EndingName) : 'UNKNOWN';
+  if (!key) return 'UNKNOWN';
+  const name = key.replace('ending_', '').toUpperCase();
+  return (VALID_ENDINGS as readonly string[]).includes(name) ? (name as EndingName) : 'UNKNOWN';
 };
 
 // Nexus Corp operative credentials
@@ -283,7 +287,7 @@ export const App = () => {
       // ── Ended: new run prompt ─────────────────────────────
       if (appPhase === 'ended') {
         if (raw.trim() !== '') {
-          push([makeLine('system', '// [ENTER] New game')]);
+          push([makeLine('system', '[ENTER] New game')]);
           return;
         }
         clearSave();
@@ -423,7 +427,10 @@ export const App = () => {
         } else if (next.phase === 'ended') {
           saveGame(next); // persist so a refresh before Enter restores the ended screen
           setEndingGameState(next);
-          setAppPhase('ending_sequence');
+          // Skip animation entirely if the ending flag is unrecognised (should not happen,
+          // but avoids showing "// ENDING: UNKNOWN" to the player on a corrupted save).
+          const resolvedName = getEndingName(next.flags);
+          setAppPhase(resolvedName !== 'UNKNOWN' ? 'ending_sequence' : 'ended');
         }
       }
 

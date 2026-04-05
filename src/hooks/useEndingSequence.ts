@@ -135,7 +135,7 @@ export const useEndingSequence = (
       );
     });
 
-    const lastDelay = specs[specs.length - 1].delay + 400;
+    const lastDelay = specs.length > 0 ? specs[specs.length - 1].delay + 400 : 400;
     timers.push(
       setTimeout(() => {
         setDone(true);
