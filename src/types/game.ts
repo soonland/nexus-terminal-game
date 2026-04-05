@@ -139,6 +139,7 @@ export interface AriaState {
   trustScore: number; // 0–100, hidden from player
   messageHistory: AriaMessage[];
   pendingFavor?: FavorOffer; // set when Aria offers a favor requiring confirmation
+  suppressedMutations: number; // Faraday cage: count of tier-3 actions blocked
 }
 
 // ── Sentinel ───────────────────────────────────────────────

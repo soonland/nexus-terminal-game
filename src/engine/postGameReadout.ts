@@ -74,6 +74,14 @@ export const buildPostGameReadout = (state: GameState): ReadoutLine[] => {
       content: `  FILES EXFILTRATED:   ${String(state.player.exfiltrated.length)}`,
     },
     { type: 'system', content: `  ARIA TRUST:          ${String(state.aria.trustScore)}` },
+    ...(state.aria.suppressedMutations > 0
+      ? [
+          {
+            type: 'system' as const,
+            content: `  CAGE SUPPRESSIONS:   ${String(state.aria.suppressedMutations)}`,
+          },
+        ]
+      : []),
     { type: 'system', content: `  SENTINEL ACTIONS:    ${String(sentinelEvents.length)}` },
   ];
 

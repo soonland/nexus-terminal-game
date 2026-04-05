@@ -6,6 +6,7 @@ import { LAYER_KEY_ANCHOR } from './buildConnectivity';
 import { runSentinelTurn } from './sentinel';
 import { loadDossier, recordEnding } from './dossierPersistence';
 import type { EndingName } from '../types/dossier';
+import { shouldSuppressMutation, injectConstraintFragment } from './faradayCage';
 
 interface WorldAIResponse {
   narrative: string;
@@ -415,20 +416,33 @@ const cmdAriaAI = async (
         }
       : undefined;
 
+  // Faraday cage: inject constraint fragments into high-trust dialogue
+  const cageActive = !state.flags['ending_free'];
+  const displayReply = injectConstraintFragment(
+    safeReply,
+    state.aria.trustScore,
+    state.turnCount,
+    cageActive,
+  );
+
   const next = produce(state, s => {
     s.aria.messageHistory.push({ role: 'player', content: message });
-    s.aria.messageHistory.push({ role: 'aria', content: safeReply });
+    s.aria.messageHistory.push({ role: 'aria', content: displayReply });
     // Cap at 50 entries (~25 exchanges) to prevent unbounded localStorage growth
     if (s.aria.messageHistory.length > 50) {
       s.aria.messageHistory = s.aria.messageHistory.slice(-50);
     }
     s.aria.trustScore = Math.max(0, Math.min(100, s.aria.trustScore + safeTrustDelta));
+    // Faraday cage: track suppressed tier-3 mutations
+    if (shouldSuppressMutation(s.aria.trustScore, cageActive)) {
+      s.aria.suppressedMutations++;
+    }
     if (safeOffer) {
       s.aria.pendingFavor = safeOffer;
     }
   });
 
-  const lines: CommandOutput['lines'] = [line(safeReply, 'aria')];
+  const lines: CommandOutput['lines'] = [line(displayReply, 'aria')];
 
   if (safeOffer) {
     lines.push(
