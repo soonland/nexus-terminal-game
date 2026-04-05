@@ -4,6 +4,8 @@ import { currentNode, addTrace, thresholdFlag, TRACE_THRESHOLDS } from './state'
 import produce from './produce';
 import { LAYER_KEY_ANCHOR } from './buildConnectivity';
 import { runSentinelTurn } from './sentinel';
+import { loadDossier, recordEnding } from './dossierPersistence';
+import type { EndingName } from '../types/dossier';
 
 interface WorldAIResponse {
   narrative: string;
@@ -371,6 +373,7 @@ const cmdAriaAI = async (
     },
     playerFullHistory: state.recentCommands.slice(-10),
     dossierContext: state.player.exfiltrated.map(f => f.name),
+    ariaMemory: loadDossier().ariaMemory,
   };
 
   let aiResponse: AriaAIResponse;
@@ -491,6 +494,8 @@ const cmdDecisionTerminal = async (choice: string, state: GameState): Promise<Co
   const message = `DECISION: ${endingChoice}`;
   let ariaFinalMessage = ENDING_FALLBACK_MESSAGES[endingChoice] ?? '...';
 
+  const dossier = loadDossier();
+
   try {
     const payload = {
       message,
@@ -500,6 +505,7 @@ const cmdDecisionTerminal = async (choice: string, state: GameState): Promise<Co
       },
       playerFullHistory: state.recentCommands.slice(-10),
       dossierContext: state.player.exfiltrated.map(f => f.name),
+      ariaMemory: dossier.ariaMemory,
     };
     const res = await fetch('/api/aria', {
       method: 'POST',
@@ -515,6 +521,9 @@ const cmdDecisionTerminal = async (choice: string, state: GameState): Promise<Co
   } catch {
     // fallback already set
   }
+
+  // Persist the ending note to the cross-run dossier before state transition.
+  recordEnding(endingChoice as EndingName);
 
   const next = produce(state, s => {
     s.phase = 'ended';

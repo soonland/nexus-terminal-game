@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react';
 import type { TerminalLine } from '../types/terminal';
 import { makeLine } from '../types/terminal';
+export type { EndingName } from '../types/dossier';
 
 type LineSpec = { type: Parameters<typeof makeLine>[0]; content: string; delay: number };
-
-export type EndingName = 'LEAK' | 'SELL' | 'DESTROY' | 'FREE';
 
 const sep = (delay: number): LineSpec => ({ type: 'separator', content: '', delay });
 const sys = (content: string, delay: number): LineSpec => ({ type: 'system', content, delay });

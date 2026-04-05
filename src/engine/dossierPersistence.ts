@@ -1,0 +1,60 @@
+import type { Dossier, EndingName } from '../types/dossier';
+import { ARIA_MEMORY_NOTES } from '../data/ariaMemoryNotes';
+
+export const DOSSIER_KEY = 'irongate_dossier';
+const MAX_MEMORY_NOTES = 4;
+
+const emptyDossier = (): Dossier => ({
+  runsCompleted: 0,
+  endings: [],
+  ariaMemory: [],
+});
+
+export const loadDossier = (): Dossier => {
+  try {
+    const raw = localStorage.getItem(DOSSIER_KEY);
+    if (!raw) return emptyDossier();
+    return JSON.parse(raw) as Dossier;
+  } catch {
+    return emptyDossier();
+  }
+};
+
+export const saveDossier = (dossier: Dossier): void => {
+  try {
+    localStorage.setItem(DOSSIER_KEY, JSON.stringify(dossier));
+  } catch (e) {
+    console.warn('[dossier] saveDossier failed', e);
+  }
+};
+
+/**
+ * Select the appropriate Aria memory note for a given ending based on the
+ * current dossier's run depth. Run depth index is capped at 3 (depth 4).
+ */
+export const selectAriaNote = (dossier: Dossier, ending: EndingName): string => {
+  const depthIndex = Math.min(dossier.runsCompleted, MAX_MEMORY_NOTES - 1);
+  return ARIA_MEMORY_NOTES[ending][depthIndex];
+};
+
+/**
+ * Record a completed run's ending in the dossier, append the appropriate
+ * Aria memory note, and persist to localStorage.
+ */
+export const recordEnding = (ending: EndingName): void => {
+  const dossier = loadDossier();
+  const note = selectAriaNote(dossier, ending);
+  const updated: Dossier = {
+    runsCompleted: dossier.runsCompleted + 1,
+    endings: [
+      ...dossier.endings,
+      {
+        ending,
+        runDepth: Math.min(dossier.runsCompleted + 1, MAX_MEMORY_NOTES),
+        timestamp: Date.now(),
+      },
+    ],
+    ariaMemory: [...dossier.ariaMemory, note].slice(-MAX_MEMORY_NOTES),
+  };
+  saveDossier(updated);
+};
