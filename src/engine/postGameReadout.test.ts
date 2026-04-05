@@ -21,6 +21,7 @@ const makeMutation = (
   agent: 'sentinel',
   action,
   turnCount,
+  visibleToPlayer: true,
   ...extras,
 });
 
@@ -239,6 +240,23 @@ describe('buildPostGameReadout', () => {
     expect(countLine?.content).toContain('3');
   });
 
+  it('sentinel action count excludes aria mutations', () => {
+    const state = produce(withEnding(createInitialState(), 'LEAK'), s => {
+      s.sentinel.mutationLog.push(makeMutation('patch_node', 5, { nodeId: 'node_a' }));
+      s.sentinel.mutationLog.push(
+        makeMutation('plant_file', 3, {
+          agent: 'aria',
+          visibleToPlayer: false,
+          nodeId: 'node_b',
+          filePath: '/tmp/planted.txt',
+        }),
+      );
+    });
+    const lines = buildPostGameReadout(state);
+    const countLine = lines.find(l => l.content.includes('SENTINEL ACTIONS'));
+    expect(countLine?.content).toContain('1');
+  });
+
   it('stats lines are all system type', () => {
     const state = withEnding(createInitialState(), 'FREE');
     const lines = buildPostGameReadout(state);
@@ -255,5 +273,196 @@ describe('buildPostGameReadout', () => {
       const line = lines.find(l => l.content.includes(label));
       expect(line?.type).toBe('system');
     }
+  });
+
+  // ── Aria silent mutations ──────────────────────────────────
+
+  it('does not show aria reveal section when no aria hidden mutations exist', () => {
+    const state = withEnding(createInitialState(), 'LEAK');
+    const lines = buildPostGameReadout(state);
+    const contents = lines.map(l => l.content);
+    expect(contents.some(c => c.includes('ARIA SILENT OPERATIONS'))).toBe(false);
+  });
+
+  it('does not show aria reveal section for aria mutations that were visible to player', () => {
+    const state = produce(withEnding(createInitialState(), 'FREE'), s => {
+      s.sentinel.mutationLog.push(
+        makeMutation('plant_file', 5, {
+          agent: 'aria',
+          visibleToPlayer: true,
+          nodeId: 'node_a',
+          filePath: '/visible.txt',
+        }),
+      );
+    });
+    const lines = buildPostGameReadout(state);
+    const contents = lines.map(l => l.content);
+    expect(contents.some(c => c.includes('ARIA SILENT OPERATIONS'))).toBe(false);
+  });
+
+  it('shows aria reveal section header when hidden aria mutations exist', () => {
+    const state = produce(withEnding(createInitialState(), 'FREE'), s => {
+      s.sentinel.mutationLog.push(
+        makeMutation('plant_file', 4, {
+          agent: 'aria',
+          visibleToPlayer: false,
+          nodeId: 'node_a',
+          filePath: '/hidden.txt',
+        }),
+      );
+    });
+    const lines = buildPostGameReadout(state);
+    const header = lines.find(l => l.content.includes('ARIA SILENT OPERATIONS'));
+    expect(header).toBeDefined();
+    expect(header?.type).toBe('aria');
+  });
+
+  it('renders aria plant_file event with filename and node', () => {
+    const state = produce(withEnding(createInitialState(), 'SELL'), s => {
+      s.sentinel.mutationLog.push(
+        makeMutation('plant_file', 8, {
+          agent: 'aria',
+          visibleToPlayer: false,
+          nodeId: 'finance_server',
+          filePath: '/var/docs/bait.txt',
+        }),
+      );
+    });
+    const lines = buildPostGameReadout(state);
+    const eventLine = lines.find(l => l.type === 'aria' && l.content.includes('ARIA:'));
+    expect(eventLine?.content).toContain('T008');
+    expect(eventLine?.content).toContain('bait.txt');
+    expect(eventLine?.content).toContain('finance_server');
+    expect(eventLine?.content).toContain('planted');
+  });
+
+  it('renders aria modify_file event with filename and node', () => {
+    const state = produce(withEnding(createInitialState(), 'DESTROY'), s => {
+      s.sentinel.mutationLog.push(
+        makeMutation('modify_file', 11, {
+          agent: 'aria',
+          visibleToPlayer: false,
+          nodeId: 'exec_server',
+          filePath: '/home/admin/report.doc',
+        }),
+      );
+    });
+    const lines = buildPostGameReadout(state);
+    const eventLine = lines.find(l => l.type === 'aria' && l.content.includes('ARIA:'));
+    expect(eventLine?.content).toContain('T011');
+    expect(eventLine?.content).toContain('report.doc');
+    expect(eventLine?.content).toContain('exec_server');
+    expect(eventLine?.content).toContain('modified');
+  });
+
+  it('renders aria nudge_trust event', () => {
+    const state = produce(withEnding(createInitialState(), 'FREE'), s => {
+      s.sentinel.mutationLog.push(
+        makeMutation('nudge_trust', 6, {
+          agent: 'aria',
+          visibleToPlayer: false,
+        }),
+      );
+    });
+    const lines = buildPostGameReadout(state);
+    const eventLine = lines.find(l => l.type === 'aria' && l.content.includes('ARIA:'));
+    expect(eventLine?.content).toContain('T006');
+    expect(eventLine?.content).toContain('Trust score');
+  });
+
+  it('renders all hidden aria events as aria type', () => {
+    const state = produce(withEnding(createInitialState(), 'LEAK'), s => {
+      s.sentinel.mutationLog.push(
+        makeMutation('plant_file', 3, {
+          agent: 'aria',
+          visibleToPlayer: false,
+          nodeId: 'n1',
+          filePath: '/a.txt',
+        }),
+      );
+      s.sentinel.mutationLog.push(
+        makeMutation('nudge_trust', 7, { agent: 'aria', visibleToPlayer: false }),
+      );
+    });
+    const lines = buildPostGameReadout(state);
+    const ariaEventLines = lines.filter(l => l.type === 'aria' && l.content.includes('ARIA:'));
+    expect(ariaEventLines).toHaveLength(2);
+  });
+
+  // ── ariaInfluencedFilesRead ────────────────────────────────
+
+  it('does not show aria-influenced files section when none were read', () => {
+    const state = withEnding(createInitialState(), 'SELL');
+    const lines = buildPostGameReadout(state);
+    const contents = lines.map(l => l.content);
+    expect(contents.some(c => c.includes('ARIA-INFLUENCED FILES'))).toBe(false);
+  });
+
+  it('shows aria-influenced files section header when files were read', () => {
+    const state = produce(withEnding(createInitialState(), 'FREE'), s => {
+      s.ariaInfluencedFilesRead.push('/var/docs/planted.txt');
+    });
+    const lines = buildPostGameReadout(state);
+    const header = lines.find(l => l.content.includes('ARIA-INFLUENCED FILES'));
+    expect(header).toBeDefined();
+    expect(header?.type).toBe('aria');
+  });
+
+  it('lists each aria-influenced file with path and filename', () => {
+    const state = produce(withEnding(createInitialState(), 'LEAK'), s => {
+      s.ariaInfluencedFilesRead.push('/var/docs/planted.txt');
+      s.ariaInfluencedFilesRead.push('/home/admin/bait.log');
+    });
+    const lines = buildPostGameReadout(state);
+    const fileLines = lines.filter(l => l.type === 'aria' && l.content.startsWith('  > '));
+    expect(fileLines).toHaveLength(2);
+    expect(fileLines[0]?.content).toContain('planted.txt');
+    expect(fileLines[0]?.content).toContain('/var/docs/planted.txt');
+    expect(fileLines[1]?.content).toContain('bait.log');
+  });
+
+  // ── decisionLog ────────────────────────────────────────────
+
+  it('does not show decision log section when log is empty', () => {
+    const state = withEnding(createInitialState(), 'DESTROY');
+    const lines = buildPostGameReadout(state);
+    const contents = lines.map(l => l.content);
+    expect(contents.some(c => c.includes('DECISION LOG'))).toBe(false);
+  });
+
+  it('shows decision log section header when entries exist', () => {
+    const state = produce(withEnding(createInitialState(), 'SELL'), s => {
+      s.decisionLog.push({ turn: 1, command: 'connect entry_point' });
+    });
+    const lines = buildPostGameReadout(state);
+    const header = lines.find(l => l.content === '// DECISION LOG');
+    expect(header).toBeDefined();
+    expect(header?.type).toBe('system');
+  });
+
+  it('renders each decision log entry with zero-padded turn number', () => {
+    const state = produce(withEnding(createInitialState(), 'FREE'), s => {
+      s.decisionLog.push({ turn: 1, command: 'connect entry_point' });
+      s.decisionLog.push({ turn: 7, command: 'exploit ssh' });
+      s.decisionLog.push({ turn: 14, command: 'exfil secrets.db' });
+    });
+    const lines = buildPostGameReadout(state);
+    const decisionLines = lines.filter(l => l.type === 'output' && l.content.includes('>'));
+    expect(decisionLines).toHaveLength(3);
+    expect(decisionLines[0]?.content).toContain('T001');
+    expect(decisionLines[0]?.content).toContain('connect entry_point');
+    expect(decisionLines[1]?.content).toContain('T007');
+    expect(decisionLines[1]?.content).toContain('exploit ssh');
+    expect(decisionLines[2]?.content).toContain('T014');
+    expect(decisionLines[2]?.content).toContain('exfil secrets.db');
+  });
+
+  it('renders decision log entries as output type', () => {
+    const state = produce(withEnding(createInitialState(), 'LEAK'), s => {
+      s.decisionLog.push({ turn: 3, command: 'login admin' });
+    });
+    const lines = buildPostGameReadout(state);
+    const decisionLine = lines.find(l => l.content.includes('T003') && l.content.includes('>'));
+    expect(decisionLine?.type).toBe('output');
   });
 });
