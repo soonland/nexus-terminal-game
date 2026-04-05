@@ -99,6 +99,7 @@ export const createInitialState = (sessionSeed?: number): GameState => {
       discovered: false,
       trustScore: 0,
       messageHistory: [],
+      suppressedMutations: 0,
     },
     forks: {},
     flags: {},

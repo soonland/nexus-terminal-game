@@ -84,6 +84,7 @@ const makeState = (overrides: Partial<GameState> = {}): GameState => {
       discovered: false,
       trustScore: 50,
       messageHistory: [],
+      suppressedMutations: 0,
     },
     forks: {},
     flags: {},

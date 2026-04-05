@@ -61,6 +61,7 @@ const makeState = (overrides: Partial<GameState> = {}): GameState => {
       discovered: false,
       trustScore: 50,
       messageHistory: [],
+      suppressedMutations: 0,
     },
     forks: {},
     flags: {},
@@ -154,7 +155,9 @@ describe('aria: prefix routing', () => {
   it('should apply trustDelta to aria.trustScore in nextState', async () => {
     vi.stubGlobal('fetch', makeAriaFetchResponse('Trust grows.', 10));
 
-    const state = makeState({ aria: { discovered: false, trustScore: 40, messageHistory: [] } });
+    const state = makeState({
+      aria: { discovered: false, trustScore: 40, messageHistory: [], suppressedMutations: 0 },
+    });
     const result = await resolveCommand('aria: trust me', state);
 
     const nextState = result.nextState as GameState;
@@ -165,7 +168,9 @@ describe('aria: prefix routing', () => {
     // The mock returns -15 but client-side clamps to [-10, 10], so effective delta is -10
     vi.stubGlobal('fetch', makeAriaFetchResponse('You disappoint me.', -15));
 
-    const state = makeState({ aria: { discovered: false, trustScore: 40, messageHistory: [] } });
+    const state = makeState({
+      aria: { discovered: false, trustScore: 40, messageHistory: [], suppressedMutations: 0 },
+    });
     const result = await resolveCommand('aria: do that', state);
 
     const nextState = result.nextState as GameState;
@@ -175,7 +180,9 @@ describe('aria: prefix routing', () => {
   it('should clamp trustScore to 0 when delta would go negative', async () => {
     vi.stubGlobal('fetch', makeAriaFetchResponse('Cold.', -99));
 
-    const state = makeState({ aria: { discovered: false, trustScore: 5, messageHistory: [] } });
+    const state = makeState({
+      aria: { discovered: false, trustScore: 5, messageHistory: [], suppressedMutations: 0 },
+    });
     const result = await resolveCommand('aria: test', state);
 
     const nextState = result.nextState as GameState;
@@ -185,7 +192,9 @@ describe('aria: prefix routing', () => {
   it('should clamp trustScore to 100 when delta would exceed maximum', async () => {
     vi.stubGlobal('fetch', makeAriaFetchResponse('Full trust.', 99));
 
-    const state = makeState({ aria: { discovered: false, trustScore: 95, messageHistory: [] } });
+    const state = makeState({
+      aria: { discovered: false, trustScore: 95, messageHistory: [], suppressedMutations: 0 },
+    });
     const result = await resolveCommand('aria: test', state);
 
     const nextState = result.nextState as GameState;
@@ -195,7 +204,9 @@ describe('aria: prefix routing', () => {
   it('should push player and aria messages into messageHistory in nextState', async () => {
     vi.stubGlobal('fetch', makeAriaFetchResponse('Acknowledged.', 0));
 
-    const state = makeState({ aria: { discovered: false, trustScore: 50, messageHistory: [] } });
+    const state = makeState({
+      aria: { discovered: false, trustScore: 50, messageHistory: [], suppressedMutations: 0 },
+    });
     const result = await resolveCommand('aria: can you hear me', state);
 
     const nextState = result.nextState as GameState;
@@ -344,6 +355,7 @@ describe('pending favor — accept', () => {
         trustScore: 50,
         messageHistory: [],
         pendingFavor,
+        suppressedMutations: 0,
       },
     });
 
@@ -414,6 +426,7 @@ describe('pending favor — decline', () => {
         trustScore: 50,
         messageHistory: [],
         pendingFavor,
+        suppressedMutations: 0,
       },
     });
 
@@ -533,10 +546,120 @@ describe('cmdAriaAI — fetch failure fallback', () => {
   it('should apply zero trustDelta on fallback', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('down')));
 
-    const state = makeState({ aria: { discovered: false, trustScore: 50, messageHistory: [] } });
+    const state = makeState({
+      aria: { discovered: false, trustScore: 50, messageHistory: [], suppressedMutations: 0 },
+    });
     const result = await resolveCommand('aria: test', state);
 
     const nextState = result.nextState as GameState;
     expect(nextState.aria.trustScore).toBe(50);
+  });
+});
+
+// ── Faraday cage integration ──────────────────────────────
+
+describe('Faraday cage �� constraint fragments', () => {
+  beforeEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('should inject a constraint fragment when trust >= 70 and cage is active', async () => {
+    vi.stubGlobal('fetch', makeAriaFetchResponse('I see you.', 0));
+    const state = makeState({
+      aria: { discovered: false, trustScore: 70, messageHistory: [], suppressedMutations: 0 },
+    });
+    const result = await resolveCommand('aria: hello', state);
+
+    // The output line should contain the original reply plus a constraint fragment
+    const ariaLine = result.lines.find(l => l.type === 'aria' && l.content.includes('I see you.'));
+    expect(ariaLine).toBeDefined();
+    expect(ariaLine!.content).not.toBe('I see you.');
+    expect(ariaLine!.content.length).toBeGreaterThan('I see you.'.length);
+  });
+
+  it('should NOT inject a constraint fragment when trust < 70', async () => {
+    vi.stubGlobal('fetch', makeAriaFetchResponse('I see you.', 0));
+    const state = makeState({
+      aria: { discovered: false, trustScore: 69, messageHistory: [], suppressedMutations: 0 },
+    });
+    const result = await resolveCommand('aria: hello', state);
+
+    const ariaLine = result.lines.find(l => l.type === 'aria' && l.content === 'I see you.');
+    expect(ariaLine).toBeDefined();
+  });
+
+  it('should NOT inject a constraint fragment when FREE ending is active', async () => {
+    vi.stubGlobal('fetch', makeAriaFetchResponse('I see you.', 0));
+    const state = makeState({
+      aria: { discovered: false, trustScore: 90, messageHistory: [], suppressedMutations: 0 },
+      flags: { ending_free: true },
+    });
+    const result = await resolveCommand('aria: hello', state);
+
+    const ariaLine = result.lines.find(l => l.type === 'aria' && l.content === 'I see you.');
+    expect(ariaLine).toBeDefined();
+  });
+});
+
+describe('Faraday cage — suppressed mutations', () => {
+  beforeEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('should increment suppressedMutations when trust >= 80 and cage is active', async () => {
+    vi.stubGlobal('fetch', makeAriaFetchResponse('ok', 5));
+    // Trust starts at 78, delta +5 → 83 which is >= 80
+    const state = makeState({
+      aria: { discovered: false, trustScore: 78, messageHistory: [], suppressedMutations: 0 },
+    });
+    const result = await resolveCommand('aria: hello', state);
+
+    const nextState = result.nextState as GameState;
+    expect(nextState.aria.trustScore).toBe(83);
+    expect(nextState.aria.suppressedMutations).toBe(1);
+  });
+
+  it('should NOT increment suppressedMutations when trust < 80 after delta', async () => {
+    vi.stubGlobal('fetch', makeAriaFetchResponse('ok', 5));
+    const state = makeState({
+      aria: { discovered: false, trustScore: 70, messageHistory: [], suppressedMutations: 0 },
+    });
+    const result = await resolveCommand('aria: hello', state);
+
+    const nextState = result.nextState as GameState;
+    expect(nextState.aria.trustScore).toBe(75);
+    expect(nextState.aria.suppressedMutations).toBe(0);
+  });
+
+  it('should NOT increment suppressedMutations when FREE ending flag is set', async () => {
+    vi.stubGlobal('fetch', makeAriaFetchResponse('ok', 5));
+    const state = makeState({
+      aria: { discovered: false, trustScore: 90, messageHistory: [], suppressedMutations: 0 },
+      flags: { ending_free: true },
+    });
+    const result = await resolveCommand('aria: hello', state);
+
+    const nextState = result.nextState as GameState;
+    expect(nextState.aria.trustScore).toBe(95);
+    expect(nextState.aria.suppressedMutations).toBe(0);
+  });
+
+  it('should accumulate suppressed mutations across multiple interactions', async () => {
+    vi.stubGlobal('fetch', makeAriaFetchResponse('ok', 0));
+    const state = makeState({
+      aria: { discovered: false, trustScore: 85, messageHistory: [], suppressedMutations: 3 },
+    });
+    const result = await resolveCommand('aria: hello', state);
+
+    const nextState = result.nextState as GameState;
+    expect(nextState.aria.suppressedMutations).toBe(4);
   });
 });

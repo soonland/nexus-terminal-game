@@ -465,4 +465,24 @@ describe('buildPostGameReadout', () => {
     const decisionLine = lines.find(l => l.content.includes('T003') && l.content.includes('>'));
     expect(decisionLine?.type).toBe('output');
   });
+
+  // ── Faraday cage suppressions ───────────────────────────
+
+  it('includes CAGE SUPPRESSIONS line when suppressedMutations > 0', () => {
+    const state = produce(withEnding(createInitialState(), 'LEAK'), s => {
+      s.aria.suppressedMutations = 7;
+    });
+    const lines = buildPostGameReadout(state);
+    const cageLine = lines.find(l => l.content.includes('CAGE SUPPRESSIONS'));
+    expect(cageLine).toBeDefined();
+    expect(cageLine!.content).toContain('7');
+    expect(cageLine!.type).toBe('system');
+  });
+
+  it('does NOT include CAGE SUPPRESSIONS line when suppressedMutations is 0', () => {
+    const state = withEnding(createInitialState(), 'LEAK');
+    const lines = buildPostGameReadout(state);
+    const cageLine = lines.find(l => l.content.includes('CAGE SUPPRESSIONS'));
+    expect(cageLine).toBeUndefined();
+  });
 });
