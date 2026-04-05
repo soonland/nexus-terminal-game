@@ -144,11 +144,14 @@ export interface AriaState {
 // ── Sentinel ───────────────────────────────────────────────
 export type SentinelAction = 'patch_node' | 'revoke_credential' | 'delete_file' | 'spawn_node';
 
+export type AriaAction = 'plant_file' | 'modify_file' | 'nudge_trust';
+
 export interface MutationEvent {
   id: string;
-  agent: 'sentinel';
-  action: SentinelAction;
+  agent: 'sentinel' | 'aria';
+  action: SentinelAction | AriaAction;
   turnCount: number;
+  visibleToPlayer: boolean;
   nodeId?: string;
   credentialId?: string;
   filePath?: string;
@@ -172,6 +175,8 @@ export interface GameState {
   sessionSeed: number;
   turnCount: number;
   recentCommands: string[]; // last 8 commands for AI context
+  ariaInfluencedFilesRead: string[]; // file paths of ariaPlanted files the player has read
+  decisionLog: Array<{ turn: number; command: string }>; // key player actions with turn numbers
   player: Player;
   network: {
     currentNodeId: string;

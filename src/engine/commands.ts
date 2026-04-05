@@ -256,11 +256,18 @@ const withTurn = (result: CommandOutput, raw: string, baseState: GameState): Com
 };
 
 // ── Track command in recentCommands / turnCount ───────────
+const DECISION_COMMANDS = new Set(['connect', 'exploit', 'exfil', 'wipe-logs', 'login']);
+
 const advanceTurn = (state: GameState, raw: string): GameState => {
   const recentCommands = [...state.recentCommands, raw].slice(-8);
+  const verb = raw.trim().split(/\s+/)[0].toLowerCase();
+  const isDecision = DECISION_COMMANDS.has(verb);
   return produce(state, s => {
     s.turnCount = s.turnCount + 1;
     s.recentCommands = recentCommands;
+    if (isDecision) {
+      s.decisionLog.push({ turn: s.turnCount, command: raw.trim() });
+    }
   });
 };
 
@@ -939,6 +946,13 @@ const cmdCat = async (args: string[], state: GameState): Promise<CommandOutput> 
         if (f) f.content = content;
       });
     }
+  }
+
+  // Track ariaPlanted files the player reads
+  if (file.ariaPlanted && !next.ariaInfluencedFilesRead.includes(file.path)) {
+    next = produce(next, s => {
+      s.ariaInfluencedFilesRead.push(file.path);
+    });
   }
 
   const lines: Out = [sep()];

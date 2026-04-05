@@ -2141,3 +2141,119 @@ describe('resolveCommand — exfil locked file', () => {
     expect(result.lines[0].content).toMatch(/watchlist/i);
   });
 });
+
+// ── ariaInfluencedFilesRead ───────────────────────────────────────────────────
+
+describe('resolveCommand — ariaInfluencedFilesRead tracking', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('should add ariaPlanted file path to ariaInfluencedFilesRead when cat succeeds', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false }));
+    const state = produce(createInitialState(), s => {
+      const node = s.network.nodes['contractor_portal']!;
+      node.accessLevel = 'user';
+      node.files.push({
+        name: 'aria_note.txt',
+        path: '/files/aria_note.txt',
+        type: 'document',
+        content: 'Aria planted this.',
+        exfiltrable: true,
+        accessRequired: 'user',
+        ariaPlanted: true,
+      });
+    });
+    const result = await resolveCommand('cat aria_note.txt', state);
+    const nextState = result.nextState as GameState;
+    expect(nextState.ariaInfluencedFilesRead).toContain('/files/aria_note.txt');
+  });
+
+  it('should not add a non-ariaPlanted file path to ariaInfluencedFilesRead', async () => {
+    const state = produce(createInitialState(), s => {
+      s.network.nodes['contractor_portal']!.accessLevel = 'user';
+    });
+    const result = await resolveCommand('cat welcome.txt', state);
+    const nextState = result.nextState as GameState;
+    expect(nextState.ariaInfluencedFilesRead).toHaveLength(0);
+  });
+
+  it('should not duplicate path if ariaPlanted file is cat-ed twice', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false }));
+    const base = produce(createInitialState(), s => {
+      const node = s.network.nodes['contractor_portal']!;
+      node.accessLevel = 'user';
+      node.files.push({
+        name: 'aria_note.txt',
+        path: '/files/aria_note.txt',
+        type: 'document',
+        content: 'Aria planted this.',
+        exfiltrable: true,
+        accessRequired: 'user',
+        ariaPlanted: true,
+      });
+    });
+    const r1 = await resolveCommand('cat aria_note.txt', base);
+    const r2 = await resolveCommand('cat aria_note.txt', r1.nextState as GameState);
+    const nextState = r2.nextState as GameState;
+    expect(
+      nextState.ariaInfluencedFilesRead.filter(p => p === '/files/aria_note.txt'),
+    ).toHaveLength(1);
+  });
+});
+
+// ── decisionLog tracking ──────────────────────────────────────────────────────
+
+describe('resolveCommand — decisionLog tracking', () => {
+  let state: GameState;
+
+  beforeEach(() => {
+    state = createInitialState();
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false }));
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('should append connect command to decisionLog', async () => {
+    const result = await resolveCommand('connect 10.0.0.1', state);
+    const nextState = result.nextState as GameState;
+    expect(nextState.decisionLog).toHaveLength(1);
+    expect(nextState.decisionLog[0].command).toBe('connect 10.0.0.1');
+    expect(nextState.decisionLog[0].turn).toBe(1);
+  });
+
+  it('should append login command to decisionLog', async () => {
+    const loginState = produce(state, s => {
+      s.network.nodes['contractor_portal']!.accessLevel = 'none';
+    });
+    const result = await resolveCommand('login ghost pass', loginState);
+    const nextState = result.nextState as GameState;
+    expect(nextState.decisionLog.some(e => e.command === 'login ghost pass')).toBe(true);
+  });
+
+  it('should append exfil command to decisionLog', async () => {
+    const exfilState = produce(state, s => {
+      s.network.nodes['contractor_portal']!.accessLevel = 'user';
+    });
+    const result = await resolveCommand('exfil welcome.txt', exfilState);
+    const nextState = result.nextState as GameState;
+    expect(nextState.decisionLog.some(e => e.command === 'exfil welcome.txt')).toBe(true);
+  });
+
+  it('should NOT append non-decision commands to decisionLog', async () => {
+    const r1 = await resolveCommand('scan', state);
+    const r2 = await resolveCommand('status', r1.nextState as GameState);
+    const r3 = await resolveCommand('help', r2.nextState as GameState);
+    const nextState = r3.nextState as GameState;
+    expect(nextState.decisionLog).toHaveLength(0);
+  });
+
+  it('should record the turn number at the time the command fires', async () => {
+    const seeded: GameState = { ...state, turnCount: 4 };
+    const result = await resolveCommand('connect 10.0.0.1', seeded);
+    const nextState = result.nextState as GameState;
+    expect(nextState.decisionLog[0].turn).toBe(5);
+  });
+});

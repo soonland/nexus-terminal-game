@@ -69,6 +69,8 @@ export const createInitialState = (sessionSeed?: number): GameState => {
     sessionSeed: resolvedSeed,
     turnCount: 0,
     recentCommands: [],
+    ariaInfluencedFilesRead: [],
+    decisionLog: [],
     player: {
       handle: 'ghost',
       trace: 0,
