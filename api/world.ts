@@ -34,24 +34,24 @@ const GEMINI_API_URL =
 
 export interface WorldAIRequest {
   command: string;
-  currentNode: {
+  currentNode?: {
     id: string;
     ip: string;
     label: string;
     layer: number;
     // Mirrors AccessLevel from src/types/game.ts — kept in sync manually (api/ cannot import from src/)
     accessLevel: 'none' | 'user' | 'admin' | 'root';
-    services: { name: string }[];
-    files: { name: string }[];
+    services: { name: string; port: number }[];
+    files: { name: string; type: string }[];
   };
-  playerState: {
+  playerState?: {
     handle: string;
     trace: number;
     charges: number;
-    tools: { id: string }[];
+    tools: { id: string; name: string }[];
   };
-  recentCommands: string[];
-  turnCount: number;
+  recentCommands?: string[];
+  turnCount?: number;
 }
 
 export interface WorldAIResponse {

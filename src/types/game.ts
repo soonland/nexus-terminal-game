@@ -77,6 +77,20 @@ export interface Service {
   traceContribution?: number; // trace added on successful exploit (0 = clean/silent)
 }
 
+/**
+ * Lightweight node summary used in API request payloads.
+ * Carries only the fields needed for AI context — not full runtime state.
+ */
+export interface NodeInstance {
+  id: string;
+  ip: string;
+  label: string;
+  layer: number;
+  accessLevel: AccessLevel;
+  services: Pick<Service, 'name' | 'port'>[];
+  files: Pick<GameFile, 'name' | 'type'>[];
+}
+
 export interface LiveNode {
   id: string;
   ip: string;
@@ -244,6 +258,20 @@ export interface AnchorFork {
   id: string;
   description: string;
   options: { path_a: string; path_b: string };
+}
+
+// ── Contract ───────────────────────────────────────────────
+/** A mission contract defining what the player must accomplish in a run. */
+export interface Contract {
+  id: string;
+  title: string;
+  description: string;
+  /** Node IDs the player must interact with to complete this contract. */
+  targetNodeIds: string[];
+  /** File paths that must be exfiltrated to fulfil the contract. */
+  objectiveFilePaths: string[];
+  completed: boolean;
+  failed: boolean;
 }
 
 // ── Session ────────────────────────────────────────────────
