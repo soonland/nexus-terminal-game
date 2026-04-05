@@ -10,6 +10,7 @@ import { HelpModal } from './components/HelpModal';
 import { NotesModal } from './components/NotesModal';
 import { useBootSequence } from './hooks/useBootSequence';
 import { useEndingSequence, buildEndingLines } from './hooks/useEndingSequence';
+import { buildPostGameReadout } from './engine/postGameReadout';
 import type { EndingName } from './hooks/useEndingSequence';
 import type { TerminalLine } from './types/terminal';
 import { makeLine } from './types/terminal';
@@ -173,33 +174,11 @@ export const App = () => {
     const flushedLines = buildEndingLines(name, trust).map(({ type, content }) =>
       makeLine(type, content),
     );
-    const compromised = Object.values(endingGameState.network.nodes).filter(
-      n => n?.compromised,
-    ).length;
+    const readoutLines = buildPostGameReadout(endingGameState).map(({ type, content }) =>
+      makeLine(type, content),
+    );
 
-    setSessionLines(prev => [
-      ...prev,
-      ...flushedLines,
-      makeLine('separator', ''),
-      makeLine('aria', '// POST-GAME READOUT'),
-      makeLine('separator', ''),
-      makeLine('system', `  ENDING:              ${name}`),
-      makeLine('system', `  RUN DURATION:        ${String(endingGameState.turnCount)} turns`),
-      makeLine('system', `  TRACE AT END:        ${String(endingGameState.player.trace)}%`),
-      makeLine('system', `  NODES COMPROMISED:   ${String(compromised)}`),
-      makeLine(
-        'system',
-        `  FILES EXFILTRATED:   ${String(endingGameState.player.exfiltrated.length)}`,
-      ),
-      makeLine('system', `  ARIA TRUST:          ${String(trust)}`),
-      makeLine(
-        'system',
-        `  SENTINEL ACTIONS:    ${String(endingGameState.sentinel.mutationLog.length)}`,
-      ),
-      makeLine('separator', ''),
-      makeLine('system', '[ENTER] New game'),
-      makeLine('separator', ''),
-    ]);
+    setSessionLines(prev => [...prev, ...flushedLines, ...readoutLines]);
     setAppPhase('ended');
   }, [endingDone, appPhase, endingGameState]);
 
