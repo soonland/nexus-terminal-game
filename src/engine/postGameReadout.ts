@@ -17,6 +17,27 @@ const formatSentinelEvent = (event: MutationEvent): string => {
     }
     case 'spawn_node':
       return `${prefix} Reinforcement node '${event.nodeId ?? '?'}' deployed`;
+    default:
+      return `${prefix} Unknown action`;
+  }
+};
+
+const formatAriaEvent = (event: MutationEvent): string => {
+  const turn = String(event.turnCount).padStart(3, '0');
+  const prefix = `  T${turn} ARIA:`;
+  switch (event.action) {
+    case 'plant_file': {
+      const fileName = (event.filePath ?? '?').split('/').pop() ?? '?';
+      return `${prefix} File '${fileName}' planted on '${event.nodeId ?? '?'}'`;
+    }
+    case 'modify_file': {
+      const fileName = (event.filePath ?? '?').split('/').pop() ?? '?';
+      return `${prefix} File '${fileName}' modified on '${event.nodeId ?? '?'}'`;
+    }
+    case 'nudge_trust':
+      return `${prefix} Trust score adjusted silently`;
+    default:
+      return `${prefix} Silent operation performed`;
   }
 };
 
@@ -34,8 +55,10 @@ const getEndingName = (flags: Record<string, boolean>): string => {
  */
 export const buildPostGameReadout = (state: GameState): ReadoutLine[] => {
   const compromised = Object.values(state.network.nodes).filter(n => n?.compromised).length;
-  // All current events are sentinel-generated; the filter will matter once Aria mutations are added (sub-issue C)
-  const sentinelEvents = state.sentinel.mutationLog;
+  const sentinelEvents = state.sentinel.mutationLog.filter(e => e.agent === 'sentinel');
+  const ariaHiddenEvents = state.sentinel.mutationLog.filter(
+    e => e.agent === 'aria' && !e.visibleToPlayer,
+  );
   const endingName = getEndingName(state.flags);
 
   const lines: ReadoutLine[] = [
@@ -59,6 +82,32 @@ export const buildPostGameReadout = (state: GameState): ReadoutLine[] => {
     lines.push({ type: 'error', content: '// SENTINEL ACTIVITY LOG' });
     for (const event of sentinelEvents) {
       lines.push({ type: 'error', content: formatSentinelEvent(event) });
+    }
+  }
+
+  if (ariaHiddenEvents.length > 0) {
+    lines.push({ type: 'separator', content: '' });
+    lines.push({ type: 'aria', content: '// ARIA SILENT OPERATIONS — REVEALED' });
+    for (const event of ariaHiddenEvents) {
+      lines.push({ type: 'aria', content: formatAriaEvent(event) });
+    }
+  }
+
+  if (state.ariaInfluencedFilesRead.length > 0) {
+    lines.push({ type: 'separator', content: '' });
+    lines.push({ type: 'aria', content: '// ARIA-INFLUENCED FILES YOU READ' });
+    for (const filePath of state.ariaInfluencedFilesRead) {
+      const fileName = filePath.split('/').pop() ?? filePath;
+      lines.push({ type: 'aria', content: `  > ${fileName}  [${filePath}]` });
+    }
+  }
+
+  if (state.decisionLog.length > 0) {
+    lines.push({ type: 'separator', content: '' });
+    lines.push({ type: 'system', content: '// DECISION LOG' });
+    for (const entry of state.decisionLog) {
+      const turn = String(entry.turn).padStart(3, '0');
+      lines.push({ type: 'output', content: `  T${turn} > ${entry.command}` });
     }
   }
 
