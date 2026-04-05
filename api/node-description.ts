@@ -21,6 +21,18 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { makeLogger } from './_lib/logger.js';
 import { ValidationError, requireObject, requireString } from './_lib/validate.js';
 
+export interface NodeDescriptionRequest {
+  nodeId: string;
+  template: string;
+  division: string;
+  label: string;
+  ariaInfluence?: number;
+}
+
+export interface NodeDescriptionResponse {
+  description: string;
+}
+
 const log = makeLogger('node-description');
 
 const GEMINI_API_URL =

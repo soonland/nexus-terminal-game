@@ -24,6 +24,21 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { makeLogger } from './_lib/logger.js';
 import { ValidationError, requireObject, requireString } from './_lib/validate.js';
 
+export interface FileGenerateRequest {
+  nodeId: string;
+  fileName: string;
+  fileType?: string;
+  filePath?: string;
+  ownerLabel?: string;
+  ownerTemplate?: string;
+  division?: string;
+  ariaPlanted?: boolean;
+}
+
+export interface FileGenerateResponse {
+  content: string;
+}
+
 const log = makeLogger('file');
 
 const GEMINI_API_URL =
