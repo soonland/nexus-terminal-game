@@ -14,7 +14,12 @@ export const loadDossier = (): Dossier => {
   try {
     const raw = localStorage.getItem(DOSSIER_KEY);
     if (!raw) return emptyDossier();
-    return JSON.parse(raw) as Dossier;
+    const parsed = JSON.parse(raw) as Partial<Dossier>;
+    return {
+      runsCompleted: parsed.runsCompleted ?? 0,
+      endings: parsed.endings ?? [],
+      ariaMemory: parsed.ariaMemory ?? [],
+    };
   } catch {
     return emptyDossier();
   }
@@ -53,7 +58,7 @@ export const recordEnding = (ending: EndingName): void => {
         runDepth: Math.min(dossier.runsCompleted + 1, MAX_MEMORY_NOTES),
         timestamp: Date.now(),
       },
-    ],
+    ].slice(-MAX_MEMORY_NOTES),
     ariaMemory: [...dossier.ariaMemory, note].slice(-MAX_MEMORY_NOTES),
   };
   saveDossier(updated);

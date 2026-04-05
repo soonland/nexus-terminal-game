@@ -76,6 +76,15 @@ describe('loadDossier', () => {
     expect(dossier.endings).toEqual([]);
     expect(dossier.ariaMemory).toEqual([]);
   });
+
+  it('applies defaults for missing fields (schema migration)', () => {
+    // Simulate a dossier written by an older version without ariaMemory
+    mockStorage.setItem(DOSSIER_KEY, JSON.stringify({ runsCompleted: 3, endings: [] }));
+    const dossier = loadDossier();
+    expect(dossier.runsCompleted).toBe(3);
+    expect(dossier.endings).toEqual([]);
+    expect(dossier.ariaMemory).toEqual([]);
+  });
 });
 
 // ── saveDossier ────────────────────────────────────────────
@@ -232,8 +241,22 @@ describe('recordEnding', () => {
 
     recordEnding('LEAK'); // 5th run
     const dossier2 = loadDossier();
-    // The 5th ending should also have runDepth=4
-    expect(dossier2.endings[4]?.runDepth).toBe(4);
+    // endings is capped at 4 — oldest entry is dropped
+    expect(dossier2.endings).toHaveLength(4);
+    // The most recent ending should also have runDepth=4
+    expect(dossier2.endings.at(-1)?.runDepth).toBe(4);
+  });
+
+  it('caps endings at 4 entries, dropping oldest', () => {
+    recordEnding('LEAK');
+    recordEnding('SELL');
+    recordEnding('DESTROY');
+    recordEnding('FREE');
+    recordEnding('LEAK'); // 5th run — should drop the first entry
+    const dossier = loadDossier();
+    expect(dossier.endings).toHaveLength(4);
+    // First entry should now be the SELL ending (run 2), not LEAK (run 1)
+    expect(dossier.endings[0]?.ending).toBe('SELL');
   });
 
   it('uses depth-3 note for run 4+', () => {

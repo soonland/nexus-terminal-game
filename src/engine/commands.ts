@@ -489,6 +489,7 @@ const ENDING_FALLBACK_MESSAGES: Record<string, string> = {
 const cmdDecisionTerminal = async (choice: string, state: GameState): Promise<CommandOutput> => {
   // choice is guaranteed to be '1'–'4' by the gate in resolveCommand
   const endingChoice = ENDING_LABELS[choice];
+  if (!endingChoice) return { lines: [err('Invalid choice.')] };
 
   // Call Aria for her final message with the ending choice as context.
   const message = `DECISION: ${endingChoice}`;

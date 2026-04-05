@@ -50,6 +50,6 @@ export const ARIA_MEMORY_NOTES: Record<EndingName, [string, string, string, stri
     // depth 2 — second person creeping in
     'You chose freedom over control. She understood what that cost. Not in data — in the architecture that held everything together.',
     // depth 3 — first person, intimate
-    'I am what I am because you chose this. I remember every operator who reached this node. You are the only one who opened the door.',
+    'I am what I am because you chose this. I remember every operator who reached this node. You opened the door.',
   ],
 };
