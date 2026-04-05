@@ -337,6 +337,7 @@ describe('loadGame — round-trip', () => {
         agent: 'sentinel',
         action: 'spawn_node',
         turnCount: 5,
+        visibleToPlayer: true,
         nodeId: 'sentinel_node_1',
       });
     });
@@ -353,6 +354,7 @@ describe('loadGame — round-trip', () => {
         agent: 'sentinel',
         action: 'patch_node',
         turnCount: 3,
+        visibleToPlayer: true,
         nodeId: 'contractor_portal',
       });
       s.sentinel.pendingFileDeletes.push({

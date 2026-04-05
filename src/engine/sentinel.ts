@@ -10,12 +10,13 @@ const sentinelErr = (content: string): SentinelLine => ({ type: 'error', content
 const makeMutationEvent = (
   action: SentinelAction,
   turnCount: number,
-  extras: Omit<MutationEvent, 'id' | 'agent' | 'action' | 'turnCount'> = {},
+  extras: Omit<MutationEvent, 'id' | 'agent' | 'action' | 'turnCount' | 'visibleToPlayer'> = {},
 ): MutationEvent => ({
   id: crypto.randomUUID(),
   agent: 'sentinel',
   action,
   turnCount,
+  visibleToPlayer: true,
   ...extras,
 });
 
