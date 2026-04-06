@@ -154,6 +154,30 @@ describe('createInitialState', () => {
     const state = createInitialState();
     expect(state.network.nodes['contractor_portal']!.accessLevel).toBe('none');
   });
+
+  it('should store sessionSeed on the returned state', () => {
+    const seed = 12345;
+    const state = createInitialState(seed);
+    expect(state.sessionSeed).toBe(seed);
+  });
+
+  it('should produce identical node networks for the same seed', () => {
+    const seed = 99887766;
+    const s1 = createInitialState(seed);
+    const s2 = createInitialState(seed);
+    expect(s1.network.nodes).toEqual(s2.network.nodes);
+    expect(s1.employees).toEqual(s2.employees);
+    expect(s1.worldCredentials).toEqual(s2.worldCredentials);
+  });
+
+  it('should produce different node networks for different seeds', () => {
+    // Use widely separated seeds to ensure PRNG output diverges meaningfully
+    const s1 = createInitialState(1);
+    const s2 = createInitialState(0xdeadbeef);
+    // Seeded generation should change the generated network structure itself
+    expect(s1.network.nodes).not.toEqual(s2.network.nodes);
+    expect(s1.employees).not.toEqual(s2.employees);
+  });
 });
 
 describe('addTrace — threshold flags', () => {
