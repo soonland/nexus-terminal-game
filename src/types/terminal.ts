@@ -1,6 +1,9 @@
 export type LineType = 'output' | 'input' | 'system' | 'error' | 'separator' | 'aria';
 
-/** Alias for {@link LineType} — satisfies the spec's TerminalLineType requirement. */
+/**
+ * Alias for {@link LineType} — satisfies the spec's TerminalLineType requirement.
+ * @deprecated Use {@link LineType} directly. This alias exists only for spec naming compliance.
+ */
 export type TerminalLineType = LineType;
 
 export interface TerminalLine {

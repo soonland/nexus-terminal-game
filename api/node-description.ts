@@ -21,9 +21,22 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { makeLogger } from './_lib/logger.js';
 import { ValidationError, requireObject, requireString } from './_lib/validate.js';
 
+// Mirrors NodeTemplate from src/types/game.ts — kept in sync manually (api/ cannot import from src/)
+type NodeTemplate =
+  | 'workstation'
+  | 'database_server'
+  | 'file_server'
+  | 'web_server'
+  | 'security_node'
+  | 'mail_server'
+  | 'iot_device'
+  | 'router_switch'
+  | 'printer'
+  | 'dev_server';
+
 export interface NodeDescriptionRequest {
   nodeId: string;
-  template: string;
+  template: NodeTemplate;
   division: string;
   label: string;
   ariaInfluence?: number;

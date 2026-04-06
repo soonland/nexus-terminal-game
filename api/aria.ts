@@ -31,7 +31,8 @@ export interface AriaAIRequest {
   message: string;
   ariaState?: {
     trustScore: number;
-    messageHistory: { role: string; content: string }[];
+    // Mirrors AriaMessage.role from src/types/game.ts — kept in sync manually (api/ cannot import from src/)
+    messageHistory: { role: 'player' | 'aria'; content: string }[];
   };
   playerFullHistory?: string[];
   dossierContext?: string[];
