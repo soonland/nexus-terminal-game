@@ -74,6 +74,7 @@ const makeState = (overrides: Partial<GameState> = {}): GameState => {
       credentials: [],
       exfiltrated: [],
       tools: [],
+      burnCount: 0,
     },
     network: {
       currentNodeId: node.id,

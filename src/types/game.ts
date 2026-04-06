@@ -63,6 +63,8 @@ export interface GameFile {
   locked?: boolean; // set at 31% threshold; blocks cat and exfil
   deleted?: boolean; // set by sentinel after 3-turn delay post-exfil
   planted?: boolean; // dynamically added at runtime (e.g. sentinel RESET_NOTICE); persisted in full
+  isTool?: boolean; // file grants a tool when exfil'd; shown with [TOOL] in ls
+  toolId?: ToolId; // which tool this file grants
 }
 
 export interface Service {
@@ -134,6 +136,7 @@ export interface Player {
   credentials: Credential[];
   exfiltrated: GameFile[];
   tools: Tool[];
+  burnCount: number; // number of times the player has been burned
 }
 
 // ── Aria ───────────────────────────────────────────────────

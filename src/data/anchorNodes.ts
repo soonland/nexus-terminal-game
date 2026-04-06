@@ -318,6 +318,17 @@ const ANCHOR_NODES: LiveNode[] = [
         accessRequired: 'admin',
         ariaPlanted: false,
       },
+      {
+        name: 'log-wiper.bin',
+        path: '/home/ops.admin/sec_tools/log-wiper.bin',
+        type: 'binary',
+        content:
+          '[BINARY — Log sanitisation utility v1.4]\nIronGate Corp. Internal Security Tools.\nUsage: wipe-logs\nWarning: single-use. Binary self-destructs after execution.',
+        exfiltrable: true,
+        accessRequired: 'admin',
+        isTool: true,
+        toolId: 'log-wiper',
+      },
     ],
     accessLevel: 'none',
     compromised: false,

@@ -1868,7 +1868,10 @@ describe('resolveCommand — trace meter', () => {
   let state: GameState;
 
   beforeEach(() => {
-    state = createInitialState();
+    // Strip port-scanner so scan adds trace — port-scanner passive mode is tested separately
+    state = produce(createInitialState(), s => {
+      s.player.tools = s.player.tools.filter(t => t.id !== 'port-scanner');
+    });
   });
 
   afterEach(() => {
@@ -2054,6 +2057,7 @@ describe('resolveCommand — threshold alerts (applyThresholdEffects)', () => {
   it('should append a system alert line when trace crosses 31% for the first time', async () => {
     state = produce(createInitialState(), s => {
       s.player.trace = 30;
+      s.player.tools = s.player.tools.filter(t => t.id !== 'port-scanner');
     });
     const result = await resolveCommand('scan', state);
     const contents = result.lines.map(l => l.content);
@@ -2066,6 +2070,7 @@ describe('resolveCommand — threshold alerts (applyThresholdEffects)', () => {
     state = produce(createInitialState(), s => {
       s.player.trace = 30;
       s.flags['threshold_31_crossed'] = true;
+      s.player.tools = s.player.tools.filter(t => t.id !== 'port-scanner');
     });
     const result = await resolveCommand('scan', state);
     const count = result.lines.filter(l => l.content.includes('Anomalous activity flagged')).length;
@@ -2075,6 +2080,7 @@ describe('resolveCommand — threshold alerts (applyThresholdEffects)', () => {
   it('should append an error alert line when trace crosses 86%', async () => {
     state = produce(createInitialState(), s => {
       s.player.trace = 85;
+      s.player.tools = s.player.tools.filter(t => t.id !== 'port-scanner');
     });
     const result = await resolveCommand('scan', state);
     const alertLine = result.lines.find(l => l.content.includes('One more detection event'));
@@ -2085,6 +2091,7 @@ describe('resolveCommand — threshold alerts (applyThresholdEffects)', () => {
   it('should append a system alert line (not error) when trace crosses 61%', async () => {
     state = produce(createInitialState(), s => {
       s.player.trace = 60;
+      s.player.tools = s.player.tools.filter(t => t.id !== 'port-scanner');
     });
     const result = await resolveCommand('scan', state);
     const alertLine = result.lines.find(l => l.content.includes('Active intrusion response'));
@@ -2095,6 +2102,7 @@ describe('resolveCommand — threshold alerts (applyThresholdEffects)', () => {
   it('should lock up to 2 non-tripwire files on compromised nodes at 31%', async () => {
     state = produce(createInitialState(), s => {
       s.player.trace = 30;
+      s.player.tools = s.player.tools.filter(t => t.id !== 'port-scanner');
       const node = s.network.nodes['contractor_portal']!;
       node.compromised = true;
       node.accessLevel = 'user';
@@ -2110,6 +2118,7 @@ describe('resolveCommand — threshold alerts (applyThresholdEffects)', () => {
   it('should not lock files on nodes that are not compromised at 31%', async () => {
     state = produce(createInitialState(), s => {
       s.player.trace = 30;
+      s.player.tools = s.player.tools.filter(t => t.id !== 'port-scanner');
       s.network.nodes['contractor_portal']!.compromised = false;
     });
     const result = await resolveCommand('scan', state);
@@ -2470,5 +2479,368 @@ describe('exfil decryptor.bin — decryptor tool acquisition', () => {
     const result = await resolveCommand('exfil decryptor.bin', withTool);
     const nextState = result.nextState as GameState;
     expect(nextState.player.tools.filter(t => t.id === 'decryptor')).toHaveLength(1);
+  });
+});
+
+// ── cmdScan — port-scanner passive mode ───────────────────────────────────────
+
+describe('resolveCommand — scan — port-scanner passive mode', () => {
+  let state: GameState;
+
+  beforeEach(() => {
+    state = createInitialState();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('should add 0 trace when player has an unused port-scanner', async () => {
+    // Initial state includes port-scanner with used: undefined (active)
+    const result = await resolveCommand('scan', state);
+    expect((result.nextState as GameState).player.trace).toBe(0);
+  });
+
+  it('should add trace when player has no port-scanner tool', async () => {
+    const noScanner = produce(state, s => {
+      s.player.tools = s.player.tools.filter(t => t.id !== 'port-scanner');
+    });
+    vi.spyOn(Math, 'random').mockReturnValue(0.4);
+    const result = await resolveCommand('scan', noScanner);
+    expect((result.nextState as GameState).player.trace).toBeGreaterThan(0);
+  });
+
+  it('should add 1 trace (not 0) when port-scanner is depleted (used: true)', async () => {
+    const depletedScanner = produce(state, s => {
+      const scanner = s.player.tools.find(t => t.id === 'port-scanner');
+      if (scanner) scanner.used = true;
+    });
+    vi.spyOn(Math, 'random').mockReturnValue(0.4);
+    const result = await resolveCommand('scan', depletedScanner);
+    expect((result.nextState as GameState).player.trace).toBe(1);
+  });
+
+  it('should add 2 trace when port-scanner is absent and Math.random >= 0.5', async () => {
+    const noScanner = produce(state, s => {
+      s.player.tools = s.player.tools.filter(t => t.id !== 'port-scanner');
+    });
+    vi.spyOn(Math, 'random').mockReturnValue(0.6);
+    const result = await resolveCommand('scan', noScanner);
+    expect((result.nextState as GameState).player.trace).toBe(2);
+  });
+});
+
+// ── cmdInventory / inv ────────────────────────────────────────────────────────
+
+describe('resolveCommand — inventory / inv', () => {
+  let state: GameState;
+
+  beforeEach(() => {
+    state = createInitialState();
+  });
+
+  it('should return lines without a nextState (local command — no state change)', async () => {
+    const result = await resolveCommand('inventory', state);
+    expect(result.lines.length).toBeGreaterThan(0);
+    expect(result.nextState).toBeUndefined();
+  });
+
+  it('should include TOOLS section header in output', async () => {
+    const result = await resolveCommand('inventory', state);
+    const contents = result.lines.map(l => l.content);
+    expect(contents.some(c => c.includes('TOOLS'))).toBe(true);
+  });
+
+  it('should include CREDENTIALS section header in output', async () => {
+    const result = await resolveCommand('inventory', state);
+    const contents = result.lines.map(l => l.content);
+    expect(contents.some(c => c.includes('CREDENTIALS'))).toBe(true);
+  });
+
+  it('should include EXFILTRATED FILES section header in output', async () => {
+    const result = await resolveCommand('inventory', state);
+    const contents = result.lines.map(l => l.content);
+    expect(contents.some(c => c.includes('EXFILTRATED FILES'))).toBe(true);
+  });
+
+  it('should show DEPLETED label when a tool has used: true', async () => {
+    const depleted = produce(state, s => {
+      s.player.tools.push({
+        id: 'log-wiper',
+        name: 'Log Wiper',
+        description: 'Reduces trace.',
+        used: true,
+      });
+    });
+    const result = await resolveCommand('inventory', depleted);
+    const contents = result.lines.map(l => l.content);
+    expect(contents.some(c => c.includes('DEPLETED'))).toBe(true);
+  });
+
+  it('should show "active" label when tool has used: false', async () => {
+    const activeTool = produce(state, s => {
+      s.player.tools.push({
+        id: 'log-wiper',
+        name: 'Log Wiper',
+        description: 'Reduces trace.',
+        used: false,
+      });
+    });
+    const result = await resolveCommand('inventory', activeTool);
+    const contents = result.lines.map(l => l.content);
+    expect(contents.some(c => c.includes('[active]'))).toBe(true);
+  });
+
+  it('should show "none" under TOOLS when player has no tools', async () => {
+    const noTools = produce(state, s => {
+      s.player.tools = [];
+    });
+    const result = await resolveCommand('inventory', noTools);
+    const contents = result.lines.map(l => l.content);
+    expect(contents.some(c => c.includes('none'))).toBe(true);
+  });
+
+  it('should show "none" under CREDENTIALS when no credentials are obtained', async () => {
+    // Initial state has credentials but none are obtained
+    const result = await resolveCommand('inventory', state);
+    const contents = result.lines.map(l => l.content);
+    // At least one "none" appears (credentials section)
+    expect(contents.filter(c => c.includes('none')).length).toBeGreaterThan(0);
+  });
+
+  it('should show "none" under EXFILTRATED FILES when list is empty', async () => {
+    const result = await resolveCommand('inventory', state);
+    const contents = result.lines.map(l => l.content);
+    expect(contents.filter(c => c.includes('none')).length).toBeGreaterThan(0);
+  });
+
+  it('should produce the same output structure for the "inv" alias', async () => {
+    const invResult = await resolveCommand('inv', state);
+    const inventoryResult = await resolveCommand('inventory', state);
+    expect(invResult.lines.map(l => l.content)).toEqual(inventoryResult.lines.map(l => l.content));
+  });
+});
+
+// ── cmdStatus — depleted tools ────────────────────────────────────────────────
+
+describe('resolveCommand — status — depleted tool display', () => {
+  let state: GameState;
+
+  beforeEach(() => {
+    state = createInitialState();
+  });
+
+  it('should show [DEPLETED] for a tool with used: true', async () => {
+    const withDepleted = produce(state, s => {
+      s.player.tools.push({
+        id: 'log-wiper',
+        name: 'Log Wiper',
+        description: 'Reduces trace.',
+        used: true,
+      });
+    });
+    const result = await resolveCommand('status', withDepleted);
+    const contents = result.lines.map(l => l.content);
+    expect(contents.some(c => c.includes('[DEPLETED]'))).toBe(true);
+  });
+
+  it('should NOT show [DEPLETED] for a tool with used: false', async () => {
+    const withActive = produce(state, s => {
+      s.player.tools.push({
+        id: 'log-wiper',
+        name: 'Log Wiper',
+        description: 'Reduces trace.',
+        used: false,
+      });
+    });
+    const result = await resolveCommand('status', withActive);
+    const contents = result.lines.map(l => l.content);
+    expect(contents.some(c => c.includes('[DEPLETED]'))).toBe(false);
+  });
+
+  it('should NOT show [DEPLETED] for a tool without a used field', async () => {
+    // Initial tools (exploit-kit, port-scanner) have no used field
+    const result = await resolveCommand('status', state);
+    const contents = result.lines.map(l => l.content);
+    expect(contents.some(c => c.includes('[DEPLETED]'))).toBe(false);
+  });
+});
+
+// ── cmdLs — [TOOL] annotation ─────────────────────────────────────────────────
+
+describe('resolveCommand — ls — [TOOL] annotation', () => {
+  it('should show [TOOL] annotation on a file with isTool: true', async () => {
+    const withToolFile = produce(createInitialState(), s => {
+      const node = s.network.nodes['contractor_portal']!;
+      node.accessLevel = 'user';
+      node.files.push({
+        name: 'log_wiper.bin',
+        path: '/tools/log_wiper.bin',
+        type: 'binary',
+        content: null,
+        exfiltrable: true,
+        accessRequired: 'user',
+        isTool: true,
+        toolId: 'log-wiper',
+      });
+    });
+    const result = await resolveCommand('ls', withToolFile);
+    const contents = result.lines.map(l => l.content);
+    expect(contents.some(c => c.includes('[TOOL]'))).toBe(true);
+  });
+
+  it('should show the [TOOL] legend line when a tool file is present', async () => {
+    const withToolFile = produce(createInitialState(), s => {
+      const node = s.network.nodes['contractor_portal']!;
+      node.accessLevel = 'user';
+      node.files.push({
+        name: 'log_wiper.bin',
+        path: '/tools/log_wiper.bin',
+        type: 'binary',
+        content: null,
+        exfiltrable: true,
+        accessRequired: 'user',
+        isTool: true,
+        toolId: 'log-wiper',
+      });
+    });
+    const result = await resolveCommand('ls', withToolFile);
+    const contents = result.lines.map(l => l.content);
+    expect(contents.some(c => c.includes('exfil this file to add a tool to your inventory'))).toBe(
+      true,
+    );
+  });
+
+  it('should NOT show [TOOL] on a regular file without isTool', async () => {
+    const withAccess = produce(createInitialState(), s => {
+      s.network.nodes['contractor_portal']!.accessLevel = 'user';
+    });
+    const result = await resolveCommand('ls', withAccess);
+    const contents = result.lines.map(l => l.content);
+    expect(contents.some(c => c.includes('[TOOL]'))).toBe(false);
+  });
+});
+
+// ── cmdWipeLogs — single-use gate ─────────────────────────────────────────────
+
+describe('resolveCommand — wipe-logs — single-use gate', () => {
+  it('should reduce trace and mark tool used when log-wiper is fresh', async () => {
+    const withFreshTool = produce(createInitialState(), s => {
+      s.player.trace = 30;
+      s.player.tools.push({ id: 'log-wiper', name: 'Log Wiper', description: 'Reduces trace.' });
+    });
+    const result = await resolveCommand('wipe-logs', withFreshTool);
+    const nextState = result.nextState as GameState;
+    expect(nextState.player.trace).toBe(15);
+    const tool = nextState.player.tools.find(t => t.id === 'log-wiper');
+    expect(tool?.used).toBe(true);
+  });
+
+  it('should return a depleted error when log-wiper has used: true', async () => {
+    const withDepletedTool = produce(createInitialState(), s => {
+      s.player.tools.push({
+        id: 'log-wiper',
+        name: 'Log Wiper',
+        description: 'Reduces trace.',
+        used: true,
+      });
+    });
+    const result = await resolveCommand('wipe-logs', withDepletedTool);
+    expect(result.lines[0].type).toBe('error');
+    expect(result.lines[0].content).toMatch(/depleted/);
+  });
+
+  it('should return a tool-required error when log-wiper is absent', async () => {
+    const result = await resolveCommand('wipe-logs', createInitialState());
+    expect(result.lines[0].type).toBe('error');
+    expect(result.lines[0].content).toMatch(/log-wiper/);
+  });
+});
+
+// ── cmdSpoof — single-use gate ────────────────────────────────────────────────
+
+describe('resolveCommand — spoof — single-use gate', () => {
+  it('should reduce trace and mark tool used when spoof-id is fresh', async () => {
+    const withFreshTool = produce(createInitialState(), s => {
+      s.player.trace = 30;
+      s.player.tools.push({ id: 'spoof-id', name: 'Spoof ID', description: 'Spoofs identity.' });
+    });
+    const result = await resolveCommand('spoof', withFreshTool);
+    const nextState = result.nextState as GameState;
+    expect(nextState.player.trace).toBe(10);
+    const tool = nextState.player.tools.find(t => t.id === 'spoof-id');
+    expect(tool?.used).toBe(true);
+  });
+
+  it('should return a depleted error when spoof-id has used: true', async () => {
+    const withDepletedTool = produce(createInitialState(), s => {
+      s.player.tools.push({
+        id: 'spoof-id',
+        name: 'Spoof ID',
+        description: 'Spoofs identity.',
+        used: true,
+      });
+    });
+    const result = await resolveCommand('spoof', withDepletedTool);
+    expect(result.lines[0].type).toBe('error');
+    expect(result.lines[0].content).toMatch(/depleted/);
+  });
+
+  it('should return a tool-required error when spoof-id is absent', async () => {
+    const result = await resolveCommand('spoof', createInitialState());
+    expect(result.lines[0].type).toBe('error');
+    expect(result.lines[0].content).toMatch(/spoof-id/);
+  });
+});
+
+// ── cmdExfil — generic tool acquisition (log-wiper) ──────────────────────────
+
+describe('resolveCommand — exfil — log-wiper tool acquisition', () => {
+  let state: GameState;
+
+  beforeEach(() => {
+    // Inject a log-wiper tool file into contractor_portal
+    state = produce(createInitialState(), s => {
+      const node = s.network.nodes['contractor_portal']!;
+      node.accessLevel = 'user';
+      node.files.push({
+        name: 'log_wiper.bin',
+        path: '/tools/log_wiper.bin',
+        type: 'binary',
+        content: null,
+        exfiltrable: true,
+        accessRequired: 'user',
+        isTool: true,
+        toolId: 'log-wiper',
+      });
+    });
+  });
+
+  it('should add log-wiper to player.tools after exfil', async () => {
+    const result = await resolveCommand('exfil log_wiper.bin', state);
+    const nextState = result.nextState as GameState;
+    expect(nextState.player.tools.some(t => t.id === 'log-wiper')).toBe(true);
+  });
+
+  it('should not add log-wiper twice if already in inventory', async () => {
+    const withTool = produce(state, s => {
+      s.player.tools.push({
+        id: 'log-wiper',
+        name: 'Log Wiper',
+        description: 'Single-use log sanitisation tool. Reduces trace by 15%. Destroyed after use.',
+      });
+    });
+    const result = await resolveCommand('exfil log_wiper.bin', withTool);
+    // Already in inventory — exfil returns "Already exfiltrated" (since path not yet in exfiltrated)
+    // BUT: the idempotency check is based on file.path in player.exfiltrated, not the tool inventory.
+    // So the tool will not be duplicated even if exfil runs again.
+    const nextState = result.nextState as GameState;
+    expect(nextState.player.tools.filter(t => t.id === 'log-wiper')).toHaveLength(1);
+  });
+
+  it('should include "Tool acquired: log-wiper" in output', async () => {
+    const result = await resolveCommand('exfil log_wiper.bin', state);
+    const contents = result.lines.map(l => l.content);
+    expect(contents.some(c => c.includes('Tool acquired: log-wiper'))).toBe(true);
   });
 });

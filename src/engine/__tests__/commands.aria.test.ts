@@ -284,6 +284,7 @@ describe('pending favor — accept', () => {
         credentials: [],
         exfiltrated: [],
         tools: [],
+        burnCount: 0,
       },
       aria: {
         discovered: false,

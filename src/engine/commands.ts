@@ -1,4 +1,4 @@
-import type { GameState, CommandOutput, AccessLevel, FavorOffer } from '../types/game';
+import type { GameState, CommandOutput, AccessLevel, FavorOffer, ToolId } from '../types/game';
 import { hasAccess } from '../types/game';
 import { currentNode, addTrace, thresholdFlag, TRACE_THRESHOLDS } from './state';
 import produce from './produce';
@@ -25,6 +25,13 @@ interface AriaAIResponse {
   trustDelta: number;
   offersFavor?: FavorOffer; // FavorOffer = { description: string; cost: number }
 }
+
+const GENERIC_TOOL_DATA: Partial<Record<ToolId, { name: string; description: string }>> = {
+  'log-wiper': {
+    name: 'Log Wiper',
+    description: 'Single-use log sanitisation tool. Reduces trace by 15%. Destroyed after use.',
+  },
+};
 
 const ARIA_AI_FALLBACK: AriaAIResponse = {
   reply: '...signal lost. try again.',
@@ -141,6 +148,10 @@ export const resolveCommand = async (raw: string, state: GameState): Promise<Com
       break;
     case 'notes':
       result = { lines: [] }; // handled as modal in App
+      break;
+    case 'inventory':
+    case 'inv':
+      result = cmdInventory(state);
       break;
   }
   if (result) return result;
@@ -604,6 +615,8 @@ const cmdStatus = (state: GameState): CommandOutput => {
         : player.trace <= 85
           ? 'SENTINEL ACTIVE'
           : 'CRITICAL';
+  const toolList =
+    player.tools.map(t => (t.used ? `${t.id} [DEPLETED]` : t.id)).join(', ') || 'none';
   return {
     lines: [
       sep(),
@@ -612,16 +625,62 @@ const cmdStatus = (state: GameState): CommandOutput => {
       sys(`Access  : ${node.accessLevel.toUpperCase()}`),
       sys(`Trace   : ${String(player.trace)}%  [${traceColor}]`),
       sys(`Charges : ${String(player.charges)}`),
-      sys(`Tools   : ${player.tools.map(t => t.id).join(', ') || 'none'}`),
+      sys(`Tools   : ${toolList}`),
       sep(),
     ],
   };
 };
 
+// ── inventory ─────────────────────────────────────────────
+const cmdInventory = (state: GameState): CommandOutput => {
+  const { player } = state;
+  const lines: Out = [sep()];
+
+  lines.push(sys('TOOLS'));
+  if (player.tools.length === 0) {
+    lines.push(sys('  none'));
+  } else {
+    for (const t of player.tools) {
+      const status = t.used ? 'DEPLETED' : 'active';
+      lines.push(sys(`  ${t.id}  [${status}]  — ${t.description}`));
+    }
+  }
+
+  lines.push(sep());
+  lines.push(sys('CREDENTIALS'));
+  const obtained = player.credentials.filter(c => c.obtained);
+  if (obtained.length === 0) {
+    lines.push(sys('  none'));
+  } else {
+    for (const c of obtained) {
+      const revoked = c.revoked ? '  [REVOKED]' : '';
+      lines.push(
+        sys(
+          `  ${c.username}  ${c.accessLevel.toUpperCase()}  on ${c.validOnNodes.join(', ')}${revoked}`,
+        ),
+      );
+    }
+  }
+
+  lines.push(sep());
+  lines.push(sys('EXFILTRATED FILES'));
+  if (player.exfiltrated.length === 0) {
+    lines.push(sys('  none'));
+  } else {
+    for (const f of player.exfiltrated) {
+      lines.push(sys(`  ${f.path}`));
+    }
+  }
+
+  lines.push(sep());
+  return { lines };
+};
+
 // ── scan ──────────────────────────────────────────────────
 const cmdScan = (args: string[], state: GameState): CommandOutput => {
-  const traceDelta = Math.random() < 0.5 ? 1 : 2;
-  let next = addTrace(state, traceDelta);
+  const hasPortScanner = state.player.tools.some(t => t.id === 'port-scanner' && !t.used);
+  const traceDelta = hasPortScanner ? 0 : Math.random() < 0.5 ? 1 : 2;
+  let next = hasPortScanner ? state : addTrace(state, traceDelta);
   const lines: Out = [];
 
   if (args[0]) {
@@ -853,18 +912,21 @@ const cmdLs = (args: string[], state: GameState): CommandOutput => {
   const hasTripwire = accessible.some(f => f.tripwire);
   const hasNoExfil = accessible.some(f => !f.exfiltrable);
   const hasLocked = accessible.some(f => f.locked);
+  const hasToolFile = accessible.some(f => f.isTool);
   const lines: Out = [sys(`${path}:`)];
   accessible.forEach(f => {
     const tripwire = f.tripwire ? '  [!]' : '';
     const exfil = f.exfiltrable ? '' : '  [no-exfil]';
     const locked = f.locked ? '  [LOCKED]' : '';
-    lines.push(sys(`  ${f.name}${tripwire}${exfil}${locked}`));
+    const tool = f.isTool ? '  [TOOL]' : '';
+    lines.push(sys(`  ${f.name}${tripwire}${exfil}${locked}${tool}`));
   });
-  if (hasTripwire || hasNoExfil || hasLocked) {
+  if (hasTripwire || hasNoExfil || hasLocked || hasToolFile) {
     lines.push(sep());
     if (hasTripwire) lines.push(sys('  [!] reading this file triggers up to +25 trace'));
     if (hasNoExfil) lines.push(sys('  [no-exfil] file is locked to this node'));
     if (hasLocked) lines.push(sys('  [LOCKED] file is locked — cat will be denied'));
+    if (hasToolFile) lines.push(sys('  [TOOL] exfil this file to add a tool to your inventory'));
   }
   return { lines };
 };
@@ -1228,6 +1290,13 @@ const cmdExfil = (args: string[], state: GameState): CommandOutput => {
         description: 'GPG decryption utility. Required to run the decrypt command.',
       });
     }
+
+    if (file.isTool && file.toolId && !isAriaKey && !isDecryptorBin) {
+      const toolData = GENERIC_TOOL_DATA[file.toolId];
+      if (toolData && !s.player.tools.some(t => t.id === file.toolId)) {
+        s.player.tools.push({ id: file.toolId, ...toolData });
+      }
+    }
   });
 
   const lines: CommandOutput['lines'] = [
@@ -1245,6 +1314,12 @@ const cmdExfil = (args: string[], state: GameState): CommandOutput => {
   }
   if (isDecryptorBin) {
     lines.push(sep(), sys('  Tool acquired: decryptor'), sys('  Usage: decrypt [file]'), sep());
+  }
+  if (file.isTool && file.toolId && !isAriaKey && !isDecryptorBin) {
+    const toolData = GENERIC_TOOL_DATA[file.toolId];
+    if (toolData) {
+      lines.push(sep(), sys(`  Tool acquired: ${file.toolId}`), sep());
+    }
   }
 
   return { lines, nextState: next };
@@ -1366,11 +1441,14 @@ const cmdDecrypt = (args: string[], state: GameState): CommandOutput => {
 
 // ── wipe-logs ─────────────────────────────────────────────
 const cmdWipeLogs = (state: GameState): CommandOutput => {
-  const hasTool = state.player.tools.some(t => t.id === 'log-wiper');
-  if (!hasTool) return { lines: [err('log-wiper tool required')] };
+  const tool = state.player.tools.find(t => t.id === 'log-wiper');
+  if (!tool) return { lines: [err('log-wiper tool required')] };
+  if (tool.used) return { lines: [err('log-wiper: tool depleted — single-use only')] };
 
   const next = produce(state, s => {
     s.player.trace = Math.max(0, s.player.trace - 15);
+    const t = s.player.tools.find(x => x.id === 'log-wiper');
+    if (t) t.used = true;
   });
   const applied = state.player.trace - next.player.trace;
 
@@ -1378,6 +1456,7 @@ const cmdWipeLogs = (state: GameState): CommandOutput => {
     lines: [
       out('Wiping logs...'),
       sys(`  -${String(applied)} trace. Now: ${String(next.player.trace)}%`),
+      sys('  log-wiper [DEPLETED]'),
     ],
     nextState: next,
   };
@@ -1385,11 +1464,14 @@ const cmdWipeLogs = (state: GameState): CommandOutput => {
 
 // ── spoof ─────────────────────────────────────────────────
 const cmdSpoof = (state: GameState): CommandOutput => {
-  const hasTool = state.player.tools.some(t => t.id === 'spoof-id');
-  if (!hasTool) return { lines: [err('spoof-id tool required')] };
+  const tool = state.player.tools.find(t => t.id === 'spoof-id');
+  if (!tool) return { lines: [err('spoof-id tool required')] };
+  if (tool.used) return { lines: [err('spoof-id: tool depleted — single-use only')] };
 
   const next = produce(state, s => {
     s.player.trace = Math.max(0, s.player.trace - 20);
+    const t = s.player.tools.find(x => x.id === 'spoof-id');
+    if (t) t.used = true;
   });
   const applied = state.player.trace - next.player.trace;
 
@@ -1397,6 +1479,7 @@ const cmdSpoof = (state: GameState): CommandOutput => {
     lines: [
       out('Spoofing identity signature...'),
       sys(`  -${String(applied)} trace. Now: ${String(next.player.trace)}%`),
+      sys('  spoof-id [DEPLETED]'),
     ],
     nextState: next,
   };

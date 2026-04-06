@@ -444,3 +444,82 @@ describe('burnRetry', () => {
     expect(node.services.every(s => !s.patched)).toBe(true);
   });
 });
+
+// ── burnRetry — burnCount tracking ───────────────────────────────────────────
+
+describe('burnRetry — burnCount tracking', () => {
+  it('should increment burnCount by 1 on each call', () => {
+    const state = produce(createInitialState(), s => {
+      s.player.trace = 100;
+      s.phase = 'burned';
+    });
+    const next = burnRetry(state);
+    expect(next.player.burnCount).toBe(1);
+  });
+
+  it('should accumulate burnCount across successive retries', () => {
+    const state = produce(createInitialState(), s => {
+      s.player.trace = 100;
+      s.phase = 'burned';
+    });
+    const after1 = burnRetry(state);
+    const after2 = burnRetry(
+      produce(after1, s => {
+        s.player.trace = 100;
+        s.phase = 'burned';
+      }),
+    );
+    expect(after2.player.burnCount).toBe(2);
+  });
+
+  it('should return phase "playing" when burnCount is 0 (first retry)', () => {
+    const state = produce(createInitialState(), s => {
+      s.player.trace = 100;
+      s.phase = 'burned';
+      // burnCount starts at 0
+    });
+    const next = burnRetry(state);
+    expect(next.phase).toBe('playing');
+  });
+
+  it('should return phase "playing" when burnCount is 3 before retry (becomes 4 — not yet ended)', () => {
+    const state = produce(createInitialState(), s => {
+      s.player.trace = 100;
+      s.phase = 'burned';
+      s.player.burnCount = 3;
+    });
+    const next = burnRetry(state);
+    expect(next.player.burnCount).toBe(4);
+    expect(next.phase).toBe('playing');
+  });
+
+  it('should return phase "ended" when burnCount is 4 before retry (becomes 5 — game over)', () => {
+    const state = produce(createInitialState(), s => {
+      s.player.trace = 100;
+      s.phase = 'burned';
+      s.player.burnCount = 4;
+    });
+    const next = burnRetry(state);
+    expect(next.player.burnCount).toBe(5);
+    expect(next.phase).toBe('ended');
+  });
+
+  it('should persist the incremented burnCount in the returned state', () => {
+    const state = produce(createInitialState(), s => {
+      s.player.trace = 100;
+      s.phase = 'burned';
+      s.player.burnCount = 2;
+    });
+    const next = burnRetry(state);
+    expect(next.player.burnCount).toBe(3);
+  });
+
+  it('should not mutate the original state burnCount', () => {
+    const state = produce(createInitialState(), s => {
+      s.player.trace = 100;
+      s.phase = 'burned';
+    });
+    burnRetry(state);
+    expect(state.player.burnCount).toBe(0);
+  });
+});

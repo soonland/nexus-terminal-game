@@ -81,7 +81,7 @@ export const createInitialState = (sessionSeed?: number): GameState => {
         {
           id: 'port-scanner',
           name: 'Port Scanner',
-          description: 'Reduces trace cost of scan by 1.',
+          description: 'Makes scan fully passive — 0 trace cost.',
         },
         {
           id: 'exploit-kit',
@@ -89,6 +89,7 @@ export const createInitialState = (sessionSeed?: number): GameState => {
           description: 'Required to run exploit commands.',
         },
       ],
+      burnCount: 0,
     },
     network: {
       currentNodeId: 'contractor_portal',
@@ -187,10 +188,13 @@ export const burnRetry = (state: GameState): GameState => {
     Object.entries(state.flags).filter(([k]) => !thresholdFlagsToRemove.has(k)),
   );
 
+  const burnCount = state.player.burnCount + 1;
+  const phase = burnCount >= 5 ? 'ended' : state.aria.discovered ? 'aria' : 'playing';
+
   return {
     ...state,
-    phase: state.aria.discovered ? 'aria' : 'playing',
-    player: { ...state.player, trace: 0 },
+    phase,
+    player: { ...state.player, trace: 0, burnCount },
     network: { ...state.network, currentNodeId: entryNodeId, previousNodeId: null, nodes },
     flags,
     sentinel: { active: false, mutationLog: [], pendingFileDeletes: [] },
