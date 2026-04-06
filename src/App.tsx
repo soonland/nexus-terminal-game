@@ -428,20 +428,23 @@ export const App = () => {
 
         stopSpinner();
 
-        // Update history in GameState
-        const updatedState = {
-          ...gameState,
-          sentinel: {
-            ...gameState.sentinel,
-            messageHistory: [
-              ...gameState.sentinel.messageHistory,
-              { role: 'player' as const, content: raw },
-              { role: 'sentinel' as const, content: dmReply },
-            ].slice(-40),
-          },
-        } as GameState;
-        setGameState(updatedState);
-        saveGame(updatedState);
+        // Update history in GameState — functional updater avoids stale-closure race
+        setGameState(prev => {
+          if (!prev) return prev;
+          const updatedState: GameState = {
+            ...prev,
+            sentinel: {
+              ...prev.sentinel,
+              messageHistory: [
+                ...prev.sentinel.messageHistory,
+                { role: 'player' as const, content: raw },
+                { role: 'sentinel' as const, content: dmReply },
+              ].slice(-40),
+            },
+          };
+          saveGame(updatedState);
+          return updatedState;
+        });
 
         push([makeLine('output', `[SENTINEL] ${dmReply}`)]);
         return;
@@ -575,18 +578,22 @@ export const App = () => {
           }
           stopSpinner();
 
-          const withOpening = {
-            ...withChannel,
-            sentinel: {
-              ...withChannel.sentinel,
-              messageHistory: [
-                ...withChannel.sentinel.messageHistory,
-                { role: 'sentinel' as const, content: openingReply },
-              ].slice(-40),
-            },
-          } as GameState;
-          setGameState(withOpening);
-          saveGame(withOpening);
+          // Functional updater avoids stale-closure race if player typed during the await
+          setGameState(prev => {
+            if (!prev) return prev;
+            const withOpening: GameState = {
+              ...prev,
+              sentinel: {
+                ...prev.sentinel,
+                messageHistory: [
+                  ...prev.sentinel.messageHistory,
+                  { role: 'sentinel' as const, content: openingReply },
+                ].slice(-40),
+              },
+            };
+            saveGame(withOpening);
+            return withOpening;
+          });
           push([makeLine('output', `[SENTINEL] ${openingReply}`)]);
         } else {
           push([

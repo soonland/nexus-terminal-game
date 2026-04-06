@@ -314,13 +314,15 @@ describe('POST /api/sentinel — messageHistory slicing', () => {
     expect(fetchMock).toHaveBeenCalledOnce();
     const [, options] = fetchMock.mock.calls[0] as [string, RequestInit];
     const sentBody = JSON.parse(options.body as string) as {
-      contents: { parts: { text: string }[] }[];
+      contents: { role: string; parts: { text: string }[] }[];
     };
-    const prompt = sentBody.contents[0].parts[0].text;
 
-    // The last 20 messages are entries 10-29; entry 9 should NOT appear in the prompt
-    expect(prompt).toContain('message 29');
-    expect(prompt).not.toContain('message 9');
+    // History is now structured turns; the last turn is the current message.
+    // The last 20 history entries are entries 10-29, mapped to turns 0-19.
+    // Entry 9 (turn index 9 if it were included) should NOT be present.
+    const allText = sentBody.contents.map(c => c.parts[0].text).join('\n');
+    expect(allText).toContain('message 29');
+    expect(allText).not.toContain('message 9');
   });
 });
 
