@@ -143,7 +143,7 @@ export const resolveCommand = async (raw: string, state: GameState): Promise<Com
       result = { lines: [] }; // handled as modal in App
       break;
   }
-  if (result) return withTurn(result, raw, state);
+  if (result) return result;
 
   // ── Engine commands ──────────────────────────────────────
   switch (verb) {
