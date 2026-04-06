@@ -13,7 +13,7 @@ import { createInitialState } from './state';
 import { AI_GENERATED_FILE_PATHS } from '../data/anchorNodes';
 
 const SAVE_KEY = 'irongate_save';
-const SAVE_VERSION = 2;
+const SAVE_VERSION = 3;
 
 // ── Delta types (what actually goes into localStorage) ─────
 
@@ -41,6 +41,7 @@ interface SaveState {
   player: {
     trace: number;
     charges: number;
+    burnCount: number;
     tools: Tool[];
     credentialsObtained: string[]; // credential IDs only — no username/password
     credentialsRevoked: string[]; // IDs of credentials revoked by sentinel
@@ -117,6 +118,7 @@ const toSaveState = (state: GameState): SaveState => {
     player: {
       trace: state.player.trace,
       charges: state.player.charges,
+      burnCount: state.player.burnCount,
       tools: state.player.tools,
       credentialsObtained: state.player.credentials.filter(c => c.obtained).map(c => c.id),
       credentialsRevoked: state.player.credentials.filter(c => c.revoked).map(c => c.id),
@@ -154,6 +156,7 @@ const fromSaveState = (save: SaveState): GameState => {
 
   state.player.trace = save.player.trace;
   state.player.charges = save.player.charges;
+  state.player.burnCount = save.player.burnCount;
   state.player.tools = save.player.tools;
 
   // Mark obtained and revoked credentials by ID — username/password come from anchorNodes

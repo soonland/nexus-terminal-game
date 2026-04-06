@@ -81,7 +81,7 @@ export const createInitialState = (sessionSeed?: number): GameState => {
         {
           id: 'port-scanner',
           name: 'Port Scanner',
-          description: 'Reduces trace cost of scan by 1.',
+          description: 'Makes scan fully passive — 0 trace cost.',
         },
         {
           id: 'exploit-kit',

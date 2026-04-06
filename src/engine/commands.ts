@@ -1,4 +1,4 @@
-import type { GameState, CommandOutput, AccessLevel, FavorOffer } from '../types/game';
+import type { GameState, CommandOutput, AccessLevel, FavorOffer, ToolId } from '../types/game';
 import { hasAccess } from '../types/game';
 import { currentNode, addTrace, thresholdFlag, TRACE_THRESHOLDS } from './state';
 import produce from './produce';
@@ -25,6 +25,13 @@ interface AriaAIResponse {
   trustDelta: number;
   offersFavor?: FavorOffer; // FavorOffer = { description: string; cost: number }
 }
+
+const GENERIC_TOOL_DATA: Partial<Record<ToolId, { name: string; description: string }>> = {
+  'log-wiper': {
+    name: 'Log Wiper',
+    description: 'Single-use log sanitisation tool. Reduces trace by 15%. Destroyed after use.',
+  },
+};
 
 const ARIA_AI_FALLBACK: AriaAIResponse = {
   reply: '...signal lost. try again.',
@@ -1239,14 +1246,6 @@ const cmdExfil = (args: string[], state: GameState): CommandOutput => {
   const isAriaKey = file.path === '/root/.aria/aria_key.bin';
   const isDecryptorBin = file.path === '/home/ops.admin/sec_tools/decryptor.bin';
 
-  // Generic tool acquisition: files with isTool/toolId that aren't handled by special cases above.
-  const GENERIC_TOOL_DATA: Partial<Record<string, { name: string; description: string }>> = {
-    'log-wiper': {
-      name: 'Log Wiper',
-      description: 'Single-use log sanitisation tool. Reduces trace by 15%. Destroyed after use.',
-    },
-  };
-
   const next = produce(addTrace(state, 3), s => {
     s.player.exfiltrated.push({ ...file });
     // Queue sentinel file-delete for non-Aria nodes.
@@ -1317,7 +1316,10 @@ const cmdExfil = (args: string[], state: GameState): CommandOutput => {
     lines.push(sep(), sys('  Tool acquired: decryptor'), sys('  Usage: decrypt [file]'), sep());
   }
   if (file.isTool && file.toolId && !isAriaKey && !isDecryptorBin) {
-    lines.push(sep(), sys(`  Tool acquired: ${file.toolId}`), sep());
+    const toolData = GENERIC_TOOL_DATA[file.toolId];
+    if (toolData) {
+      lines.push(sep(), sys(`  Tool acquired: ${file.toolId}`), sep());
+    }
   }
 
   return { lines, nextState: next };
