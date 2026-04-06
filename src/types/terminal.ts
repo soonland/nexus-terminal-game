@@ -1,4 +1,4 @@
-export type LineType = 'output' | 'input' | 'system' | 'error' | 'separator' | 'aria';
+export type LineType = 'output' | 'input' | 'system' | 'error' | 'separator' | 'aria' | 'dm';
 
 /**
  * Alias for {@link LineType} — satisfies the spec's TerminalLineType requirement.

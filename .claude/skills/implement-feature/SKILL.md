@@ -1,6 +1,6 @@
 ---
 name: implement-feature
-description: Implement a feature from a GitHub Issue feature spec. Use this skill when the user asks to "implement a feature from an issue", "build this feature spec", "implement issue #N", or provides a GitHub issue URL or number to implement.
+description: Implement a feature from a GitHub Issue feature spec.
 ---
 
 # Feature Implementation Skill

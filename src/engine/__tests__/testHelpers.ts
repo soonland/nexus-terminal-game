@@ -27,6 +27,7 @@ export const makeState = (overrides: Partial<GameState> = {}): GameState => {
   const node = makeNode();
   return {
     phase: 'playing',
+    activeChannel: null,
     runId: 'test-run-id',
     startedAt: 0,
     sessionSeed: 0,
@@ -62,6 +63,8 @@ export const makeState = (overrides: Partial<GameState> = {}): GameState => {
       active: false,
       mutationLog: [],
       pendingFileDeletes: [],
+      messageHistory: [],
+      channelEstablished: false,
     },
     ...overrides,
   };

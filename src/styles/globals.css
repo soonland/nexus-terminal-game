@@ -88,6 +88,24 @@ body {
   border-left: 2px solid var(--color-aria-border);
   padding-left: calc(1.5rem - 2px);
 }
+.line--dm {
+  color: #ff5555;
+  border-left: 2px solid #aa0000;
+  padding-left: calc(1.5rem - 2px);
+  font-style: italic;
+}
+
+/* ── Sentinel DM mode — full terminal takeover ────────────── */
+body.dm-sentinel {
+  --color-bg: #000000;
+  --color-bg-header: #000000;
+  --color-border: #aa0000;
+  --color-output: #ff5555;
+  --color-input: #ff5555;
+  --color-system: #ff5555;
+  --color-separator: #aa0000;
+  --color-error: #ff0000;
+}
 
 /* ── Scrollbar ────────────────────────────────────────────── */
 ::-webkit-scrollbar {

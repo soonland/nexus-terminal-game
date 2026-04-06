@@ -64,6 +64,7 @@ export const createInitialState = (sessionSeed?: number): GameState => {
 
   return {
     phase: 'playing',
+    activeChannel: null,
     runId: crypto.randomUUID(),
     startedAt: Date.now(),
     sessionSeed: resolvedSeed,
@@ -110,6 +111,8 @@ export const createInitialState = (sessionSeed?: number): GameState => {
       active: false,
       mutationLog: [],
       pendingFileDeletes: [],
+      messageHistory: [],
+      channelEstablished: false,
     },
   };
 };
@@ -194,9 +197,17 @@ export const burnRetry = (state: GameState): GameState => {
   return {
     ...state,
     phase,
+    activeChannel: null, // DM mode does not persist across burns
     player: { ...state.player, trace: 0, burnCount },
     network: { ...state.network, currentNodeId: entryNodeId, previousNodeId: null, nodes },
     flags,
-    sentinel: { active: false, mutationLog: [], pendingFileDeletes: [] },
+    sentinel: {
+      active: false,
+      mutationLog: [],
+      pendingFileDeletes: [],
+      // Preserve DM channel history and established flag across burns
+      messageHistory: state.sentinel.messageHistory,
+      channelEstablished: state.sentinel.channelEstablished,
+    },
   };
 };
