@@ -246,6 +246,34 @@ export const App = () => {
         setGameState(retryState);
         setSessionLines([]);
         setAiSuggestions([]);
+
+        if (retryState.phase === 'ended') {
+          push([
+            makeLine('separator', ''),
+            makeLine('error', '// NEXUS CORP — OPERATIVE TERMINATED'),
+            makeLine('error', '// Anomalous reconnect pattern flagged. Asset decommissioned.'),
+            makeLine(
+              'error',
+              `// ${String(retryState.player.burnCount)} burn events logged. Run closed.`,
+            ),
+            makeLine('separator', ''),
+          ]);
+          setAppPhase('ended');
+          return;
+        }
+
+        const burnWarningLines: ReturnType<typeof makeLine>[] = [];
+        if (retryState.player.burnCount >= 3) {
+          burnWarningLines.push(
+            makeLine('separator', ''),
+            makeLine('error', '// NEXUS CORP — ANOMALOUS RECONNECT PATTERN DETECTED'),
+            makeLine(
+              'error',
+              `// ${String(retryState.player.burnCount)} burn events on record. Continued failures will terminate this asset.`,
+            ),
+          );
+        }
+
         push([
           makeLine('separator', ''),
           makeLine('system', 'Reconnecting...'),
@@ -257,9 +285,10 @@ export const App = () => {
             'system',
             `// Retained: ${String(retainedCreds)} credential(s), ${String(retainedExfils)} exfil(s).`,
           ),
+          ...burnWarningLines,
           makeLine('separator', ''),
         ]);
-        setAppPhase('playing');
+        setAppPhase(retryState.phase === 'aria' ? 'aria' : 'playing');
         return;
       }
 
