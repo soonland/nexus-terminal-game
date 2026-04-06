@@ -2356,6 +2356,19 @@ describe('decrypt command', () => {
     expect(traceLine).toBeDefined();
   });
 
+  it('should return access-denied error when the file is locked', async () => {
+    const lockedState = produce(state, s => {
+      const file = s.network.nodes['sec_access_ctrl']!.files.find(
+        f => f.name === 'encrypted_creds.gpg',
+      );
+      if (file) file.locked = true;
+    });
+    const result = await resolveCommand('decrypt encrypted_creds.gpg', lockedState);
+    const errorLine = result.lines.find(l => l.type === 'error');
+    expect(errorLine).toBeDefined();
+    expect(errorLine?.content).toContain('secured by watchlist protocol');
+  });
+
   it('should show "No new credentials found" when all matching credentials are already obtained', async () => {
     // Pre-mark both credentials as obtained
     const alreadyObtained = produce(state, s => {
@@ -2368,6 +2381,19 @@ describe('decrypt command', () => {
     const result = await resolveCommand('decrypt encrypted_creds.gpg', alreadyObtained);
     const contents = result.lines.map(l => l.content);
     expect(contents.some(c => c.includes('No new credentials found'))).toBe(true);
+  });
+
+  it('should NOT apply trace when no new credentials are found', async () => {
+    const alreadyObtained = produce(state, s => {
+      for (const cred of s.player.credentials) {
+        if (cred.username === 'a.walsh' || cred.username === 'fin.dba') {
+          cred.obtained = true;
+        }
+      }
+    });
+    const result = await resolveCommand('decrypt encrypted_creds.gpg', alreadyObtained);
+    const nextState = result.nextState as GameState;
+    expect(nextState.player.trace).toBe(0);
   });
 
   it('should skip already-obtained credentials and only unlock the remaining one', async () => {
@@ -2431,5 +2457,18 @@ describe('exfil decryptor.bin — decryptor tool acquisition', () => {
     const result = await resolveCommand('exfil decryptor.bin', state);
     const contents = result.lines.map(l => l.content);
     expect(contents.some(c => c.includes('Tool acquired: decryptor'))).toBe(true);
+  });
+
+  it('should not add a duplicate decryptor tool if already in inventory', async () => {
+    const withTool = produce(state, s => {
+      s.player.tools.push({
+        id: 'decryptor',
+        name: 'Decryptor',
+        description: 'GPG decryption utility. Required to run the decrypt command.',
+      });
+    });
+    const result = await resolveCommand('exfil decryptor.bin', withTool);
+    const nextState = result.nextState as GameState;
+    expect(nextState.player.tools.filter(t => t.id === 'decryptor')).toHaveLength(1);
   });
 });

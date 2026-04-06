@@ -1221,7 +1221,7 @@ const cmdExfil = (args: string[], state: GameState): CommandOutput => {
       }
     }
 
-    if (isDecryptorBin) {
+    if (isDecryptorBin && !s.player.tools.some(t => t.id === 'decryptor')) {
       s.player.tools.push({
         id: 'decryptor',
         name: 'Decryptor',
@@ -1269,6 +1269,9 @@ const cmdDecrypt = (args: string[], state: GameState): CommandOutput => {
   if (!hasAccess(node.accessLevel, file.accessRequired)) {
     return { lines: [err(`Permission denied: ${file.name}`)] };
   }
+  if (file.locked) {
+    return { lines: [err(`// ACCESS DENIED: ${file.name} — secured by watchlist protocol`)] };
+  }
 
   const content = file.content;
   if (!content?.startsWith('[ENCRYPTED')) {
@@ -1276,53 +1279,87 @@ const cmdDecrypt = (args: string[], state: GameState): CommandOutput => {
   }
 
   // Parse "username / password" pairs from lines after the [ENCRYPTED...] header.
+  // Use slice(1).join() to correctly handle passwords that contain ' / '.
   const credLines = content
     .split('\n')
     .slice(1)
     .filter(l => l.includes(' / '));
 
-  let next = addTrace(state, 2);
-  const unlocked: string[] = [];
+  // Pre-pass: collect credentials to unlock from the original (immutable) state,
+  // keeping produce free of side effects on the closure variable.
+  type UnlockEntry = {
+    username: string;
+    password: string;
+    display: string;
+    source: 'player' | 'world';
+  };
+  const toUnlock: UnlockEntry[] = [];
+  for (const credLine of credLines) {
+    const parts = credLine.split(' / ');
+    const username = parts[0]?.trim();
+    const password = parts.slice(1).join(' / ').trim();
+    if (!username || !password) continue;
 
-  next = produce(next, s => {
-    for (const credLine of credLines) {
-      const parts = credLine.split(' / ');
-      const username = parts[0]?.trim();
-      const password = parts[1]?.trim();
-      if (!username || !password) continue;
-
-      // Player credentials take priority (anchor creds already in inventory, just not obtained).
-      const playerIdx = s.player.credentials.findIndex(
-        c => c.username === username && c.password === password && !c.obtained,
-      );
-      if (playerIdx !== -1) {
-        s.player.credentials[playerIdx].obtained = true;
-        unlocked.push(`${username} (${s.player.credentials[playerIdx].accessLevel})`);
-        continue;
-      }
-
-      // Fall back to world credentials (e.g. employee credentials from lateral movement).
-      const worldIdx = s.worldCredentials.findIndex(
-        c => c.username === username && c.password === password,
-      );
-      if (worldIdx !== -1) {
-        const [promoted] = s.worldCredentials.splice(worldIdx, 1);
-        s.player.credentials.push({ ...promoted, obtained: true });
-        unlocked.push(`${username} (${promoted.accessLevel})`);
-      }
+    const playerCred = state.player.credentials.find(
+      c => c.username === username && c.password === password && !c.obtained,
+    );
+    if (playerCred) {
+      toUnlock.push({
+        username,
+        password,
+        display: `${username} (${playerCred.accessLevel})`,
+        source: 'player',
+      });
+      continue;
     }
-  });
+
+    const worldCred = state.worldCredentials.find(
+      c => c.username === username && c.password === password,
+    );
+    if (worldCred) {
+      toUnlock.push({
+        username,
+        password,
+        display: `${username} (${worldCred.accessLevel})`,
+        source: 'world',
+      });
+    }
+  }
+
+  // Only charge +2 trace when new credentials are actually found.
+  const baseState = toUnlock.length > 0 ? addTrace(state, 2) : state;
+  const next =
+    toUnlock.length > 0
+      ? produce(baseState, s => {
+          for (const entry of toUnlock) {
+            if (entry.source === 'player') {
+              const idx = s.player.credentials.findIndex(
+                c => c.username === entry.username && c.password === entry.password && !c.obtained,
+              );
+              if (idx !== -1) s.player.credentials[idx].obtained = true;
+            } else {
+              const worldIdx = s.worldCredentials.findIndex(
+                c => c.username === entry.username && c.password === entry.password,
+              );
+              if (worldIdx !== -1) {
+                const [promoted] = s.worldCredentials.splice(worldIdx, 1);
+                s.player.credentials.push({ ...promoted, obtained: true });
+              }
+            }
+          }
+        })
+      : baseState;
 
   const lines: Out = [out(`Decrypting ${file.name}...`)];
-  if (unlocked.length > 0) {
+  if (toUnlock.length > 0) {
     lines.push(sys('  Credentials extracted:'));
-    for (const cred of unlocked) {
-      lines.push(out(`    ${cred}`));
+    for (const entry of toUnlock) {
+      lines.push(out(`    ${entry.display}`));
     }
+    lines.push(sys('  +2 trace'));
   } else {
     lines.push(sys('  No new credentials found.'));
   }
-  lines.push(sys('  +2 trace'));
 
   return { lines, nextState: next };
 };
