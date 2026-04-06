@@ -122,7 +122,7 @@ const handler = async (req: VercelRequest, res: VercelResponse) => {
         : 0;
     const currentNodeId =
       typeof sentinelContextRaw['currentNodeId'] === 'string'
-        ? sentinelContextRaw['currentNodeId']
+        ? sentinelContextRaw['currentNodeId'].slice(0, 64)
         : 'unknown';
     const currentLayer =
       typeof sentinelContextRaw['currentLayer'] === 'number'
@@ -131,6 +131,7 @@ const handler = async (req: VercelRequest, res: VercelResponse) => {
     const recentCommands: string[] = Array.isArray(sentinelContextRaw['recentCommands'])
       ? (sentinelContextRaw['recentCommands'] as unknown[])
           .filter((item): item is string => typeof item === 'string')
+          .map(s => s.slice(0, 100))
           .slice(-5)
       : [];
 
@@ -145,15 +146,28 @@ const handler = async (req: VercelRequest, res: VercelResponse) => {
               typeof (item as Record<string, unknown>)['role'] === 'string' &&
               typeof (item as Record<string, unknown>)['content'] === 'string',
           )
+          .map(item => ({ role: item.role, content: item.content.slice(0, 500) }))
           .slice(-20)
       : [];
 
+    const KNOWN_TRIGGER_TYPES = new Set([
+      'trace_31',
+      'trace_61',
+      'trace_86',
+      'layer_breach',
+      'exploit',
+      'exfil',
+      'wipe_logs',
+      'manual_reentry',
+    ]);
     const triggerContextRaw =
       body['triggerContext'] && typeof body['triggerContext'] === 'object'
         ? (body['triggerContext'] as Record<string, unknown>)
         : null;
     const triggerType =
-      triggerContextRaw && typeof triggerContextRaw['type'] === 'string'
+      triggerContextRaw &&
+      typeof triggerContextRaw['type'] === 'string' &&
+      KNOWN_TRIGGER_TYPES.has(triggerContextRaw['type'])
         ? triggerContextRaw['type']
         : null;
 
