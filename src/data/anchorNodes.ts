@@ -308,6 +308,16 @@ const ANCHOR_NODES: LiveNode[] = [
         accessRequired: 'admin',
         tripwire: true,
       },
+      {
+        name: 'decryptor.bin',
+        path: '/home/ops.admin/sec_tools/decryptor.bin',
+        type: 'binary',
+        content:
+          '[BINARY — GPG decryption utility v2.3.1]\nLicensed to IronGate Corp. Security Tools Suite.\nUsage: decrypt [file]',
+        exfiltrable: true,
+        accessRequired: 'admin',
+        ariaPlanted: false,
+      },
     ],
     accessLevel: 'none',
     compromised: false,

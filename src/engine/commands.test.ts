@@ -2260,3 +2260,176 @@ describe('resolveCommand — decisionLog tracking', () => {
     expect(nextState.decisionLog[0].turn).toBe(5);
   });
 });
+
+// ── decrypt command ────────────────────────────────────────
+
+describe('decrypt command', () => {
+  let state: GameState;
+
+  beforeEach(() => {
+    // Navigate to sec_access_ctrl with user access and the decryptor tool equipped
+    state = produce(createInitialState(), s => {
+      s.network.currentNodeId = 'sec_access_ctrl';
+      s.network.nodes['sec_access_ctrl']!.accessLevel = 'user';
+      s.player.tools.push({
+        id: 'decryptor',
+        name: 'Decryptor',
+        description: 'GPG decryption utility.',
+      });
+    });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({ ok: true, json: vi.fn().mockResolvedValue({}) }),
+    );
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('should return usage error when no filename argument is given', async () => {
+    const result = await resolveCommand('decrypt', state);
+    const errorLine = result.lines.find(l => l.type === 'error');
+    expect(errorLine).toBeDefined();
+    expect(errorLine?.content).toBe('Usage: decrypt [filename]');
+  });
+
+  it('should return error when the decryptor tool is not in the player inventory', async () => {
+    const noTool = produce(state, s => {
+      s.player.tools = s.player.tools.filter(t => t.id !== 'decryptor');
+    });
+    const result = await resolveCommand('decrypt encrypted_creds.gpg', noTool);
+    const errorLine = result.lines.find(l => l.type === 'error');
+    expect(errorLine).toBeDefined();
+    expect(errorLine?.content).toBe('decryptor tool required');
+  });
+
+  it('should return permission denied when node accessLevel is none', async () => {
+    const noAccess = produce(state, s => {
+      s.network.nodes['sec_access_ctrl']!.accessLevel = 'none';
+    });
+    const result = await resolveCommand('decrypt encrypted_creds.gpg', noAccess);
+    const errorLine = result.lines.find(l => l.type === 'error');
+    expect(errorLine).toBeDefined();
+    expect(errorLine?.content).toBe('Permission denied — not authenticated');
+  });
+
+  it('should return file-not-found error when the filename does not exist on the node', async () => {
+    const result = await resolveCommand('decrypt nonexistent.gpg', state);
+    const errorLine = result.lines.find(l => l.type === 'error');
+    expect(errorLine).toBeDefined();
+    expect(errorLine?.content).toBe('File not found: nonexistent.gpg');
+  });
+
+  it('should return not-encrypted error when the file content does not start with [ENCRYPTED', async () => {
+    // acl_rules.conf is a plain-text file on sec_access_ctrl accessible at user level
+    const result = await resolveCommand('decrypt acl_rules.conf', state);
+    const errorLine = result.lines.find(l => l.type === 'error');
+    expect(errorLine).toBeDefined();
+    expect(errorLine?.content).toBe('acl_rules.conf: not an encrypted file');
+  });
+
+  it('should extract both credentials and mark them obtained in player.credentials', async () => {
+    const result = await resolveCommand('decrypt encrypted_creds.gpg', state);
+    const nextState = result.nextState as GameState;
+    const aWalsh = nextState.player.credentials.find(c => c.username === 'a.walsh');
+    const finDba = nextState.player.credentials.find(c => c.username === 'fin.dba');
+    expect(aWalsh?.obtained).toBe(true);
+    expect(finDba?.obtained).toBe(true);
+  });
+
+  it('should apply +2 trace on successful decryption', async () => {
+    const result = await resolveCommand('decrypt encrypted_creds.gpg', state);
+    const nextState = result.nextState as GameState;
+    expect(nextState.player.trace).toBe(2);
+  });
+
+  it('should include "Decrypting encrypted_creds.gpg..." in output', async () => {
+    const result = await resolveCommand('decrypt encrypted_creds.gpg', state);
+    const contents = result.lines.map(l => l.content);
+    expect(contents.some(c => c.includes('Decrypting encrypted_creds.gpg...'))).toBe(true);
+  });
+
+  it('should include "+2 trace" system line in output', async () => {
+    const result = await resolveCommand('decrypt encrypted_creds.gpg', state);
+    const traceLine = result.lines.find(l => l.type === 'system' && l.content.includes('+2 trace'));
+    expect(traceLine).toBeDefined();
+  });
+
+  it('should show "No new credentials found" when all matching credentials are already obtained', async () => {
+    // Pre-mark both credentials as obtained
+    const alreadyObtained = produce(state, s => {
+      for (const cred of s.player.credentials) {
+        if (cred.username === 'a.walsh' || cred.username === 'fin.dba') {
+          cred.obtained = true;
+        }
+      }
+    });
+    const result = await resolveCommand('decrypt encrypted_creds.gpg', alreadyObtained);
+    const contents = result.lines.map(l => l.content);
+    expect(contents.some(c => c.includes('No new credentials found'))).toBe(true);
+  });
+
+  it('should skip already-obtained credentials and only unlock the remaining one', async () => {
+    // Pre-mark a.walsh as obtained; fin.dba remains unobtained
+    const partiallyObtained = produce(state, s => {
+      const aWalsh = s.player.credentials.find(c => c.username === 'a.walsh');
+      if (aWalsh) aWalsh.obtained = true;
+    });
+    const result = await resolveCommand('decrypt encrypted_creds.gpg', partiallyObtained);
+    const nextState = result.nextState as GameState;
+    const contents = result.lines.map(l => l.content);
+    // Only fin.dba should appear in the unlocked list
+    expect(contents.some(c => c.includes('fin.dba'))).toBe(true);
+    expect(contents.filter(c => c.match(/\(admin\)|\(user\)/))).toHaveLength(1);
+    // a.walsh should not appear as a newly unlocked credential in output
+    expect(contents.some(c => c.includes('a.walsh') && c.includes('(user)'))).toBe(false);
+    // fin.dba must be marked obtained in nextState
+    const finDba = nextState.player.credentials.find(c => c.username === 'fin.dba');
+    expect(finDba?.obtained).toBe(true);
+  });
+
+  it('should reflect +2 trace in nextState relative to the incoming trace value', async () => {
+    const withTrace = produce(state, s => {
+      s.player.trace = 10;
+    });
+    const result = await resolveCommand('decrypt encrypted_creds.gpg', withTrace);
+    const nextState = result.nextState as GameState;
+    expect(nextState.player.trace).toBe(12);
+  });
+});
+
+// ── exfil — decryptor.bin grants decryptor tool ───────────
+
+describe('exfil decryptor.bin — decryptor tool acquisition', () => {
+  let state: GameState;
+
+  beforeEach(() => {
+    // Navigate to ops_hr_db with admin access so decryptor.bin is accessible
+    state = produce(createInitialState(), s => {
+      s.network.currentNodeId = 'ops_hr_db';
+      s.network.nodes['ops_hr_db']!.accessLevel = 'admin';
+      s.network.nodes['ops_hr_db']!.discovered = true;
+    });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({ ok: true, json: vi.fn().mockResolvedValue({}) }),
+    );
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('should add the decryptor tool to player.tools after exfiltrating decryptor.bin', async () => {
+    const result = await resolveCommand('exfil decryptor.bin', state);
+    const nextState = result.nextState as GameState;
+    expect(nextState.player.tools.some(t => t.id === 'decryptor')).toBe(true);
+  });
+
+  it('should include "Tool acquired: decryptor" in output after exfiltrating decryptor.bin', async () => {
+    const result = await resolveCommand('exfil decryptor.bin', state);
+    const contents = result.lines.map(l => l.content);
+    expect(contents.some(c => c.includes('Tool acquired: decryptor'))).toBe(true);
+  });
+});

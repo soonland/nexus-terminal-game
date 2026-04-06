@@ -171,6 +171,9 @@ export const resolveCommand = async (raw: string, state: GameState): Promise<Com
     case 'exfil':
       result = cmdExfil(args, state);
       break;
+    case 'decrypt':
+      result = cmdDecrypt(args, state);
+      break;
     case 'wipe-logs':
       result = cmdWipeLogs(state);
       break;
@@ -1179,6 +1182,7 @@ const cmdExfil = (args: string[], state: GameState): CommandOutput => {
   }
 
   const isAriaKey = file.path === '/root/.aria/aria_key.bin';
+  const isDecryptorBin = file.path === '/home/ops.admin/sec_tools/decryptor.bin';
 
   const next = produce(addTrace(state, 3), s => {
     s.player.exfiltrated.push({ ...file });
@@ -1216,6 +1220,14 @@ const cmdExfil = (args: string[], state: GameState): CommandOutput => {
         }
       }
     }
+
+    if (isDecryptorBin) {
+      s.player.tools.push({
+        id: 'decryptor',
+        name: 'Decryptor',
+        description: 'GPG decryption utility. Required to run the decrypt command.',
+      });
+    }
   });
 
   const lines: CommandOutput['lines'] = [
@@ -1231,6 +1243,86 @@ const cmdExfil = (args: string[], state: GameState): CommandOutput => {
       sep(),
     );
   }
+  if (isDecryptorBin) {
+    lines.push(sep(), sys('  Tool acquired: decryptor'), sys('  Usage: decrypt [file]'), sep());
+  }
+
+  return { lines, nextState: next };
+};
+
+// ── decrypt ───────────────────────────────────────────────
+const cmdDecrypt = (args: string[], state: GameState): CommandOutput => {
+  if (!args[0]) return { lines: [err('Usage: decrypt [filename]')] };
+
+  const hasTool = state.player.tools.some(t => t.id === 'decryptor');
+  if (!hasTool) return { lines: [err('decryptor tool required')] };
+
+  const node = currentNode(state);
+  if (node.accessLevel === 'none') {
+    return { lines: [err('Permission denied — not authenticated')] };
+  }
+
+  const file = node.files.find(
+    f => !f.deleted && (f.name === args[0] || f.path === args[0] || f.path.endsWith(`/${args[0]}`)),
+  );
+  if (!file) return { lines: [err(`File not found: ${args[0]}`)] };
+  if (!hasAccess(node.accessLevel, file.accessRequired)) {
+    return { lines: [err(`Permission denied: ${file.name}`)] };
+  }
+
+  const content = file.content;
+  if (!content?.startsWith('[ENCRYPTED')) {
+    return { lines: [err(`${file.name}: not an encrypted file`)] };
+  }
+
+  // Parse "username / password" pairs from lines after the [ENCRYPTED...] header.
+  const credLines = content
+    .split('\n')
+    .slice(1)
+    .filter(l => l.includes(' / '));
+
+  let next = addTrace(state, 2);
+  const unlocked: string[] = [];
+
+  next = produce(next, s => {
+    for (const credLine of credLines) {
+      const parts = credLine.split(' / ');
+      const username = parts[0]?.trim();
+      const password = parts[1]?.trim();
+      if (!username || !password) continue;
+
+      // Player credentials take priority (anchor creds already in inventory, just not obtained).
+      const playerIdx = s.player.credentials.findIndex(
+        c => c.username === username && c.password === password && !c.obtained,
+      );
+      if (playerIdx !== -1) {
+        s.player.credentials[playerIdx].obtained = true;
+        unlocked.push(`${username} (${s.player.credentials[playerIdx].accessLevel})`);
+        continue;
+      }
+
+      // Fall back to world credentials (e.g. employee credentials from lateral movement).
+      const worldIdx = s.worldCredentials.findIndex(
+        c => c.username === username && c.password === password,
+      );
+      if (worldIdx !== -1) {
+        const [promoted] = s.worldCredentials.splice(worldIdx, 1);
+        s.player.credentials.push({ ...promoted, obtained: true });
+        unlocked.push(`${username} (${promoted.accessLevel})`);
+      }
+    }
+  });
+
+  const lines: Out = [out(`Decrypting ${file.name}...`)];
+  if (unlocked.length > 0) {
+    lines.push(sys('  Credentials extracted:'));
+    for (const cred of unlocked) {
+      lines.push(out(`    ${cred}`));
+    }
+  } else {
+    lines.push(sys('  No new credentials found.'));
+  }
+  lines.push(sys('  +2 trace'));
 
   return { lines, nextState: next };
 };
