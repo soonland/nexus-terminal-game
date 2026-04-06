@@ -154,6 +154,30 @@ describe('createInitialState', () => {
     const state = createInitialState();
     expect(state.network.nodes['contractor_portal']!.accessLevel).toBe('none');
   });
+
+  it('should store sessionSeed on the returned state', () => {
+    const seed = 12345;
+    const state = createInitialState(seed);
+    expect(state.sessionSeed).toBe(seed);
+  });
+
+  it('should produce identical node networks for the same seed', () => {
+    const seed = 99887766;
+    const s1 = createInitialState(seed);
+    const s2 = createInitialState(seed);
+    expect(s1.network.nodes).toEqual(s2.network.nodes);
+    expect(s1.employees).toEqual(s2.employees);
+    expect(s1.worldCredentials).toEqual(s2.worldCredentials);
+  });
+
+  it('should produce different node networks for different seeds', () => {
+    const s1 = createInitialState(1);
+    const s2 = createInitialState(2);
+    // Filler node IDs are seed-derived — the set of node IDs will differ
+    const ids1 = Object.keys(s1.network.nodes).sort().join(',');
+    const ids2 = Object.keys(s2.network.nodes).sort().join(',');
+    expect(ids1).not.toBe(ids2);
+  });
 });
 
 describe('addTrace — threshold flags', () => {
