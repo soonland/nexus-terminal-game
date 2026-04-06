@@ -32,7 +32,7 @@ const makeTrigger = (triggerType: TriggerType, state: GameState): ChannelTrigger
  */
 export const isChannelBlocked = (state: GameState): boolean => {
   if (state.phase === 'burned' || state.phase === 'ended') return true;
-  return state.player.trace >= 86;
+  return state.player.trace > 86;
 };
 
 // ── Trigger detection ──────────────────────────────────────
