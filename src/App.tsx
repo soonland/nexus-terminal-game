@@ -91,6 +91,7 @@ type AppPhase =
   | 'booting'
   | 'playing'
   | 'aria'
+  | 'dm'
   | 'burned'
   | 'ending_sequence'
   | 'ended';
@@ -191,6 +192,15 @@ export const App = () => {
     )
       saveGame(gameState);
   }, [gameState]);
+
+  // Apply / remove dm-sentinel CSS class when phase changes
+  useEffect(() => {
+    if (appPhase === 'dm') {
+      document.body.classList.add('dm-sentinel');
+    } else {
+      document.body.classList.remove('dm-sentinel');
+    }
+  }, [appPhase]);
 
   // Refocus terminal input whenever all modals close
   useEffect(() => {
@@ -369,6 +379,77 @@ export const App = () => {
         return;
       }
 
+      // ── DM mode (Sentinel channel) ─────────────────────────
+      if (appPhase === 'dm') {
+        if (!gameState) return;
+        const exitCmd = raw.trim().toLowerCase();
+        if (exitCmd === 'exit' || exitCmd === 'quit') {
+          // Return to main terminal; clear active channel in state
+          const cleared = { ...gameState, activeChannel: null } as GameState;
+          setGameState(cleared);
+          saveGame(cleared);
+          setAppPhase(cleared.phase === 'aria' ? 'aria' : 'playing');
+          push([
+            makeLine('separator', ''),
+            makeLine('system', '// SENTINEL: channel closed'),
+            makeLine('separator', ''),
+          ]);
+          return;
+        }
+
+        if (!raw.trim()) return;
+
+        push([makeLine('input', raw)]);
+        startSpinner();
+
+        let dmReply = '...transmission interrupted.';
+        try {
+          const res = await fetch('/api/sentinel', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              message: raw,
+              sentinelContext: {
+                traceLevel: gameState.player.trace,
+                currentNodeId: gameState.network.currentNodeId,
+                currentLayer: gameState.network.nodes[gameState.network.currentNodeId]?.layer ?? 0,
+                recentCommands: gameState.recentCommands,
+              },
+              messageHistory: gameState.sentinel.messageHistory,
+            }),
+          });
+          if (res.ok) {
+            const data = (await res.json()) as { reply?: string };
+            if (typeof data.reply === 'string') dmReply = data.reply;
+          }
+        } catch {
+          // fallback already set
+        }
+
+        stopSpinner();
+
+        // Update history in GameState — functional updater avoids stale-closure race
+        setGameState(prev => {
+          if (!prev) return prev;
+          const updatedState: GameState = {
+            ...prev,
+            sentinel: {
+              ...prev.sentinel,
+              messageHistory: [
+                ...prev.sentinel.messageHistory,
+                { role: 'player' as const, content: raw },
+                { role: 'sentinel' as const, content: dmReply },
+              ].slice(-40),
+            },
+          };
+          saveGame(updatedState);
+          return updatedState;
+        });
+
+        push([makeLine('output', `[SENTINEL] ${dmReply}`)]);
+        return;
+      }
+
       // ── Playing ────────────────────────────────────────────
       if (!gameState || (appPhase !== 'playing' && appPhase !== 'aria')) return;
       if (!raw.trim()) return;
@@ -447,6 +528,81 @@ export const App = () => {
       }
 
       push(out);
+
+      // ── Channel trigger: enter Sentinel DM mode ───────────
+      if (result.channelTrigger?.character === 'sentinel') {
+        const { triggerType, context } = result.channelTrigger;
+        const isManual = triggerType === 'manual_reentry';
+
+        // Mark channel as established in state
+        const baseForDm = (result.nextState ?? gameState) as GameState;
+        const withChannel = {
+          ...baseForDm,
+          activeChannel: 'sentinel' as const,
+          sentinel: {
+            ...baseForDm.sentinel,
+            channelEstablished: true,
+          },
+        } as GameState;
+        setGameState(withChannel);
+        saveGame(withChannel);
+
+        setAppPhase('dm');
+
+        if (!isManual) {
+          // Auto-trigger: call API for opening message
+          push([
+            makeLine('separator', ''),
+            makeLine('dm', '// SENTINEL — INCOMING TRANSMISSION'),
+            makeLine('separator', ''),
+          ]);
+          startSpinner();
+          let openingReply = '...I see you.';
+          try {
+            const res = await fetch('/api/sentinel', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                message: `[SYSTEM: trigger=${triggerType}]`,
+                triggerContext: { type: triggerType },
+                sentinelContext: context,
+                messageHistory: withChannel.sentinel.messageHistory,
+              }),
+            });
+            if (res.ok) {
+              const data = (await res.json()) as { reply?: string };
+              if (typeof data.reply === 'string') openingReply = data.reply;
+            }
+          } catch {
+            // use fallback
+          }
+          stopSpinner();
+
+          // Functional updater avoids stale-closure race if player typed during the await
+          setGameState(prev => {
+            if (!prev) return prev;
+            const withOpening: GameState = {
+              ...prev,
+              sentinel: {
+                ...prev.sentinel,
+                messageHistory: [
+                  ...prev.sentinel.messageHistory,
+                  { role: 'sentinel' as const, content: openingReply },
+                ].slice(-40),
+              },
+            };
+            saveGame(withOpening);
+            return withOpening;
+          });
+          push([makeLine('output', `[SENTINEL] ${openingReply}`)]);
+        } else {
+          push([
+            makeLine('separator', ''),
+            makeLine('dm', '// SENTINEL — CHANNEL OPEN'),
+            makeLine('separator', ''),
+          ]);
+        }
+      }
     },
     [appPhase, gameState, username, push, startSpinner, stopSpinner],
   );
@@ -463,7 +619,9 @@ export const App = () => {
             ? '[ENDED]'
             : appPhase === 'ended'
               ? '[ENDED]'
-              : 'nexus $';
+              : appPhase === 'dm'
+                ? '[SENTINEL] >>'
+                : 'nexus $';
   const isMasked = appPhase === 'login_pass';
   const isNoHistory = appPhase === 'login_user' || appPhase === 'login_pass';
   const inputDisabled =

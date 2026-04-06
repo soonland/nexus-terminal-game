@@ -158,6 +158,28 @@ export interface AriaState {
   suppressedMutations: number; // Faraday cage: count of tier-3 actions blocked
 }
 
+// ── Channel ────────────────────────────────────────────────
+export type TriggerType =
+  | 'trace_31'
+  | 'trace_61'
+  | 'trace_86'
+  | 'layer_breach'
+  | 'exploit'
+  | 'exfil'
+  | 'wipe_logs'
+  | 'manual_reentry';
+
+export interface ChannelTrigger {
+  character: 'sentinel' | 'aria';
+  triggerType: TriggerType;
+  context: {
+    traceLevel: number;
+    currentNodeId: string;
+    currentLayer: number;
+    recentCommands: string[];
+  };
+}
+
 // ── Sentinel ───────────────────────────────────────────────
 export type SentinelAction = 'patch_node' | 'revoke_credential' | 'delete_file' | 'spawn_node';
 
@@ -174,10 +196,17 @@ export interface MutationEvent {
   filePath?: string;
 }
 
+export interface SentinelMessage {
+  role: 'player' | 'sentinel';
+  content: string;
+}
+
 export interface SentinelState {
   active: boolean; // true once trace has crossed 61
   mutationLog: MutationEvent[];
   pendingFileDeletes: Array<{ filePath: string; nodeId: string; targetTurn: number }>;
+  messageHistory: SentinelMessage[]; // DM channel conversation history
+  channelEstablished: boolean; // true once first sentinel trigger has fired
 }
 
 // ── Contract ───────────────────────────────────────────────
@@ -206,6 +235,7 @@ import type { Employee } from './employee';
 
 export interface GameState {
   phase: GamePhase;
+  activeChannel: 'sentinel' | 'aria' | null; // currently open DM channel
   runId: string;
   startedAt: number;
   sessionSeed: number;
@@ -234,4 +264,5 @@ export interface CommandOutput {
   lines: Array<{ type: LineType; content: string }>;
   nextState?: Partial<GameState>;
   suggestions?: string[];
+  channelTrigger?: ChannelTrigger; // signals App to enter DM mode
 }

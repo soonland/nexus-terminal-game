@@ -8,12 +8,13 @@ import type {
   LiveNode,
   Credential,
   GameFile,
+  SentinelMessage,
 } from '../types/game';
 import { createInitialState } from './state';
 import { AI_GENERATED_FILE_PATHS } from '../data/anchorNodes';
 
 const SAVE_KEY = 'irongate_save';
-const SAVE_VERSION = 3;
+const SAVE_VERSION = 4;
 
 // ── Delta types (what actually goes into localStorage) ─────
 
@@ -60,6 +61,8 @@ interface SaveState {
     active: boolean;
     mutationLog: MutationEvent[];
     pendingFileDeletes: Array<{ filePath: string; nodeId: string; targetTurn: number }>;
+    messageHistory: SentinelMessage[];
+    channelEstablished: boolean;
   };
   worldCredentialsAdded: Credential[]; // credentials dynamically added by sentinel P2
 }
@@ -137,6 +140,8 @@ const toSaveState = (state: GameState): SaveState => {
       active: state.sentinel.active,
       mutationLog: state.sentinel.mutationLog,
       pendingFileDeletes: state.sentinel.pendingFileDeletes,
+      messageHistory: state.sentinel.messageHistory,
+      channelEstablished: state.sentinel.channelEstablished,
     },
     worldCredentialsAdded,
   };

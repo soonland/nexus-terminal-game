@@ -7,6 +7,7 @@ import { runSentinelTurn } from './sentinel';
 import { loadDossier, recordEnding } from './dossierPersistence';
 import type { EndingName } from '../types/dossier';
 import { shouldSuppressMutation, injectConstraintFragment } from './faradayCage';
+import { detectChannelTrigger, isChannelBlocked, layerReachedFlag } from './channel';
 
 interface WorldAIResponse {
   narrative: string;
@@ -68,13 +69,6 @@ const sep = () => line('', 'separator');
  * `state.phase === 'burned'` — `App.tsx` handles that guard at the UI layer.
  */
 export const resolveCommand = async (raw: string, state: GameState): Promise<CommandOutput> => {
-  if (state.phase === 'burned') {
-    // Callers should gate on state.phase before invoking (see JSDoc above).
-    // Return an empty result rather than executing commands on a burned session.
-    console.warn('resolveCommand called with burned state — returning empty result');
-    return { lines: [] };
-  }
-
   if (state.phase === 'ended') {
     return { lines: [] };
   }
@@ -152,6 +146,9 @@ export const resolveCommand = async (raw: string, state: GameState): Promise<Com
     case 'inventory':
     case 'inv':
       result = cmdInventory(state);
+      break;
+    case 'msg':
+      result = cmdMsg(args, state);
       break;
   }
   if (result) return result;
@@ -263,10 +260,29 @@ const withTurn = (result: CommandOutput, raw: string, baseState: GameState): Com
   const withAlerts = applyThresholdEffects(baseState, { ...result, nextState: base });
   const advanced = advanceTurn(withAlerts.nextState as GameState, raw);
   const sentinel = runSentinelTurn(advanced);
+  const finalState = sentinel.state;
+
+  // Detect whether this turn fires a Sentinel channel trigger
+  const trigger = detectChannelTrigger(baseState, finalState, raw);
+
+  // Stamp the layer-reached flag when a layer breach is detected, so the
+  // same layer does not fire again on the next connect to that layer.
+  let postTriggerState = finalState;
+  if (trigger?.triggerType === 'layer_breach') {
+    const nextNode = finalState.network.nodes[finalState.network.currentNodeId];
+    if (nextNode) {
+      const layerFlag = layerReachedFlag(nextNode.layer);
+      postTriggerState = produce(finalState, s => {
+        s.flags[layerFlag] = true;
+      });
+    }
+  }
+
   return {
     ...withAlerts,
     lines: [...withAlerts.lines, ...sentinel.lines],
-    nextState: sentinel.state,
+    nextState: postTriggerState,
+    ...(trigger ? { channelTrigger: trigger } : {}),
   };
 };
 
@@ -600,6 +616,42 @@ const cmdWhoami = (state: GameState): CommandOutput => {
       sys(`  Host       : ${node.ip}  (${node.label})`),
       sys(`  Operative  : ${state.player.handle}  [NEXUS]`),
     ],
+  };
+};
+
+// ── msg ───────────────────────────────────────────────────
+const cmdMsg = (args: string[], state: GameState): CommandOutput => {
+  const target = args[0]?.toLowerCase();
+  if (target !== 'sentinel' && target !== 'aria') {
+    return { lines: [err('Usage: msg [sentinel|aria]')] };
+  }
+
+  // Only sentinel is implemented — aria DM is deferred to Phase 6
+  if (target === 'aria') {
+    return { lines: [err('aria: channel not available from this interface — use aria: prefix')] };
+  }
+
+  if (!state.sentinel.channelEstablished) {
+    return { lines: [err('// SENTINEL: no channel established — channel opens on contact')] };
+  }
+
+  if (isChannelBlocked(state)) {
+    return { lines: [err('// CHANNEL UNAVAILABLE — ACTIVE PURSUIT')] };
+  }
+
+  const node = state.network.nodes[state.network.currentNodeId];
+  return {
+    lines: [],
+    channelTrigger: {
+      character: 'sentinel',
+      triggerType: 'manual_reentry',
+      context: {
+        traceLevel: state.player.trace,
+        currentNodeId: state.network.currentNodeId,
+        currentLayer: node?.layer ?? 0,
+        recentCommands: state.recentCommands,
+      },
+    },
   };
 };
 
