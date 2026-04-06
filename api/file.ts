@@ -24,6 +24,37 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { makeLogger } from './_lib/logger.js';
 import { ValidationError, requireObject, requireString } from './_lib/validate.js';
 
+// Mirrors FileType from src/types/game.ts — kept in sync manually (api/ cannot import from src/)
+type FileType = 'log' | 'document' | 'credential' | 'config' | 'email' | 'binary' | 'tripwire';
+
+// Mirrors NodeTemplate from src/types/game.ts — kept in sync manually (api/ cannot import from src/)
+type NodeTemplate =
+  | 'workstation'
+  | 'database_server'
+  | 'file_server'
+  | 'web_server'
+  | 'security_node'
+  | 'mail_server'
+  | 'iot_device'
+  | 'router_switch'
+  | 'printer'
+  | 'dev_server';
+
+export interface FileGenerateRequest {
+  nodeId: string;
+  fileName: string;
+  fileType?: FileType;
+  filePath?: string;
+  ownerLabel?: string;
+  ownerTemplate?: NodeTemplate;
+  division?: string;
+  ariaPlanted?: boolean;
+}
+
+export interface FileGenerateResponse {
+  content: string;
+}
+
 const log = makeLogger('file');
 
 const GEMINI_API_URL =

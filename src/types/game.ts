@@ -1,6 +1,9 @@
 // ── Access levels ──────────────────────────────────────────
 export type AccessLevel = 'none' | 'user' | 'admin' | 'root';
 
+// ── Relationship ───────────────────────────────────────────
+export type Relationship = 'unknown' | 'neutral' | 'cooperative' | 'ally' | 'hostile';
+
 const ACCESS_RANK: Record<AccessLevel, number> = {
   none: 0,
   user: 1,
@@ -27,6 +30,16 @@ export const NODE_TEMPLATES = [
 ] as const;
 
 export type NodeTemplate = (typeof NODE_TEMPLATES)[number];
+
+/** An instantiated node created from a template, before it enters live runtime state. */
+export interface NodeInstance {
+  nodeId: string;
+  templateId: NodeTemplate;
+  label: string;
+  layer: number;
+  division?: string;
+  anchor: boolean;
+}
 
 export type FileType =
   | 'log'
@@ -164,6 +177,25 @@ export interface SentinelState {
   pendingFileDeletes: Array<{ filePath: string; nodeId: string; targetTurn: number }>;
 }
 
+// ── Contract ───────────────────────────────────────────────
+export interface Contract {
+  id: string;
+  title: string;
+  description: string;
+  targetNodeId: string;
+  reward?: string;
+  completed: boolean;
+}
+
+// ── AnchorFork ─────────────────────────────────────────────
+export type ForkChoice = 'pending' | 'path_a' | 'path_b';
+
+export interface AnchorFork {
+  id: string;
+  description: string;
+  options: { path_a: string; path_b: string };
+}
+
 // ── Session ────────────────────────────────────────────────
 export type GamePhase = 'boot' | 'playing' | 'aria' | 'burned' | 'ended';
 
@@ -185,7 +217,7 @@ export interface GameState {
     nodes: Partial<Record<string, LiveNode>>;
   };
   aria: AriaState;
-  forks: Record<string, 'pending' | 'path_a' | 'path_b'>;
+  forks: Record<string, ForkChoice>;
   flags: Record<string, boolean>;
   employees: Employee[]; // Phase 4: procedurally generated employee pool
   worldCredentials: Credential[]; // Phase 4: un-obtained credentials that exist in the world

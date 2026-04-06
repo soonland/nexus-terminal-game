@@ -27,6 +27,17 @@ const GEMINI_API_URL =
 // Mirrors src/types/game.ts#FavorOffer — kept in sync manually (api/ cannot import from src/)
 type FavorOffer = { description: string; cost: number };
 
+export interface AriaAIRequest {
+  message: string;
+  ariaState?: {
+    trustScore: number;
+    // Mirrors AriaMessage.role from src/types/game.ts — kept in sync manually (api/ cannot import from src/)
+    messageHistory: { role: 'player' | 'aria'; content: string }[];
+  };
+  playerFullHistory?: string[];
+  dossierContext?: string[];
+}
+
 export interface AriaAIResponse {
   reply: string;
   trustDelta: number;

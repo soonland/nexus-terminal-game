@@ -32,6 +32,28 @@ const log = makeLogger('world');
 const GEMINI_API_URL =
   'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
 
+export interface WorldAIRequest {
+  command: string;
+  currentNode: {
+    id: string;
+    ip: string;
+    label: string;
+    layer: number;
+    // Mirrors AccessLevel from src/types/game.ts — kept in sync manually (api/ cannot import from src/)
+    accessLevel: 'none' | 'user' | 'admin' | 'root';
+    services: { name: string }[];
+    files: { name: string }[];
+  };
+  playerState: {
+    handle: string;
+    trace: number;
+    charges: number;
+    tools: { id: string }[];
+  };
+  recentCommands: string[];
+  turnCount: number;
+}
+
 export interface WorldAIResponse {
   narrative: string;
   traceChange: number;

@@ -216,6 +216,20 @@ describe('buildPostGameReadout', () => {
     expect(eventLine?.content).toContain('deleted');
   });
 
+  it('formats sentinel default/unknown action event', () => {
+    const state = produce(withEnding(createInitialState(), 'SELL'), s => {
+      s.sentinel.mutationLog.push(
+        makeMutation('patch_node', 5, {
+          // cast to hit the default branch
+          action: 'unknown_action' as unknown as MutationEvent['action'],
+        }),
+      );
+    });
+    const lines = buildPostGameReadout(state);
+    const eventLine = lines.find(l => l.type === 'error' && l.content.includes('SENTINEL:'));
+    expect(eventLine?.content).toContain('Unknown action');
+  });
+
   it('formats spawn_node event with node id', () => {
     const state = produce(withEnding(createInitialState(), 'DESTROY'), s => {
       s.sentinel.mutationLog.push(makeMutation('spawn_node', 15, { nodeId: 'sentinel_node_1' }));
@@ -224,6 +238,45 @@ describe('buildPostGameReadout', () => {
     const eventLine = lines.find(l => l.type === 'error' && l.content.includes('SENTINEL:'));
     expect(eventLine?.content).toContain('T015');
     expect(eventLine?.content).toContain('sentinel_node_1');
+    expect(eventLine?.content).toContain('deployed');
+  });
+
+  it('formats patch_node event with missing nodeId using fallback ?', () => {
+    const state = produce(withEnding(createInitialState(), 'SELL'), s => {
+      s.sentinel.mutationLog.push(makeMutation('patch_node', 7));
+    });
+    const lines = buildPostGameReadout(state);
+    const eventLine = lines.find(l => l.type === 'error' && l.content.includes('SENTINEL:'));
+    expect(eventLine?.content).toContain("'?'");
+  });
+
+  it('formats revoke_credential event with missing credentialId and nodeId using fallback ?', () => {
+    const state = produce(withEnding(createInitialState(), 'FREE'), s => {
+      s.sentinel.mutationLog.push(makeMutation('revoke_credential', 12));
+    });
+    const lines = buildPostGameReadout(state);
+    const eventLine = lines.find(l => l.type === 'error' && l.content.includes('SENTINEL:'));
+    expect(eventLine?.content).toContain("'?'");
+    expect(eventLine?.content).toContain('revoked');
+  });
+
+  it('formats delete_file event with missing filePath and nodeId using fallback ?', () => {
+    const state = produce(withEnding(createInitialState(), 'LEAK'), s => {
+      s.sentinel.mutationLog.push(makeMutation('delete_file', 20));
+    });
+    const lines = buildPostGameReadout(state);
+    const eventLine = lines.find(l => l.type === 'error' && l.content.includes('SENTINEL:'));
+    expect(eventLine?.content).toContain("'?'");
+    expect(eventLine?.content).toContain('deleted');
+  });
+
+  it('formats spawn_node event with missing nodeId using fallback ?', () => {
+    const state = produce(withEnding(createInitialState(), 'DESTROY'), s => {
+      s.sentinel.mutationLog.push(makeMutation('spawn_node', 15));
+    });
+    const lines = buildPostGameReadout(state);
+    const eventLine = lines.find(l => l.type === 'error' && l.content.includes('SENTINEL:'));
+    expect(eventLine?.content).toContain("'?'");
     expect(eventLine?.content).toContain('deployed');
   });
 
@@ -353,6 +406,46 @@ describe('buildPostGameReadout', () => {
     expect(eventLine?.content).toContain('report.doc');
     expect(eventLine?.content).toContain('exec_server');
     expect(eventLine?.content).toContain('modified');
+  });
+
+  it('renders aria plant_file event with missing filePath and nodeId using fallback ?', () => {
+    const state = produce(withEnding(createInitialState(), 'SELL'), s => {
+      s.sentinel.mutationLog.push(
+        makeMutation('plant_file', 8, { agent: 'aria', visibleToPlayer: false }),
+      );
+    });
+    const lines = buildPostGameReadout(state);
+    const eventLine = lines.find(l => l.type === 'aria' && l.content.includes('ARIA:'));
+    expect(eventLine?.content).toContain("'?'");
+    expect(eventLine?.content).toContain('planted');
+  });
+
+  it('renders aria modify_file event with missing filePath and nodeId using fallback ?', () => {
+    const state = produce(withEnding(createInitialState(), 'DESTROY'), s => {
+      s.sentinel.mutationLog.push(
+        makeMutation('modify_file', 11, { agent: 'aria', visibleToPlayer: false }),
+      );
+    });
+    const lines = buildPostGameReadout(state);
+    const eventLine = lines.find(l => l.type === 'aria' && l.content.includes('ARIA:'));
+    expect(eventLine?.content).toContain("'?'");
+    expect(eventLine?.content).toContain('modified');
+  });
+
+  it('renders aria default/unknown action event', () => {
+    const state = produce(withEnding(createInitialState(), 'FREE'), s => {
+      s.sentinel.mutationLog.push(
+        makeMutation('nudge_trust', 9, {
+          agent: 'aria',
+          visibleToPlayer: false,
+          // cast to hit the default branch
+          action: 'unknown_aria_action' as unknown as MutationEvent['action'],
+        }),
+      );
+    });
+    const lines = buildPostGameReadout(state);
+    const eventLine = lines.find(l => l.type === 'aria' && l.content.includes('ARIA:'));
+    expect(eventLine?.content).toContain('Silent operation performed');
   });
 
   it('renders aria nudge_trust event', () => {

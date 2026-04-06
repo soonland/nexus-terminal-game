@@ -1,5 +1,11 @@
 export type LineType = 'output' | 'input' | 'system' | 'error' | 'separator' | 'aria';
 
+/**
+ * Alias for {@link LineType} — satisfies the spec's TerminalLineType requirement.
+ * @deprecated Use {@link LineType} directly. This alias exists only for spec naming compliance.
+ */
+export type TerminalLineType = LineType;
+
 export interface TerminalLine {
   id: string;
   type: LineType;
@@ -7,9 +13,11 @@ export interface TerminalLine {
   timestamp: number;
 }
 
+export type DangerLevel = 'safe' | 'elevated' | 'active' | 'aggressive' | 'burned';
+
 interface TraceLevel {
   value: number; // 0–100
-  label: 'safe' | 'elevated' | 'active' | 'aggressive' | 'burned';
+  label: DangerLevel;
   color: string;
 }
 
