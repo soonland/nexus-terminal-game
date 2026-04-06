@@ -38,9 +38,10 @@ describe('resolveCommand — turn tracking', () => {
     vi.unstubAllGlobals();
   });
 
-  it('should append the raw command to recentCommands after a local command', async () => {
+  it('should NOT append the raw command to recentCommands after a local command (no state mutation)', async () => {
+    // Local commands (help, status, etc.) bypass withTurn — spec §7.1 "no state change"
     const result = await resolveCommand('help', state);
-    expect(result.nextState?.recentCommands).toContain('help');
+    expect(result.nextState).toBeUndefined();
   });
 
   it('should append the raw command to recentCommands after an engine command', async () => {
@@ -53,22 +54,23 @@ describe('resolveCommand — turn tracking', () => {
     expect(result.nextState?.recentCommands).toContain('frobnicate');
   });
 
-  it('should keep only the last 8 commands when the buffer overflows', async () => {
-    // Seed 8 commands manually so the 9th push causes a slice
+  it('should keep only the last 8 commands when the buffer overflows (engine command)', async () => {
+    // Seed 8 commands manually so the 9th push causes a slice; use an engine command (scan)
     const seeded: GameState = {
       ...state,
       recentCommands: ['c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'c8'],
       turnCount: 8,
     };
-    const result = await resolveCommand('help', seeded);
+    const result = await resolveCommand('scan', seeded);
     expect(result.nextState?.recentCommands).toHaveLength(8);
     expect(result.nextState?.recentCommands).not.toContain('c1');
-    expect(result.nextState?.recentCommands).toContain('help');
+    expect(result.nextState?.recentCommands).toContain('scan');
   });
 
-  it('should increment turnCount by 1 after a local command', async () => {
+  it('should NOT increment turnCount after a local command (no state mutation)', async () => {
+    // Local commands bypass withTurn — spec §7.1 "no state change"
     const result = await resolveCommand('help', state);
-    expect(result.nextState?.turnCount).toBe(1);
+    expect(result.nextState).toBeUndefined();
   });
 
   it('should increment turnCount by 1 after an engine command', async () => {
@@ -81,9 +83,9 @@ describe('resolveCommand — turn tracking', () => {
     expect(result.nextState?.turnCount).toBe(1);
   });
 
-  it('should accumulate turnCount across successive calls', async () => {
-    const r1 = await resolveCommand('help', state);
-    const r2 = await resolveCommand('status', r1.nextState as GameState);
+  it('should accumulate turnCount across successive engine/AI calls', async () => {
+    const r1 = await resolveCommand('scan', state);
+    const r2 = await resolveCommand('frobnicate', r1.nextState as GameState);
     expect(r2.nextState?.turnCount).toBe(2);
   });
 });
@@ -406,9 +408,10 @@ describe('resolveCommand — help', () => {
     expect(result.lines).toHaveLength(0);
   });
 
-  it('should not modify player trace', async () => {
+  it('should not mutate state (no nextState — local command)', async () => {
+    // help is a local command — spec §7.1: no state change, no trace mutation
     const result = await resolveCommand('help', state);
-    expect((result.nextState as GameState).player.trace).toBe(0);
+    expect(result.nextState).toBeUndefined();
   });
 });
 
@@ -2243,10 +2246,10 @@ describe('resolveCommand — decisionLog tracking', () => {
   });
 
   it('should NOT append non-decision commands to decisionLog', async () => {
+    // Use engine commands only (scan, ls) since local commands bypass withTurn and return no nextState
     const r1 = await resolveCommand('scan', state);
-    const r2 = await resolveCommand('status', r1.nextState as GameState);
-    const r3 = await resolveCommand('help', r2.nextState as GameState);
-    const nextState = r3.nextState as GameState;
+    const r2 = await resolveCommand('ls', r1.nextState as GameState);
+    const nextState = r2.nextState as GameState;
     expect(nextState.decisionLog).toHaveLength(0);
   });
 
