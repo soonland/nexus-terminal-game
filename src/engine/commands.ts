@@ -69,13 +69,6 @@ const sep = () => line('', 'separator');
  * `state.phase === 'burned'` — `App.tsx` handles that guard at the UI layer.
  */
 export const resolveCommand = async (raw: string, state: GameState): Promise<CommandOutput> => {
-  if (state.phase === 'burned') {
-    // Callers should gate on state.phase before invoking (see JSDoc above).
-    // Return an empty result rather than executing commands on a burned session.
-    console.warn('resolveCommand called with burned state — returning empty result');
-    return { lines: [] };
-  }
-
   if (state.phase === 'ended') {
     return { lines: [] };
   }

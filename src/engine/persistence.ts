@@ -64,7 +64,6 @@ interface SaveState {
     messageHistory: SentinelMessage[];
     channelEstablished: boolean;
   };
-  activeChannel: 'sentinel' | 'aria' | null;
   worldCredentialsAdded: Credential[]; // credentials dynamically added by sentinel P2
 }
 
@@ -144,7 +143,6 @@ const toSaveState = (state: GameState): SaveState => {
       messageHistory: state.sentinel.messageHistory,
       channelEstablished: state.sentinel.channelEstablished,
     },
-    activeChannel: state.activeChannel,
     worldCredentialsAdded,
   };
 };
@@ -223,8 +221,6 @@ const fromSaveState = (save: SaveState): GameState => {
   state.aria = save.aria;
   state.forks = save.forks;
   state.flags = save.flags;
-  // DM mode does not persist across page loads — always clear activeChannel on restore
-  state.activeChannel = null;
 
   // Restore sentinel state
   state.sentinel = save.sentinel;
