@@ -34,7 +34,7 @@ describe('makeLine', () => {
     expect(a.id).not.toBe(b.id);
   });
 
-  it.each<LineType>(['output', 'input', 'system', 'error', 'separator', 'aria'])(
+  it.each<LineType>(['output', 'input', 'system', 'error', 'separator', 'aria', 'dm'])(
     'should accept LineType "%s"',
     type => {
       const line = makeLine(type, 'test');

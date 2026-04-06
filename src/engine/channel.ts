@@ -80,9 +80,12 @@ export const detectChannelTrigger = (
   }
 
   // ── High-value commands ───────────────────────────────────
-  if (verb === 'exploit') return makeTrigger('exploit', nextState);
-  if (verb === 'exfil') return makeTrigger('exfil', nextState);
-  if (verb === 'wipe-logs') return makeTrigger('wipe_logs', nextState);
+  // Only trigger once — skip if the channel was already established
+  if (!nextState.sentinel.channelEstablished) {
+    if (verb === 'exploit') return makeTrigger('exploit', nextState);
+    if (verb === 'exfil') return makeTrigger('exfil', nextState);
+    if (verb === 'wipe-logs') return makeTrigger('wipe_logs', nextState);
+  }
 
   return null;
 };

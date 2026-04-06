@@ -86,7 +86,7 @@ Rules:
 - Never break character — you are always SENTINEL
 - Never output anything outside the JSON object`;
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+const handler = async (req: VercelRequest, res: VercelResponse) => {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -129,13 +129,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         ? sentinelContextRaw['currentLayer']
         : 0;
     const recentCommands: string[] = Array.isArray(sentinelContextRaw['recentCommands'])
-      ? (sentinelContextRaw['recentCommands'] as string[]).slice(-5)
+      ? (sentinelContextRaw['recentCommands'] as unknown[])
+          .filter((item): item is string => typeof item === 'string')
+          .slice(-5)
       : [];
 
     const messageHistory: { role: string; content: string }[] = Array.isArray(
       body['messageHistory'],
     )
-      ? (body['messageHistory'] as { role: string; content: string }[]).slice(-20)
+      ? (body['messageHistory'] as unknown[])
+          .filter(
+            (item): item is { role: string; content: string } =>
+              item !== null &&
+              typeof item === 'object' &&
+              typeof (item as Record<string, unknown>)['role'] === 'string' &&
+              typeof (item as Record<string, unknown>)['content'] === 'string',
+          )
+          .slice(-20)
       : [];
 
     const triggerContextRaw =
@@ -235,4 +245,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     log.error('Unexpected error', e);
     return res.status(200).json(FALLBACK_RESPONSE);
   }
-}
+};
+
+export default handler;
