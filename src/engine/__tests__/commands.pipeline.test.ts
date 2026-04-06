@@ -1,69 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { resolveCommand } from '../commands';
-import type { GameState, LiveNode } from '../../types/game';
-
-// ── Minimal state factory (mirrors commands.aria.test.ts) ───
-
-const makeNode = (overrides: Partial<LiveNode> = {}): LiveNode => ({
-  id: 'test_node',
-  ip: '10.0.0.1',
-  template: 'workstation',
-  label: 'TEST NODE',
-  description: null,
-  layer: 0,
-  anchor: false,
-  connections: [],
-  services: [],
-  files: [],
-  accessLevel: 'user',
-  compromised: false,
-  discovered: true,
-  credentialHints: [],
-  ...overrides,
-});
-
-const makeState = (overrides: Partial<GameState> = {}): GameState => {
-  const node = makeNode();
-  return {
-    phase: 'playing',
-    runId: 'test-run-id',
-    startedAt: 0,
-    sessionSeed: 0,
-    turnCount: 0,
-    recentCommands: [],
-    ariaInfluencedFilesRead: [],
-    decisionLog: [],
-    player: {
-      handle: 'ghost',
-      trace: 0,
-      charges: 3,
-      credentials: [],
-      exfiltrated: [],
-      tools: [],
-    },
-    network: {
-      currentNodeId: node.id,
-      previousNodeId: null,
-      nodes: { [node.id]: node },
-    },
-    aria: {
-      discovered: false,
-      trustScore: 50,
-      messageHistory: [],
-      suppressedMutations: 0,
-    },
-    forks: {},
-    flags: {},
-    employees: [],
-    worldCredentials: [],
-    sentinel: {
-      active: false,
-      mutationLog: [],
-      pendingFileDeletes: [],
-    },
-    ...overrides,
-  };
-};
+import { makeNode, makeState } from './testHelpers';
 
 // ── Local commands — no AI, no state mutation ──────────────
 
@@ -108,24 +45,17 @@ describe('local commands — no AI calls', () => {
   });
 });
 
-// ── Local commands — no turnCount mutation ─────────────────
+// ── Local commands — no state mutation ────────────────────
 
-describe('local commands — do not mutate turnCount', () => {
+describe('local commands — do not mutate state', () => {
   const LOCAL_COMMANDS = ['help', 'status', 'whoami', 'map', 'clear', 'briefing', 'notes'];
 
   for (const cmd of LOCAL_COMMANDS) {
-    it(`${cmd} does not increment turnCount`, async () => {
+    it(`${cmd} does not return a nextState`, async () => {
       const state = makeState({ turnCount: 5 });
       const result = await resolveCommand(cmd, state);
 
-      // nextState may be undefined for pure local commands — that is fine
-      const nextState = result.nextState as GameState | undefined;
-      if (nextState) {
-        expect(nextState.turnCount).toBe(5);
-      } else {
-        // No state mutation at all — also correct
-        expect(result.nextState).toBeUndefined();
-      }
+      expect(result.nextState).toBeUndefined();
     });
   }
 });
