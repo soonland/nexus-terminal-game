@@ -48,11 +48,26 @@ describe('isChannelBlocked', () => {
     expect(isChannelBlocked(state)).toBe(false);
   });
 
-  it('should return true when trace is exactly 86', () => {
+  it('should return false when trace is exactly 86 (trigger fires at 86, block kicks in above)', () => {
     const state = makeState({
       player: {
         handle: 'ghost',
         trace: 86,
+        charges: 3,
+        credentials: [],
+        exfiltrated: [],
+        tools: [],
+        burnCount: 0,
+      },
+    });
+    expect(isChannelBlocked(state)).toBe(false);
+  });
+
+  it('should return true when trace is exactly 87', () => {
+    const state = makeState({
+      player: {
+        handle: 'ghost',
+        trace: 87,
         charges: 3,
         credentials: [],
         exfiltrated: [],
@@ -108,9 +123,9 @@ describe('detectChannelTrigger — channel blocked in nextState', () => {
     expect(detectChannelTrigger(prev, next, 'scan')).toBeNull();
   });
 
-  it('should return null when nextState trace >= 86', () => {
-    const prev = stateWithTrace(85);
-    const next = stateWithTrace(86);
+  it('should return null when nextState trace > 86', () => {
+    const prev = stateWithTrace(86);
+    const next = stateWithTrace(87);
     expect(detectChannelTrigger(prev, next, 'scan')).toBeNull();
   });
 });
@@ -149,15 +164,10 @@ describe('detectChannelTrigger — trace threshold crossings', () => {
     expect(detectChannelTrigger(prev, next, 'scan')).toBeNull();
   });
 
-  it('should fire trace_86 trigger when the 86% flag is newly set BUT channel is still open (trace<86 in nextState is a contradiction — test the flag branch directly via prev/next with trace at 85)', () => {
-    // trace_86 threshold flag fires when prevTrace < 86 and nextTrace >= 86 — but the channel
-    // blocking check (isChannelBlocked) fires first and returns null when trace >= 86.
-    // The trace_86 trigger can therefore only reach the flag check when the flag is
-    // stamped by something other than the trace reaching 86 (e.g. test setup).
-    // We verify: if channel is open in nextState (trace=85) but flag is freshly set, trigger fires.
+  it('should fire trace_86 when trace crosses to exactly 86 (channel open at 86, blocked above)', () => {
     const flag = thresholdFlag(86);
-    const prev = stateWithTrace(84, {});
-    const next = stateWithTrace(85, { [flag]: true }); // flag stamped but trace still < 86
+    const prev = stateWithTrace(85, {});
+    const next = stateWithTrace(86, { [flag]: true });
     const trigger = detectChannelTrigger(prev, next, 'scan');
     expect(trigger).not.toBeNull();
     expect(trigger?.triggerType).toBe('trace_86');

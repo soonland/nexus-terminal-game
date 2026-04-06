@@ -128,11 +128,11 @@ describe('msg sentinel — channel established, not blocked', () => {
 // ── msg sentinel — channel established but blocked ────────────────────────────
 
 describe('msg sentinel — channel established but blocked', () => {
-  it('should return an error line when trace >= 86', async () => {
+  it('should return an error line when trace > 86', async () => {
     const state = makeState({
       player: {
         handle: 'ghost',
-        trace: 86,
+        trace: 87,
         charges: 3,
         credentials: [],
         exfiltrated: [],
