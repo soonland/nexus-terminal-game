@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { resolveCommand } from '../commands';
+import type { GameState } from '../../types/game';
 import { makeNode, makeState } from './testHelpers';
 
 // ── Local commands — no AI, no state mutation ──────────────

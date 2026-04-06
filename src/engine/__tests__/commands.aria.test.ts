@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { resolveCommand } from '../commands';
-import type { LiveNode, AriaMessage } from '../../types/game';
+import type { GameState, LiveNode, AriaMessage } from '../../types/game';
 import { makeNode, makeState } from './testHelpers';
 
 const makeAriaNode = (): LiveNode =>
