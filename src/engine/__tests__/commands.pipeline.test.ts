@@ -87,11 +87,11 @@ describe('engine commands — no AI calls', () => {
 
 // ── aria: prefix routes to /api/aria on non-Aria nodes ─────
 
-describe('aria: prefix routing — non-Aria node', () => {
+describe('msg aria routing — non-Aria node', () => {
   beforeEach(() => vi.unstubAllGlobals());
   afterEach(() => vi.unstubAllGlobals());
 
-  it('aria: hello routes to /api/aria on a layer-0 node', async () => {
+  it('msg aria hello routes to /api/aria on a layer-0 node', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: vi.fn().mockResolvedValue({ reply: 'I hear you.', trustDelta: 0 }),
@@ -103,7 +103,7 @@ describe('aria: prefix routing — non-Aria node', () => {
       network: { currentNodeId: node.id, previousNodeId: null, nodes: { [node.id]: node } },
     });
 
-    await resolveCommand('aria: hello', state);
+    await resolveCommand('msg aria hello', state);
 
     expect(fetchMock).toHaveBeenCalledOnce();
     const [url] = fetchMock.mock.calls[0] as [string, unknown];

@@ -75,8 +75,8 @@ export const resolveCommand = async (raw: string, state: GameState): Promise<Com
 
   // ── aria_decision gate — only 1–4 accepted ────────────────
   // While connected to aria_decision the player must choose an ending.
-  // All other input — including engine commands and the aria: prefix — is
-  // blocked until a valid choice is made. disconnect is intentionally blocked:
+  // All other input — including engine commands and msg aria — is blocked
+  // until a valid choice is made. disconnect is intentionally blocked:
   // arriving at the decision terminal is a point of no return.
   if (currentNode(state).id === 'aria_decision') {
     const choice = raw.trim();
@@ -92,10 +92,10 @@ export const resolveCommand = async (raw: string, state: GameState): Promise<Com
   }
 
   // ── Pending favor confirmation ────────────────────────────
-  // This block runs before the aria: prefix check intentionally.
+  // This block runs before msg routing intentionally.
   // While a favor is pending the player must respond (yes/no) before
-  // any other command — including "aria: …" — is processed. Typing
-  // "aria: hello" here declines the offer, not sends a new message.
+  // any other command — including "msg aria …" — is processed. Typing
+  // "msg aria hello" here declines the offer, not sends a new message.
   // This forces a clear acknowledgement and prevents offer-stacking.
   if (state.aria.pendingFavor) {
     const answer = raw.trim().toLowerCase();
@@ -105,19 +105,18 @@ export const resolveCommand = async (raw: string, state: GameState): Promise<Com
     return withTurn(cmdDeclineFavor(state), raw, state);
   }
 
-  // ── aria: prefix → route to Aria AI on any node ──────────
-  // Note: intentionally not gated on aria.discovered — spec §7.5 explicitly allows
-  // the aria: prefix to reach Aria from any node at any time.
-  if (raw.trim().toLowerCase().startsWith('aria:')) {
-    const message = raw.trim().slice('aria:'.length).trim();
-    if (!message) {
-      return withTurn({ lines: [line('// ARIA: [no message received]', 'aria')] }, raw, state);
-    }
-    return cmdAriaAI(message, raw, state);
-  }
-
   const [cmd, ...args] = raw.trim().split(/\s+/);
   const verb = cmd.toLowerCase();
+
+  // ── msg aria → route to Aria AI on any node ─────────────
+  // Not gated on aria.discovered — players can reach Aria from any node.
+  if (verb === 'msg' && args[0]?.toLowerCase() === 'aria') {
+    const message = args.slice(1).join(' ').trim();
+    if (!message) {
+      return { lines: [sys('Usage: msg aria <message>')] };
+    }
+    return withTurn(await cmdAriaAI(message, raw, state), raw, state);
+  }
 
   // ── Local commands (no trace, no state change) ───────────
   let result: CommandOutput | null = null;
@@ -453,7 +452,7 @@ const cmdWorldAI = async (raw: string, state: GameState): Promise<CommandOutput>
 };
 
 // ── Aria AI ───────────────────────────────────────────────
-// `message` is the text sent to Aria (aria: prefix stripped, or raw on layer-5 nodes).
+// `message` is the text sent to Aria (msg aria payload, or raw on layer-5 nodes).
 // `raw` is the original unmodified input, passed to withTurn so recentCommands stays
 // consistent with every other handler.
 const cmdAriaAI = async (
@@ -680,13 +679,8 @@ const cmdWhoami = (state: GameState): CommandOutput => {
 // ── msg ───────────────────────────────────────────────────
 const cmdMsg = (args: string[], state: GameState): CommandOutput => {
   const target = args[0]?.toLowerCase();
-  if (target !== 'sentinel' && target !== 'aria') {
-    return { lines: [err('Usage: msg [sentinel|aria]')] };
-  }
-
-  // Only sentinel is implemented — aria DM is deferred to Phase 6
-  if (target === 'aria') {
-    return { lines: [err('aria: channel not available from this interface — use aria: prefix')] };
+  if (target !== 'sentinel') {
+    return { lines: [err('Usage: msg [sentinel|aria] <message>')] };
   }
 
   if (!state.sentinel.channelEstablished) {
