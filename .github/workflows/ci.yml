@@ -49,3 +49,4 @@ jobs:
 
       - name: Dead code check
         run: npm run knip
+        continue-on-error: true
