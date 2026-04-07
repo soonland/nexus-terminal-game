@@ -407,3 +407,60 @@ describe('POST /api/sentinel — triggerContext', () => {
     expect(prompt).not.toContain('Trigger context');
   });
 });
+
+// ── recentCommands included in prompt ─────────────────────────────────────────
+
+describe('POST /api/sentinel — recentCommands', () => {
+  it('should include recent commands in the prompt when provided', async () => {
+    process.env['GEMINI_API_KEY'] = 'test-key';
+    const fetchMock = mockGeminiOk(JSON.stringify({ reply: 'I see your moves.' }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const req = makeReq({
+      body: {
+        message: 'Hello.',
+        sentinelContext: {
+          traceLevel: 20,
+          currentNodeId: 'test_node',
+          currentLayer: 1,
+          recentCommands: ['scan', 'connect 10.0.0.1', 'ls'],
+        },
+      },
+    });
+    const res = makeRes();
+    await handler(req, res);
+
+    const [, options] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const sentBody = JSON.parse(options.body as string) as {
+      contents: { parts: { text: string }[] }[];
+    };
+    const prompt = sentBody.contents[0].parts[0].text;
+
+    expect(prompt).toContain('Recent commands');
+    expect(prompt).toContain('scan');
+  });
+});
+
+// ── Gemini response with no JSON object ───────────────────────────────────────
+
+describe('POST /api/sentinel — malformed Gemini text', () => {
+  it('should return fallback when Gemini response contains no JSON object', async () => {
+    process.env['GEMINI_API_KEY'] = 'test-key';
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: vi.fn().mockResolvedValue({
+          candidates: [{ content: { parts: [{ text: 'plain text with no braces' }] } }],
+        }),
+      }),
+    );
+
+    const req = makeReq();
+    const res = makeRes();
+    await handler(req, res);
+
+    expect(res._status).toBe(200);
+    expect((res._json as any).reply).toBe(FALLBACK);
+  });
+});
