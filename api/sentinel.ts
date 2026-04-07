@@ -197,34 +197,31 @@ const handler = async (req: VercelRequest, res: VercelResponse) => {
     // Strip newlines to prevent multi-line prompt injection
     const sanitizedMessage = message.replace(/[\r\n]+/g, ' ');
 
-    // Build structured Gemini contents: history as alternating user/model turns,
-    // then a final user turn with current context + message.
-    // This keeps history structurally separated from system instructions.
-    const contents: { role: string; parts: { text: string }[] }[] = messageHistory.map(m => ({
-      role: m.role === 'player' ? 'user' : 'model',
-      parts: [{ text: m.content }],
-    }));
-    contents.push({
-      role: 'user',
-      parts: [
-        {
-          text: [contextParts.join('\n'), `Ghost: ${sanitizedMessage}`]
-            .filter(Boolean)
-            .join('\n\n'),
-        },
-      ],
-    });
+    if (messageHistory.length > 0) {
+      const historyLines = messageHistory
+        .map(
+          m =>
+            `${m.role === 'player' ? 'Ghost' : 'SENTINEL'}: ${m.content.replace(/[\r\n]+/g, ' ')}`,
+        )
+        .join('\n');
+      contextParts.push(`Conversation so far:\n${historyLines}`);
+    }
+
+    const contextAndMessage = [contextParts.join('\n'), `Ghost: ${sanitizedMessage}`]
+      .filter(Boolean)
+      .join('\n\n');
 
     const geminiRes = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         system_instruction: { parts: [{ text: systemPrompt }] },
-        contents,
+        contents: [{ role: 'user', parts: [{ text: contextAndMessage }] }],
         generationConfig: {
-          maxOutputTokens: 150,
+          maxOutputTokens: 2048,
           temperature: 0.7,
           responseMimeType: 'application/json',
+          thinkingConfig: { thinkingBudget: 0 },
         },
         safetySettings: [
           { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_ONLY_HIGH' },
