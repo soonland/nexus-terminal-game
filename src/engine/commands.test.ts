@@ -2844,3 +2844,269 @@ describe('resolveCommand — exfil — log-wiper tool acquisition', () => {
     expect(contents.some(c => c.includes('Tool acquired: log-wiper'))).toBe(true);
   });
 });
+
+// ── Contract objective detection (applyObjectiveEffects) ──
+
+describe('resolveCommand — contract objective detection', () => {
+  // ── trace_cap ───────────────────────────────────────────
+
+  describe('trace_cap contract', () => {
+    it('should append a contract cap exceeded error line when trace newly crosses the cap', async () => {
+      // Login with wrong credentials adds +5 trace. Start at 47 → will reach 52 > 50.
+      const state = produce(createInitialState(), s => {
+        s.player.trace = 47;
+        s.contract = {
+          id: 'ghost_protocol',
+          networkVariant: 'standard',
+          objectiveComplete: false,
+          objectiveCondition: { type: 'trace_cap', maxTrace: 50 },
+        };
+      });
+      // Wrong credentials → +5 trace, no successful login → trace 52
+      const result = await resolveCommand('login baduser badpass', state);
+      const capLine = result.lines.find(l => l.content.includes('trace cap exceeded'));
+      expect(capLine).toBeDefined();
+      expect(capLine?.type).toBe('error');
+    });
+
+    it('should set flags.contract_cap_exceeded = true in nextState when the cap is crossed', async () => {
+      const state = produce(createInitialState(), s => {
+        s.player.trace = 47;
+        s.contract = {
+          id: 'ghost_protocol',
+          networkVariant: 'standard',
+          objectiveComplete: false,
+          objectiveCondition: { type: 'trace_cap', maxTrace: 50 },
+        };
+      });
+      const result = await resolveCommand('login baduser badpass', state);
+      expect((result.nextState as GameState).flags['contract_cap_exceeded']).toBe(true);
+    });
+
+    it('should NOT fire the cap notification a second time when the flag is already set', async () => {
+      // Start with flag already set and trace above cap — next login fail must NOT add another notification
+      const stateAfterFirst = produce(createInitialState(), s => {
+        s.player.trace = 52;
+        s.flags['contract_cap_exceeded'] = true;
+        s.contract = {
+          id: 'ghost_protocol',
+          networkVariant: 'standard',
+          objectiveComplete: false,
+          objectiveCondition: { type: 'trace_cap', maxTrace: 50 },
+        };
+      });
+      const result = await resolveCommand('login baduser badpass', stateAfterFirst);
+      const capLines = result.lines.filter(l => l.content.includes('trace cap exceeded'));
+      expect(capLines).toHaveLength(0);
+    });
+
+    it('should NOT fire the cap notification when trace crosses below the cap boundary', async () => {
+      // Trace at 44 + 5 login fail = 49 — still below 50, no notification
+      const state = produce(createInitialState(), s => {
+        s.player.trace = 44;
+        s.contract = {
+          id: 'ghost_protocol',
+          networkVariant: 'standard',
+          objectiveComplete: false,
+          objectiveCondition: { type: 'trace_cap', maxTrace: 50 },
+        };
+      });
+      const result = await resolveCommand('login baduser badpass', state);
+      const capLine = result.lines.find(l => l.content.includes('trace cap exceeded'));
+      expect(capLine).toBeUndefined();
+      expect((result.nextState as GameState).flags['contract_cap_exceeded']).toBeFalsy();
+    });
+
+    it('should include the maxTrace value in the cap exceeded message', async () => {
+      const state = produce(createInitialState(), s => {
+        s.player.trace = 47;
+        s.contract = {
+          id: 'clean_sweep',
+          networkVariant: 'standard',
+          objectiveComplete: false,
+          objectiveCondition: { type: 'trace_cap', maxTrace: 40 },
+        };
+        // Set trace just under clean_sweep cap so +5 login fail crosses it
+        s.player.trace = 36;
+      });
+      const result = await resolveCommand('login baduser badpass', state);
+      const capLine = result.lines.find(l => l.content.includes('40'));
+      expect(capLine).toBeDefined();
+    });
+  });
+
+  // ── exfil_count ─────────────────────────────────────────
+
+  describe('exfil_count contract', () => {
+    it('should append an objective complete system line when exfil count reaches minCount', async () => {
+      // minCount is 2; start with 1 file already exfiltrated; exfil a second to hit the target.
+      const state = produce(createInitialState(), s => {
+        s.network.nodes['contractor_portal']!.accessLevel = 'user';
+        s.contract = {
+          id: 'data_harvest',
+          networkVariant: 'standard',
+          objectiveComplete: false,
+          objectiveCondition: { type: 'exfil_count', minCount: 2 },
+        };
+        // Seed 1 already-exfiltrated file so the next exfil brings count from 1 → 2
+        s.player.exfiltrated.push({
+          name: 'previous.txt',
+          path: '/tmp/previous.txt',
+          type: 'document',
+          content: 'already done',
+          exfiltrable: true,
+          accessRequired: 'user',
+        });
+      });
+      // welcome.txt is exfiltrable on contractor_portal with user access
+      const result = await resolveCommand('exfil welcome.txt', state);
+      const completeLine = result.lines.find(l => l.content.includes('objective complete'));
+      expect(completeLine).toBeDefined();
+      expect(completeLine?.type).toBe('system');
+    });
+
+    it('should set contract.objectiveComplete = true in nextState when minCount is reached', async () => {
+      const state = produce(createInitialState(), s => {
+        s.network.nodes['contractor_portal']!.accessLevel = 'user';
+        s.contract = {
+          id: 'data_harvest',
+          networkVariant: 'standard',
+          objectiveComplete: false,
+          objectiveCondition: { type: 'exfil_count', minCount: 2 },
+        };
+        s.player.exfiltrated.push({
+          name: 'previous.txt',
+          path: '/tmp/previous.txt',
+          type: 'document',
+          content: 'already done',
+          exfiltrable: true,
+          accessRequired: 'user',
+        });
+      });
+      const result = await resolveCommand('exfil welcome.txt', state);
+      expect((result.nextState as GameState).contract?.objectiveComplete).toBe(true);
+    });
+
+    it('should include the minCount value in the objective complete message', async () => {
+      const state = produce(createInitialState(), s => {
+        s.network.nodes['contractor_portal']!.accessLevel = 'user';
+        s.contract = {
+          id: 'data_harvest',
+          networkVariant: 'standard',
+          objectiveComplete: false,
+          objectiveCondition: { type: 'exfil_count', minCount: 2 },
+        };
+        s.player.exfiltrated.push({
+          name: 'previous.txt',
+          path: '/tmp/previous.txt',
+          type: 'document',
+          content: 'already done',
+          exfiltrable: true,
+          accessRequired: 'user',
+        });
+      });
+      const result = await resolveCommand('exfil welcome.txt', state);
+      const completeLine = result.lines.find(l => l.content.includes('2'));
+      expect(completeLine).toBeDefined();
+    });
+
+    it('should NOT fire when exfil count is still below minCount', async () => {
+      // minCount 3; start with 1 exfil; count goes 1→2 which is still below 3
+      const state = produce(createInitialState(), s => {
+        s.network.nodes['contractor_portal']!.accessLevel = 'user';
+        s.contract = {
+          id: 'data_harvest',
+          networkVariant: 'standard',
+          objectiveComplete: false,
+          objectiveCondition: { type: 'exfil_count', minCount: 3 },
+        };
+        s.player.exfiltrated.push({
+          name: 'previous.txt',
+          path: '/tmp/previous.txt',
+          type: 'document',
+          content: 'already done',
+          exfiltrable: true,
+          accessRequired: 'user',
+        });
+      });
+      const result = await resolveCommand('exfil welcome.txt', state);
+      const completeLine = result.lines.find(l => l.content.includes('objective complete'));
+      expect(completeLine).toBeUndefined();
+      expect((result.nextState as GameState).contract?.objectiveComplete).toBe(false);
+    });
+
+    it('should NOT fire a second time when objectiveComplete is already true', async () => {
+      // Already completed — exfil another file — no new notification
+      const state = produce(createInitialState(), s => {
+        s.network.nodes['contractor_portal']!.accessLevel = 'user';
+        s.contract = {
+          id: 'data_harvest',
+          networkVariant: 'standard',
+          objectiveComplete: true,
+          objectiveCondition: { type: 'exfil_count', minCount: 2 },
+        };
+        s.player.exfiltrated.push({
+          name: 'previous.txt',
+          path: '/tmp/previous.txt',
+          type: 'document',
+          content: 'already done',
+          exfiltrable: true,
+          accessRequired: 'user',
+        });
+        s.player.exfiltrated.push({
+          name: 'another.txt',
+          path: '/tmp/another.txt',
+          type: 'document',
+          content: 'second file',
+          exfiltrable: true,
+          accessRequired: 'user',
+        });
+      });
+      const result = await resolveCommand('exfil welcome.txt', state);
+      const completeLines = result.lines.filter(l => l.content.includes('objective complete'));
+      expect(completeLines).toHaveLength(0);
+    });
+  });
+
+  // ── no_burn / null contract ──────────────────────────────
+
+  describe('no_burn contract and null contract', () => {
+    it('should not append any objective lines for a no_burn contract on normal commands', async () => {
+      const state = produce(createInitialState(), s => {
+        s.contract = {
+          id: 'blitz',
+          networkVariant: 'standard',
+          objectiveComplete: false,
+          objectiveCondition: { type: 'no_burn' },
+        };
+      });
+      const result = await resolveCommand('scan', state);
+      const objectiveLines = result.lines.filter(
+        l => l.content.includes('CONTRACT') || l.content.includes('objective'),
+      );
+      expect(objectiveLines).toHaveLength(0);
+    });
+
+    it('should not append any objective lines when contract is null', async () => {
+      // Default createInitialState() has contract: null
+      const state = produce(createInitialState(), s => {
+        s.contract = null;
+        s.network.nodes['contractor_portal']!.accessLevel = 'user';
+      });
+      const result = await resolveCommand('exfil welcome.txt', state);
+      const objectiveLines = result.lines.filter(
+        l => l.content.includes('CONTRACT') || l.content.includes('objective complete'),
+      );
+      expect(objectiveLines).toHaveLength(0);
+    });
+
+    it('should not set flags.contract_cap_exceeded when contract is null', async () => {
+      const state = produce(createInitialState(), s => {
+        s.player.trace = 47;
+        s.contract = null;
+      });
+      const result = await resolveCommand('login baduser badpass', state);
+      expect((result.nextState as GameState).flags['contract_cap_exceeded']).toBeFalsy();
+    });
+  });
+});

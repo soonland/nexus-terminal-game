@@ -17,6 +17,7 @@ import { makeLine } from './types/terminal';
 import type { GameState } from './types/game';
 import { hasAccess } from './types/game';
 import { createInitialState, currentNode, burnRetry } from './engine/state';
+import produce from './engine/produce';
 import { resolveCommand } from './engine/commands';
 import {
   saveGame,
@@ -316,7 +317,7 @@ export const App = () => {
           );
         }
 
-        const noBurnFailedLines: ReturnType<typeof makeLine>[] =
+        const noBurnFailedLines: TerminalLine[] =
           gameState.contract?.objectiveCondition.type === 'no_burn'
             ? [
                 makeLine('separator', ''),
@@ -360,6 +361,7 @@ export const App = () => {
           setContractRerollUsed(false);
           setSessionLines(buildContractLines(contract));
           setDmLines([]);
+          setGameState(null);
           setAppPhase('contract_screen');
         } else {
           setGameState(createInitialState());
@@ -623,11 +625,26 @@ export const App = () => {
           setAppPhase('burned');
           // Do NOT clearSave here — state is needed for burnRetry on Enter.
         } else if (next.phase === 'ended') {
-          saveGame(next); // persist so a refresh before Enter restores the ended screen
-          setEndingGameState(next);
+          // Finalise objective for condition types evaluated at run-end rather than mid-run.
+          const activeContract = next.contract;
+          const finalNext =
+            activeContract && !activeContract.objectiveComplete
+              ? produce(next, s => {
+                  if (!s.contract) return;
+                  const type = s.contract.objectiveCondition.type;
+                  if (type === 'trace_cap' && !s.flags['contract_cap_exceeded']) {
+                    s.contract.objectiveComplete = true;
+                  } else if (type === 'no_burn' && s.player.burnCount === 0) {
+                    s.contract.objectiveComplete = true;
+                  }
+                })
+              : next;
+          if (finalNext !== next) setGameState(finalNext);
+          saveGame(finalNext); // persist so a refresh before Enter restores the ended screen
+          setEndingGameState(finalNext);
           // Skip animation entirely if the ending flag is unrecognised (should not happen,
           // but avoids showing "// ENDING: UNKNOWN" to the player on a corrupted save).
-          const resolvedName = getEndingName(next.flags);
+          const resolvedName = getEndingName(finalNext.flags);
           setAppPhase(resolvedName !== 'UNKNOWN' ? 'ending_sequence' : 'ended');
         }
       }

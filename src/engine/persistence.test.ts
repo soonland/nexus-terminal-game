@@ -384,6 +384,32 @@ describe('loadGame — round-trip', () => {
     expect(cred?.revoked).toBe(true);
   });
 
+  it('round-trips contract with objectiveComplete and objectiveCondition', () => {
+    const state = produce(createInitialState(), s => {
+      s.contract = {
+        id: 'test_contract',
+        networkVariant: 'standard',
+        objectiveCondition: { type: 'exfil_count', minCount: 3 },
+        objectiveComplete: true,
+      };
+    });
+    const loaded = roundTrip(state);
+    expect(loaded?.contract?.id).toBe('test_contract');
+    expect(loaded?.contract?.objectiveComplete).toBe(true);
+    expect(loaded?.contract?.objectiveCondition).toEqual({ type: 'exfil_count', minCount: 3 });
+  });
+
+  it('loads contract as null when absent from save (backwards compatibility)', () => {
+    const state = createInitialState();
+    saveGame(state);
+    const [, value] = mockStorage.setItem.mock.calls[0] as [string, string];
+    const save = JSON.parse(value) as Record<string, unknown>;
+    delete save['contract'];
+    mockStorage.getItem.mockReturnValue(JSON.stringify(save));
+    const loaded = loadGame();
+    expect(loaded?.contract).toBeNull();
+  });
+
   it('restores dynamically added world credentials (sentinel P2 renewals)', () => {
     const state = produce(createInitialState(), s => {
       s.worldCredentials.push({

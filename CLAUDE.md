@@ -26,13 +26,13 @@ Build (`npm run build`) is the primary correctness check — it runs `tsc -b` be
 - **Husky + lint-staged** — pre-commit runs Prettier then ESLint on staged files only. `commit-msg` runs commitlint.
 - **commitlint** — `commitlint.config.js`, enforces Conventional Commits (`feat`, `fix`, `chore`, `docs`, `refactor`, `test`, `ci`, `build`, `perf`, `revert`).
 - **Knip** — `knip.json`, detects unused exports/files/dependencies. Run before PRs touching exports or deps.
-- **MSW** — `src/mocks/` has Node server + handlers pre-wired for the 3 Phase 3 API routes. Setup file is registered in `vitest.config.ts`. Add realistic fixtures when implementing Phase 3.
+- **MSW** — `src/mocks/` has Node server + handlers for the 3 Phase 3 API routes (`/api/world-ai`, `/api/file-content`, `/api/aria`). Setup file is registered in `vitest.config.ts`.
 - **Dependabot** — `.github/dependabot.yml`, weekly minor/major npm updates, grouped PRs, `chore(deps):` commit prefix.
 - **release-please** — `.github/workflows/release-please.yml`, opens a release PR on every merge to `main` with auto-generated changelog from conventional commits.
 
 ## Architecture
 
-The game is a **client-side state machine**. There is no backend yet (Phase 3 will add Vercel serverless functions for AI proxying). All game logic runs in the browser.
+The game is a **client-side state machine** with a Vercel serverless backend for AI proxying (Phase 3). All core game logic runs in the browser.
 
 ### Application phases
 
@@ -52,7 +52,7 @@ All game state is a single `GameState` object (`src/types/game.ts`). It is clone
 
 1. **Local commands** — `help`, `status`, `inventory`, `map`, `clear` — no trace cost, no state change
 2. **Engine commands** — `scan`, `connect`, `login`, `ls`, `cat`, `disconnect`, `exploit`, `exfil`, `wipe-logs` — deterministic, return `CommandOutput` with optional `nextState`
-3. **Unknown commands** — stub for Phase 3 AI routing (Groq)
+3. **Unknown commands** — routed to Phase 3 AI (Groq via `/api/world-ai`)
 
 `resolveCommand(raw, state)` returns `{ lines, nextState }`. `App.tsx` applies `nextState` and appends `lines` to the session line buffer.
 
@@ -60,8 +60,8 @@ All game state is a single `GameState` object (`src/types/game.ts`). It is clone
 
 - **16 anchor nodes** are defined in `src/data/anchorNodes.ts` with hardcoded content, services, files, credentials, and connections.
 - Nodes are organized in 6 layers (0=entry, 1=ops, 2=security, 3=finance, 4=executive, 5=aria).
-- Phase 4 will add procedural filler nodes around the anchors.
-- `GameFile.content = null` means the file needs AI generation (Phase 3). The `cat` command currently shows a stub for these.
+- Phase 4 added procedural filler nodes around the anchors (seeded per run).
+- `GameFile.content = null` means the file needs AI generation via `/api/file-content` (Phase 3).
 
 ### Terminal rendering
 
@@ -73,10 +73,14 @@ Lines are typed as `TerminalLine` (`src/types/terminal.ts`). Six `LineType` valu
 
 Pure CSS, no framework. `src/styles/globals.css` uses CSS custom properties for the color palette. The aesthetic is DOS/ncurses: `#0000aa` background, IBM VGA 8x16 font (self-hosted in `public/fonts/`), white/gray text. No glow or CRT effects are active (the `body.crt` class was removed).
 
+## Implemented phases
+
+- **Phase 3** — AI Loop: `/api/world-ai`, `/api/file-content`, `/api/aria` Vercel serverless functions. Keys in `.env.local` as `GROQ_API_KEY` and `GEMINI_API_KEY`.
+- **Phase 4** — Procedural Nodes: filler node generator seeded per run, employee pool, division seeds, connectivity builder, credential chain guarantee.
+- **Phase 5** — Trace/Sentinel: trace meter, thresholds (31/61/86/100%), exploit command & layer gating, Sentinel system.
+
 ## Planned additions (do not implement speculatively)
 
-- **Phase 3**: `/api/world-ai`, `/api/file-content`, `/api/aria` Vercel serverless functions. Keys go in `.env.local` as `GROQ_API_KEY` and `GEMINI_API_KEY`.
-- **Phase 4**: Procedural filler node generator seeded per run.
-- **Phase 5**: Trace thresholds (31/61/86/100%), Sentinel system.
-- **Phase 6**: Aria subnetwork dialogue with trust score.
+- **Phase 6**: Aria subnetwork dialogue with trust score (partially open — issue #18).
 - **Phase 7**: Four endings (LEAK / SELL / DESTROY / FREE).
+- **Phases 8–10**: TBD.
