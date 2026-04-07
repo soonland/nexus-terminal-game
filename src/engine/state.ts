@@ -1,10 +1,11 @@
-import type { GameState, LiveNode } from '../types/game';
+import type { GameState, LiveNode, ActiveContract } from '../types/game';
 import { buildNodeMap, ANCHOR_CREDENTIALS, LAYER_ENTRY_NODES } from '../data/anchorNodes';
 import { generateFillerNodes } from './generateFillerNodes';
 import { generateEmployeePool } from './generateEmployeePool';
 import { buildCredentialChains } from './buildCredentialChains';
+import { getContract, TOOL_REGISTRY } from '../data/contracts';
 
-export const createInitialState = (sessionSeed?: number): GameState => {
+export const createInitialState = (sessionSeed?: number, contractId?: string): GameState => {
   const resolvedSeed = sessionSeed ?? Math.floor(Math.random() * 2 ** 32);
   const anchorNodes = buildNodeMap();
   const { fillerNodes, anchorPatches } = generateFillerNodes(resolvedSeed, anchorNodes);
@@ -62,9 +63,31 @@ export const createInitialState = (sessionSeed?: number): GameState => {
     nodes[nodeId] = { ...node, credentialHints: [...node.credentialHints, ...newCredIds] };
   }
 
+  const contractDef = contractId ? getContract(contractId) : undefined;
+  const activeContract: ActiveContract | null = contractDef
+    ? {
+        id: contractDef.id,
+        networkVariant: contractDef.networkVariant,
+        objectiveComplete: false,
+        objectiveCondition: contractDef.objectiveCondition,
+      }
+    : null;
+  const startingTools = (contractDef?.loadout.startingTools ?? ['port-scanner', 'exploit-kit']).map(
+    id => TOOL_REGISTRY[id],
+  );
+  const startingCharges = contractDef?.loadout.exploitCharges ?? 3;
+
+  // Pre-obtain any credentials specified by the contract loadout
+  const contractCredIds = new Set(contractDef?.loadout.startingCredentials ?? []);
+  const initialCredentials = ANCHOR_CREDENTIALS.map(c => ({
+    ...c,
+    obtained: c.obtained || contractCredIds.has(c.id),
+  }));
+
   return {
     phase: 'playing',
     activeChannel: null,
+    contract: activeContract,
     runId: crypto.randomUUID(),
     startedAt: Date.now(),
     sessionSeed: resolvedSeed,
@@ -75,21 +98,10 @@ export const createInitialState = (sessionSeed?: number): GameState => {
     player: {
       handle: 'ghost',
       trace: 0,
-      charges: 3,
-      credentials: ANCHOR_CREDENTIALS.map(c => ({ ...c })),
+      charges: startingCharges,
+      credentials: initialCredentials,
       exfiltrated: [],
-      tools: [
-        {
-          id: 'port-scanner',
-          name: 'Port Scanner',
-          description: 'Makes scan fully passive — 0 trace cost.',
-        },
-        {
-          id: 'exploit-kit',
-          name: 'Exploit Kit',
-          description: 'Required to run exploit commands.',
-        },
-      ],
+      tools: startingTools,
       burnCount: 0,
     },
     network: {

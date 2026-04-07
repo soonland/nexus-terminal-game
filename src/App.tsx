@@ -26,6 +26,9 @@ import {
   disclaimerRequired,
   recordDisclaimerAgreement,
 } from './engine/persistence';
+import { loadDossier } from './engine/dossierPersistence';
+import { selectContract } from './data/contracts';
+import type { ContractDefinition } from './types/game';
 
 const computeContextSuggestions = (state: GameState): string[] => {
   const node = state.network.nodes[state.network.currentNodeId];
@@ -81,12 +84,32 @@ const OPERATIVE_PASS = 'nX-2847';
 
 const SPINNER_FRAMES = ['-', '\\', '|', '/'];
 
+const buildContractLines = (contract: ContractDefinition): TerminalLine[] => [
+  makeLine('separator', ''),
+  makeLine('system', '// NEXUS CORP — INCOMING CONTRACT'),
+  makeLine('separator', ''),
+  makeLine('output', `CONTRACT : ${contract.title}`),
+  makeLine('separator', ''),
+  makeLine('system', contract.brief),
+  makeLine('separator', ''),
+  makeLine('system', `OBJECTIVE: ${contract.objectiveDescription}`),
+  makeLine('separator', ''),
+  makeLine(
+    'system',
+    `LOADOUT  : ${String(contract.loadout.exploitCharges)} exploit charge(s)  |  tools: ${contract.loadout.startingTools.join(', ')}`,
+  ),
+  makeLine('separator', ''),
+  makeLine('system', '[A]ccept  /  [R]eroll (once per session)'),
+  makeLine('separator', ''),
+];
+
 type AppPhase =
   | 'welcome'
   | 'prologue'
   | 'login_user'
   | 'login_pass'
   | 'resume_prompt'
+  | 'contract_screen'
   | 'scanning'
   | 'booting'
   | 'playing'
@@ -133,6 +156,8 @@ export const App = () => {
   const [mapOpen, setMapOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
+  const [pendingContract, setPendingContract] = useState<ContractDefinition | null>(null);
+  const [contractRerollUsed, setContractRerollUsed] = useState(false);
 
   const terminalRef = useRef<TerminalHandle>(null);
   const bootHandled = useRef(false);
@@ -291,6 +316,14 @@ export const App = () => {
           );
         }
 
+        const noBurnFailedLines: ReturnType<typeof makeLine>[] =
+          gameState.contract?.objectiveCondition.type === 'no_burn'
+            ? [
+                makeLine('separator', ''),
+                makeLine('error', '// CONTRACT: burn detected — objective failed'),
+              ]
+            : [];
+
         push([
           makeLine('separator', ''),
           makeLine('system', 'Reconnecting...'),
@@ -302,6 +335,7 @@ export const App = () => {
             'system',
             `// Retained: ${String(retainedCreds)} credential(s), ${String(retainedExfils)} exfil(s).`,
           ),
+          ...noBurnFailedLines,
           ...burnWarningLines,
           makeLine('separator', ''),
         ]);
@@ -316,13 +350,23 @@ export const App = () => {
           return;
         }
         clearSave();
-        setGameState(createInitialState());
         setEndingGameState(null);
-        setSessionLines([]);
-        setDmLines([]);
         setAiSuggestions([]);
         bootHandled.current = false;
-        setAppPhase('scanning');
+        const dossierAfterEnd = loadDossier();
+        if (dossierAfterEnd.runsCompleted > 0) {
+          const contract = selectContract();
+          setPendingContract(contract);
+          setContractRerollUsed(false);
+          setSessionLines(buildContractLines(contract));
+          setDmLines([]);
+          setAppPhase('contract_screen');
+        } else {
+          setGameState(createInitialState());
+          setSessionLines([]);
+          setDmLines([]);
+          setAppPhase('scanning');
+        }
         return;
       }
 
@@ -354,15 +398,54 @@ export const App = () => {
               makeLine('system', 'Type  yes  to resume, or  no  to start a new run.'),
             ]);
           } else {
-            setGameState(createInitialState());
-            setSessionLines([]);
-            setDmLines([]);
-            setAppPhase('scanning');
+            const dossier = loadDossier();
+            if (dossier.runsCompleted > 0) {
+              const contract = selectContract();
+              setPendingContract(contract);
+              setContractRerollUsed(false);
+              setSessionLines(buildContractLines(contract));
+              setAppPhase('contract_screen');
+            } else {
+              setGameState(createInitialState());
+              setSessionLines([]);
+              setDmLines([]);
+              setAppPhase('scanning');
+            }
           }
         } else {
           push([makeLine('error', 'Login incorrect.'), makeLine('system', 'nx-field-01 login:')]);
           setUsername('');
           setAppPhase('login_user');
+        }
+        return;
+      }
+
+      // ── Contract screen ────────────────────────────────────
+      if (appPhase === 'contract_screen') {
+        const input = raw.trim().toLowerCase();
+        if (!input) return;
+        push([makeLine('input', raw)]);
+        if (input === 'a') {
+          if (!pendingContract) return;
+          const accepted = pendingContract;
+          setGameState(createInitialState(undefined, accepted.id));
+          setPendingContract(null);
+          setContractRerollUsed(false);
+          setSessionLines([]);
+          setDmLines([]);
+          bootHandled.current = false;
+          setAppPhase('scanning');
+        } else if (input === 'r') {
+          if (contractRerollUsed) {
+            push([makeLine('system', '// REROLL: already used — one reroll per session')]);
+          } else {
+            const rerolled = selectContract(pendingContract?.id);
+            setPendingContract(rerolled);
+            setContractRerollUsed(true);
+            push(buildContractLines(rerolled));
+          }
+        } else {
+          push([makeLine('system', '[A]ccept  /  [R]eroll')]);
         }
         return;
       }
@@ -380,13 +463,25 @@ export const App = () => {
             setGameState(createInitialState());
             setDmLines([]);
           }
+          setSessionLines([]);
+          setAppPhase('scanning');
         } else {
           clearSave();
-          setGameState(createInitialState());
-          setDmLines([]);
+          const dossier = loadDossier();
+          if (dossier.runsCompleted > 0) {
+            const contract = selectContract();
+            setPendingContract(contract);
+            setContractRerollUsed(false);
+            setSessionLines(buildContractLines(contract));
+            setDmLines([]);
+            setAppPhase('contract_screen');
+          } else {
+            setGameState(createInitialState());
+            setDmLines([]);
+            setSessionLines([]);
+            setAppPhase('scanning');
+          }
         }
-        setSessionLines([]);
-        setAppPhase('scanning');
         return;
       }
 
@@ -618,7 +713,17 @@ export const App = () => {
         }
       }
     },
-    [appPhase, gameState, username, push, pushDm, startSpinner, stopSpinner],
+    [
+      appPhase,
+      contractRerollUsed,
+      gameState,
+      pendingContract,
+      push,
+      pushDm,
+      startSpinner,
+      stopSpinner,
+      username,
+    ],
   );
 
   // ── Prompt and masking per phase ───────────────────────────
@@ -627,15 +732,17 @@ export const App = () => {
       ? ''
       : appPhase === 'login_pass'
         ? ''
-        : appPhase === 'burned'
-          ? '[RECONNECT]'
-          : appPhase === 'ending_sequence'
-            ? '[ENDED]'
-            : appPhase === 'ended'
+        : appPhase === 'contract_screen'
+          ? '[CONTRACT]'
+          : appPhase === 'burned'
+            ? '[RECONNECT]'
+            : appPhase === 'ending_sequence'
               ? '[ENDED]'
-              : appPhase === 'dm'
-                ? 'ghost >>'
-                : 'nexus $';
+              : appPhase === 'ended'
+                ? '[ENDED]'
+                : appPhase === 'dm'
+                  ? 'ghost >>'
+                  : 'nexus $';
   const isMasked = appPhase === 'login_pass';
   const isNoHistory = appPhase === 'login_user' || appPhase === 'login_pass';
   const inputDisabled =

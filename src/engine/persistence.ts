@@ -9,12 +9,13 @@ import type {
   Credential,
   GameFile,
   SentinelMessage,
+  ActiveContract,
 } from '../types/game';
 import { createInitialState } from './state';
 import { AI_GENERATED_FILE_PATHS } from '../data/anchorNodes';
 
 const SAVE_KEY = 'irongate_save';
-const SAVE_VERSION = 4;
+const SAVE_VERSION = 5;
 
 // ── Delta types (what actually goes into localStorage) ─────
 
@@ -65,6 +66,7 @@ interface SaveState {
     channelEstablished: boolean;
   };
   worldCredentialsAdded: Credential[]; // credentials dynamically added by sentinel P2
+  contract: ActiveContract | null;
 }
 
 // ── Serialisation ──────────────────────────────────────────
@@ -144,6 +146,7 @@ const toSaveState = (state: GameState): SaveState => {
       channelEstablished: state.sentinel.channelEstablished,
     },
     worldCredentialsAdded,
+    contract: state.contract,
   };
 };
 
@@ -221,6 +224,7 @@ const fromSaveState = (save: SaveState): GameState => {
   state.aria = save.aria;
   state.forks = save.forks;
   state.flags = save.flags;
+  state.contract = save.contract ?? null;
 
   // Restore sentinel state
   state.sentinel = save.sentinel;
