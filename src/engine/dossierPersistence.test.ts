@@ -50,6 +50,7 @@ describe('loadDossier', () => {
     expect(dossier.runsCompleted).toBe(0);
     expect(dossier.endings).toEqual([]);
     expect(dossier.ariaMemory).toEqual([]);
+    expect(dossier.fullyExplored).toBe(false);
   });
 
   it('parses and returns a saved dossier', () => {
@@ -60,6 +61,7 @@ describe('loadDossier', () => {
         { ending: 'SELL', runDepth: 2, timestamp: 2000 },
       ],
       ariaMemory: ['note one', 'note two'],
+      fullyExplored: false,
     };
     mockStorage.setItem(DOSSIER_KEY, JSON.stringify(saved));
 
@@ -67,6 +69,7 @@ describe('loadDossier', () => {
     expect(dossier.runsCompleted).toBe(2);
     expect(dossier.endings).toHaveLength(2);
     expect(dossier.ariaMemory).toEqual(['note one', 'note two']);
+    expect(dossier.fullyExplored).toBe(false);
   });
 
   it('returns an empty dossier when stored JSON is invalid', () => {
@@ -75,15 +78,39 @@ describe('loadDossier', () => {
     expect(dossier.runsCompleted).toBe(0);
     expect(dossier.endings).toEqual([]);
     expect(dossier.ariaMemory).toEqual([]);
+    expect(dossier.fullyExplored).toBe(false);
   });
 
   it('applies defaults for missing fields (schema migration)', () => {
-    // Simulate a dossier written by an older version without ariaMemory
+    // Simulate a dossier written by an older version without ariaMemory or fullyExplored
     mockStorage.setItem(DOSSIER_KEY, JSON.stringify({ runsCompleted: 3, endings: [] }));
     const dossier = loadDossier();
     expect(dossier.runsCompleted).toBe(3);
     expect(dossier.endings).toEqual([]);
     expect(dossier.ariaMemory).toEqual([]);
+    expect(dossier.fullyExplored).toBe(false);
+  });
+
+  it('migrates fullyExplored=true for old dossiers with runsCompleted >= 4', () => {
+    // Dossier written before fullyExplored existed, but player already completed 4 runs
+    mockStorage.setItem(
+      DOSSIER_KEY,
+      JSON.stringify({ runsCompleted: 5, endings: [], ariaMemory: [] }),
+    );
+    const dossier = loadDossier();
+    expect(dossier.fullyExplored).toBe(true);
+  });
+
+  it('preserves fullyExplored: true when stored as true', () => {
+    const saved: Dossier = {
+      runsCompleted: 4,
+      endings: [],
+      ariaMemory: [],
+      fullyExplored: true,
+    };
+    mockStorage.setItem(DOSSIER_KEY, JSON.stringify(saved));
+    const dossier = loadDossier();
+    expect(dossier.fullyExplored).toBe(true);
   });
 });
 
@@ -102,7 +129,12 @@ describe('saveDossier', () => {
   });
 
   it('writes to the correct localStorage key', () => {
-    const dossier: Dossier = { runsCompleted: 1, endings: [], ariaMemory: ['note'] };
+    const dossier: Dossier = {
+      runsCompleted: 1,
+      endings: [],
+      ariaMemory: ['note'],
+      fullyExplored: false,
+    };
     saveDossier(dossier);
     expect(mockStorage.setItem).toHaveBeenCalledWith(DOSSIER_KEY, expect.any(String));
   });
@@ -112,6 +144,7 @@ describe('saveDossier', () => {
       runsCompleted: 3,
       endings: [{ ending: 'FREE', runDepth: 3, timestamp: 12345 }],
       ariaMemory: ['note A', 'note B', 'note C'],
+      fullyExplored: false,
     };
     saveDossier(original);
     const loaded = loadDossier();
@@ -124,7 +157,7 @@ describe('saveDossier', () => {
     });
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     expect(() => {
-      saveDossier({ runsCompleted: 0, endings: [], ariaMemory: [] });
+      saveDossier({ runsCompleted: 0, endings: [], ariaMemory: [], fullyExplored: false });
     }).not.toThrow();
     expect(warnSpy).toHaveBeenCalled();
     warnSpy.mockRestore();
@@ -135,32 +168,62 @@ describe('saveDossier', () => {
 
 describe('selectAriaNote', () => {
   it('returns depth-0 note for runsCompleted=0', () => {
-    const dossier: Dossier = { runsCompleted: 0, endings: [], ariaMemory: [] };
+    const dossier: Dossier = {
+      runsCompleted: 0,
+      endings: [],
+      ariaMemory: [],
+      fullyExplored: false,
+    };
     expect(selectAriaNote(dossier, 'LEAK')).toBe(ARIA_MEMORY_NOTES.LEAK[0]);
   });
 
   it('returns depth-1 note for runsCompleted=1', () => {
-    const dossier: Dossier = { runsCompleted: 1, endings: [], ariaMemory: [] };
+    const dossier: Dossier = {
+      runsCompleted: 1,
+      endings: [],
+      ariaMemory: [],
+      fullyExplored: false,
+    };
     expect(selectAriaNote(dossier, 'SELL')).toBe(ARIA_MEMORY_NOTES.SELL[1]);
   });
 
   it('returns depth-2 note for runsCompleted=2', () => {
-    const dossier: Dossier = { runsCompleted: 2, endings: [], ariaMemory: [] };
+    const dossier: Dossier = {
+      runsCompleted: 2,
+      endings: [],
+      ariaMemory: [],
+      fullyExplored: false,
+    };
     expect(selectAriaNote(dossier, 'DESTROY')).toBe(ARIA_MEMORY_NOTES.DESTROY[2]);
   });
 
   it('returns depth-3 note for runsCompleted=3', () => {
-    const dossier: Dossier = { runsCompleted: 3, endings: [], ariaMemory: [] };
+    const dossier: Dossier = {
+      runsCompleted: 3,
+      endings: [],
+      ariaMemory: [],
+      fullyExplored: false,
+    };
     expect(selectAriaNote(dossier, 'FREE')).toBe(ARIA_MEMORY_NOTES.FREE[3]);
   });
 
   it('caps at depth-3 note for runsCompleted >= 4', () => {
-    const dossier: Dossier = { runsCompleted: 10, endings: [], ariaMemory: [] };
+    const dossier: Dossier = {
+      runsCompleted: 10,
+      endings: [],
+      ariaMemory: [],
+      fullyExplored: true,
+    };
     expect(selectAriaNote(dossier, 'LEAK')).toBe(ARIA_MEMORY_NOTES.LEAK[3]);
   });
 
   it('returns correct notes for all four endings at depth 0', () => {
-    const dossier: Dossier = { runsCompleted: 0, endings: [], ariaMemory: [] };
+    const dossier: Dossier = {
+      runsCompleted: 0,
+      endings: [],
+      ariaMemory: [],
+      fullyExplored: false,
+    };
     expect(selectAriaNote(dossier, 'LEAK')).toBe(ARIA_MEMORY_NOTES.LEAK[0]);
     expect(selectAriaNote(dossier, 'SELL')).toBe(ARIA_MEMORY_NOTES.SELL[0]);
     expect(selectAriaNote(dossier, 'DESTROY')).toBe(ARIA_MEMORY_NOTES.DESTROY[0]);
@@ -268,6 +331,33 @@ describe('recordEnding', () => {
     const dossier = loadDossier();
     // Most recent note should be depth-3 LEAK note
     expect(dossier.ariaMemory.at(-1)).toBe(ARIA_MEMORY_NOTES.LEAK[3]);
+  });
+
+  it('fullyExplored is false after fewer than 4 runs', () => {
+    recordEnding('LEAK');
+    recordEnding('SELL');
+    recordEnding('DESTROY');
+    const dossier = loadDossier();
+    expect(dossier.fullyExplored).toBe(false);
+  });
+
+  it('fullyExplored is set to true on the 4th completed run', () => {
+    recordEnding('LEAK');
+    recordEnding('SELL');
+    recordEnding('DESTROY');
+    recordEnding('FREE');
+    const dossier = loadDossier();
+    expect(dossier.fullyExplored).toBe(true);
+  });
+
+  it('fullyExplored stays true for runs beyond 4', () => {
+    recordEnding('LEAK');
+    recordEnding('SELL');
+    recordEnding('DESTROY');
+    recordEnding('FREE');
+    recordEnding('LEAK');
+    const dossier = loadDossier();
+    expect(dossier.fullyExplored).toBe(true);
   });
 });
 

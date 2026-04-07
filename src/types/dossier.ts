@@ -21,4 +21,9 @@ export interface Dossier {
    * Capped at 4 entries; older entries are dropped as new ones arrive.
    */
   ariaMemory: string[];
+  /**
+   * Set to true once the player has completed 4 or more runs.
+   * Used by future systems (contracts, lore) to unlock additional content.
+   */
+  fullyExplored: boolean;
 }
