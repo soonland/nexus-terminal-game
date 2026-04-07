@@ -67,6 +67,16 @@ const BODY: HelpLine[] = [
     color: 'var(--color-system)',
   },
   { text: r(), color: 'var(--color-system)' },
+  { text: r('MESSAGING:'), color: 'var(--color-output)' },
+  {
+    text: r('  msg sentinel       -open Sentinel channel'),
+    color: 'var(--color-system)',
+  },
+  {
+    text: r('  msg aria <message> -send a message to Aria'),
+    color: 'var(--color-system)',
+  },
+  { text: r(), color: 'var(--color-system)' },
   { text: r('FILE MARKERS:'), color: 'var(--color-output)' },
   { text: r('  [!]       -tripwire: reading costs up to +25 trace'), color: 'var(--color-system)' },
   { text: r('  [no-exfil]-file cannot be exfiltrated'), color: 'var(--color-system)' },

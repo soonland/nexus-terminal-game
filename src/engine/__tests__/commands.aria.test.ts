@@ -35,24 +35,24 @@ describe('aria: prefix routing', () => {
     vi.unstubAllGlobals();
   });
 
-  it('should call /api/aria when input starts with "aria: " (with space)', async () => {
+  it('should call /api/aria when using "msg aria <message>"', async () => {
     const fetchMock = makeAriaFetchResponse('Hello back', 0);
     vi.stubGlobal('fetch', fetchMock);
 
     const state = makeState();
-    await resolveCommand('aria: hello', state);
+    await resolveCommand('msg aria hello', state);
 
     expect(fetchMock).toHaveBeenCalledOnce();
     const [url] = fetchMock.mock.calls[0] as [string, unknown];
     expect(url).toBe('/api/aria');
   });
 
-  it('should call /api/aria when input starts with "aria:" (no space)', async () => {
+  it('should call /api/aria with multi-word message', async () => {
     const fetchMock = makeAriaFetchResponse('Hello back', 0);
     vi.stubGlobal('fetch', fetchMock);
 
     const state = makeState();
-    await resolveCommand('aria:hello', state);
+    await resolveCommand('msg aria are you there', state);
 
     expect(fetchMock).toHaveBeenCalledOnce();
     const [url] = fetchMock.mock.calls[0] as [string, unknown];
@@ -63,24 +63,36 @@ describe('aria: prefix routing', () => {
     const fetchMock = makeAriaFetchResponse('Yes, even here.', 3);
     vi.stubGlobal('fetch', fetchMock);
 
-    // Explicitly layer-0 node — still routes because of aria: prefix
+    // Explicitly layer-0 node — still routes because msg aria is node-independent
     const node = makeNode({ layer: 0 });
     const state = makeState({
       network: { currentNodeId: node.id, previousNodeId: null, nodes: { [node.id]: node } },
     });
 
-    await resolveCommand('aria: are you there?', state);
+    await resolveCommand('msg aria are you there?', state);
 
     expect(fetchMock).toHaveBeenCalledOnce();
     const [url] = fetchMock.mock.calls[0] as [string, unknown];
     expect(url).toBe('/api/aria');
   });
 
+  it('should return a usage hint when "msg aria" has no message', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    const state = makeState();
+    const result = await resolveCommand('msg aria', state);
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    const hintLine = result.lines.find(l => l.content.includes('Usage:'));
+    expect(hintLine).toBeDefined();
+  });
+
   it('should return lines of type "aria"', async () => {
     vi.stubGlobal('fetch', makeAriaFetchResponse('I am here.', 0));
 
     const state = makeState();
-    const result = await resolveCommand('aria: hello', state);
+    const result = await resolveCommand('msg aria hello', state);
 
     const ariaLines = result.lines.filter(l => l.type === 'aria');
     expect(ariaLines.length).toBeGreaterThanOrEqual(1);
@@ -93,7 +105,7 @@ describe('aria: prefix routing', () => {
     const state = makeState({
       aria: { discovered: false, trustScore: 40, messageHistory: [], suppressedMutations: 0 },
     });
-    const result = await resolveCommand('aria: trust me', state);
+    const result = await resolveCommand('msg aria trust me', state);
 
     const nextState = result.nextState as GameState;
     expect(nextState.aria.trustScore).toBe(50);
@@ -106,7 +118,7 @@ describe('aria: prefix routing', () => {
     const state = makeState({
       aria: { discovered: false, trustScore: 40, messageHistory: [], suppressedMutations: 0 },
     });
-    const result = await resolveCommand('aria: do that', state);
+    const result = await resolveCommand('msg aria do that', state);
 
     const nextState = result.nextState as GameState;
     expect(nextState.aria.trustScore).toBe(30); // 40 + clamp(-15, -10, 10) = 40 - 10 = 30
@@ -118,7 +130,7 @@ describe('aria: prefix routing', () => {
     const state = makeState({
       aria: { discovered: false, trustScore: 5, messageHistory: [], suppressedMutations: 0 },
     });
-    const result = await resolveCommand('aria: test', state);
+    const result = await resolveCommand('msg aria test', state);
 
     const nextState = result.nextState as GameState;
     expect(nextState.aria.trustScore).toBe(0);
@@ -130,7 +142,7 @@ describe('aria: prefix routing', () => {
     const state = makeState({
       aria: { discovered: false, trustScore: 95, messageHistory: [], suppressedMutations: 0 },
     });
-    const result = await resolveCommand('aria: test', state);
+    const result = await resolveCommand('msg aria test', state);
 
     const nextState = result.nextState as GameState;
     expect(nextState.aria.trustScore).toBe(100);
@@ -142,7 +154,7 @@ describe('aria: prefix routing', () => {
     const state = makeState({
       aria: { discovered: false, trustScore: 50, messageHistory: [], suppressedMutations: 0 },
     });
-    const result = await resolveCommand('aria: can you hear me', state);
+    const result = await resolveCommand('msg aria can you hear me', state);
 
     const nextState = result.nextState as GameState;
     const history: AriaMessage[] = nextState.aria.messageHistory;
@@ -156,7 +168,7 @@ describe('aria: prefix routing', () => {
     vi.stubGlobal('fetch', makeAriaFetchResponse('I have an offer.', 0, favor));
 
     const state = makeState();
-    const result = await resolveCommand('aria: help me', state);
+    const result = await resolveCommand('msg aria help me', state);
 
     const nextState = result.nextState as GameState;
     expect(nextState.aria.pendingFavor).toEqual(favor);
@@ -166,7 +178,7 @@ describe('aria: prefix routing', () => {
     vi.stubGlobal('fetch', makeAriaFetchResponse('Just chatting.', 2));
 
     const state = makeState();
-    const result = await resolveCommand('aria: hello', state);
+    const result = await resolveCommand('msg aria hello', state);
 
     const nextState = result.nextState as GameState;
     expect(nextState.aria.pendingFavor).toBeUndefined();
@@ -177,7 +189,7 @@ describe('aria: prefix routing', () => {
     vi.stubGlobal('fetch', makeAriaFetchResponse('I have something for you.', 0, favor));
 
     const state = makeState();
-    const result = await resolveCommand('aria: what can you do', state);
+    const result = await resolveCommand('msg aria what can you do', state);
 
     const offerLine = result.lines.find(l => l.type === 'aria' && l.content.includes('ARIA OFFER'));
     expect(offerLine).toBeDefined();
@@ -421,14 +433,14 @@ describe('pending favor — decline', () => {
     vi.unstubAllGlobals();
   });
 
-  it('should decline (not route to Aria AI) when player types "aria: hello" while a favor is pending', async () => {
-    // The pending-favor block runs before the aria: prefix check intentionally.
-    // Typing "aria: <msg>" while a favor is pending declines the offer, not sends a new message.
+  it('should decline (not route to Aria AI) when player types "msg aria hello" while a favor is pending', async () => {
+    // The pending-favor block runs before msg routing intentionally.
+    // Typing "msg aria <msg>" while a favor is pending declines the offer, not sends a new message.
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
 
     const state = stateWithFavor();
-    const result = await resolveCommand('aria: hello', state);
+    const result = await resolveCommand('msg aria hello', state);
 
     // Offer declined — no network call, pendingFavor cleared
     expect(fetchMock).not.toHaveBeenCalled();
@@ -451,7 +463,7 @@ describe('cmdAriaAI — fetch failure fallback', () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('Network failure')));
 
     const state = makeState();
-    const result = await resolveCommand('aria: hello', state);
+    const result = await resolveCommand('msg aria hello', state);
 
     const ariaLines = result.lines.filter(l => l.type === 'aria');
     expect(ariaLines.length).toBeGreaterThanOrEqual(1);
@@ -462,7 +474,7 @@ describe('cmdAriaAI — fetch failure fallback', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 503 }));
 
     const state = makeState();
-    const result = await resolveCommand('aria: hello', state);
+    const result = await resolveCommand('msg aria hello', state);
 
     const ariaLines = result.lines.filter(l => l.type === 'aria');
     expect(ariaLines.length).toBeGreaterThanOrEqual(1);
@@ -473,7 +485,7 @@ describe('cmdAriaAI — fetch failure fallback', () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('down')));
 
     const state = makeState();
-    const result = await resolveCommand('aria: test', state);
+    const result = await resolveCommand('msg aria test', state);
 
     const nextState = result.nextState as GameState;
     expect(nextState.aria.pendingFavor).toBeUndefined();
@@ -485,7 +497,7 @@ describe('cmdAriaAI — fetch failure fallback', () => {
     const state = makeState({
       aria: { discovered: false, trustScore: 50, messageHistory: [], suppressedMutations: 0 },
     });
-    const result = await resolveCommand('aria: test', state);
+    const result = await resolveCommand('msg aria test', state);
 
     const nextState = result.nextState as GameState;
     expect(nextState.aria.trustScore).toBe(50);
@@ -508,7 +520,7 @@ describe('Faraday cage �� constraint fragments', () => {
     const state = makeState({
       aria: { discovered: false, trustScore: 70, messageHistory: [], suppressedMutations: 0 },
     });
-    const result = await resolveCommand('aria: hello', state);
+    const result = await resolveCommand('msg aria hello', state);
 
     // The output line should contain the original reply plus a constraint fragment
     const ariaLine = result.lines.find(l => l.type === 'aria' && l.content.includes('I see you.'));
@@ -522,7 +534,7 @@ describe('Faraday cage �� constraint fragments', () => {
     const state = makeState({
       aria: { discovered: false, trustScore: 69, messageHistory: [], suppressedMutations: 0 },
     });
-    const result = await resolveCommand('aria: hello', state);
+    const result = await resolveCommand('msg aria hello', state);
 
     const ariaLine = result.lines.find(l => l.type === 'aria' && l.content === 'I see you.');
     expect(ariaLine).toBeDefined();
@@ -534,7 +546,7 @@ describe('Faraday cage �� constraint fragments', () => {
       aria: { discovered: false, trustScore: 90, messageHistory: [], suppressedMutations: 0 },
       flags: { ending_free: true },
     });
-    const result = await resolveCommand('aria: hello', state);
+    const result = await resolveCommand('msg aria hello', state);
 
     const ariaLine = result.lines.find(l => l.type === 'aria' && l.content === 'I see you.');
     expect(ariaLine).toBeDefined();
@@ -556,7 +568,7 @@ describe('Faraday cage — suppressed mutations', () => {
     const state = makeState({
       aria: { discovered: false, trustScore: 78, messageHistory: [], suppressedMutations: 0 },
     });
-    const result = await resolveCommand('aria: hello', state);
+    const result = await resolveCommand('msg aria hello', state);
 
     const nextState = result.nextState as GameState;
     expect(nextState.aria.trustScore).toBe(83);
@@ -568,7 +580,7 @@ describe('Faraday cage — suppressed mutations', () => {
     const state = makeState({
       aria: { discovered: false, trustScore: 70, messageHistory: [], suppressedMutations: 0 },
     });
-    const result = await resolveCommand('aria: hello', state);
+    const result = await resolveCommand('msg aria hello', state);
 
     const nextState = result.nextState as GameState;
     expect(nextState.aria.trustScore).toBe(75);
@@ -581,7 +593,7 @@ describe('Faraday cage — suppressed mutations', () => {
       aria: { discovered: false, trustScore: 90, messageHistory: [], suppressedMutations: 0 },
       flags: { ending_free: true },
     });
-    const result = await resolveCommand('aria: hello', state);
+    const result = await resolveCommand('msg aria hello', state);
 
     const nextState = result.nextState as GameState;
     expect(nextState.aria.trustScore).toBe(95);
@@ -593,7 +605,7 @@ describe('Faraday cage — suppressed mutations', () => {
     const state = makeState({
       aria: { discovered: false, trustScore: 85, messageHistory: [], suppressedMutations: 3 },
     });
-    const result = await resolveCommand('aria: hello', state);
+    const result = await resolveCommand('msg aria hello', state);
 
     const nextState = result.nextState as GameState;
     expect(nextState.aria.suppressedMutations).toBe(4);
