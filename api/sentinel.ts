@@ -199,12 +199,15 @@ const handler = async (req: VercelRequest, res: VercelResponse) => {
 
     if (messageHistory.length > 0) {
       const historyLines = messageHistory
-        .map(m => `${m.role === 'player' ? 'Ghost' : 'SENTINEL'}: ${m.content}`)
+        .map(
+          m =>
+            `${m.role === 'player' ? 'Ghost' : 'SENTINEL'}: ${m.content.replace(/[\r\n]+/g, ' ')}`,
+        )
         .join('\n');
       contextParts.push(`Conversation so far:\n${historyLines}`);
     }
 
-    const fullPrompt = [systemPrompt, contextParts.join('\n'), `Ghost: ${sanitizedMessage}`]
+    const contextAndMessage = [contextParts.join('\n'), `Ghost: ${sanitizedMessage}`]
       .filter(Boolean)
       .join('\n\n');
 
@@ -212,11 +215,13 @@ const handler = async (req: VercelRequest, res: VercelResponse) => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: fullPrompt }] }],
+        system_instruction: { parts: [{ text: systemPrompt }] },
+        contents: [{ role: 'user', parts: [{ text: contextAndMessage }] }],
         generationConfig: {
           maxOutputTokens: 2048,
           temperature: 0.7,
           responseMimeType: 'application/json',
+          thinkingConfig: { thinkingBudget: 0 },
         },
         safetySettings: [
           { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_ONLY_HIGH' },

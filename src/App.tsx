@@ -261,6 +261,7 @@ export const App = () => {
         saveGame(retryState);
         setGameState(retryState);
         setSessionLines([]);
+        setDmLines([]);
         setAiSuggestions([]);
 
         if (retryState.phase === 'ended') {
@@ -318,6 +319,7 @@ export const App = () => {
         setGameState(createInitialState());
         setEndingGameState(null);
         setSessionLines([]);
+        setDmLines([]);
         setAiSuggestions([]);
         bootHandled.current = false;
         setAppPhase('scanning');
@@ -354,6 +356,7 @@ export const App = () => {
           } else {
             setGameState(createInitialState());
             setSessionLines([]);
+            setDmLines([]);
             setAppPhase('scanning');
           }
         } else {
@@ -375,10 +378,12 @@ export const App = () => {
             setGameState(saved);
           } else {
             setGameState(createInitialState());
+            setDmLines([]);
           }
         } else {
           clearSave();
           setGameState(createInitialState());
+          setDmLines([]);
         }
         setSessionLines([]);
         setAppPhase('scanning');
@@ -399,13 +404,16 @@ export const App = () => {
             makeLine('system', '// SENTINEL: channel closed'),
             makeLine('separator', ''),
           ]);
-          setAppPhase(cleared.phase === 'aria' ? 'aria' : 'playing');
+          // Defer phase switch so React renders the close banner in dmLines before switching
+          window.setTimeout(() => {
+            setAppPhase(cleared.phase === 'aria' ? 'aria' : 'playing');
+          }, 0);
           return;
         }
 
         if (!raw.trim()) return;
 
-        pushDm([makeLine('input', `${username} >> ${raw}`)]);
+        pushDm([makeLine('output', `${username} >> ${raw}`)]);
         startSpinner();
 
         let dmReply = '...transmission interrupted.';
