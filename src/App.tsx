@@ -209,8 +209,14 @@ export const App = () => {
     }
   }, [helpOpen, briefingOpen, mapOpen, notesOpen]);
 
+  const [dmLines, setDmLines] = useState<TerminalLine[]>([]);
+
   const push = useCallback((lines: TerminalLine[]) => {
     setSessionLines(prev => [...prev, ...lines]);
+  }, []);
+
+  const pushDm = useCallback((lines: TerminalLine[]) => {
+    setDmLines(prev => [...prev, ...lines]);
   }, []);
 
   const startSpinner = useCallback(() => {
@@ -388,18 +394,18 @@ export const App = () => {
           const cleared = { ...gameState, activeChannel: null } as GameState;
           setGameState(cleared);
           saveGame(cleared);
-          setAppPhase(cleared.phase === 'aria' ? 'aria' : 'playing');
-          push([
+          pushDm([
             makeLine('separator', ''),
             makeLine('system', '// SENTINEL: channel closed'),
             makeLine('separator', ''),
           ]);
+          setAppPhase(cleared.phase === 'aria' ? 'aria' : 'playing');
           return;
         }
 
         if (!raw.trim()) return;
 
-        push([makeLine('input', raw)]);
+        pushDm([makeLine('input', `${username} >> ${raw}`)]);
         startSpinner();
 
         let dmReply = '...transmission interrupted.';
@@ -446,7 +452,7 @@ export const App = () => {
           return updatedState;
         });
 
-        push([makeLine('output', `[SENTINEL] ${dmReply}`)]);
+        pushDm([makeLine('output', `sentinel >> ${dmReply}`)]);
         return;
       }
 
@@ -551,7 +557,7 @@ export const App = () => {
 
         if (!isManual) {
           // Auto-trigger: call API for opening message
-          push([
+          pushDm([
             makeLine('separator', ''),
             makeLine('dm', '// SENTINEL — INCOMING TRANSMISSION'),
             makeLine('separator', ''),
@@ -594,9 +600,9 @@ export const App = () => {
             saveGame(withOpening);
             return withOpening;
           });
-          push([makeLine('output', `[SENTINEL] ${openingReply}`)]);
+          pushDm([makeLine('output', `sentinel >> ${openingReply}`)]);
         } else {
-          push([
+          pushDm([
             makeLine('separator', ''),
             makeLine('dm', '// SENTINEL — CHANNEL OPEN'),
             makeLine('separator', ''),
@@ -604,7 +610,7 @@ export const App = () => {
         }
       }
     },
-    [appPhase, gameState, username, push, startSpinner, stopSpinner],
+    [appPhase, gameState, username, push, pushDm, startSpinner, stopSpinner],
   );
 
   // ── Prompt and masking per phase ───────────────────────────
@@ -620,7 +626,7 @@ export const App = () => {
             : appPhase === 'ended'
               ? '[ENDED]'
               : appPhase === 'dm'
-                ? '[SENTINEL] >>'
+                ? 'ghost >>'
                 : 'nexus $';
   const isMasked = appPhase === 'login_pass';
   const isNoHistory = appPhase === 'login_user' || appPhase === 'login_pass';
@@ -635,7 +641,7 @@ export const App = () => {
   const trace = gameState?.player.trace ?? 0;
 
   const allLines: TerminalLine[] = [
-    ...sessionLines,
+    ...(appPhase === 'dm' ? dmLines : sessionLines),
     ...(spinnerLine ? [spinnerLine] : []),
     ...(appPhase === 'booting' ? bootLines : []),
     ...(appPhase === 'ending_sequence' ? endingLines : []),
