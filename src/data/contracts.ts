@@ -23,7 +23,7 @@ export const TOOL_REGISTRY: Record<ToolId, Tool> = {
   'spoof-id': {
     id: 'spoof-id',
     name: 'Spoof ID',
-    description: 'Single-use. Reduces trace by 20. Destroyed after use.',
+    description: 'Single-use. Reduces trace by 20%. Destroyed after use.',
   },
   decryptor: {
     id: 'decryptor',
@@ -103,7 +103,7 @@ export const getContract = (id: string): ContractDefinition | undefined =>
 
 /**
  * Pick a random contract from the pool, optionally excluding one by ID.
- * Falls back to the first contract if all are excluded (edge case with pool of 1).
+ * Falls back to a random contract from the full pool if all are excluded (edge case with pool of 1).
  */
 export const selectContract = (excludeId?: string): ContractDefinition => {
   const eligible = excludeId ? CONTRACT_POOL.filter(c => c.id !== excludeId) : CONTRACT_POOL;
