@@ -230,6 +230,63 @@ const THRESHOLD_ALERT_META: Record<
 };
 
 /**
+ * Detect contract objective transitions on each turn:
+ *   - trace_cap: notify when trace newly crosses the cap (sets a flag so the
+ *     message fires exactly once per violation).
+ *   - exfil_count: set objectiveComplete = true when the exfil target is reached.
+ *   - no_burn: detected in App.tsx at the burn-retry boundary; nothing to do here.
+ */
+const applyObjectiveEffects = (prevState: GameState, result: CommandOutput): CommandOutput => {
+  const nextState = result.nextState as GameState | undefined;
+  if (!nextState?.contract) return result;
+
+  const contract = nextState.contract;
+  const condition = contract.objectiveCondition;
+  const alertLines: Out = [];
+  let mutated = nextState;
+
+  if (condition.type === 'trace_cap') {
+    const prevTrace = prevState.player.trace;
+    const nextTrace = nextState.player.trace;
+    const capFlag = 'contract_cap_exceeded';
+    if (
+      prevTrace < condition.maxTrace &&
+      nextTrace >= condition.maxTrace &&
+      !nextState.flags[capFlag]
+    ) {
+      alertLines.push(
+        sep(),
+        err(`// CONTRACT: trace cap exceeded (${String(condition.maxTrace)}%) — objective failed`),
+        sep(),
+      );
+      mutated = produce(mutated, s => {
+        s.flags[capFlag] = true;
+      });
+    }
+  } else if (condition.type === 'exfil_count') {
+    const prevCount = prevState.player.exfiltrated.length;
+    const nextCount = nextState.player.exfiltrated.length;
+    if (
+      !contract.objectiveComplete &&
+      prevCount < condition.minCount &&
+      nextCount >= condition.minCount
+    ) {
+      alertLines.push(
+        sep(),
+        sys(`// CONTRACT: objective complete — ${String(condition.minCount)} file(s) exfiltrated`),
+        sep(),
+      );
+      mutated = produce(mutated, s => {
+        if (s.contract) s.contract.objectiveComplete = true;
+      });
+    }
+  }
+
+  if (alertLines.length === 0) return result;
+  return { ...result, lines: [...result.lines, ...alertLines], nextState: mutated };
+};
+
+/**
  * Detect newly crossed thresholds and:
  *   - Append the corresponding alert line to the output.
  *   - Run any onCross side-effect defined in THRESHOLD_ALERT_META.
@@ -258,7 +315,8 @@ const applyThresholdEffects = (prevState: GameState, result: CommandOutput): Com
 const withTurn = (result: CommandOutput, raw: string, baseState: GameState): CommandOutput => {
   const base = (result.nextState ?? baseState) as GameState;
   const withAlerts = applyThresholdEffects(baseState, { ...result, nextState: base });
-  const advanced = advanceTurn(withAlerts.nextState as GameState, raw);
+  const withObjectives = applyObjectiveEffects(baseState, withAlerts);
+  const advanced = advanceTurn(withObjectives.nextState as GameState, raw);
   const sentinel = runSentinelTurn(advanced);
   const finalState = sentinel.state;
 
@@ -279,8 +337,8 @@ const withTurn = (result: CommandOutput, raw: string, baseState: GameState): Com
   }
 
   return {
-    ...withAlerts,
-    lines: [...withAlerts.lines, ...sentinel.lines],
+    ...withObjectives,
+    lines: [...withObjectives.lines, ...sentinel.lines],
     nextState: postTriggerState,
     ...(trigger ? { channelTrigger: trigger } : {}),
   };

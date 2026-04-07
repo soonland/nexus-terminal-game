@@ -61,6 +61,7 @@ const makeState = (overrides: Partial<GameState> = {}): GameState => {
   return {
     phase: 'playing',
     activeChannel: null,
+    contract: null,
     runId: 'test-run-id',
     startedAt: 0,
     sessionSeed: 0,

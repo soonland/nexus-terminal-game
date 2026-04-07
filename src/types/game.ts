@@ -210,13 +210,31 @@ export interface SentinelState {
 }
 
 // ── Contract ───────────────────────────────────────────────
-export interface Contract {
+export type ObjectiveCondition =
+  | { type: 'trace_cap'; maxTrace: number }
+  | { type: 'exfil_count'; minCount: number }
+  | { type: 'no_burn' };
+
+export interface ContractDefinition {
   id: string;
   title: string;
-  description: string;
-  targetNodeId: string;
-  reward?: string;
-  completed: boolean;
+  brief: string;
+  objectiveDescription: string;
+  loadout: {
+    exploitCharges: number;
+    startingTools: ToolId[];
+    startingCredentials?: string[];
+  };
+  networkVariant: string;
+  objectiveCondition: ObjectiveCondition;
+}
+
+/** Runtime contract state stored in GameState. */
+export interface ActiveContract {
+  id: string;
+  networkVariant: string;
+  objectiveComplete: boolean;
+  objectiveCondition: ObjectiveCondition;
 }
 
 // ── AnchorFork ─────────────────────────────────────────────
@@ -236,6 +254,7 @@ import type { Employee } from './employee';
 export interface GameState {
   phase: GamePhase;
   activeChannel: 'sentinel' | 'aria' | null; // currently open DM channel
+  contract: ActiveContract | null; // null for run 1 (standard); set for run 2+
   runId: string;
   startedAt: number;
   sessionSeed: number;
