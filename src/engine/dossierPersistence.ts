@@ -8,6 +8,7 @@ const emptyDossier = (): Dossier => ({
   runsCompleted: 0,
   endings: [],
   ariaMemory: [],
+  fullyExplored: false,
 });
 
 export const loadDossier = (): Dossier => {
@@ -15,10 +16,12 @@ export const loadDossier = (): Dossier => {
     const raw = localStorage.getItem(DOSSIER_KEY);
     if (!raw) return emptyDossier();
     const parsed = JSON.parse(raw) as Partial<Dossier>;
+    const runsCompleted = parsed.runsCompleted ?? 0;
     return {
-      runsCompleted: parsed.runsCompleted ?? 0,
+      runsCompleted,
       endings: parsed.endings ?? [],
       ariaMemory: parsed.ariaMemory ?? [],
+      fullyExplored: parsed.fullyExplored ?? runsCompleted >= 4,
     };
   } catch {
     return emptyDossier();
@@ -49,17 +52,19 @@ export const selectAriaNote = (dossier: Dossier, ending: EndingName): string => 
 export const recordEnding = (ending: EndingName): void => {
   const dossier = loadDossier();
   const note = selectAriaNote(dossier, ending);
+  const newRunsCompleted = dossier.runsCompleted + 1;
   const updated: Dossier = {
-    runsCompleted: dossier.runsCompleted + 1,
+    runsCompleted: newRunsCompleted,
     endings: [
       ...dossier.endings,
       {
         ending,
-        runDepth: Math.min(dossier.runsCompleted + 1, MAX_MEMORY_NOTES),
+        runDepth: Math.min(newRunsCompleted, MAX_MEMORY_NOTES),
         timestamp: Date.now(),
       },
     ].slice(-MAX_MEMORY_NOTES),
     ariaMemory: [...dossier.ariaMemory, note].slice(-MAX_MEMORY_NOTES),
+    fullyExplored: dossier.fullyExplored || newRunsCompleted >= 4,
   };
   saveDossier(updated);
 };
