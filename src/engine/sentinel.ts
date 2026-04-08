@@ -275,6 +275,11 @@ export const runSentinelTurn = (state: GameState): { state: GameState; lines: Se
     });
   }
 
+  // Respect sentinelInterval — only act on turns divisible by the interval
+  if (current.turnCount % current.sentinel.sentinelInterval !== 0) {
+    return { state: current, lines: [] };
+  }
+
   // Evaluate priority queue — one action per turn
   return (
     tryPatchNode(current) ??

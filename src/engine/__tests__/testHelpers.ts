@@ -62,6 +62,7 @@ export const makeState = (overrides: Partial<GameState> = {}): GameState => {
     worldCredentials: [],
     sentinel: {
       active: false,
+      sentinelInterval: 1,
       mutationLog: [],
       pendingFileDeletes: [],
       messageHistory: [],

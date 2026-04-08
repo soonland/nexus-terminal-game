@@ -121,6 +121,7 @@ export const createInitialState = (sessionSeed?: number, contractId?: string): G
     worldCredentials: employeeCredentials,
     sentinel: {
       active: false,
+      sentinelInterval: 1,
       mutationLog: [],
       pendingFileDeletes: [],
       messageHistory: [],

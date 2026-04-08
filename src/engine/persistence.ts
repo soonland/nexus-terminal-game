@@ -60,6 +60,7 @@ interface SaveState {
   flags: Record<string, boolean>;
   sentinel: {
     active: boolean;
+    sentinelInterval: number;
     mutationLog: MutationEvent[];
     pendingFileDeletes: Array<{ filePath: string; nodeId: string; targetTurn: number }>;
     messageHistory: SentinelMessage[];
@@ -140,6 +141,7 @@ const toSaveState = (state: GameState): SaveState => {
     flags: state.flags,
     sentinel: {
       active: state.sentinel.active,
+      sentinelInterval: state.sentinel.sentinelInterval,
       mutationLog: state.sentinel.mutationLog,
       pendingFileDeletes: state.sentinel.pendingFileDeletes,
       messageHistory: state.sentinel.messageHistory,
@@ -226,8 +228,8 @@ const fromSaveState = (save: SaveState): GameState => {
   state.flags = save.flags;
   state.contract = save.contract ?? null;
 
-  // Restore sentinel state
-  state.sentinel = save.sentinel;
+  // Restore sentinel state (sentinelInterval defaulted for saves predating fork 2)
+  state.sentinel = { sentinelInterval: 1, ...save.sentinel };
 
   // Restore dynamically added world credentials (sentinel P2 renewals)
   for (const cred of save.worldCredentialsAdded) {

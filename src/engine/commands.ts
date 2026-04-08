@@ -1190,10 +1190,22 @@ const cmdDisconnect = (state: GameState): CommandOutput => {
   if (!prevNode) {
     return { lines: [err(`Previous node not found: ${prev}`)] };
   }
-  const next = produce(state, s => {
+  let next = produce(state, s => {
     s.network.currentNodeId = prev;
     s.network.previousNodeId = null;
   });
+
+  // ── Fork 2 path A: disconnecting from sec_firewall without exfilling the config ──
+  const currentId = state.network.currentNodeId;
+  if (
+    currentId === 'sec_firewall' &&
+    state.forks['fork_sec_firewall'] !== 'path_a' &&
+    state.forks['fork_sec_firewall'] !== 'path_b'
+  ) {
+    next = produce(next, s => {
+      s.forks['fork_sec_firewall'] = 'path_a';
+    });
+  }
 
   const accessInfo =
     prevNode.accessLevel === 'none' ? 'not authenticated' : prevNode.accessLevel.toUpperCase();
@@ -1456,6 +1468,30 @@ const cmdExfil = (args: string[], state: GameState): CommandOutput => {
     if (toolData) {
       lines.push(sep(), sys(`  Tool acquired: ${file.toolId}`), sep());
     }
+  }
+
+  // ── Fork 2: resolve when fw_backup_2024.cfg is exfilled from sec_firewall ──
+  if (
+    file.path === '/backup/fw_backup_2024.cfg' &&
+    node.id === 'sec_firewall' &&
+    state.forks['fork_sec_firewall'] !== 'path_a' &&
+    state.forks['fork_sec_firewall'] !== 'path_b'
+  ) {
+    // Path B: player extracted the firewall config — weaponize intent confirmed
+    next = produce(next, s => {
+      s.player.charges = Math.max(0, s.player.charges - 2);
+      s.sentinel.sentinelInterval = 3;
+      s.flags['FIREWALL_TAMPERED'] = true;
+      s.forks['fork_sec_firewall'] = 'path_b';
+      s.aria.trustScore = Math.min(100, s.aria.trustScore + 15);
+    });
+    lines.push(
+      sep(),
+      sys('  [FORK] Firewall config exfiltrated — routing rules extracted'),
+      sys('  -2 exploit charges — config injection cost'),
+      sys('  Sentinel sweep interval reduced — anomaly window opened'),
+      sep(),
+    );
   }
 
   // ── Fork 1: resolve when employee_roster.csv is exfilled from ops_hr_db ──
