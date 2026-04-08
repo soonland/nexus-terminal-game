@@ -460,6 +460,7 @@ const cmdAriaAI = async (
   raw: string,
   state: GameState,
 ): Promise<CommandOutput> => {
+  const dossier = loadDossier();
   const payload = {
     message,
     ariaState: {
@@ -468,7 +469,9 @@ const cmdAriaAI = async (
     },
     playerFullHistory: state.recentCommands.slice(-10),
     dossierContext: state.player.exfiltrated.map(f => f.name),
-    ariaMemory: loadDossier().ariaMemory,
+    ariaMemory: dossier.ariaMemory,
+    runNumber: dossier.runsCompleted + 1,
+    previousEndings: dossier.endings.map(e => e.ending),
   };
 
   let aiResponse: AriaAIResponse;
@@ -615,6 +618,8 @@ const cmdDecisionTerminal = async (choice: string, state: GameState): Promise<Co
       playerFullHistory: state.recentCommands.slice(-10),
       dossierContext: state.player.exfiltrated.map(f => f.name),
       ariaMemory: dossier.ariaMemory,
+      runNumber: dossier.runsCompleted + 1,
+      previousEndings: dossier.endings.map(e => e.ending),
     };
     const res = await fetch('/api/aria', {
       method: 'POST',
