@@ -1190,22 +1190,20 @@ const cmdDisconnect = (state: GameState): CommandOutput => {
   if (!prevNode) {
     return { lines: [err(`Previous node not found: ${prev}`)] };
   }
-  let next = produce(state, s => {
-    s.network.currentNodeId = prev;
-    s.network.previousNodeId = null;
-  });
-
   // ── Fork 2 path A: disconnecting from sec_firewall without exfilling the config ──
   const currentId = state.network.currentNodeId;
-  if (
+  const resolveFork2PathA =
     currentId === 'sec_firewall' &&
     state.forks['fork_sec_firewall'] !== 'path_a' &&
-    state.forks['fork_sec_firewall'] !== 'path_b'
-  ) {
-    next = produce(next, s => {
+    state.forks['fork_sec_firewall'] !== 'path_b';
+
+  const next = produce(state, s => {
+    s.network.currentNodeId = prev;
+    s.network.previousNodeId = null;
+    if (resolveFork2PathA) {
       s.forks['fork_sec_firewall'] = 'path_a';
-    });
-  }
+    }
+  });
 
   const accessInfo =
     prevNode.accessLevel === 'none' ? 'not authenticated' : prevNode.accessLevel.toUpperCase();
@@ -1489,7 +1487,7 @@ const cmdExfil = (args: string[], state: GameState): CommandOutput => {
       sep(),
       sys('  [FORK] Firewall config exfiltrated — routing rules extracted'),
       sys('  -2 exploit charges — config injection cost'),
-      sys('  Sentinel sweep interval reduced — anomaly window opened'),
+      sys('  Sentinel sweep interval increased — anomaly window opened'),
       sep(),
     );
   }

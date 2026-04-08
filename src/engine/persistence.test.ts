@@ -65,7 +65,7 @@ describe('saveGame — save format', () => {
 
   it('includes a version field', () => {
     const json = savedJson(mockStorage, state);
-    expect(json['version']).toBe(5);
+    expect(json['version']).toBe(6);
   });
 
   it('preserves runId, phase, turnCount, recentCommands', () => {

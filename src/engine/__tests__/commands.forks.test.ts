@@ -831,7 +831,7 @@ describe('Fork 2 — sec_firewall / fw_backup_2024.cfg', () => {
     const forkLine = result.lines.find(l => l.content.includes('Firewall config exfiltrated'));
     const chargesLine = result.lines.find(l => l.content.includes('-2 exploit charges'));
     const sentinelLine = result.lines.find(l =>
-      l.content.toLowerCase().includes('sentinel sweep interval reduced'),
+      l.content.toLowerCase().includes('sentinel sweep interval increased'),
     );
 
     expect(forkLine).toBeDefined();

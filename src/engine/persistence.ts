@@ -15,7 +15,7 @@ import { createInitialState } from './state';
 import { AI_GENERATED_FILE_PATHS } from '../data/anchorNodes';
 
 const SAVE_KEY = 'irongate_save';
-const SAVE_VERSION = 5;
+const SAVE_VERSION = 6;
 
 // ── Delta types (what actually goes into localStorage) ─────
 
