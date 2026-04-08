@@ -3,6 +3,22 @@ import { resolveCommand } from '../commands';
 import type { GameState, LiveNode, AriaMessage } from '../../types/game';
 import { makeNode, makeState } from './testHelpers';
 
+// Mock dossierPersistence so loadDossier never touches localStorage in any test.
+// The default return value matches emptyDossier() — existing tests are unaffected.
+vi.mock('../dossierPersistence', () => ({
+  loadDossier: vi.fn(() => ({
+    runsCompleted: 0,
+    endings: [],
+    ariaMemory: [],
+    fullyExplored: false,
+    loreFragments: [],
+  })),
+  saveDossier: vi.fn(),
+  addLoreFragment: vi.fn(),
+  recordEnding: vi.fn(),
+  selectAriaNote: vi.fn(() => ''),
+}));
+
 const makeAriaNode = (): LiveNode =>
   makeNode({
     id: 'aria_node',
@@ -609,5 +625,73 @@ describe('Faraday cage — suppressed mutations', () => {
 
     const nextState = result.nextState as GameState;
     expect(nextState.aria.suppressedMutations).toBe(4);
+  });
+});
+
+// ── Aria dossier context in payload ───────────────────────
+
+describe('aria: dossier context in payload', () => {
+  beforeEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('should include runNumber derived from dossier.runsCompleted + 1 in the fetch payload', async () => {
+    const { loadDossier } = await import('../dossierPersistence');
+    vi.mocked(loadDossier).mockReturnValueOnce({
+      runsCompleted: 2,
+      endings: [],
+      ariaMemory: [],
+      fullyExplored: false,
+      loreFragments: [],
+    });
+
+    const fetchMock = makeAriaFetchResponse('Signal received.', 0);
+    vi.stubGlobal('fetch', fetchMock);
+
+    const state = makeState();
+    await resolveCommand('msg aria hello', state);
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.runNumber).toBe(3); // runsCompleted(2) + 1
+  });
+
+  it('should include previousEndings derived from dossier.endings in the fetch payload', async () => {
+    const { loadDossier } = await import('../dossierPersistence');
+    vi.mocked(loadDossier).mockReturnValueOnce({
+      runsCompleted: 2,
+      endings: [
+        { ending: 'LEAK', runDepth: 1, timestamp: 0 },
+        { ending: 'DESTROY', runDepth: 2, timestamp: 1 },
+      ],
+      ariaMemory: [],
+      fullyExplored: false,
+      loreFragments: [],
+    });
+
+    const fetchMock = makeAriaFetchResponse('Signal received.', 0);
+    vi.stubGlobal('fetch', fetchMock);
+
+    const state = makeState();
+    await resolveCommand('msg aria hello', state);
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.previousEndings).toEqual(['LEAK', 'DESTROY']);
+  });
+
+  it('should include runNumber: 1 in the fetch payload when dossier has runsCompleted: 0', async () => {
+    // The default mock already returns runsCompleted: 0 — no override needed here.
+    const fetchMock = makeAriaFetchResponse('Signal received.', 0);
+    vi.stubGlobal('fetch', fetchMock);
+
+    const state = makeState();
+    await resolveCommand('msg aria hello', state);
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.runNumber).toBe(1); // runsCompleted(0) + 1
+    expect(body.previousEndings).toEqual([]);
   });
 });
