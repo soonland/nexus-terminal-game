@@ -216,6 +216,7 @@ export const burnRetry = (state: GameState): GameState => {
     flags,
     sentinel: {
       active: false,
+      sentinelInterval: 1,
       mutationLog: [],
       pendingFileDeletes: [],
       // Preserve DM channel history and established flag across burns

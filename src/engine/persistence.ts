@@ -228,8 +228,8 @@ const fromSaveState = (save: SaveState): GameState => {
   state.flags = save.flags;
   state.contract = save.contract ?? null;
 
-  // Restore sentinel state (sentinelInterval defaulted for saves predating fork 2)
-  state.sentinel = { sentinelInterval: 1, ...save.sentinel };
+  // Restore sentinel state
+  state.sentinel = save.sentinel;
 
   // Restore dynamically added world credentials (sentinel P2 renewals)
   for (const cred of save.worldCredentialsAdded) {

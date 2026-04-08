@@ -36,6 +36,7 @@ describe('msg sentinel — channel not established', () => {
     const state = makeState({
       sentinel: {
         active: false,
+        sentinelInterval: 1,
         mutationLog: [],
         pendingFileDeletes: [],
         messageHistory: [],
@@ -56,6 +57,7 @@ describe('msg sentinel — channel established, not blocked', () => {
     const state = makeState({
       sentinel: {
         active: false,
+        sentinelInterval: 1,
         mutationLog: [],
         pendingFileDeletes: [],
         messageHistory: [],
@@ -71,6 +73,7 @@ describe('msg sentinel — channel established, not blocked', () => {
     const state = makeState({
       sentinel: {
         active: false,
+        sentinelInterval: 1,
         mutationLog: [],
         pendingFileDeletes: [],
         messageHistory: [],
@@ -85,6 +88,7 @@ describe('msg sentinel — channel established, not blocked', () => {
     const state = makeState({
       sentinel: {
         active: false,
+        sentinelInterval: 1,
         mutationLog: [],
         pendingFileDeletes: [],
         messageHistory: [],
@@ -111,6 +115,7 @@ describe('msg sentinel — channel established, not blocked', () => {
       recentCommands: ['scan', 'connect ctx_node'],
       sentinel: {
         active: false,
+        sentinelInterval: 1,
         mutationLog: [],
         pendingFileDeletes: [],
         messageHistory: [],
@@ -141,6 +146,7 @@ describe('msg sentinel — channel established but blocked', () => {
       },
       sentinel: {
         active: false,
+        sentinelInterval: 1,
         mutationLog: [],
         pendingFileDeletes: [],
         messageHistory: [],
@@ -158,6 +164,7 @@ describe('msg sentinel — channel established but blocked', () => {
       phase: 'burned',
       sentinel: {
         active: false,
+        sentinelInterval: 1,
         mutationLog: [],
         pendingFileDeletes: [],
         messageHistory: [],
@@ -182,6 +189,7 @@ describe('msg sentinel — channel established but blocked', () => {
       },
       sentinel: {
         active: false,
+        sentinelInterval: 1,
         mutationLog: [],
         pendingFileDeletes: [],
         messageHistory: [],
