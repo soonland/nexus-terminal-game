@@ -9,6 +9,7 @@ const emptyDossier = (): Dossier => ({
   endings: [],
   ariaMemory: [],
   fullyExplored: false,
+  loreFragments: [],
 });
 
 export const loadDossier = (): Dossier => {
@@ -22,6 +23,7 @@ export const loadDossier = (): Dossier => {
       endings: parsed.endings ?? [],
       ariaMemory: parsed.ariaMemory ?? [],
       fullyExplored: parsed.fullyExplored ?? runsCompleted >= 4,
+      loreFragments: parsed.loreFragments ?? [],
     };
   } catch {
     return emptyDossier();
@@ -34,6 +36,16 @@ export const saveDossier = (dossier: Dossier): void => {
   } catch (e) {
     console.warn('[dossier] saveDossier failed', e);
   }
+};
+
+/**
+ * Add a lore fragment key to the dossier (no-op if already present).
+ */
+export const addLoreFragment = (fragment: string): void => {
+  const dossier = loadDossier();
+  const existing = dossier.loreFragments ?? [];
+  if (existing.includes(fragment)) return;
+  saveDossier({ ...dossier, loreFragments: [...existing, fragment] });
 };
 
 /**
@@ -65,6 +77,7 @@ export const recordEnding = (ending: EndingName): void => {
     ].slice(-MAX_MEMORY_NOTES),
     ariaMemory: [...dossier.ariaMemory, note].slice(-MAX_MEMORY_NOTES),
     fullyExplored: dossier.fullyExplored || newRunsCompleted >= 4,
+    loreFragments: dossier.loreFragments ?? [],
   };
   saveDossier(updated);
 };

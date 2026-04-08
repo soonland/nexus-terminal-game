@@ -4,7 +4,7 @@ import { currentNode, addTrace, thresholdFlag, TRACE_THRESHOLDS } from './state'
 import produce from './produce';
 import { LAYER_KEY_ANCHOR } from './buildConnectivity';
 import { runSentinelTurn } from './sentinel';
-import { loadDossier, recordEnding } from './dossierPersistence';
+import { loadDossier, recordEnding, addLoreFragment } from './dossierPersistence';
 import type { EndingName } from '../types/dossier';
 import { shouldSuppressMutation, injectConstraintFragment } from './faradayCage';
 import { detectChannelTrigger, isChannelBlocked, layerReachedFlag } from './channel';
@@ -316,7 +316,12 @@ const withTurn = (result: CommandOutput, raw: string, baseState: GameState): Com
   const withAlerts = applyThresholdEffects(baseState, { ...result, nextState: base });
   const withObjectives = applyObjectiveEffects(baseState, withAlerts);
   const advanced = advanceTurn(withObjectives.nextState as GameState, raw);
-  const sentinel = runSentinelTurn(advanced);
+  const interval = advanced.sentinel.sentinelInterval ?? 1;
+  const isSentinelTurn = interval === 1 || advanced.turnCount % interval === 0;
+  type SentinelResult = ReturnType<typeof runSentinelTurn>;
+  const sentinel: SentinelResult = isSentinelTurn
+    ? runSentinelTurn(advanced)
+    : { state: advanced, lines: [] };
   const finalState = sentinel.state;
 
   // Detect whether this turn fires a Sentinel channel trigger
@@ -1081,6 +1086,13 @@ const cmdCat = async (args: string[], state: GameState): Promise<CommandOutput> 
     return { lines: [err(`// ACCESS DENIED: ${file.name} — secured by watchlist protocol`)] };
   }
 
+  // ── Fork 3 gate: ARIA_BOARD_DISCLOSURE requires prior WHISTLEBLOWER_FOUND ──
+  if (file.path === '/legal/aria/ARIA_BOARD_DISCLOSURE' && !state.flags['WHISTLEBLOWER_FOUND']) {
+    return {
+      lines: [err(`${file.name}: archive encrypted — prior investigation required`)],
+    };
+  }
+
   let next = state;
   let traceFeedback: { msg: string; type: 'error' | 'system' } | null = null;
   if (file.tripwire) {
@@ -1136,6 +1148,29 @@ const cmdCat = async (args: string[], state: GameState): Promise<CommandOutput> 
     next = produce(next, s => {
       s.ariaInfluencedFilesRead.push(file.path);
     });
+  }
+
+  // ── Fork 1: flag when whistleblower complaint is read ────
+  if (
+    file.path === '/var/db/hr/.archive/whistleblower_complaint_draft.txt' &&
+    !next.flags['COMPLAINT_READ']
+  ) {
+    next = produce(next, s => {
+      s.flags['COMPLAINT_READ'] = true;
+    });
+  }
+
+  // ── Fork 3: ARIA_BOARD_DISCLOSURE read with WHISTLEBLOWER_FOUND ─────────
+  if (
+    file.path === '/legal/aria/ARIA_BOARD_DISCLOSURE' &&
+    next.flags['WHISTLEBLOWER_FOUND'] &&
+    !next.flags['BOARD_KNEW']
+  ) {
+    next = produce(next, s => {
+      s.flags['BOARD_KNEW'] = true;
+      s.forks['fork_exec_legal'] = 'path_b';
+    });
+    addLoreFragment('BOARD_KNEW');
   }
 
   const lines: Out = [sep()];
@@ -1350,7 +1385,7 @@ const cmdExfil = (args: string[], state: GameState): CommandOutput => {
   const isAriaKey = file.path === '/root/.aria/aria_key.bin';
   const isDecryptorBin = file.path === '/home/ops.admin/sec_tools/decryptor.bin';
 
-  const next = produce(addTrace(state, 3), s => {
+  let next = produce(addTrace(state, 3), s => {
     s.player.exfiltrated.push({ ...file });
     // Queue sentinel file-delete for non-Aria nodes.
     // Sentinel processes after turnCount is incremented, so +4 here achieves a true 3-turn delay.
@@ -1423,6 +1458,44 @@ const cmdExfil = (args: string[], state: GameState): CommandOutput => {
     const toolData = GENERIC_TOOL_DATA[file.toolId];
     if (toolData) {
       lines.push(sep(), sys(`  Tool acquired: ${file.toolId}`), sep());
+    }
+  }
+
+  // ── Fork 1: resolve when employee_roster.csv is exfilled from ops_hr_db ──
+  if (
+    file.path === '/var/db/hr/employee_roster.csv' &&
+    node.id === 'ops_hr_db' &&
+    state.forks['fork_ops_hr_db'] !== 'path_a' &&
+    state.forks['fork_ops_hr_db'] !== 'path_b'
+  ) {
+    if (state.flags['COMPLAINT_READ']) {
+      // Path B: player read the complaint before exfilling — investigation trail
+      next = addTrace(next, 25);
+      next = produce(next, s => {
+        s.flags['WHISTLEBLOWER_FOUND'] = true;
+        s.forks['fork_ops_hr_db'] = 'path_b';
+        const wb = s.network.nodes['whistleblower_workstation'];
+        if (wb) {
+          wb.discovered = true;
+          wb.locked = false;
+        }
+        const hr = s.network.nodes['ops_hr_db'];
+        if (hr && !hr.connections.includes('whistleblower_workstation')) {
+          hr.connections = [...hr.connections, 'whistleblower_workstation'];
+        }
+      });
+      lines.push(
+        sep(),
+        err('  [!] INVESTIGATION TRAIL DETECTED'),
+        sys('  +25 trace — anomalous data cross-reference flagged'),
+        sys('  Unknown node surfaced on ops subnet.'),
+        sep(),
+      );
+    } else {
+      // Path A: clean exfil, no prior complaint read
+      next = produce(next, s => {
+        s.forks['fork_ops_hr_db'] = 'path_a';
+      });
     }
   }
 

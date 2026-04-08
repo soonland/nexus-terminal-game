@@ -336,6 +336,53 @@ const ANCHOR_NODES: LiveNode[] = [
     credentialHints: ['cred_sec_analyst'],
   },
 
+  {
+    id: 'whistleblower_workstation',
+    ip: '10.1.0.9',
+    template: 'workstation',
+    label: 'WB WORKSTATION',
+    description: 'A personal workstation. Off-network. Someone did not want this one indexed.',
+    flavourDescription:
+      'No domain join. No asset tag. The hostname is a string of random characters. Someone went out of their way to keep this machine invisible. They did not quite succeed.',
+    layer: 1,
+    anchor: true,
+    connections: ['ops_hr_db'],
+    services: [
+      {
+        name: 'ssh',
+        port: 22,
+        vulnerable: true,
+        exploitCost: 1,
+        accessGained: 'user',
+        traceContribution: 1,
+      },
+    ],
+    files: [
+      {
+        name: 'identity_notes.txt',
+        path: '/home/user/identity_notes.txt',
+        type: 'document',
+        content:
+          '[PERSONAL NOTES]\n\nI know what I saw. The traffic logs do not lie.\n\nI cannot submit the complaint through official channels — they monitor everything.\nI drafted it anyway. It is sitting in the HR archive under .archive/.\n\nIf something happens to me, look at what the board knew.',
+        exfiltrable: true,
+        accessRequired: 'user',
+      },
+      {
+        name: 'encrypted_evidence.bin',
+        path: '/home/user/encrypted_evidence.bin',
+        type: 'binary',
+        content:
+          '[ENCRYPTED — GPG]\nKey fingerprint: 4F2A 8B1C 9D3E 7F6A\nThis file is encrypted. A decryptor is required.',
+        exfiltrable: true,
+        accessRequired: 'user',
+      },
+    ],
+    accessLevel: 'none',
+    compromised: false,
+    discovered: false,
+    credentialHints: [],
+  },
+
   // ── LAYER 2: SECURITY ────────────────────────────────────
   {
     id: 'sec_access_ctrl',

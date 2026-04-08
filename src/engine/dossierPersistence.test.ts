@@ -145,6 +145,7 @@ describe('saveDossier', () => {
       endings: [{ ending: 'FREE', runDepth: 3, timestamp: 12345 }],
       ariaMemory: ['note A', 'note B', 'note C'],
       fullyExplored: false,
+      loreFragments: [],
     };
     saveDossier(original);
     const loaded = loadDossier();
