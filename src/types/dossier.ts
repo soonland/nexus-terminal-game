@@ -26,4 +26,10 @@ export interface Dossier {
    * Used by future systems (contracts, lore) to unlock additional content.
    */
   fullyExplored: boolean;
+  /**
+   * Lore fragment keys collected across runs (e.g. 'BOARD_KNEW').
+   * Persists between runs so later playthroughs can reference prior discoveries.
+   * Optional for backwards-compatibility with dossiers saved before this field existed.
+   */
+  loreFragments?: string[];
 }
