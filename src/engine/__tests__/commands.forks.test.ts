@@ -3,6 +3,9 @@ import { resolveCommand } from '../commands';
 import type { GameState, GameFile, LiveNode } from '../../types/game';
 import { makeState, makeNode } from './testHelpers';
 
+const nextState = (result: { nextState?: Partial<GameState> }): GameState =>
+  result.nextState as GameState;
+
 // ── Module mocks ──────────────────────────────────────────────────────────────
 // addLoreFragment touches localStorage (via loadDossier/saveDossier).
 // Mock the whole module so tests stay pure and side-effect-free.
@@ -160,7 +163,7 @@ describe('Fork 1 — cmdCat sets COMPLAINT_READ flag', () => {
       state,
     );
 
-    expect(result.nextState?.flags['COMPLAINT_READ']).toBe(true);
+    expect(nextState(result).flags['COMPLAINT_READ']).toBe(true);
   });
 
   it('should not set COMPLAINT_READ a second time if it was already set', async () => {
@@ -185,7 +188,7 @@ describe('Fork 1 — cmdCat sets COMPLAINT_READ flag', () => {
     );
 
     // Flag should still be true (not toggled or duplicated).
-    expect(result.nextState?.flags['COMPLAINT_READ']).toBe(true);
+    expect(nextState(result).flags['COMPLAINT_READ']).toBe(true);
   });
 
   it('should return the file content lines when reading the complaint', async () => {
@@ -241,7 +244,7 @@ describe('Fork 1 — cmdCat sets COMPLAINT_READ flag', () => {
 
     // Tripwire adds +25; withTurn may add sentinel trace on top.
     // We only verify the minimum expected increase.
-    expect(result.nextState?.player.trace ?? 0).toBeGreaterThanOrEqual(25);
+    expect(nextState(result).player.trace).toBeGreaterThanOrEqual(25);
   });
 
   it('should NOT set COMPLAINT_READ when cat-ing a different file', async () => {
@@ -264,7 +267,7 @@ describe('Fork 1 — cmdCat sets COMPLAINT_READ flag', () => {
 
     const result = await resolveCommand('cat readme.txt', state);
 
-    expect(result.nextState?.flags['COMPLAINT_READ']).toBeFalsy();
+    expect(nextState(result).flags['COMPLAINT_READ']).toBeFalsy();
   });
 });
 
@@ -284,7 +287,7 @@ describe('Fork 1 — cmdExfil Path A: roster exfil without prior complaint read'
 
     const result = await resolveCommand('exfil /var/db/hr/employee_roster.csv', state);
 
-    expect(result.nextState?.forks['fork_ops_hr_db']).toBe('path_a');
+    expect(nextState(result).forks['fork_ops_hr_db']).toBe('path_a');
   });
 
   it('should NOT set WHISTLEBLOWER_FOUND on path A', async () => {
@@ -292,7 +295,7 @@ describe('Fork 1 — cmdExfil Path A: roster exfil without prior complaint read'
 
     const result = await resolveCommand('exfil /var/db/hr/employee_roster.csv', state);
 
-    expect(result.nextState?.flags['WHISTLEBLOWER_FOUND']).toBeFalsy();
+    expect(nextState(result).flags['WHISTLEBLOWER_FOUND']).toBeFalsy();
   });
 
   it('should NOT add extra trace beyond the base +3 exfil cost on path A', async () => {
@@ -312,7 +315,7 @@ describe('Fork 1 — cmdExfil Path A: roster exfil without prior complaint read'
 
     const result = await resolveCommand('exfil /var/db/hr/employee_roster.csv', state);
 
-    const wb = result.nextState?.network.nodes['whistleblower_workstation'];
+    const wb = nextState(result).network.nodes['whistleblower_workstation'];
     expect(wb?.discovered).toBe(false);
   });
 
@@ -321,7 +324,7 @@ describe('Fork 1 — cmdExfil Path A: roster exfil without prior complaint read'
 
     const result = await resolveCommand('exfil /var/db/hr/employee_roster.csv', state);
 
-    const exfiltrated = result.nextState?.player.exfiltrated ?? [];
+    const exfiltrated = nextState(result).player.exfiltrated;
     expect(exfiltrated.some(f => f.path === '/var/db/hr/employee_roster.csv')).toBe(true);
   });
 });
@@ -342,7 +345,7 @@ describe('Fork 1 — cmdExfil Path B: roster exfil after reading the complaint',
 
     const result = await resolveCommand('exfil /var/db/hr/employee_roster.csv', state);
 
-    expect(result.nextState?.forks['fork_ops_hr_db']).toBe('path_b');
+    expect(nextState(result).forks['fork_ops_hr_db']).toBe('path_b');
   });
 
   it('should set flags.WHISTLEBLOWER_FOUND on path B', async () => {
@@ -350,7 +353,7 @@ describe('Fork 1 — cmdExfil Path B: roster exfil after reading the complaint',
 
     const result = await resolveCommand('exfil /var/db/hr/employee_roster.csv', state);
 
-    expect(result.nextState?.flags['WHISTLEBLOWER_FOUND']).toBe(true);
+    expect(nextState(result).flags['WHISTLEBLOWER_FOUND']).toBe(true);
   });
 
   it('should add +25 trace penalty on path B', async () => {
@@ -362,7 +365,7 @@ describe('Fork 1 — cmdExfil Path B: roster exfil after reading the complaint',
     const result = await resolveCommand('exfil /var/db/hr/employee_roster.csv', state);
 
     // Path B adds the base +3 exfil plus an extra +25 investigation penalty.
-    expect(result.nextState?.player.trace ?? 0).toBeGreaterThanOrEqual(28);
+    expect(nextState(result).player.trace).toBeGreaterThanOrEqual(28);
   });
 
   it('should mark whistleblower_workstation as discovered on path B', async () => {
@@ -370,7 +373,7 @@ describe('Fork 1 — cmdExfil Path B: roster exfil after reading the complaint',
 
     const result = await resolveCommand('exfil /var/db/hr/employee_roster.csv', state);
 
-    const wb = result.nextState?.network.nodes['whistleblower_workstation'];
+    const wb = nextState(result).network.nodes['whistleblower_workstation'];
     expect(wb?.discovered).toBe(true);
   });
 
@@ -379,7 +382,7 @@ describe('Fork 1 — cmdExfil Path B: roster exfil after reading the complaint',
 
     const result = await resolveCommand('exfil /var/db/hr/employee_roster.csv', state);
 
-    const wb = result.nextState?.network.nodes['whistleblower_workstation'];
+    const wb = nextState(result).network.nodes['whistleblower_workstation'];
     // locked should be false (cleared) after path B
     expect(wb?.locked).toBe(false);
   });
@@ -389,7 +392,7 @@ describe('Fork 1 — cmdExfil Path B: roster exfil after reading the complaint',
 
     const result = await resolveCommand('exfil /var/db/hr/employee_roster.csv', state);
 
-    const hrNode = result.nextState?.network.nodes['ops_hr_db'];
+    const hrNode = nextState(result).network.nodes['ops_hr_db'];
     expect(hrNode?.connections).toContain('whistleblower_workstation');
   });
 
@@ -412,7 +415,7 @@ describe('Fork 1 — cmdExfil Path B: roster exfil after reading the complaint',
 
     const result = await resolveCommand('exfil /var/db/hr/employee_roster.csv', state);
 
-    const exfiltrated = result.nextState?.player.exfiltrated ?? [];
+    const exfiltrated = nextState(result).player.exfiltrated;
     expect(exfiltrated.some(f => f.path === '/var/db/hr/employee_roster.csv')).toBe(true);
   });
 
@@ -431,7 +434,7 @@ describe('Fork 1 — cmdExfil Path B: roster exfil after reading the complaint',
 
     const result = await resolveCommand('exfil /var/db/hr/employee_roster.csv', state);
 
-    const hrConnections = result.nextState?.network.nodes['ops_hr_db']?.connections ?? [];
+    const hrConnections = nextState(result).network.nodes['ops_hr_db']?.connections ?? [];
     const occurrences = hrConnections.filter(c => c === 'whistleblower_workstation').length;
     expect(occurrences).toBe(1);
   });
@@ -457,9 +460,9 @@ describe('Fork 1 — idempotency: fork already resolved skips fork logic', () =>
     const result = await resolveCommand('exfil /var/db/hr/employee_roster.csv', state);
 
     // Fork value must remain path_a — not overwritten to path_b.
-    expect(result.nextState?.forks['fork_ops_hr_db']).toBe('path_a');
+    expect(nextState(result).forks['fork_ops_hr_db']).toBe('path_a');
     // No WHISTLEBLOWER_FOUND since fork was already resolved before this exfil.
-    expect(result.nextState?.flags['WHISTLEBLOWER_FOUND']).toBeFalsy();
+    expect(nextState(result).flags['WHISTLEBLOWER_FOUND']).toBeFalsy();
   });
 
   it('should NOT re-resolve the fork when fork_ops_hr_db is already "path_b"', async () => {
@@ -472,7 +475,7 @@ describe('Fork 1 — idempotency: fork already resolved skips fork logic', () =>
 
     // Re-exfil is blocked by the already-exfiltrated idempotency guard before
     // even reaching the fork block. The fork should remain path_b.
-    expect(result.nextState?.forks['fork_ops_hr_db']).toBe('path_b');
+    expect(nextState(result).forks['fork_ops_hr_db']).toBe('path_b');
   });
 
   it('should return "Already exfiltrated" message on re-exfil when fork is path_a', async () => {
@@ -499,7 +502,7 @@ describe('Fork 1 — idempotency: fork already resolved skips fork logic', () =>
 
     const result = await resolveCommand('exfil /var/db/hr/employee_roster.csv', state);
 
-    expect(result.nextState?.flags['WHISTLEBLOWER_FOUND']).toBeFalsy();
+    expect(nextState(result).flags['WHISTLEBLOWER_FOUND']).toBeFalsy();
     const investigationLines = result.lines.filter(l => l.content.includes('INVESTIGATION TRAIL'));
     expect(investigationLines).toHaveLength(0);
   });
@@ -540,7 +543,7 @@ describe('Fork 3 — cmdCat gate: ARIA_BOARD_DISCLOSURE blocked without WHISTLEB
 
     const result = await resolveCommand('cat /legal/aria/ARIA_BOARD_DISCLOSURE', state);
 
-    expect(result.nextState?.flags['BOARD_KNEW']).toBeFalsy();
+    expect(nextState(result).flags['BOARD_KNEW']).toBeFalsy();
   });
 
   it('should NOT set fork_exec_legal when the gate blocks the read', async () => {
@@ -548,7 +551,7 @@ describe('Fork 3 — cmdCat gate: ARIA_BOARD_DISCLOSURE blocked without WHISTLEB
 
     const result = await resolveCommand('cat /legal/aria/ARIA_BOARD_DISCLOSURE', state);
 
-    expect(result.nextState?.forks['fork_exec_legal']).toBeUndefined();
+    expect(nextState(result).forks['fork_exec_legal']).toBeUndefined();
   });
 
   it('should not call addLoreFragment when the gate blocks the read', async () => {
@@ -579,7 +582,7 @@ describe('Fork 3 — cmdCat resolution: ARIA_BOARD_DISCLOSURE with WHISTLEBLOWER
 
     const result = await resolveCommand('cat /legal/aria/ARIA_BOARD_DISCLOSURE', state);
 
-    expect(result.nextState?.flags['BOARD_KNEW']).toBe(true);
+    expect(nextState(result).flags['BOARD_KNEW']).toBe(true);
   });
 
   it('should set forks.fork_exec_legal to "path_b" when WHISTLEBLOWER_FOUND is set', async () => {
@@ -587,7 +590,7 @@ describe('Fork 3 — cmdCat resolution: ARIA_BOARD_DISCLOSURE with WHISTLEBLOWER
 
     const result = await resolveCommand('cat /legal/aria/ARIA_BOARD_DISCLOSURE', state);
 
-    expect(result.nextState?.forks['fork_exec_legal']).toBe('path_b');
+    expect(nextState(result).forks['fork_exec_legal']).toBe('path_b');
   });
 
   it('should call addLoreFragment("BOARD_KNEW") exactly once on first read', async () => {
@@ -619,7 +622,7 @@ describe('Fork 3 — cmdCat resolution: ARIA_BOARD_DISCLOSURE with WHISTLEBLOWER
 
     const result = await resolveCommand('cat /legal/aria/ARIA_BOARD_DISCLOSURE', state);
 
-    expect(result.nextState?.player.trace ?? 0).toBeGreaterThanOrEqual(25);
+    expect(nextState(result).player.trace).toBeGreaterThanOrEqual(25);
   });
 
   it('should NOT set BOARD_KNEW a second time if it was already true', async () => {
@@ -631,9 +634,9 @@ describe('Fork 3 — cmdCat resolution: ARIA_BOARD_DISCLOSURE with WHISTLEBLOWER
     const result = await resolveCommand('cat /legal/aria/ARIA_BOARD_DISCLOSURE', state);
 
     // Flag stays true — no toggle.
-    expect(result.nextState?.flags['BOARD_KNEW']).toBe(true);
+    expect(nextState(result).flags['BOARD_KNEW']).toBe(true);
     // Fork stays path_b.
-    expect(result.nextState?.forks['fork_exec_legal']).toBe('path_b');
+    expect(nextState(result).forks['fork_exec_legal']).toBe('path_b');
   });
 
   it('should NOT call addLoreFragment again when BOARD_KNEW is already set', async () => {
@@ -678,8 +681,8 @@ describe('Cross-fork integration: full path B + Fork 3 sequence', () => {
 
     const result = await resolveCommand('cat /legal/aria/ARIA_BOARD_DISCLOSURE', state);
 
-    expect(result.nextState?.flags['BOARD_KNEW']).toBe(true);
-    expect(result.nextState?.forks['fork_exec_legal']).toBe('path_b');
+    expect(nextState(result).flags['BOARD_KNEW']).toBe(true);
+    expect(nextState(result).forks['fork_exec_legal']).toBe('path_b');
   });
 
   it('should block ARIA_BOARD_DISCLOSURE even on path A (no WHISTLEBLOWER_FOUND)', async () => {
@@ -700,6 +703,6 @@ describe('Cross-fork integration: full path B + Fork 3 sequence', () => {
     const errLine = result.lines.find(l => l.type === 'error');
     expect(errLine).toBeDefined();
     expect(errLine!.content.toLowerCase()).toContain('encrypted');
-    expect(result.nextState?.flags['BOARD_KNEW']).toBeFalsy();
+    expect(nextState(result).flags['BOARD_KNEW']).toBeFalsy();
   });
 });
