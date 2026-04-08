@@ -39,6 +39,7 @@ export interface NodeDescriptionRequest {
   template: NodeTemplate;
   division: string;
   label: string;
+  /** Aria influence level, 0–1. When > 0 hints at unusual node configuration. */
   ariaInfluence?: number;
 }
 

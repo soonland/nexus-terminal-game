@@ -246,6 +246,19 @@ export interface AnchorFork {
   options: { path_a: string; path_b: string };
 }
 
+// ── Contract ───────────────────────────────────────────────
+/** A mission contract defining what the player must accomplish in a run. */
+export interface Contract {
+  id: string;
+  title: string;
+  description: string;
+  /** Node IDs the player must interact with to complete this contract. */
+  targetNodeIds: string[];
+  /** File paths that must be exfiltrated to fulfil the contract. */
+  objectiveFilePaths: string[];
+  status: 'active' | 'completed' | 'failed';
+}
+
 // ── Session ────────────────────────────────────────────────
 export type GamePhase = 'boot' | 'playing' | 'aria' | 'burned' | 'ended';
 
