@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { resolveCommand } from '../commands';
+import { runSentinelTurn } from '../sentinel';
 import type { GameState, GameFile, LiveNode } from '../../types/game';
 import { makeState, makeNode } from './testHelpers';
 
@@ -718,5 +719,319 @@ describe('Cross-fork integration: full path B + Fork 3 sequence', () => {
     );
     expect(gateErrLine).toBeDefined();
     expect(nextState(result).flags['BOARD_KNEW']).toBeFalsy();
+  });
+});
+
+// ── Fork 2 — sec_firewall / fw_backup_2024.cfg ───────────────────────────────
+
+const FW_BACKUP_FILE: GameFile = {
+  name: 'fw_backup_2024.cfg',
+  path: '/backup/fw_backup_2024.cfg',
+  type: 'config',
+  content: '# Firewall Backup — CONFIDENTIAL',
+  exfiltrable: true,
+  accessRequired: 'admin',
+};
+
+const makeSecFirewallNode = (overrides: Partial<LiveNode> = {}): LiveNode =>
+  makeNode({
+    id: 'sec_firewall',
+    ip: '10.2.0.2',
+    label: 'PERIMETER FIREWALL',
+    layer: 2,
+    anchor: true,
+    accessLevel: 'admin',
+    compromised: true,
+    files: [FW_BACKUP_FILE],
+    ...overrides,
+  });
+
+// A minimal "entry" node to serve as previousNodeId so disconnect can navigate back.
+const makeEntryNode = (): LiveNode =>
+  makeNode({ id: 'entry_node', ip: '10.0.0.1', label: 'ENTRY', accessLevel: 'user' });
+
+const makeSecFirewallState = (overrides: Partial<GameState> = {}): GameState => {
+  const fwNode = makeSecFirewallNode();
+  const entryNode = makeEntryNode();
+  return makeState({
+    network: {
+      currentNodeId: fwNode.id,
+      previousNodeId: entryNode.id,
+      nodes: { [fwNode.id]: fwNode, [entryNode.id]: entryNode },
+    },
+    player: {
+      handle: 'ghost',
+      trace: 0,
+      charges: 5,
+      credentials: [],
+      exfiltrated: [],
+      tools: [],
+      burnCount: 0,
+    },
+    ...overrides,
+  });
+};
+
+describe('Fork 2 — sec_firewall / fw_backup_2024.cfg', () => {
+  beforeEach(() => {
+    stubFetchSilent();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  // ── path_b: exfil trigger ────────────────────────────────────────────────
+
+  it('should set forks.fork_sec_firewall to "path_b" when exfilling fw_backup_2024.cfg', async () => {
+    const state = makeSecFirewallState();
+
+    const result = await resolveCommand('exfil fw_backup_2024.cfg', state);
+
+    expect(nextState(result).forks['fork_sec_firewall']).toBe('path_b');
+  });
+
+  it('should reduce player.charges by 2 on path_b trigger', async () => {
+    const state = makeSecFirewallState({ player: { ...makeState().player, charges: 5 } });
+
+    const result = await resolveCommand('exfil fw_backup_2024.cfg', state);
+
+    expect(nextState(result).player.charges).toBe(3);
+  });
+
+  it('should set sentinel.sentinelInterval to 3 on path_b trigger', async () => {
+    const state = makeSecFirewallState();
+
+    const result = await resolveCommand('exfil fw_backup_2024.cfg', state);
+
+    expect(nextState(result).sentinel.sentinelInterval).toBe(3);
+  });
+
+  it('should set flags.FIREWALL_TAMPERED to true on path_b trigger', async () => {
+    const state = makeSecFirewallState();
+
+    const result = await resolveCommand('exfil fw_backup_2024.cfg', state);
+
+    expect(nextState(result).flags['FIREWALL_TAMPERED']).toBe(true);
+  });
+
+  it('should add 15 to aria.trustScore on path_b trigger', async () => {
+    const state = makeSecFirewallState({ aria: { ...makeState().aria, trustScore: 50 } });
+
+    const result = await resolveCommand('exfil fw_backup_2024.cfg', state);
+
+    expect(nextState(result).aria.trustScore).toBe(65);
+  });
+
+  it('should emit fork flavor lines on path_b trigger', async () => {
+    const state = makeSecFirewallState();
+
+    const result = await resolveCommand('exfil fw_backup_2024.cfg', state);
+
+    const forkLine = result.lines.find(l => l.content.includes('Firewall config exfiltrated'));
+    const chargesLine = result.lines.find(l => l.content.includes('-2 exploit charges'));
+    const sentinelLine = result.lines.find(l =>
+      l.content.toLowerCase().includes('sentinel sweep interval reduced'),
+    );
+
+    expect(forkLine).toBeDefined();
+    expect(chargesLine).toBeDefined();
+    expect(sentinelLine).toBeDefined();
+  });
+
+  // ── path_b: charges capped at 0 ─────────────────────────────────────────
+
+  it('should not reduce charges below 0 when player has only 1 charge on path_b', async () => {
+    const state = makeSecFirewallState({ player: { ...makeState().player, charges: 1 } });
+
+    const result = await resolveCommand('exfil fw_backup_2024.cfg', state);
+
+    expect(nextState(result).player.charges).toBe(0);
+  });
+
+  // ── path_b: aria trust capped at 100 ────────────────────────────────────
+
+  it('should cap aria.trustScore at 100 when starting at 90', async () => {
+    const state = makeSecFirewallState({ aria: { ...makeState().aria, trustScore: 90 } });
+
+    const result = await resolveCommand('exfil fw_backup_2024.cfg', state);
+
+    expect(nextState(result).aria.trustScore).toBe(100);
+  });
+
+  // ── path_a: disconnect without exfil ────────────────────────────────────
+
+  it('should set forks.fork_sec_firewall to "path_a" when disconnecting from sec_firewall without exfil', async () => {
+    const state = makeSecFirewallState();
+
+    const result = await resolveCommand('disconnect', state);
+
+    expect(nextState(result).forks['fork_sec_firewall']).toBe('path_a');
+  });
+
+  it('should not change player.charges on path_a disconnect', async () => {
+    const state = makeSecFirewallState({ player: { ...makeState().player, charges: 5 } });
+
+    const result = await resolveCommand('disconnect', state);
+
+    expect(nextState(result).player.charges).toBe(5);
+  });
+
+  it('should not set FIREWALL_TAMPERED flag on path_a disconnect', async () => {
+    const state = makeSecFirewallState();
+
+    const result = await resolveCommand('disconnect', state);
+
+    expect(nextState(result).flags['FIREWALL_TAMPERED']).toBeFalsy();
+  });
+
+  it('should not change aria.trustScore on path_a disconnect', async () => {
+    const state = makeSecFirewallState({ aria: { ...makeState().aria, trustScore: 50 } });
+
+    const result = await resolveCommand('disconnect', state);
+
+    expect(nextState(result).aria.trustScore).toBe(50);
+  });
+
+  // ── path_a: disconnect from other node does not resolve fork ─────────────
+
+  it('should not resolve fork_sec_firewall when disconnecting from a different node', async () => {
+    const otherNode = makeNode({ id: 'ops_hr_db', ip: '10.1.2.3', accessLevel: 'admin' });
+    const state = makeState({
+      network: {
+        currentNodeId: otherNode.id,
+        previousNodeId: null,
+        nodes: { [otherNode.id]: otherNode },
+      },
+    });
+
+    const result = await resolveCommand('disconnect', state);
+
+    expect(nextState(result).forks['fork_sec_firewall']).toBeUndefined();
+  });
+
+  // ── idempotency: path_b exfil again after fork resolved ──────────────────
+
+  it('should not re-apply path_b consequences when fork_sec_firewall is already "path_b"', async () => {
+    const state = makeSecFirewallState({
+      forks: { fork_sec_firewall: 'path_b' },
+      player: { ...makeState().player, charges: 5 },
+      aria: { ...makeState().aria, trustScore: 65 },
+      sentinel: { ...makeState().sentinel, sentinelInterval: 3 },
+    });
+
+    const result = await resolveCommand('exfil fw_backup_2024.cfg', state);
+
+    // charges should not drop by another 2 (file already exfiltrated check applies first,
+    // but if somehow reached, fork guard must prevent re-application)
+    // The key assertion: sentinelInterval stays at 3, trustScore does not jump to 80
+    expect(nextState(result).sentinel.sentinelInterval).toBe(3);
+    expect(nextState(result).aria.trustScore).toBe(65);
+  });
+
+  // ── idempotency: disconnect after path_b already resolved ────────────────
+
+  it('should not overwrite fork_sec_firewall to "path_a" when it is already "path_b"', async () => {
+    const state = makeSecFirewallState({
+      forks: { fork_sec_firewall: 'path_b' },
+    });
+
+    const result = await resolveCommand('disconnect', state);
+
+    expect(nextState(result).forks['fork_sec_firewall']).toBe('path_b');
+  });
+});
+
+// ── Fork 2 — sentinel cadence ─────────────────────────────────────────────────
+
+describe('Fork 2 — sentinel cadence checks', () => {
+  it('should act on every turn when sentinelInterval=1 and turnCount=1', () => {
+    const patchTarget = makeNode({
+      id: 'some_node',
+      compromised: true,
+      sentinelPatched: false,
+      layer: 1,
+    });
+    const state = makeState({
+      turnCount: 1,
+      sentinel: {
+        active: true,
+        sentinelInterval: 1,
+        mutationLog: [],
+        pendingFileDeletes: [],
+        messageHistory: [],
+        channelEstablished: false,
+      },
+      network: {
+        currentNodeId: patchTarget.id,
+        previousNodeId: null,
+        nodes: { [patchTarget.id]: patchTarget },
+      },
+    });
+
+    const { lines } = runSentinelTurn(state);
+
+    // Sentinel should have acted — lines will be non-empty (patch action produces lines)
+    expect(lines.length).toBeGreaterThan(0);
+  });
+
+  it('should skip acting when sentinelInterval=3 and turnCount=1 (not divisible)', () => {
+    const patchTarget = makeNode({
+      id: 'some_node',
+      compromised: true,
+      sentinelPatched: false,
+      layer: 1,
+    });
+    const state = makeState({
+      turnCount: 1,
+      sentinel: {
+        active: true,
+        sentinelInterval: 3,
+        mutationLog: [],
+        pendingFileDeletes: [],
+        messageHistory: [],
+        channelEstablished: false,
+      },
+      network: {
+        currentNodeId: patchTarget.id,
+        previousNodeId: null,
+        nodes: { [patchTarget.id]: patchTarget },
+      },
+    });
+
+    const { lines } = runSentinelTurn(state);
+
+    // turnCount 1 % 3 !== 0, so sentinel must not act
+    expect(lines).toHaveLength(0);
+  });
+
+  it('should act when sentinelInterval=3 and turnCount=3 (divisible)', () => {
+    const patchTarget = makeNode({
+      id: 'some_node',
+      compromised: true,
+      sentinelPatched: false,
+      layer: 1,
+    });
+    const state = makeState({
+      turnCount: 3,
+      sentinel: {
+        active: true,
+        sentinelInterval: 3,
+        mutationLog: [],
+        pendingFileDeletes: [],
+        messageHistory: [],
+        channelEstablished: false,
+      },
+      network: {
+        currentNodeId: patchTarget.id,
+        previousNodeId: null,
+        nodes: { [patchTarget.id]: patchTarget },
+      },
+    });
+
+    const { lines } = runSentinelTurn(state);
+
+    // turnCount 3 % 3 === 0, so sentinel must act
+    expect(lines.length).toBeGreaterThan(0);
   });
 });
