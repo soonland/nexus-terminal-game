@@ -78,7 +78,7 @@ const makeWhistleblowerWorkstationNode = (): LiveNode =>
     anchor: true,
     accessLevel: 'none',
     discovered: false,
-    locked: true,
+    // locked is intentionally absent — matches the real anchorNodes.ts definition
   });
 
 const makeExecLegalNode = (overrides: Partial<LiveNode> = {}): LiveNode =>

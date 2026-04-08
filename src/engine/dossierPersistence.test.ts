@@ -4,6 +4,7 @@ import {
   saveDossier,
   selectAriaNote,
   recordEnding,
+  addLoreFragment,
   DOSSIER_KEY,
 } from './dossierPersistence';
 import { ARIA_MEMORY_NOTES } from '../data/ariaMemoryNotes';
@@ -383,4 +384,66 @@ describe('ARIA_MEMORY_NOTES — authorship constraints', () => {
       });
     }
   }
+});
+
+// ── addLoreFragment ─────────────────────────────────────────
+
+describe('addLoreFragment', () => {
+  let mockStorage: ReturnType<typeof makeMockStorage>;
+
+  beforeEach(() => {
+    mockStorage = makeMockStorage();
+    vi.stubGlobal('localStorage', mockStorage);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('adds a fragment to an empty dossier', () => {
+    addLoreFragment('BOARD_KNEW');
+    const dossier = loadDossier();
+    expect(dossier.loreFragments).toEqual(['BOARD_KNEW']);
+  });
+
+  it('is idempotent — second add is a no-op', () => {
+    addLoreFragment('BOARD_KNEW');
+    addLoreFragment('BOARD_KNEW');
+    const dossier = loadDossier();
+    expect(dossier.loreFragments).toEqual(['BOARD_KNEW']);
+    expect(mockStorage.setItem).toHaveBeenCalledTimes(1);
+  });
+
+  it('accumulates multiple distinct fragments', () => {
+    addLoreFragment('BOARD_KNEW');
+    addLoreFragment('OTHER_FRAGMENT');
+    const dossier = loadDossier();
+    expect(dossier.loreFragments).toEqual(['BOARD_KNEW', 'OTHER_FRAGMENT']);
+  });
+
+  it('handles a dossier with missing loreFragments (schema migration)', () => {
+    mockStorage.setItem(
+      DOSSIER_KEY,
+      JSON.stringify({ runsCompleted: 2, endings: [], ariaMemory: [], fullyExplored: false }),
+    );
+    addLoreFragment('BOARD_KNEW');
+    const dossier = loadDossier();
+    expect(dossier.loreFragments).toEqual(['BOARD_KNEW']);
+  });
+
+  it('handles a dossier with a corrupted loreFragments value (not an array)', () => {
+    mockStorage.setItem(
+      DOSSIER_KEY,
+      JSON.stringify({
+        runsCompleted: 0,
+        endings: [],
+        ariaMemory: [],
+        fullyExplored: false,
+        loreFragments: 'bad',
+      }),
+    );
+    addLoreFragment('BOARD_KNEW');
+    const dossier = loadDossier();
+    expect(dossier.loreFragments).toEqual(['BOARD_KNEW']);
+  });
 });

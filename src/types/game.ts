@@ -207,7 +207,7 @@ export interface SentinelState {
   pendingFileDeletes: Array<{ filePath: string; nodeId: string; targetTurn: number }>;
   messageHistory: SentinelMessage[]; // DM channel conversation history
   channelEstablished: boolean; // true once first sentinel trigger has fired
-  sentinelInterval?: number; // turns between sentinel actions; undefined = every turn (default)
+  sentinelInterval?: number; // turns between sentinel actions; must be >= 1; undefined = every turn (default)
 }
 
 // ── Contract ───────────────────────────────────────────────

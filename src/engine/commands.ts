@@ -316,8 +316,9 @@ const withTurn = (result: CommandOutput, raw: string, baseState: GameState): Com
   const withAlerts = applyThresholdEffects(baseState, { ...result, nextState: base });
   const withObjectives = applyObjectiveEffects(baseState, withAlerts);
   const advanced = advanceTurn(withObjectives.nextState as GameState, raw);
-  const interval = advanced.sentinel.sentinelInterval ?? 1;
-  const isSentinelTurn = interval === 1 || advanced.turnCount % interval === 0;
+  const interval = Math.max(1, advanced.sentinel.sentinelInterval ?? 1);
+  const isSentinelTurn =
+    interval === 1 || (advanced.turnCount > 0 && advanced.turnCount % interval === 0);
   type SentinelResult = ReturnType<typeof runSentinelTurn>;
   const sentinel: SentinelResult = isSentinelTurn
     ? runSentinelTurn(advanced)

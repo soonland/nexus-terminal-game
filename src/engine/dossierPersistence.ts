@@ -43,7 +43,7 @@ export const saveDossier = (dossier: Dossier): void => {
  */
 export const addLoreFragment = (fragment: string): void => {
   const dossier = loadDossier();
-  const existing = dossier.loreFragments ?? [];
+  const existing = Array.isArray(dossier.loreFragments) ? dossier.loreFragments : [];
   if (existing.includes(fragment)) return;
   saveDossier({ ...dossier, loreFragments: [...existing, fragment] });
 };
