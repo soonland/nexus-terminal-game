@@ -316,13 +316,7 @@ const withTurn = (result: CommandOutput, raw: string, baseState: GameState): Com
   const withAlerts = applyThresholdEffects(baseState, { ...result, nextState: base });
   const withObjectives = applyObjectiveEffects(baseState, withAlerts);
   const advanced = advanceTurn(withObjectives.nextState as GameState, raw);
-  const interval = Math.max(1, advanced.sentinel.sentinelInterval ?? 1);
-  const isSentinelTurn =
-    interval === 1 || (advanced.turnCount > 0 && advanced.turnCount % interval === 0);
-  type SentinelResult = ReturnType<typeof runSentinelTurn>;
-  const sentinel: SentinelResult = isSentinelTurn
-    ? runSentinelTurn(advanced)
-    : { state: advanced, lines: [] };
+  const sentinel: ReturnType<typeof runSentinelTurn> = runSentinelTurn(advanced);
   const finalState = sentinel.state;
 
   // Detect whether this turn fires a Sentinel channel trigger
@@ -1087,13 +1081,6 @@ const cmdCat = async (args: string[], state: GameState): Promise<CommandOutput> 
     return { lines: [err(`// ACCESS DENIED: ${file.name} — secured by watchlist protocol`)] };
   }
 
-  // ── Fork 3 gate: ARIA_BOARD_DISCLOSURE requires prior WHISTLEBLOWER_FOUND ──
-  if (file.path === '/legal/aria/ARIA_BOARD_DISCLOSURE' && !state.flags['WHISTLEBLOWER_FOUND']) {
-    return {
-      lines: [err(`${file.name}: archive encrypted — prior investigation required`)],
-    };
-  }
-
   let next = state;
   let traceFeedback: { msg: string; type: 'error' | 'system' } | null = null;
   if (file.tripwire) {
@@ -1104,6 +1091,15 @@ const cmdCat = async (args: string[], state: GameState): Promise<CommandOutput> 
     next = addTrace(state, file.traceOnRead);
     const applied = next.player.trace - state.player.trace;
     traceFeedback = { msg: `  +${String(applied)} trace`, type: 'system' };
+  }
+
+  // ── Fork 3 gate: ARIA_BOARD_DISCLOSURE requires prior WHISTLEBLOWER_FOUND ──
+  // Gate is checked after the tripwire so access attempts always cost trace.
+  if (file.path === '/legal/aria/ARIA_BOARD_DISCLOSURE' && !next.flags['WHISTLEBLOWER_FOUND']) {
+    const gateLines: Out = [];
+    if (traceFeedback) gateLines.push(line(traceFeedback.msg, traceFeedback.type));
+    gateLines.push(err(`${file.name}: archive encrypted — prior investigation required`));
+    return { lines: gateLines, nextState: next };
   }
 
   let content = file.content;

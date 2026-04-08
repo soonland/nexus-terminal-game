@@ -23,7 +23,7 @@ export const loadDossier = (): Dossier => {
       endings: parsed.endings ?? [],
       ariaMemory: parsed.ariaMemory ?? [],
       fullyExplored: parsed.fullyExplored ?? runsCompleted >= 4,
-      loreFragments: parsed.loreFragments ?? [],
+      loreFragments: Array.isArray(parsed.loreFragments) ? parsed.loreFragments : [],
     };
   } catch {
     return emptyDossier();
@@ -43,7 +43,7 @@ export const saveDossier = (dossier: Dossier): void => {
  */
 export const addLoreFragment = (fragment: string): void => {
   const dossier = loadDossier();
-  const existing = Array.isArray(dossier.loreFragments) ? dossier.loreFragments : [];
+  const existing = dossier.loreFragments ?? [];
   if (existing.includes(fragment)) return;
   saveDossier({ ...dossier, loreFragments: [...existing, fragment] });
 };
@@ -77,7 +77,7 @@ export const recordEnding = (ending: EndingName): void => {
     ].slice(-MAX_MEMORY_NOTES),
     ariaMemory: [...dossier.ariaMemory, note].slice(-MAX_MEMORY_NOTES),
     fullyExplored: dossier.fullyExplored || newRunsCompleted >= 4,
-    loreFragments: dossier.loreFragments ?? [],
+    loreFragments: Array.isArray(dossier.loreFragments) ? dossier.loreFragments : [],
   };
   saveDossier(updated);
 };

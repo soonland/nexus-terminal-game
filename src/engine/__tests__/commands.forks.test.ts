@@ -86,7 +86,7 @@ const makeExecLegalNode = (overrides: Partial<LiveNode> = {}): LiveNode =>
     id: 'exec_legal',
     ip: '10.4.0.2',
     label: 'EXEC LEGAL',
-    layer: 3,
+    layer: 4,
     anchor: true,
     accessLevel: 'admin',
     compromised: true,
@@ -473,8 +473,8 @@ describe('Fork 1 — idempotency: fork already resolved skips fork logic', () =>
 
     const result = await resolveCommand('exfil /var/db/hr/employee_roster.csv', state);
 
-    // Re-exfil is blocked by the already-exfiltrated idempotency guard before
-    // even reaching the fork block. The fork should remain path_b.
+    // Fork is already resolved — the fork-already-set guard skips re-resolution
+    // regardless of the COMPLAINT_READ flag. The fork value stays path_b.
     expect(nextState(result).forks['fork_ops_hr_db']).toBe('path_b');
   });
 
@@ -524,9 +524,11 @@ describe('Fork 3 — cmdCat gate: ARIA_BOARD_DISCLOSURE blocked without WHISTLEB
 
     const result = await resolveCommand('cat /legal/aria/ARIA_BOARD_DISCLOSURE', state);
 
-    const errLine = result.lines.find(l => l.type === 'error');
-    expect(errLine).toBeDefined();
-    expect(errLine!.content.toLowerCase()).toContain('encrypted');
+    // Tripwire fires first (separate error line); gate message is a second error line.
+    const gateErrLine = result.lines.find(
+      l => l.type === 'error' && l.content.toLowerCase().includes('encrypted'),
+    );
+    expect(gateErrLine).toBeDefined();
   });
 
   it('should return an error line mentioning "investigation" when WHISTLEBLOWER_FOUND is not set', async () => {
@@ -534,8 +536,10 @@ describe('Fork 3 — cmdCat gate: ARIA_BOARD_DISCLOSURE blocked without WHISTLEB
 
     const result = await resolveCommand('cat /legal/aria/ARIA_BOARD_DISCLOSURE', state);
 
-    const errLine = result.lines.find(l => l.type === 'error');
-    expect(errLine!.content.toLowerCase()).toContain('investigation');
+    const gateErrLine = result.lines.find(
+      l => l.type === 'error' && l.content.toLowerCase().includes('investigation'),
+    );
+    expect(gateErrLine).toBeDefined();
   });
 
   it('should NOT set BOARD_KNEW when the gate blocks the read', async () => {
@@ -544,6 +548,15 @@ describe('Fork 3 — cmdCat gate: ARIA_BOARD_DISCLOSURE blocked without WHISTLEB
     const result = await resolveCommand('cat /legal/aria/ARIA_BOARD_DISCLOSURE', state);
 
     expect(nextState(result).flags['BOARD_KNEW']).toBeFalsy();
+  });
+
+  it('should still charge tripwire trace even when the gate blocks content', async () => {
+    // The tripwire fires before the gate — probing the encrypted file costs trace.
+    const state = makeExecLegalState();
+
+    const result = await resolveCommand('cat /legal/aria/ARIA_BOARD_DISCLOSURE', state);
+
+    expect(nextState(result).player.trace).toBeGreaterThanOrEqual(25);
   });
 
   it('should NOT set fork_exec_legal when the gate blocks the read', async () => {
@@ -700,9 +713,10 @@ describe('Cross-fork integration: full path B + Fork 3 sequence', () => {
 
     const result = await resolveCommand('cat /legal/aria/ARIA_BOARD_DISCLOSURE', state);
 
-    const errLine = result.lines.find(l => l.type === 'error');
-    expect(errLine).toBeDefined();
-    expect(errLine!.content.toLowerCase()).toContain('encrypted');
+    const gateErrLine = result.lines.find(
+      l => l.type === 'error' && l.content.toLowerCase().includes('encrypted'),
+    );
+    expect(gateErrLine).toBeDefined();
     expect(nextState(result).flags['BOARD_KNEW']).toBeFalsy();
   });
 });
