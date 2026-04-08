@@ -77,20 +77,6 @@ export interface Service {
   traceContribution?: number; // trace added on successful exploit (0 = clean/silent)
 }
 
-/**
- * Lightweight node summary used in API request payloads.
- * Carries only the fields needed for AI context — not full runtime state.
- */
-export interface NodeInstance {
-  id: string;
-  ip: string;
-  label: string;
-  layer: number;
-  accessLevel: AccessLevel;
-  services: Pick<Service, 'name' | 'port'>[];
-  files: Pick<GameFile, 'name' | 'type'>[];
-}
-
 export interface LiveNode {
   id: string;
   ip: string;
@@ -270,8 +256,7 @@ export interface Contract {
   targetNodeIds: string[];
   /** File paths that must be exfiltrated to fulfil the contract. */
   objectiveFilePaths: string[];
-  completed: boolean;
-  failed: boolean;
+  status: 'active' | 'completed' | 'failed';
 }
 
 // ── Session ────────────────────────────────────────────────

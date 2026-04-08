@@ -5,10 +5,10 @@
  * Request body (§10.1 contract):
  *   {
  *     command: string,
- *     currentNode: { id, ip, label, layer, accessLevel, services[], files[] },
- *     playerState: { handle, trace, charges, tools[] },
- *     recentCommands: string[],
- *     turnCount: number,
+ *     currentNode?: { id, ip, label, layer, accessLevel, services[], files[] },
+ *     playerState?: { handle, trace, charges, tools[] },
+ *     recentCommands?: string[],
+ *     turnCount?: number,
  *   }
  *
  * Response:
