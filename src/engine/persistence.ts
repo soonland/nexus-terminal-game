@@ -15,7 +15,7 @@ import { createInitialState } from './state';
 import { AI_GENERATED_FILE_PATHS } from '../data/anchorNodes';
 
 const SAVE_KEY = 'irongate_save';
-const SAVE_VERSION = 5;
+const SAVE_VERSION = 6;
 
 // ── Delta types (what actually goes into localStorage) ─────
 
@@ -60,6 +60,7 @@ interface SaveState {
   flags: Record<string, boolean>;
   sentinel: {
     active: boolean;
+    sentinelInterval: number;
     mutationLog: MutationEvent[];
     pendingFileDeletes: Array<{ filePath: string; nodeId: string; targetTurn: number }>;
     messageHistory: SentinelMessage[];
@@ -140,6 +141,7 @@ const toSaveState = (state: GameState): SaveState => {
     flags: state.flags,
     sentinel: {
       active: state.sentinel.active,
+      sentinelInterval: state.sentinel.sentinelInterval,
       mutationLog: state.sentinel.mutationLog,
       pendingFileDeletes: state.sentinel.pendingFileDeletes,
       messageHistory: state.sentinel.messageHistory,

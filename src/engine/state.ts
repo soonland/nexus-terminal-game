@@ -121,6 +121,7 @@ export const createInitialState = (sessionSeed?: number, contractId?: string): G
     worldCredentials: employeeCredentials,
     sentinel: {
       active: false,
+      sentinelInterval: 1,
       mutationLog: [],
       pendingFileDeletes: [],
       messageHistory: [],
@@ -215,6 +216,7 @@ export const burnRetry = (state: GameState): GameState => {
     flags,
     sentinel: {
       active: false,
+      sentinelInterval: state.sentinel.sentinelInterval, // preserve fork 2 cadence penalty across burns
       mutationLog: [],
       pendingFileDeletes: [],
       // Preserve DM channel history and established flag across burns
