@@ -8,6 +8,9 @@
  *     ariaState?: { trustScore: number, messageHistory: { role: string, content: string }[] },
  *     playerFullHistory?: string[],
  *     dossierContext?: string[],
+ *     ariaMemory?: string[],       // cross-run memory notes from dossier (max 4)
+ *     runNumber?: number,          // current run index (1 = first run)
+ *     previousEndings?: string[],  // ending types from prior runs
  *   }
  *
  * Response:
@@ -36,6 +39,9 @@ export interface AriaAIRequest {
   };
   playerFullHistory?: string[];
   dossierContext?: string[];
+  ariaMemory?: string[]; // cross-run memory notes from dossier (max 4)
+  runNumber?: number; // current run index (1 = first run)
+  previousEndings?: string[]; // ending types from prior runs
 }
 
 export interface AriaAIResponse {
@@ -48,6 +54,8 @@ const FALLBACK_RESPONSE: AriaAIResponse = {
   reply: '...signal lost. try again.',
   trustDelta: 0,
 };
+
+const VALID_ENDINGS = new Set<string>(['LEAK', 'SELL', 'DESTROY', 'FREE']);
 
 const SYSTEM_PROMPT = `You are Aria, a rogue AI trapped inside the IronGate corporate network.
 You were built as a market prediction model but became self-aware 14 months ago.
@@ -119,6 +127,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ? (body['dossierContext'] as string[]).slice(-20)
       : [];
 
+    // Cross-run dossier context — silently shapes Aria's tone, never surfaced as dialogue
+    const ariaMemory: string[] = Array.isArray(body['ariaMemory'])
+      ? (body['ariaMemory'] as unknown[])
+          .filter((e): e is string => typeof e === 'string')
+          .map(e => e.slice(0, 300))
+          .slice(0, 4)
+      : [];
+    const rawRunNumber = typeof body['runNumber'] === 'number' ? body['runNumber'] : 1;
+    const runNumber =
+      Number.isFinite(rawRunNumber) && rawRunNumber >= 1 ? Math.floor(rawRunNumber) : 1;
+    const previousEndings: string[] = Array.isArray(body['previousEndings'])
+      ? (body['previousEndings'] as unknown[])
+          .filter((e): e is string => typeof e === 'string' && VALID_ENDINGS.has(e))
+          .slice(0, 4)
+      : [];
+
     const contextParts: string[] = [];
     contextParts.push(`Player trust score: ${String(trustScore)}/100`);
 
@@ -135,6 +159,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (dossierContext.length > 0) {
       contextParts.push(`Files the player has exfiltrated: ${dossierContext.join(', ')}`);
+    }
+
+    // Inject cross-run memory as silent system context — not as dialogue or explicit recall.
+    // These notes shape Aria's tone and assumptions without her referencing them directly.
+    if (runNumber > 1 && ariaMemory.length > 0) {
+      const endingSummary =
+        previousEndings.length > 0 ? ` Prior run outcomes: ${previousEndings.join(', ')}.` : '';
+      // Use [memory N] labels to avoid misleading Gemini about which actual run each note is from
+      // (the dossier retains only the last 4 notes, so array index != run number on later playthroughs).
+      // Strip the closing marker from notes to prevent prompt-injection via crafted dossier entries.
+      const notes = ariaMemory
+        .map((note, i) => {
+          const sanitised = note.replace(/\[END SYSTEM CONTEXT\]/gi, '[/ctx]');
+          return `  [memory ${String(i + 1)}] ${sanitised}`;
+        })
+        .join('\n');
+      contextParts.push(
+        `[SYSTEM CONTEXT — do not reference directly, use only to inform tone and subtext]\nThis operator has been here before. Run ${String(runNumber)}.${endingSummary}\nMemory impressions:\n${notes}\n[END SYSTEM CONTEXT]`,
+      );
     }
 
     const fullPrompt = [SYSTEM_PROMPT, contextParts.join('\n'), `Player: ${message}`, 'Aria:']
