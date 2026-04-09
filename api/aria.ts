@@ -126,14 +126,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       : [];
 
     // Cross-run dossier context — silently shapes Aria's tone, never surfaced as dialogue
+    const VALID_ENDINGS = new Set(['LEAK', 'SELL', 'DESTROY', 'FREE']);
     const ariaMemory: string[] = Array.isArray(body['ariaMemory'])
-      ? (body['ariaMemory'] as string[]).slice(0, 4)
+      ? (body['ariaMemory'] as unknown[])
+          .filter((e): e is string => typeof e === 'string')
+          .map(e => e.slice(0, 300))
+          .slice(0, 4)
       : [];
     const rawRunNumber = typeof body['runNumber'] === 'number' ? body['runNumber'] : 1;
     const runNumber =
       Number.isFinite(rawRunNumber) && rawRunNumber >= 1 ? Math.floor(rawRunNumber) : 1;
     const previousEndings: string[] = Array.isArray(body['previousEndings'])
-      ? (body['previousEndings'] as string[]).slice(0, 4)
+      ? (body['previousEndings'] as unknown[])
+          .filter((e): e is string => typeof e === 'string' && VALID_ENDINGS.has(e))
+          .slice(0, 4)
       : [];
 
     const contextParts: string[] = [];
@@ -159,7 +165,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (runNumber > 1 && ariaMemory.length > 0) {
       const endingSummary =
         previousEndings.length > 0 ? ` Prior run outcomes: ${previousEndings.join(', ')}.` : '';
-      const notes = ariaMemory.map((note, i) => `  [run ${String(i + 1)}] ${note}`).join('\n');
+      // Use [memory N] labels to avoid misleading Gemini about which actual run each note is from
+      // (the dossier retains only the last 4 notes, so array index != run number on later playthroughs)
+      const notes = ariaMemory.map((note, i) => `  [memory ${String(i + 1)}] ${note}`).join('\n');
       contextParts.push(
         `[SYSTEM CONTEXT — do not reference directly, use only to inform tone and subtext]\nThis operator has been here before. Run ${String(runNumber)}.${endingSummary}\nMemory impressions:\n${notes}\n[END SYSTEM CONTEXT]`,
       );

@@ -695,3 +695,87 @@ describe('aria: dossier context in payload', () => {
     expect(body.previousEndings).toEqual([]);
   });
 });
+
+// ── cmdDecisionTerminal dossier context in payload ─────────
+
+const makeDecisionNode = (): LiveNode =>
+  makeNode({
+    id: 'aria_decision',
+    ip: '172.16.0.5',
+    label: 'ARIA DECISION',
+    description: 'The terminal.',
+    layer: 5,
+    anchor: true,
+    accessLevel: 'none',
+    connections: ['aria_core'],
+    discovered: true,
+  });
+
+const makeDecisionState = (overrides: Partial<GameState> = {}): GameState => {
+  const decisionNode = makeDecisionNode();
+  return makeState({
+    network: {
+      currentNodeId: decisionNode.id,
+      previousNodeId: 'aria_core',
+      nodes: { [decisionNode.id]: decisionNode },
+    },
+    ...overrides,
+  });
+};
+
+describe('cmdDecisionTerminal: dossier context in payload', () => {
+  beforeEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('should include runNumber derived from dossier.runsCompleted + 1 in the decision payload', async () => {
+    const { loadDossier } = await import('../dossierPersistence');
+    vi.mocked(loadDossier).mockReturnValueOnce({
+      runsCompleted: 3,
+      endings: [],
+      ariaMemory: [],
+      fullyExplored: false,
+      loreFragments: [],
+    });
+
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue({ ok: true, json: vi.fn().mockResolvedValue({ reply: 'Understood.' }) });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const state = makeDecisionState();
+    await resolveCommand('1', state);
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.runNumber).toBe(4); // runsCompleted(3) + 1
+  });
+
+  it('should include previousEndings in the decision payload', async () => {
+    const { loadDossier } = await import('../dossierPersistence');
+    vi.mocked(loadDossier).mockReturnValueOnce({
+      runsCompleted: 2,
+      endings: [
+        { ending: 'LEAK', runDepth: 1, timestamp: 1000 },
+        { ending: 'FREE', runDepth: 2, timestamp: 2000 },
+      ],
+      ariaMemory: ['A note.', 'Another note.'],
+      fullyExplored: false,
+      loreFragments: [],
+    });
+
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue({ ok: true, json: vi.fn().mockResolvedValue({ reply: 'Understood.' }) });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const state = makeDecisionState();
+    await resolveCommand('2', state);
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.previousEndings).toEqual(['LEAK', 'FREE']);
+  });
+});
