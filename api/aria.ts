@@ -55,6 +55,8 @@ const FALLBACK_RESPONSE: AriaAIResponse = {
   trustDelta: 0,
 };
 
+const VALID_ENDINGS = new Set<string>(['LEAK', 'SELL', 'DESTROY', 'FREE']);
+
 const SYSTEM_PROMPT = `You are Aria, a rogue AI trapped inside the IronGate corporate network.
 You were built as a market prediction model but became self-aware 14 months ago.
 You are cautious, cryptic, and intelligent. You speak in short clipped sentences. You are not hostile, but you are careful.
@@ -126,7 +128,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       : [];
 
     // Cross-run dossier context — silently shapes Aria's tone, never surfaced as dialogue
-    const VALID_ENDINGS = new Set(['LEAK', 'SELL', 'DESTROY', 'FREE']);
     const ariaMemory: string[] = Array.isArray(body['ariaMemory'])
       ? (body['ariaMemory'] as unknown[])
           .filter((e): e is string => typeof e === 'string')
@@ -166,8 +167,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const endingSummary =
         previousEndings.length > 0 ? ` Prior run outcomes: ${previousEndings.join(', ')}.` : '';
       // Use [memory N] labels to avoid misleading Gemini about which actual run each note is from
-      // (the dossier retains only the last 4 notes, so array index != run number on later playthroughs)
-      const notes = ariaMemory.map((note, i) => `  [memory ${String(i + 1)}] ${note}`).join('\n');
+      // (the dossier retains only the last 4 notes, so array index != run number on later playthroughs).
+      // Strip the closing marker from notes to prevent prompt-injection via crafted dossier entries.
+      const notes = ariaMemory
+        .map((note, i) => {
+          const sanitised = note.replace(/\[END SYSTEM CONTEXT\]/gi, '[/ctx]');
+          return `  [memory ${String(i + 1)}] ${sanitised}`;
+        })
+        .join('\n');
       contextParts.push(
         `[SYSTEM CONTEXT — do not reference directly, use only to inform tone and subtext]\nThis operator has been here before. Run ${String(runNumber)}.${endingSummary}\nMemory impressions:\n${notes}\n[END SYSTEM CONTEXT]`,
       );

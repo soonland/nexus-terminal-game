@@ -461,13 +461,6 @@ const cmdAriaAI = async (
   state: GameState,
 ): Promise<CommandOutput> => {
   const dossier = loadDossier();
-  const safeRunsCompleted =
-    typeof dossier.runsCompleted === 'number' && Number.isFinite(dossier.runsCompleted)
-      ? dossier.runsCompleted
-      : 0;
-  const safeEndings = Array.isArray(dossier.endings)
-    ? dossier.endings.filter(e => typeof e.ending === 'string').map(e => e.ending)
-    : [];
   const payload = {
     message,
     ariaState: {
@@ -477,8 +470,8 @@ const cmdAriaAI = async (
     playerFullHistory: state.recentCommands.slice(-10),
     dossierContext: state.player.exfiltrated.map(f => f.name),
     ariaMemory: dossier.ariaMemory,
-    runNumber: safeRunsCompleted + 1,
-    previousEndings: safeEndings,
+    runNumber: dossier.runsCompleted + 1,
+    previousEndings: dossier.endings.map(e => e.ending),
   };
 
   let aiResponse: AriaAIResponse;
@@ -614,14 +607,6 @@ const cmdDecisionTerminal = async (choice: string, state: GameState): Promise<Co
   let ariaFinalMessage = ENDING_FALLBACK_MESSAGES[endingChoice] ?? '...';
 
   const dossier = loadDossier();
-  const safeRunsCompletedDecision =
-    typeof dossier.runsCompleted === 'number' && Number.isFinite(dossier.runsCompleted)
-      ? dossier.runsCompleted
-      : 0;
-  const safeEndingsDecision = Array.isArray(dossier.endings)
-    ? dossier.endings.filter(e => typeof e.ending === 'string').map(e => e.ending)
-    : [];
-
   try {
     const payload = {
       message,
@@ -632,8 +617,8 @@ const cmdDecisionTerminal = async (choice: string, state: GameState): Promise<Co
       playerFullHistory: state.recentCommands.slice(-10),
       dossierContext: state.player.exfiltrated.map(f => f.name),
       ariaMemory: dossier.ariaMemory,
-      runNumber: safeRunsCompletedDecision + 1,
-      previousEndings: safeEndingsDecision,
+      runNumber: dossier.runsCompleted + 1,
+      previousEndings: dossier.endings.map(e => e.ending),
     };
     const res = await fetch('/api/aria', {
       method: 'POST',
