@@ -1,6 +1,7 @@
 import type { GameState, LiveNode, MutationEvent, SentinelAction } from '../types/game';
 import type { LineType } from '../types/terminal';
 import produce from './produce';
+import { isGameCompletable } from './completabilityGuard';
 
 type SentinelLine = { type: LineType; content: string };
 
@@ -55,6 +56,9 @@ const tryPatchNode = (state: GameState): { state: GameState; lines: SentinelLine
     if (node) node.sentinelPatched = true;
     s.sentinel.mutationLog.push(event);
   });
+
+  // §9.5: roll back silently if mutation would make the game unwinnable.
+  if (!isGameCompletable(next)) return null;
 
   return {
     state: next,
@@ -148,6 +152,9 @@ const tryRevokeCredential = (
     s.sentinel.mutationLog.push(event);
   });
 
+  // §9.5: roll back silently if mutation would make the game unwinnable.
+  if (!isGameCompletable(next)) return null;
+
   return {
     state: next,
     lines: [
@@ -184,6 +191,9 @@ const tryDeleteFile = (state: GameState): { state: GameState; lines: SentinelLin
     );
   });
 
+  // §9.5: roll back silently if mutation would make the game unwinnable.
+  if (!isGameCompletable(next)) return null;
+
   const fileName = pending.filePath.split('/').pop() ?? pending.filePath;
   return {
     state: next,
@@ -198,7 +208,7 @@ const tryDeleteFile = (state: GameState): { state: GameState; lines: SentinelLin
 
 // ── Priority 4: spawn reinforcement security node ─────────────────────────
 
-const trySpawnNode = (state: GameState): { state: GameState; lines: SentinelLine[] } => {
+const trySpawnNode = (state: GameState): { state: GameState; lines: SentinelLine[] } | null => {
   const ip = generateSentinelIp(state);
   const nodeId = `sentinel_node_${String(spawnedNodeCount(state) + 1)}`;
 
@@ -249,6 +259,9 @@ const trySpawnNode = (state: GameState): { state: GameState; lines: SentinelLine
     s.sentinel.mutationLog.push(event);
   });
 
+  // §9.5: roll back silently if mutation would make the game unwinnable.
+  if (!isGameCompletable(next)) return null;
+
   return {
     state: next,
     lines: [
@@ -280,11 +293,13 @@ export const runSentinelTurn = (state: GameState): { state: GameState; lines: Se
     return { state: current, lines: [] };
   }
 
-  // Evaluate priority queue — one action per turn
+  // Evaluate priority queue — one action per turn.
+  // Each try* returns null if its mutation would create an unwinnable state (§9.5 rollback).
+  // If all four actions roll back, the sentinel skips this turn silently.
   return (
     tryPatchNode(current) ??
     tryRevokeCredential(current) ??
     tryDeleteFile(current) ??
-    trySpawnNode(current)
+    trySpawnNode(current) ?? { state: current, lines: [] }
   );
 };
