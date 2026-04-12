@@ -482,7 +482,7 @@ describe('resolveCommand — status', () => {
   it('should show charges count', async () => {
     const result = await resolveCommand('status', state);
     const contents = result.lines.map(l => l.content);
-    expect(contents.some(c => c.includes('3'))).toBe(true);
+    expect(contents.some(c => c.includes('4'))).toBe(true);
   });
 });
 
@@ -1415,8 +1415,8 @@ describe('resolveCommand — exploit', () => {
 
   it('should deduct exploit charges on success', async () => {
     const result = await resolveCommand('exploit http', state);
-    // http costs 1 charge; player starts with 3
-    expect((result.nextState as GameState).player.charges).toBe(2);
+    // http costs 1 charge; player starts with 4
+    expect((result.nextState as GameState).player.charges).toBe(3);
   });
 
   it('should mark the node as compromised on success', async () => {
@@ -1509,12 +1509,12 @@ describe('resolveCommand — exploit', () => {
         }),
       ),
     );
-    // effective cost = 1 (http) + 1 (sentinelPatched) = 2; player starts with 3
+    // effective cost = 1 (http) + 1 (sentinelPatched) = 2; player starts with 4
     const patched = produce(state, s => {
       s.network.nodes['contractor_portal']!.sentinelPatched = true;
     });
     const result = await resolveCommand('exploit http', patched);
-    expect((result.nextState as GameState).player.charges).toBe(1);
+    expect((result.nextState as GameState).player.charges).toBe(2);
   });
 
   // ── AI response tests ──────────────────────────────────────
@@ -2099,7 +2099,7 @@ describe('resolveCommand — threshold alerts (applyThresholdEffects)', () => {
     expect(alertLine?.type).toBe('system');
   });
 
-  it('should lock up to 2 non-tripwire files on compromised nodes at 31%', async () => {
+  it('should NOT lock files on compromised nodes at 31% (locking moved to 55%)', async () => {
     state = produce(createInitialState(), s => {
       s.player.trace = 30;
       s.player.tools = s.player.tools.filter(t => t.id !== 'port-scanner');
@@ -2110,7 +2110,21 @@ describe('resolveCommand — threshold alerts (applyThresholdEffects)', () => {
     const result = await resolveCommand('scan', state);
     const nextState = result.nextState as GameState;
     const node = nextState.network.nodes['contractor_portal']!;
-    const lockedFiles = node.files.filter(f => f.locked);
+    expect(node.files.some(f => f.locked)).toBe(false);
+  });
+
+  it('should lock up to 2 non-tripwire files on compromised nodes at 55%', async () => {
+    state = produce(createInitialState(), s => {
+      s.player.trace = 54;
+      s.player.tools = s.player.tools.filter(t => t.id !== 'port-scanner');
+      const node = s.network.nodes['contractor_portal']!;
+      node.compromised = true;
+      node.accessLevel = 'user';
+    });
+    const result = await resolveCommand('scan', state);
+    const nextState = result.nextState as GameState;
+    const node = nextState.network.nodes['contractor_portal']!;
+    const lockedFiles = node.files.filter(f => f.locked && !f.tripwire);
     expect(lockedFiles.length).toBeGreaterThanOrEqual(1);
     expect(lockedFiles.length).toBeLessThanOrEqual(2);
   });
@@ -3108,5 +3122,74 @@ describe('resolveCommand — contract objective detection', () => {
       const result = await resolveCommand('login baduser badpass', state);
       expect((result.nextState as GameState).flags['contract_cap_exceeded']).toBeFalsy();
     });
+  });
+});
+
+describe('createInitialState defaults', () => {
+  it('starts with 4 exploit charges', () => {
+    const state = createInitialState();
+    expect(state.player.charges).toBe(4);
+  });
+
+  it('initializes unlockSession to null', () => {
+    const state = createInitialState();
+    expect(state.unlockSession).toBeNull();
+  });
+
+  it('initializes unlockAttempts to empty object', () => {
+    const state = createInitialState();
+    expect(state.unlockAttempts).toEqual({});
+  });
+});
+
+describe('threshold effects', () => {
+  beforeEach(() => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false }));
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('does NOT lock files when trace crosses 31%', async () => {
+    // Set trace to 30 and remove port-scanner so scan adds trace and crosses 31%
+    const state = produce(createInitialState(), s => {
+      s.player.trace = 30;
+      s.player.tools = s.player.tools.filter(t => t.id !== 'port-scanner');
+      const node = s.network.nodes['contractor_portal']!;
+      node.compromised = true;
+      node.accessLevel = 'user';
+    });
+    const result = await resolveCommand('scan', state);
+    const nextState = result.nextState as GameState;
+    const node = nextState.network.nodes['contractor_portal']!;
+    expect(node.files.some(f => f.locked)).toBe(false);
+  });
+
+  it('locks up to 2 non-tripwire files on compromised nodes when trace crosses 55%', async () => {
+    // Set trace to 54 and remove port-scanner so scan adds trace and crosses 55%
+    const state = produce(createInitialState(), s => {
+      s.player.trace = 54;
+      s.player.tools = s.player.tools.filter(t => t.id !== 'port-scanner');
+      const node = s.network.nodes['contractor_portal']!;
+      node.compromised = true;
+      node.accessLevel = 'user';
+    });
+    const result = await resolveCommand('scan', state);
+    const nextState = result.nextState as GameState;
+    const node = nextState.network.nodes['contractor_portal']!;
+    const lockedCount = node.files.filter(f => f.locked && !f.tripwire).length;
+    expect(lockedCount).toBeGreaterThanOrEqual(1);
+    expect(lockedCount).toBeLessThanOrEqual(2);
+  });
+
+  it('fires the 31% alert message without locking files', async () => {
+    // Set trace to 30 and remove port-scanner so scan adds trace and crosses 31%
+    const state = produce(createInitialState(), s => {
+      s.player.trace = 30;
+      s.player.tools = s.player.tools.filter(t => t.id !== 'port-scanner');
+    });
+    const result = await resolveCommand('scan', state);
+    const allLines = result.lines.map(l => l.content).join('\n');
+    expect(allLines).toContain('Watchlist active');
   });
 });

@@ -210,6 +210,11 @@ const THRESHOLD_ALERT_META: Record<
   31: {
     msg: '// ALERT: Anomalous activity flagged. Watchlist active.',
     type: 'system',
+    // Warning only — file locking moved to 55% threshold
+  },
+  55: {
+    msg: '// ALERT: Watchlist escalated. Critical files hardened.',
+    type: 'system',
     onCross: s =>
       produce(s, draft => {
         for (const node of Object.values(draft.network.nodes)) {
