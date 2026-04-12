@@ -527,3 +527,87 @@ describe('hasSave', () => {
     expect(hasSave()).toBe(true);
   });
 });
+
+describe('persistence — unlockAttempts and unlockSession', () => {
+  let mockStorage: ReturnType<typeof makeMockStorage>;
+
+  beforeEach(() => {
+    mockStorage = makeMockStorage();
+    vi.stubGlobal('localStorage', mockStorage);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function roundTrip(state: GameState): GameState | null {
+    saveGame(state);
+    const [, value] = mockStorage.setItem.mock.calls[0] as [string, string];
+    mockStorage.getItem.mockReturnValue(value);
+    return loadGame();
+  }
+
+  it('persists unlockAttempts across save/restore', () => {
+    const state = produce(createInitialState(), s => {
+      s.unlockAttempts = { '/var/secret/file.txt': 2, '/etc/config.cfg': 1 };
+    });
+    const loaded = roundTrip(state);
+    expect(loaded?.unlockAttempts).toEqual({ '/var/secret/file.txt': 2, '/etc/config.cfg': 1 });
+  });
+
+  it('unlockAttempts defaults to {} when missing from save', () => {
+    const state = createInitialState();
+    saveGame(state);
+    const [, value] = mockStorage.setItem.mock.calls[0] as [string, string];
+    const save = JSON.parse(value) as Record<string, unknown>;
+    delete save['unlockAttempts'];
+    mockStorage.getItem.mockReturnValue(JSON.stringify(save));
+    const loaded = loadGame();
+    expect(loaded?.unlockAttempts).toEqual({});
+  });
+
+  it('unlockSession is NOT persisted', () => {
+    const state = produce(createInitialState(), s => {
+      s.unlockSession = {
+        filePath: '/var/secret/file.txt',
+        codes: ['AAA-111', 'BBB-222', 'CCC-333'],
+        step: 1,
+      };
+    });
+    const loaded = roundTrip(state);
+    expect(loaded?.unlockSession).toBeNull();
+  });
+
+  it('unlocked file survives save/restore', () => {
+    // Start: add a file and mark it locked (simulating 31% threshold)
+    const state = produce(createInitialState(), s => {
+      const node = s.network.nodes['contractor_portal'];
+      if (node) {
+        node.discovered = true;
+        const file = node.files.find(f => f.name === 'welcome.txt');
+        if (file) file.locked = true;
+      }
+    });
+
+    // Verify it's locked before save
+    expect(
+      state.network.nodes['contractor_portal']?.files.find(f => f.name === 'welcome.txt')?.locked,
+    ).toBe(true);
+
+    // Now unlock the file (simulating cmdUnlock success)
+    const unlockedState = produce(state, s => {
+      const node = s.network.nodes['contractor_portal'];
+      if (node) {
+        const file = node.files.find(f => f.name === 'welcome.txt');
+        if (file) file.locked = false;
+      }
+    });
+
+    const loaded = roundTrip(unlockedState);
+    const file = loaded?.network.nodes['contractor_portal']?.files.find(
+      f => f.name === 'welcome.txt',
+    );
+    // After unlock + reload, the file must NOT be locked
+    expect(file?.locked).not.toBe(true);
+  });
+});
