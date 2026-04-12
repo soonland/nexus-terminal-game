@@ -578,4 +578,64 @@ describe('buildPostGameReadout', () => {
     const cageLine = lines.find(l => l.content.includes('CAGE SUPPRESSIONS'));
     expect(cageLine).toBeUndefined();
   });
+
+  // ── §9.4 Aria mutation event formatting ─────────────────
+
+  it('renders aria reroute_edge event with target node id', () => {
+    const state = produce(withEnding(createInitialState(), 'FREE'), s => {
+      s.sentinel.mutationLog.push(
+        makeMutation('reroute_edge', 22, {
+          agent: 'aria',
+          visibleToPlayer: false,
+          nodeId: 'fin_payments_db',
+        }),
+      );
+    });
+    const lines = buildPostGameReadout(state);
+    const eventLine = lines.find(l => l.type === 'aria' && l.content.includes('ARIA:'));
+    expect(eventLine?.content).toContain('T022');
+    expect(eventLine?.content).toContain('fin_payments_db');
+    expect(eventLine?.content).toContain('Shortcut edge added');
+  });
+
+  it('renders aria delete_reinforcement event with target node id', () => {
+    const state = produce(withEnding(createInitialState(), 'SELL'), s => {
+      s.sentinel.mutationLog.push(
+        makeMutation('delete_reinforcement', 31, {
+          agent: 'aria',
+          visibleToPlayer: false,
+          nodeId: 'sentinel_node_2',
+        }),
+      );
+    });
+    const lines = buildPostGameReadout(state);
+    const eventLine = lines.find(l => l.type === 'aria' && l.content.includes('ARIA:'));
+    expect(eventLine?.content).toContain('T031');
+    expect(eventLine?.content).toContain('sentinel_node_2');
+    expect(eventLine?.content).toContain('removed from network');
+  });
+
+  it('renders aria reroute_edge event with missing nodeId using fallback ?', () => {
+    const state = produce(withEnding(createInitialState(), 'DESTROY'), s => {
+      s.sentinel.mutationLog.push(
+        makeMutation('reroute_edge', 5, { agent: 'aria', visibleToPlayer: false }),
+      );
+    });
+    const lines = buildPostGameReadout(state);
+    const eventLine = lines.find(l => l.type === 'aria' && l.content.includes('ARIA:'));
+    expect(eventLine?.content).toContain("'?'");
+    expect(eventLine?.content).toContain('Shortcut edge added');
+  });
+
+  it('renders aria delete_reinforcement event with missing nodeId using fallback ?', () => {
+    const state = produce(withEnding(createInitialState(), 'LEAK'), s => {
+      s.sentinel.mutationLog.push(
+        makeMutation('delete_reinforcement', 18, { agent: 'aria', visibleToPlayer: false }),
+      );
+    });
+    const lines = buildPostGameReadout(state);
+    const eventLine = lines.find(l => l.type === 'aria' && l.content.includes('ARIA:'));
+    expect(eventLine?.content).toContain("'?'");
+    expect(eventLine?.content).toContain('removed from network');
+  });
 });
