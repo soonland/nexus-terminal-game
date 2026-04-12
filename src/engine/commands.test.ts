@@ -3407,13 +3407,15 @@ describe('unlock command', () => {
     const { state, fileName, filePath } = stateWithLockedFile();
     const r1 = await resolveCommand(`unlock ${fileName}`, state);
     const s1 = r1.nextState as GameState;
-    // Free-form text is not code-shaped — should abandon, not burn
-    const result = await resolveCommand('what is this node', s1);
+    // Free-form text is not code-shaped — should abandon and re-dispatch as a normal command
+    const result = await resolveCommand('scan', s1);
     const next = result.nextState as GameState;
     expect(next.unlockSession).toBeNull();
     expect(next.unlockAttempts[filePath]).toBe(1);
     expect(result.lines.some(l => l.content.includes('interrupted'))).toBe(true);
     expect(result.lines.some(l => l.content.includes('Wrong code'))).toBe(false);
+    // The re-dispatched scan command should have executed
+    expect(result.lines.some(l => l.content.includes('Scanning subnet'))).toBe(true);
   });
 
   it('error paths (no args, not found, not locked) advance turnCount', async () => {
@@ -3436,6 +3438,7 @@ describe('unlock command', () => {
     // Record one failed attempt first
     const r1 = await resolveCommand(`unlock ${fileName}`, state);
     const s1 = r1.nextState as GameState;
+    // 'AAAA-BBBB' matches CODE_PATTERN → wrong-code path (not abandonment), increments counter
     const fail = await resolveCommand('AAAA-BBBB', s1);
     const sFail = fail.nextState as GameState;
     expect(sFail.unlockAttempts[filePath]).toBe(1);

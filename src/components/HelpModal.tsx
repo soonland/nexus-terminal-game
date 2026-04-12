@@ -63,7 +63,7 @@ const BODY: HelpLine[] = [
     color: 'var(--color-system)',
   },
   {
-    text: r('  unlock [filename]   -bypass a locked file (+5 trace, -1 charge)'),
+    text: r('  unlock [filename]   -bypass a locked file (on success: +5 trace, -1 charge)'),
     color: 'var(--color-system)',
   },
   {

@@ -69,7 +69,7 @@ const computeContextSuggestions = (state: GameState): string[] => {
     suggestions.push('wipe-logs');
   }
 
-  return suggestions.slice(0, 5);
+  return suggestions.slice(0, 6);
 };
 
 const VALID_ENDINGS: ReadonlyArray<EndingName> = ['LEAK', 'SELL', 'DESTROY', 'FREE'];

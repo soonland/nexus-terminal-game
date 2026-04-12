@@ -135,9 +135,8 @@ export const resolveCommand = async (raw: string, state: GameState): Promise<Com
           const f = n?.files.find(x => x.path === filePath);
           if (f) f.locked = false;
           // Reset failure count so a re-locked file starts fresh
-          s.unlockAttempts = Object.fromEntries(
-            Object.entries(s.unlockAttempts).filter(([k]) => k !== filePath),
-          );
+          // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+          delete s.unlockAttempts[filePath];
           s.player.charges = Math.max(0, s.player.charges - 1);
         });
         // Use addTrace so threshold-crossed flags are stamped correctly
