@@ -175,7 +175,7 @@ export const resolveCommand = async (raw: string, state: GameState): Promise<Com
         s.unlockSession = null;
         s.unlockAttempts[filePath] = attempts;
       });
-      const CODE_PATTERN = /^[A-Z0-9]{4}-[A-Z0-9]{4}$/i;
+      const CODE_PATTERN = /^[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/;
       const looksLikeCode = CODE_PATTERN.test(raw.trim());
       const isAbandonment = !looksLikeCode;
       const failMsg = isAbandonment
