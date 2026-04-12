@@ -23,7 +23,7 @@ const tryDeleteReinforcement = (
   state: GameState,
 ): { state: GameState; lines: AriaLine[] } | null => {
   // Pick the most recently spawned sentinel node (highest trailing index)
-  const trailingNum = (id: string) => parseInt(id.match(/_(\d+)$/)?.[1] ?? '0', 10);
+  const trailingNum = (id: string) => Number.parseInt(id.match(/_(\d+)$/)?.[1] ?? '0', 10);
   const sentinelNodes = Object.values(state.network.nodes)
     .filter((n): n is LiveNode => !!n && n.id.startsWith('sentinel_node_'))
     .sort((a, b) => trailingNum(b.id) - trailingNum(a.id));
