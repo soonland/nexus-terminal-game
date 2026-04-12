@@ -75,7 +75,7 @@ export const createInitialState = (sessionSeed?: number, contractId?: string): G
   const startingTools = (contractDef?.loadout.startingTools ?? ['port-scanner', 'exploit-kit']).map(
     id => TOOL_REGISTRY[id],
   );
-  const startingCharges = contractDef?.loadout.exploitCharges ?? 3;
+  const startingCharges = contractDef?.loadout.exploitCharges ?? 4;
 
   // Pre-obtain any credentials specified by the contract loadout
   const contractCredIds = new Set(contractDef?.loadout.startingCredentials ?? []);
@@ -127,6 +127,8 @@ export const createInitialState = (sessionSeed?: number, contractId?: string): G
       messageHistory: [],
       channelEstablished: false,
     },
+    unlockSession: null,
+    unlockAttempts: {},
   };
 };
 
@@ -136,7 +138,7 @@ export const currentNode = (state: GameState): LiveNode => {
   return node;
 };
 
-export const TRACE_THRESHOLDS = [31, 61, 86] as const;
+export const TRACE_THRESHOLDS = [31, 55, 61, 86] as const;
 export const thresholdFlag = (pct: number): string => `threshold_${String(pct)}_crossed`;
 
 export const addTrace = (state: GameState, amount: number): GameState => {

@@ -124,9 +124,9 @@ describe('createInitialState', () => {
     expect(state.network.nodes['vpn_gateway']!.discovered).toBe(false);
   });
 
-  it('should start with 3 charges', () => {
+  it('should start with 4 charges', () => {
     const state = createInitialState();
-    expect(state.player.charges).toBe(3);
+    expect(state.player.charges).toBe(4);
   });
 
   it('should have no obtained credentials initially', () => {

@@ -270,6 +270,13 @@ export type GamePhase = 'boot' | 'playing' | 'aria' | 'burned' | 'ended';
 
 import type { Employee } from './employee';
 
+// ── Unlock session ─────────────────────────────────────────
+export interface UnlockSession {
+  filePath: string;
+  codes: [string, string, string]; // pre-generated for all 3 steps
+  step: 0 | 1 | 2; // current confirmation step index
+}
+
 export interface GameState {
   phase: GamePhase;
   activeChannel: 'sentinel' | 'aria' | null; // currently open DM channel
@@ -293,6 +300,8 @@ export interface GameState {
   employees: Employee[]; // Phase 4: procedurally generated employee pool
   worldCredentials: Credential[]; // Phase 4: un-obtained credentials that exist in the world
   sentinel: SentinelState;
+  unlockSession: UnlockSession | null; // active bypass mini-game, null when idle
+  unlockAttempts: Record<string, number>; // file.path → cumulative individual failure count
 }
 
 // ── Command result ─────────────────────────────────────────

@@ -35,6 +35,18 @@ const GENERIC_TOOL_DATA: Partial<Record<ToolId, { name: string; description: str
   },
 };
 
+// ── Unlock mini-game helpers ───────────────────────────────
+const UNLOCK_CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no ambiguous chars (0/O, 1/I)
+
+export const generateUnlockCode = (): string => {
+  const seg = (): string =>
+    Array.from(
+      { length: 4 },
+      () => UNLOCK_CODE_CHARS[Math.floor(Math.random() * UNLOCK_CODE_CHARS.length)],
+    ).join('');
+  return `${seg()}-${seg()}`;
+};
+
 const ARIA_AI_FALLBACK: AriaAIResponse = {
   reply: '...signal lost. try again.',
   trustDelta: 0,
@@ -104,6 +116,89 @@ export const resolveCommand = async (raw: string, state: GameState): Promise<Com
       return withTurn(cmdAcceptFavor(state), raw, state);
     }
     return withTurn(cmdDeclineFavor(state), raw, state);
+  }
+
+  // ── Unlock session gate ───────────────────────────────────
+  // When an unlock mini-game is active, raw input is treated as a code
+  // attempt — not a command. Any non-matching input is a failure.
+  if (state.unlockSession) {
+    const { filePath, codes, step } = state.unlockSession;
+    const expected = codes[step];
+    const node = currentNode(state);
+
+    if (raw.trim() === expected) {
+      if (step === 2) {
+        // All 3 codes confirmed — unlock the file
+        const preTrace = produce(state, s => {
+          s.unlockSession = null;
+          const n = s.network.nodes[node.id];
+          const f = n?.files.find(x => x.path === filePath);
+          if (f) f.locked = false;
+          s.player.charges = Math.max(0, s.player.charges - 1);
+        });
+        // Use addTrace so threshold-crossed flags are stamped correctly
+        const next = addTrace(preTrace, 5);
+        return withTurn(
+          {
+            lines: [
+              sep(),
+              sys('  Bypass confirmed. File access restored.'),
+              sys('  +5 trace  |  -1 charge'),
+              sep(),
+            ],
+            nextState: next,
+          },
+          raw,
+          state,
+        );
+      } else {
+        // Correct code — advance to next step
+        const nextStep = (step + 1) as 1 | 2;
+        const next = produce(state, s => {
+          const session = s.unlockSession;
+          if (session) session.step = nextStep;
+        });
+        return withTurn(
+          {
+            lines: [sys(`  Unlock [${String(nextStep + 1)}/3] — enter code: ${codes[nextStep]}`)],
+            nextState: next,
+          },
+          raw,
+          state,
+        );
+      }
+    } else {
+      // Wrong code or abandonment — increment counter, clear session
+      const attempts = (state.unlockAttempts[filePath] ?? 0) + 1;
+      const hardened = attempts >= 3;
+      const failNextState = produce(state, s => {
+        s.unlockSession = null;
+        s.unlockAttempts[filePath] = attempts;
+      });
+      const CODE_PATTERN = /^[A-Z0-9]{4}-[A-Z0-9]{4}$/i;
+      const looksLikeCode = CODE_PATTERN.test(raw.trim());
+      const isAbandonment = !looksLikeCode;
+      const failMsg = isAbandonment
+        ? `  Unlock sequence interrupted — attempt ${String(attempts)}/3 recorded.`
+        : `  Wrong code — attempt ${String(attempts)}/3 recorded.`;
+      const failLines: Out = [err(failMsg)];
+      if (hardened) {
+        failLines.push(err('  Bypass limit reached — file hardened. No further attempts.'));
+      } else {
+        failLines.push(sys(`  ${String(3 - attempts)} attempt(s) remaining.`));
+      }
+      if (isAbandonment) {
+        // withTurn is not applied to the abandonment failure itself — session-clear
+        // carries no trace/charge changes, so no threshold effects can fire.
+        // The recursive resolveCommand call below applies withTurn for the actual command.
+        const commandResult = await resolveCommand(raw, failNextState);
+        return {
+          lines: [...failLines, ...commandResult.lines],
+          nextState: commandResult.nextState,
+        };
+      }
+      return withTurn({ lines: failLines, nextState: failNextState }, raw, state);
+    }
   }
 
   const [cmd, ...args] = raw.trim().split(/\s+/);
@@ -188,6 +283,13 @@ export const resolveCommand = async (raw: string, state: GameState): Promise<Com
     case 'spoof':
       result = cmdSpoof(state);
       break;
+    case 'unlock': {
+      const unlockResult = cmdUnlock(args, state);
+      // Only skip withTurn for hardened — no turn cost for a permanently blocked file.
+      // Other errors (no args, not found, not locked) still count as a turn.
+      if (unlockResult.hardened) return { lines: unlockResult.lines };
+      return withTurn(unlockResult, raw, state);
+    }
   }
   if (result) return withTurn(result, raw, state);
 
@@ -209,6 +311,11 @@ const THRESHOLD_ALERT_META: Record<
 > = {
   31: {
     msg: '// ALERT: Anomalous activity flagged. Watchlist active.',
+    type: 'system',
+    // Warning only — file locking moved to 55% threshold
+  },
+  55: {
+    msg: '// ALERT: Watchlist escalated. Critical files hardened.',
     type: 'system',
     onCross: s =>
       produce(s, draft => {
@@ -1084,7 +1191,12 @@ const cmdCat = async (args: string[], state: GameState): Promise<CommandOutput> 
     return { lines: [err(`Permission denied: ${file.name}`)] };
   }
   if (file.locked) {
-    return { lines: [err(`// ACCESS DENIED: ${file.name} — secured by watchlist protocol`)] };
+    return {
+      lines: [
+        err(`// ACCESS DENIED: ${file.name} — secured by watchlist protocol`),
+        sys(`// (run unlock ${file.name} to attempt bypass)`),
+      ],
+    };
   }
 
   let next = state;
@@ -1392,7 +1504,12 @@ const cmdExfil = (args: string[], state: GameState): CommandOutput => {
   if (already) return { lines: [sys(`Already exfiltrated: ${file.name}`)] };
 
   if (file.locked) {
-    return { lines: [err(`// ACCESS DENIED: ${file.name} — secured by watchlist protocol`)] };
+    return {
+      lines: [
+        err(`// ACCESS DENIED: ${file.name} — secured by watchlist protocol`),
+        sys(`// (run unlock ${file.name} to attempt bypass)`),
+      ],
+    };
   }
 
   const isAriaKey = file.path === '/root/.aria/aria_key.bin';
@@ -1694,6 +1811,52 @@ const cmdSpoof = (state: GameState): CommandOutput => {
       out('Spoofing identity signature...'),
       sys(`  -${String(applied)} trace. Now: ${String(next.player.trace)}%`),
       sys('  spoof-id [DEPLETED]'),
+    ],
+    nextState: next,
+  };
+};
+
+// ── unlock ────────────────────────────────────────────────
+type UnlockResult = CommandOutput & { hardened?: true };
+
+const cmdUnlock = (args: string[], state: GameState): UnlockResult => {
+  if (!args[0]) return { lines: [err('Usage: unlock [filename]')] };
+
+  const node = currentNode(state);
+  const file = node.files.find(
+    f => !f.deleted && (f.name === args[0] || f.path === args[0] || f.path.endsWith(`/${args[0]}`)),
+  );
+  if (!file) return { lines: [err(`File not found: ${args[0]}`)] };
+  if (!file.locked) return { lines: [err(`${file.name}: not locked`)] };
+
+  // Check if bypass limit reached (3 cumulative failures)
+  const attempts = state.unlockAttempts[file.path] ?? 0;
+  if (attempts >= 3) {
+    return { lines: [err(`unlock: bypass limit reached — file hardened`)], hardened: true };
+  }
+
+  // Require at least 1 charge to attempt a bypass
+  if (state.player.charges < 1) {
+    return { lines: [err('unlock: insufficient charges — bypass requires 1 charge')] };
+  }
+
+  const codes: [string, string, string] = [
+    generateUnlockCode(),
+    generateUnlockCode(),
+    generateUnlockCode(),
+  ];
+
+  const next = produce(state, s => {
+    s.unlockSession = { filePath: file.path, codes, step: 0 };
+  });
+
+  return {
+    lines: [
+      sep(),
+      sys(`  Bypass initiated: ${file.name}`),
+      sys(`  Attempt [${String(attempts + 1)}/3 allowed]`),
+      sep(),
+      sys(`  Unlock [1/3] — enter code: ${codes[0]}`),
     ],
     nextState: next,
   };
