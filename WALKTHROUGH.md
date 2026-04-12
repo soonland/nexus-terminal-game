@@ -1,6 +1,6 @@
 # NEXUS — Full Walkthrough
 
-**Starting charges:** 3
+**Starting charges:** 4
 **Trace limit:** 100% (burned on reach)
 **Avoid:** failed logins (+5 trace each), tripwire files (+10 trace each)
 
@@ -36,7 +36,7 @@ No valid login creds yet — exploit the vulnerable HTTP service.
 
 ```
 connect 10.1.0.1
-exploit http             # costs 1 charge (2 remaining) → user access
+exploit http             # costs 1 charge (3 remaining) → user access
 cat camera_config.ini    # plaintext: ops.admin / IronG8te#Ops
 ```
 
@@ -74,7 +74,7 @@ No valid login — exploit the proprietary service for admin access.
 
 ```
 connect 10.2.0.2
-exploit proprietary        # costs 2 charges (0 remaining) → admin access
+exploit proprietary        # costs 2 charges (1 remaining) → admin access
 cat fw_backup_2024.cfg     # reveals sec.root / Fw@llBreaker! and Aria ACL rule — lore
 ```
 
@@ -123,7 +123,7 @@ cat aria_nda_template.docx  # 47 employees silenced — lore
 ```
 
 > `ARIA_BOARD_DISCLOSURE` requires admin access — you won't see it in `ls` with e.torres.
-> It is intentionally unreachable on the critical path (0 charges left, ssh exploit costs 2).
+> It is intentionally unreachable on the critical path (1 charge left, ssh exploit costs 2).
 
 ### CEO TERMINAL `10.4.0.3`
 
@@ -160,10 +160,10 @@ Endings: **LEAK / SELL / DESTROY / FREE**
 
 | Node               | Exploit               | Cost | Remaining |
 | ------------------ | --------------------- | ---- | --------- |
-| Start              | —                     | —    | 3         |
-| CCTV CONTROLLER    | `exploit http`        | 1    | 2         |
-| PERIMETER FIREWALL | `exploit proprietary` | 2    | 0         |
-| CEO TERMINAL       | `exploit aria-socket` | 0    | 0         |
+| Start              | —                     | —    | **4**     |
+| CCTV CONTROLLER    | `exploit http`        | 1    | 3         |
+| PERIMETER FIREWALL | `exploit proprietary` | 2    | 1         |
+| CEO TERMINAL       | `exploit aria-socket` | 0    | 1         |
 
 ## Key Credentials
 
