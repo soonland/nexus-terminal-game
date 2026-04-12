@@ -3349,7 +3349,9 @@ describe('unlock command', () => {
     }
     expect(s.unlockAttempts[filePath]).toBe(3);
     const result = await resolveCommand(`unlock ${fileName}`, s);
-    expect(result.lines.some(l => l.content.includes('hardened'))).toBe(true);
+    expect(
+      result.lines.some(l => l.content.includes('unlock: bypass limit reached — file hardened')),
+    ).toBe(true);
     expect(result.nextState).toBeUndefined();
   });
 
@@ -3366,7 +3368,7 @@ describe('unlock command', () => {
     expect(file.locked).toBe(true);
   });
 
-  it('abandonment: any unrecognised input during session counts as failure', async () => {
+  it('abandonment: typing a known game command during session emits interrupted message and executes the command', async () => {
     const { state, fileName, filePath } = stateWithLockedFile();
     const r1 = await resolveCommand(`unlock ${fileName}`, state);
     const s1 = r1.nextState as GameState;
@@ -3375,5 +3377,14 @@ describe('unlock command', () => {
     const next = result.nextState as GameState;
     expect(next.unlockSession).toBeNull();
     expect(next.unlockAttempts[filePath]).toBe(1);
+    // Should emit the interrupted message (not "Wrong code")
+    expect(
+      result.lines.some(l =>
+        l.content.includes('Unlock sequence interrupted — attempt 1/3 recorded.'),
+      ),
+    ).toBe(true);
+    expect(result.lines.some(l => l.content.includes('Wrong code'))).toBe(false);
+    // The abandoned scan command should also have executed
+    expect(result.lines.some(l => l.content.toLowerCase().includes('scan'))).toBe(true);
   });
 });

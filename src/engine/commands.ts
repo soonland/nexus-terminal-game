@@ -170,17 +170,47 @@ export const resolveCommand = async (raw: string, state: GameState): Promise<Com
       // Wrong code or abandonment — increment counter, clear session
       const attempts = (state.unlockAttempts[filePath] ?? 0) + 1;
       const hardened = attempts >= 3;
-      const next = produce(state, s => {
+      const failNextState = produce(state, s => {
         s.unlockSession = null;
         s.unlockAttempts[filePath] = attempts;
       });
-      const lines: Out = [err(`  Wrong code — attempt ${String(attempts)}/3 recorded.`)];
+      const KNOWN_VERBS = new Set([
+        'scan',
+        'connect',
+        'login',
+        'ls',
+        'cat',
+        'disconnect',
+        'exploit',
+        'exfil',
+        'wipe-logs',
+        'unlock',
+        'help',
+        'status',
+        'inventory',
+        'map',
+        'clear',
+      ]);
+      const firstWord = raw.trim().split(/\s+/)[0].toLowerCase();
+      const isAbandonment = KNOWN_VERBS.has(firstWord);
+      const failMsg = isAbandonment
+        ? `  Unlock sequence interrupted — attempt ${String(attempts)}/3 recorded.`
+        : `  Wrong code — attempt ${String(attempts)}/3 recorded.`;
+      const failLines: Out = [err(failMsg)];
       if (hardened) {
-        lines.push(err('  Bypass limit reached — file hardened. No further attempts.'));
+        failLines.push(err('  Bypass limit reached — file hardened. No further attempts.'));
       } else {
-        lines.push(sys(`  ${String(3 - attempts)} attempt(s) remaining.`));
+        failLines.push(sys(`  ${String(3 - attempts)} attempt(s) remaining.`));
       }
-      return withTurn({ lines, nextState: next }, raw, state);
+      if (isAbandonment) {
+        // Execute the interrupted command now that the session is cleared
+        const commandResult = await resolveCommand(raw, failNextState);
+        return {
+          lines: [...failLines, ...commandResult.lines],
+          nextState: commandResult.nextState,
+        };
+      }
+      return withTurn({ lines: failLines, nextState: failNextState }, raw, state);
     }
   }
 
@@ -1813,7 +1843,7 @@ const cmdUnlock = (args: string[], state: GameState): CommandOutput => {
   // Check if bypass limit reached (3 cumulative failures)
   const attempts = state.unlockAttempts[file.path] ?? 0;
   if (attempts >= 3) {
-    return { lines: [err(`unlock: bypass limit reached — ${file.name} is hardened`)] };
+    return { lines: [err(`unlock: bypass limit reached — file hardened`)] };
   }
 
   const codes: [string, string, string] = [
