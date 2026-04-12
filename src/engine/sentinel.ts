@@ -191,8 +191,19 @@ const tryDeleteFile = (state: GameState): { state: GameState; lines: SentinelLin
     );
   });
 
-  // §9.5: roll back silently if mutation would make the game unwinnable.
-  if (!isGameCompletable(next)) return null;
+  // §9.5: if deletion would make the game unwinnable, drop the queued entry so it
+  // isn't retried on every subsequent turn. The source file survives; the liveness
+  // of the sentinel's priority queue is preserved.
+  if (!isGameCompletable(next)) {
+    return {
+      state: produce(state, s => {
+        s.sentinel.pendingFileDeletes = s.sentinel.pendingFileDeletes.filter(
+          p => p.filePath !== pending.filePath || p.nodeId !== pending.nodeId,
+        );
+      }),
+      lines: [],
+    };
+  }
 
   const fileName = pending.filePath.split('/').pop() ?? pending.filePath;
   return {

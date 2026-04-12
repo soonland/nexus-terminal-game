@@ -226,29 +226,12 @@ describe('check3ChargesSufficient', () => {
     expect(check3ChargesSufficient(state)).toBe(false);
   });
 
-  it('returns true when player has 0 charges but an exploit-kit tool file exists within 3 hops', () => {
+  it('returns true when player has exactly enough charges to exploit the key anchor', () => {
+    // vpn_gateway (layer-0 key anchor) has snmp: vulnerable, exploitCost 1.
+    // Player with exactly 1 charge and no credential on vpn_gateway should pass.
     const state = makeState(draft => {
-      draft.player.charges = 0;
-      // Strip all isTool files first
-      for (const node of Object.values(draft.network.nodes)) {
-        if (node) {
-          node.files = node.files.filter(f => !f.isTool);
-        }
-      }
-      // Plant an exploit-kit tool file directly on contractor_portal (0 hops)
-      const portal = draft.network.nodes['contractor_portal'];
-      if (portal) {
-        portal.files.push({
-          name: 'exploit-kit.bin',
-          path: '/tools/exploit-kit.bin',
-          type: 'binary',
-          content: null,
-          exfiltrable: true,
-          accessRequired: 'user',
-          isTool: true,
-          toolId: 'exploit-kit',
-        });
-      }
+      draft.player.charges = 1;
+      for (const c of draft.player.credentials) c.obtained = false;
     });
     expect(check3ChargesSufficient(state)).toBe(true);
   });
@@ -316,18 +299,14 @@ describe('check3ChargesSufficient', () => {
     expect(check3ChargesSufficient(state)).toBe(true);
   });
 
-  it('sentinelPatched node adds +1 to exploit cost', () => {
-    // sentinelPatched adds +1, so vpn_gateway costs 2 instead of 1.
-    // contractor_portal costs 1. Total = 3. With exactly 2 charges — should fail.
+  it('sentinelPatched key anchor adds +1 to its exploit cost', () => {
+    // vpn_gateway (layer-0 key anchor) normally costs 1 (snmp). sentinelPatched → costs 2.
+    // Player with exactly 1 charge — insufficient, should fail.
     const state = makeState(draft => {
-      draft.player.charges = 2;
+      draft.player.charges = 1;
+      for (const c of draft.player.credentials) c.obtained = false;
       const gw = draft.network.nodes['vpn_gateway'];
       if (gw) gw.sentinelPatched = true;
-      for (const node of Object.values(draft.network.nodes)) {
-        if (node) {
-          node.files = node.files.filter(f => !f.isTool);
-        }
-      }
     });
     expect(check3ChargesSufficient(state)).toBe(false);
   });
@@ -378,22 +357,15 @@ describe('isGameCompletable', () => {
     expect(isGameCompletable(state)).toBe(false);
   });
 
-  it('returns false if check3 fails (0 charges, no exploit-kit, path has uncompromised nodes)', () => {
-    // Give the player one obtained credential on vpn_gateway (check2 passes)
-    // but 0 charges and no exploit-kit (check3 fails for contractor_portal itself).
+  it('returns false if check3 fails (0 charges, no credential on key anchor)', () => {
+    // Give the player a credential on contractor_portal (check2 passes — reachable node),
+    // but 0 charges and no credential on vpn_gateway (layer-0 key anchor).
+    // check3 fails: cannot compromise the key anchor.
     let state = makeState(draft => {
       draft.player.charges = 0;
-      for (const c of draft.player.credentials) {
-        c.obtained = false;
-      }
-      for (const node of Object.values(draft.network.nodes)) {
-        if (node) {
-          node.files = node.files.filter(f => !f.isTool);
-        }
-      }
+      for (const c of draft.player.credentials) c.obtained = false;
     });
-    state = grantCredential(state, 'cred_vpn', ['vpn_gateway']);
-    // check2 passes (valid cred on reachable node), check3 fails (contractor_portal still needs 1 charge)
+    state = grantCredential(state, 'cred_portal', ['contractor_portal']);
     expect(isGameCompletable(state)).toBe(false);
   });
 

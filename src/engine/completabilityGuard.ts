@@ -25,47 +25,17 @@ const bfsDistances = (
   return dist;
 };
 
-// Returns the shortest path as an ordered array [start, …, end], or null if unreachable.
-const shortestPath = (
-  startId: string,
-  endId: string,
-  nodes: GameState['network']['nodes'],
-): string[] | null => {
-  if (startId === endId) return [startId];
-  const parent = new Map<string, string>();
-  const visited = new Set<string>([startId]);
-  const queue: string[] = [startId];
-  let head = 0;
-  while (head < queue.length) {
-    const current = queue[head++];
-    for (const neighbor of nodes[current]?.connections ?? []) {
-      if (!visited.has(neighbor)) {
-        visited.add(neighbor);
-        parent.set(neighbor, current);
-        if (neighbor === endId) {
-          const path: string[] = [];
-          let n: string | undefined = endId;
-          while (n !== undefined) {
-            path.unshift(n);
-            n = parent.get(n);
-          }
-          return path;
-        }
-        queue.push(neighbor);
-      }
-    }
-  }
-  return null;
-};
-
-// Minimum exploit charge cost to compromise a node via its cheapest vulnerable service.
-// Returns Infinity if the node has no vulnerable services.
+// Minimum exploit charge cost to compromise a node via its cheapest exploitable service.
+// Mirrors cmdExploit: a service is exploitable only when vulnerable AND not patched.
+// Returns Infinity if the node has no exploitable services.
 const minExploitCostForNode = (nodeId: string, nodes: GameState['network']['nodes']): number => {
   const node = nodes[nodeId];
   if (!node) return Infinity;
-  const vulnerableCosts = node.services.filter(s => s.vulnerable).map(s => s.exploitCost);
-  if (vulnerableCosts.length === 0) return Infinity;
-  const base = Math.min(...vulnerableCosts);
+  const exploitableCosts = node.services
+    .filter(s => s.vulnerable && !s.patched)
+    .map(s => s.exploitCost);
+  if (exploitableCosts.length === 0) return Infinity;
+  const base = Math.min(...exploitableCosts);
   return base + (node.sentinelPatched ? 1 : 0);
 };
 
@@ -90,7 +60,9 @@ export const check1PathExists = (state: GameState): boolean => {
 
 /**
  * Check 2 (§9.5): At least one valid, unexpired credential OR at least one
- * available exploit charge can be applied to a node on the path to the key anchor.
+ * available exploit charge exists that can be used on a BFS-reachable node.
+ * (Credentials are accepted on any reachable node — check3 handles path-specific
+ * charge sufficiency.)
  */
 export const check2CredentialOrCharge = (state: GameState): boolean => {
   // Any remaining exploit charge satisfies this check — the player can exploit something.
@@ -113,8 +85,12 @@ export const check2CredentialOrCharge = (state: GameState): boolean => {
 
 /**
  * Check 3 (§9.5): The player's remaining exploit charges are sufficient to
- * traverse the shortest path to the key anchor, OR an exploit-kit tool file
- * is findable within 3 hops of the current node.
+ * compromise the layer key anchor if it is not yet compromised and no valid
+ * credential covers it.
+ *
+ * `connect` only requires a discovered node and a direct edge — it does NOT
+ * require intermediate hops to be compromised. Only the key anchor itself
+ * must be compromiseable, so chargesNeeded is based solely on that node.
  */
 export const check3ChargesSufficient = (state: GameState): boolean => {
   const currentNodeId = state.network.currentNodeId;
@@ -124,36 +100,20 @@ export const check3ChargesSufficient = (state: GameState): boolean => {
   const keyAnchorId = LAYER_KEY_ANCHOR[currentNode.layer];
   if (!keyAnchorId) return true;
 
-  // An exploit-kit tool file within 3 hops of the current node means the player
-  // can recover charge capability before they need it.
-  const dist = bfsDistances(currentNodeId, state.network.nodes);
-  const exploitKitNearby = [...dist.entries()].some(([nodeId, d]) => {
-    if (d > 3) return false;
-    return (
-      state.network.nodes[nodeId]?.files.some(
-        f => f.isTool && f.toolId === 'exploit-kit' && !f.deleted,
-      ) ?? false
-    );
-  });
-  if (exploitKitNearby) return true;
+  const keyAnchor = state.network.nodes[keyAnchorId];
+  if (!keyAnchor) return false;
 
-  // Sum the minimum exploit charges required for each node on the shortest path
-  // that the player cannot already access via credential or existing compromise.
-  const path = shortestPath(currentNodeId, keyAnchorId, state.network.nodes);
-  if (!path) return false; // defensive: no path (Check 1 would have caught this)
+  // Key anchor already controlled — no charges needed.
+  if (keyAnchor.compromised) return true;
 
-  let chargesNeeded = 0;
-  for (const nodeId of path) {
-    const node = state.network.nodes[nodeId];
-    if (!node) continue;
-    if (node.compromised) continue; // already controlled — free to traverse
-    const hasCred = state.player.credentials.some(
-      c => c.obtained && !c.revoked && c.validOnNodes.includes(nodeId),
-    );
-    if (hasCred) continue;
-    chargesNeeded += minExploitCostForNode(nodeId, state.network.nodes);
-  }
+  // Player has a valid credential for the key anchor — no exploit needed.
+  const hasCred = state.player.credentials.some(
+    c => c.obtained && !c.revoked && c.validOnNodes.includes(keyAnchorId),
+  );
+  if (hasCred) return true;
 
+  // Player must be able to exploit the key anchor directly.
+  const chargesNeeded = minExploitCostForNode(keyAnchorId, state.network.nodes);
   return state.player.charges >= chargesNeeded;
 };
 
