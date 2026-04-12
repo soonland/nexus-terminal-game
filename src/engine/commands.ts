@@ -134,6 +134,9 @@ export const resolveCommand = async (raw: string, state: GameState): Promise<Com
           const n = s.network.nodes[node.id];
           const f = n?.files.find(x => x.path === filePath);
           if (f) f.locked = false;
+          // Reset failure count so a re-locked file starts fresh
+          // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+          delete s.unlockAttempts[filePath];
           s.player.charges = Math.max(0, s.player.charges - 1);
         });
         // Use addTrace so threshold-crossed flags are stamped correctly

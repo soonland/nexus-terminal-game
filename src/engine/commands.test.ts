@@ -3402,4 +3402,57 @@ describe('unlock command', () => {
     expect(result.lines.some(l => l.content.includes('interrupted'))).toBe(true);
     expect(result.lines.some(l => l.content.includes('Wrong code'))).toBe(false);
   });
+
+  it('arbitrary text during session is treated as abandonment and command re-executes', async () => {
+    const { state, fileName, filePath } = stateWithLockedFile();
+    const r1 = await resolveCommand(`unlock ${fileName}`, state);
+    const s1 = r1.nextState as GameState;
+    // Free-form text is not code-shaped — should abandon and re-dispatch as a normal command
+    const result = await resolveCommand('scan', s1);
+    const next = result.nextState as GameState;
+    expect(next.unlockSession).toBeNull();
+    expect(next.unlockAttempts[filePath]).toBe(1);
+    expect(result.lines.some(l => l.content.includes('interrupted'))).toBe(true);
+    expect(result.lines.some(l => l.content.includes('Wrong code'))).toBe(false);
+    // The re-dispatched scan command should have executed
+    expect(result.lines.some(l => l.content.includes('Scanning subnet'))).toBe(true);
+  });
+
+  it('error paths (no args, not found, not locked) advance turnCount', async () => {
+    const state = createInitialState();
+    const node = state.network.nodes['contractor_portal']!;
+    const unlockedFile = node.files.find(f => !f.locked && !f.tripwire)!;
+
+    const r1 = await resolveCommand('unlock', state);
+    expect((r1.nextState as GameState).turnCount).toBe(1);
+
+    const r2 = await resolveCommand('unlock nonexistent_file', state);
+    expect((r2.nextState as GameState).turnCount).toBe(1);
+
+    const r3 = await resolveCommand(`unlock ${unlockedFile.name}`, state);
+    expect((r3.nextState as GameState).turnCount).toBe(1);
+  });
+
+  it('unlockAttempts cleared on successful bypass', async () => {
+    const { state, fileName, filePath } = stateWithLockedFile();
+    // Record one failed attempt first
+    const r1 = await resolveCommand(`unlock ${fileName}`, state);
+    const s1 = r1.nextState as GameState;
+    // 'AAAA-BBBB' matches CODE_PATTERN → wrong-code path (not abandonment), increments counter
+    const fail = await resolveCommand('AAAA-BBBB', s1);
+    const sFail = fail.nextState as GameState;
+    expect(sFail.unlockAttempts[filePath]).toBe(1);
+
+    // Now succeed
+    const r2 = await resolveCommand(`unlock ${fileName}`, sFail);
+    const s2 = r2.nextState as GameState;
+    const r3 = await resolveCommand(s2.unlockSession!.codes[0], s2);
+    const s3 = r3.nextState as GameState;
+    const r4 = await resolveCommand(s3.unlockSession!.codes[1], s3);
+    const s4 = r4.nextState as GameState;
+    const r5 = await resolveCommand(s4.unlockSession!.codes[2], s4);
+    const s5 = r5.nextState as GameState;
+
+    expect(s5.unlockAttempts[filePath]).toBeUndefined();
+  });
 });

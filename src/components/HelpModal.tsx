@@ -63,6 +63,10 @@ const BODY: HelpLine[] = [
     color: 'var(--color-system)',
   },
   {
+    text: r('  unlock [filename]   -bypass a locked file (on success: +5 trace, -1 charge)'),
+    color: 'var(--color-system)',
+  },
+  {
     text: r('  spoof               -trace -20 (requires spoof-id)'),
     color: 'var(--color-system)',
   },
