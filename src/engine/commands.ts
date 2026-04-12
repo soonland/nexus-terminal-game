@@ -28,6 +28,24 @@ interface AriaAIResponse {
   offersFavor?: FavorOffer; // FavorOffer = { description: string; cost: number }
 }
 
+const KNOWN_VERBS = new Set([
+  'scan',
+  'connect',
+  'login',
+  'ls',
+  'cat',
+  'disconnect',
+  'exploit',
+  'exfil',
+  'wipe-logs',
+  'unlock',
+  'help',
+  'status',
+  'inventory',
+  'map',
+  'clear',
+]);
+
 const GENERIC_TOOL_DATA: Partial<Record<ToolId, { name: string; description: string }>> = {
   'log-wiper': {
     name: 'Log Wiper',
@@ -174,23 +192,6 @@ export const resolveCommand = async (raw: string, state: GameState): Promise<Com
         s.unlockSession = null;
         s.unlockAttempts[filePath] = attempts;
       });
-      const KNOWN_VERBS = new Set([
-        'scan',
-        'connect',
-        'login',
-        'ls',
-        'cat',
-        'disconnect',
-        'exploit',
-        'exfil',
-        'wipe-logs',
-        'unlock',
-        'help',
-        'status',
-        'inventory',
-        'map',
-        'clear',
-      ]);
       const firstWord = raw.trim().split(/\s+/)[0].toLowerCase();
       const isAbandonment = KNOWN_VERBS.has(firstWord);
       const failMsg = isAbandonment

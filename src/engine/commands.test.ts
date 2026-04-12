@@ -3385,6 +3385,6 @@ describe('unlock command', () => {
     ).toBe(true);
     expect(result.lines.some(l => l.content.includes('Wrong code'))).toBe(false);
     // The abandoned scan command should also have executed
-    expect(result.lines.some(l => l.content.toLowerCase().includes('scan'))).toBe(true);
+    expect(result.lines.some(l => l.content.includes('Scanning subnet'))).toBe(true);
   });
 });
