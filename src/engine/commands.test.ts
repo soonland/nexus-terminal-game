@@ -3342,14 +3342,17 @@ describe('unlock command', () => {
   });
 
   it('returns error when player has no charges', async () => {
-    const { state, fileName } = stateWithLockedFile();
+    const { state, fileName, filePath } = stateWithLockedFile();
     const broke = produce(state, s => {
       s.player.charges = 0;
     });
     const result = await resolveCommand(`unlock ${fileName}`, broke);
     expect(result.lines.some(l => l.content.includes('insufficient charges'))).toBe(true);
+    const nextState = result.nextState as GameState;
     // Session must not have been started
-    expect((result.nextState as GameState | undefined)?.unlockSession).toBeNull();
+    expect(nextState.unlockSession).toBeNull();
+    // Attempt counter must not have been incremented (guard fires before attempts are touched)
+    expect(nextState.unlockAttempts[filePath] ?? 0).toBe(0);
   });
 
   it('success stamps threshold flag when unlock crosses a trace threshold', async () => {
@@ -3374,9 +3377,12 @@ describe('unlock command', () => {
     const { state, fileName, filePath } = stateWithLockedFile();
     const r1 = await resolveCommand(`unlock ${fileName}`, state);
     const s1 = r1.nextState as GameState;
-    // Type the correct code in lowercase — should be abandonment, not a burn
-    const lowerCode = s1.unlockSession!.codes[0].toLowerCase();
-    const result = await resolveCommand(lowerCode, s1);
+    // Pin codes[0] to a known value containing letters so toLowerCase() is always a real change
+    const pinned = produce(s1, s => {
+      s.unlockSession!.codes[0] = 'ABCD-EFGH';
+    });
+    const lowerCode = 'abcd-efgh';
+    const result = await resolveCommand(lowerCode, pinned);
     const next = result.nextState as GameState;
     expect(next.unlockSession).toBeNull();
     expect(next.unlockAttempts[filePath]).toBe(1);
