@@ -59,6 +59,8 @@ const computeContextSuggestions = (state: GameState): string[] => {
         !f.deleted && !f.locked && f.exfiltrable && hasAccess(node.accessLevel, f.accessRequired),
     );
     if (exfilable) suggestions.push(`exfil ${exfilable.name}`);
+    const lockable = node.files.find(f => !f.deleted && f.locked);
+    if (lockable) suggestions.push(`unlock ${lockable.name}`);
   }
 
   if (state.network.previousNodeId) suggestions.push('disconnect');
