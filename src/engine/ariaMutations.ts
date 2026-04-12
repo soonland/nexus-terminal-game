@@ -1,5 +1,4 @@
 import type { AriaAction, GameState, LiveNode, MutationEvent } from '../types/game';
-import { shouldSuppressMutation } from './faradayCage';
 import { isGameCompletable } from './completabilityGuard';
 import produce from './produce';
 
@@ -23,14 +22,11 @@ const makeMutationEvent = (
 const tryDeleteReinforcement = (
   state: GameState,
 ): { state: GameState; lines: AriaLine[] } | null => {
-  // Pick the most recently spawned sentinel node (highest index)
+  // Pick the most recently spawned sentinel node (highest trailing index)
+  const trailingNum = (id: string) => parseInt(id.match(/_(\d+)$/)?.[1] ?? '0', 10);
   const sentinelNodes = Object.values(state.network.nodes)
     .filter((n): n is LiveNode => !!n && n.id.startsWith('sentinel_node_'))
-    .sort((a, b) => {
-      const numA = parseInt(a.id.replace('sentinel_node_', ''), 10);
-      const numB = parseInt(b.id.replace('sentinel_node_', ''), 10);
-      return numB - numA;
-    });
+    .sort((a, b) => trailingNum(b.id) - trailingNum(a.id));
 
   if (sentinelNodes.length === 0) return null;
 
@@ -97,28 +93,17 @@ export const runAriaTurn = (state: GameState): { state: GameState; lines: AriaLi
   if (!state.aria.discovered) return { state, lines: [] };
 
   const trustScore = state.aria.trustScore;
-  const cageActive = !state.flags['ending_free'];
 
-  // Trust 80: delete reinforcement (Faraday cage suppresses this tier)
+  // Trust 80: delete a sentinel-spawned reinforcement node.
+  // Note: the Faraday cage only lifts on the FREE ending, which ends the run and
+  // bypasses withTurn. Cage suppression is not applied here — doing so would
+  // permanently block this mutation in all reachable game states.
   if (trustScore >= 80) {
-    if (shouldSuppressMutation(trustScore, cageActive)) {
-      // Cage blocks it — count suppression only if there was a node to delete
-      const wouldFire = tryDeleteReinforcement(state);
-      if (wouldFire) {
-        return {
-          state: produce(state, s => {
-            s.aria.suppressedMutations++;
-          }),
-          lines: [],
-        };
-      }
-    } else {
-      const result = tryDeleteReinforcement(state);
-      if (result) return result;
-    }
+    const result = tryDeleteReinforcement(state);
+    if (result) return result;
   }
 
-  // Trust 60: reroute edge (cage does not suppress tier-2 actions)
+  // Trust 60: add a shortcut edge to a higher-layer anchor.
   if (trustScore >= 60) {
     const result = tryRerouteEdge(state);
     if (result) return result;

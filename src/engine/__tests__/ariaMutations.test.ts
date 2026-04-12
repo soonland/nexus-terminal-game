@@ -311,7 +311,6 @@ describe('runAriaTurn — trust 80 delete_reinforcement', () => {
         },
       },
       aria: { discovered: true, trustScore: 85, messageHistory: [], suppressedMutations: 0 },
-      flags: { ending_free: true }, // cage inactive → deletion fires
     });
 
     const result = runAriaTurn(state);
@@ -341,7 +340,6 @@ describe('runAriaTurn — trust 80 delete_reinforcement', () => {
         },
       },
       aria: { discovered: true, trustScore: 85, messageHistory: [], suppressedMutations: 0 },
-      flags: { ending_free: true },
     });
 
     const result = runAriaTurn(state);
@@ -361,7 +359,6 @@ describe('runAriaTurn — trust 80 delete_reinforcement', () => {
         },
       },
       aria: { discovered: true, trustScore: 85, messageHistory: [], suppressedMutations: 0 },
-      flags: { ending_free: true },
     });
 
     const result = runAriaTurn(state);
@@ -378,7 +375,6 @@ describe('runAriaTurn — trust 80 delete_reinforcement', () => {
   it('skips deletion when no sentinel nodes exist', () => {
     const state = makeAriaState({
       aria: { discovered: true, trustScore: 85, messageHistory: [], suppressedMutations: 0 },
-      flags: { ending_free: true },
     });
 
     const result = runAriaTurn(state);
@@ -397,7 +393,6 @@ describe('runAriaTurn — trust 80 delete_reinforcement', () => {
         },
       },
       aria: { discovered: true, trustScore: 85, messageHistory: [], suppressedMutations: 0 },
-      flags: { ending_free: true },
     });
 
     const result = runAriaTurn(state);
@@ -405,10 +400,13 @@ describe('runAriaTurn — trust 80 delete_reinforcement', () => {
   });
 });
 
-// ── Faraday cage suppression (trust >= 80, cage active) ───
+// ── Faraday cage does NOT suppress Aria mutations ─────────
+// The cage lifts only on the FREE ending, which sets phase='ended' and bypasses
+// withTurn — so runAriaTurn never fires after the cage is lifted. Applying cage
+// suppression would permanently block trust-80 deletion in all reachable states.
 
-describe('runAriaTurn — Faraday cage suppression', () => {
-  it('suppresses delete_reinforcement and increments suppressedMutations when cage is active', () => {
+describe('runAriaTurn — cage suppression not applied', () => {
+  it('fires delete_reinforcement even when ending_free flag is absent (cage nominally active)', () => {
     const sNode = makeSentinelNode(1);
     const state = makeAriaState({
       network: {
@@ -420,74 +418,33 @@ describe('runAriaTurn — Faraday cage suppression', () => {
         },
       },
       aria: { discovered: true, trustScore: 85, messageHistory: [], suppressedMutations: 0 },
-      // No ending_free flag → cage is active
+      // No ending_free flag → cage would nominally be active, but we do not suppress
     });
 
     const result = runAriaTurn(state);
 
-    // Node must still exist (deletion was suppressed)
-    expect(result.state.network.nodes['sentinel_node_1']).toBeDefined();
-    // Suppression counter incremented
-    expect(result.state.aria.suppressedMutations).toBe(1);
-    // No delete event logged
-    const deleteEvents = result.state.sentinel.mutationLog.filter(
-      e => e.action === 'delete_reinforcement',
-    );
-    expect(deleteEvents).toHaveLength(0);
+    expect(result.state.network.nodes['sentinel_node_1']).toBeUndefined();
+    const events = result.state.sentinel.mutationLog;
+    expect(events).toHaveLength(1);
+    expect(events[0].action).toBe('delete_reinforcement');
   });
 
-  it('does not increment suppressedMutations when cage is active but no sentinel node exists', () => {
+  it('suppressedMutations is never modified by runAriaTurn', () => {
+    const sNode = makeSentinelNode(1);
     const state = makeAriaState({
+      network: {
+        currentNodeId: 'current',
+        previousNodeId: null,
+        nodes: {
+          current: makeNode({ id: 'current', ip: '10.5.0.1', layer: 5, connections: [] }),
+          sentinel_node_1: sNode,
+        },
+      },
       aria: { discovered: true, trustScore: 85, messageHistory: [], suppressedMutations: 0 },
-      // No ending_free → cage active
     });
 
     const result = runAriaTurn(state);
     expect(result.state.aria.suppressedMutations).toBe(0);
-  });
-
-  it('cage does not suppress trust-60 reroute (tier-2 action)', () => {
-    // Cage only blocks tier-3 (trust >= 80). Reroute at trust 65 should still fire.
-    const current = makeNode({
-      id: 'current',
-      ip: '10.0.0.1',
-      layer: 0,
-      connections: ['vpn_gateway'],
-    });
-    const vpnGateway = makeNode({
-      id: 'vpn_gateway',
-      ip: '10.1.0.1',
-      layer: 1,
-      anchor: true,
-      connections: [],
-      compromised: true, // §9.5 check3 passes
-    });
-    const anchorL2 = makeAnchorAt(2, 'anchor_l2');
-
-    const state = makeState({
-      network: {
-        currentNodeId: 'current',
-        previousNodeId: null,
-        nodes: { current, vpn_gateway: vpnGateway, anchor_l2: anchorL2 },
-      },
-      aria: { discovered: true, trustScore: 65, messageHistory: [], suppressedMutations: 0 },
-      player: {
-        handle: 'ghost',
-        trace: 0,
-        charges: 3,
-        credentials: [],
-        exfiltrated: [],
-        tools: [],
-        burnCount: 0,
-      },
-      // No ending_free → cage active, but trust < 80 so shouldSuppressMutation is false
-    });
-
-    const result = runAriaTurn(state);
-
-    const events = result.state.sentinel.mutationLog;
-    expect(events).toHaveLength(1);
-    expect(events[0].action).toBe('reroute_edge');
   });
 });
 
@@ -514,7 +471,6 @@ describe('runAriaTurn — §9.5 unwinnable rollback', () => {
         },
       },
       aria: { discovered: true, trustScore: 85, messageHistory: [], suppressedMutations: 0 },
-      flags: { ending_free: true },
     });
 
     const result = runAriaTurn(state);
@@ -595,8 +551,7 @@ describe('runAriaTurn — mutation priority', () => {
           anchor_l4: anchorL4,
         },
       },
-      aria: { discovered: true, trustScore: 85, messageHistory: [], suppressedMutations: 0 },
-      flags: { ending_free: true }, // cage inactive
+      aria: { discovered: true, trustScore: 85, messageHistory: [], suppressedMutations: 0 }, // cage inactive
     });
 
     const result = runAriaTurn(state);
