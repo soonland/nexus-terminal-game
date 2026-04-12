@@ -381,6 +381,45 @@ describe('runAriaTurn — trust 80 delete_reinforcement', () => {
     expect(result.state.sentinel.mutationLog).toHaveLength(0);
   });
 
+  it('skips the sentinel node the player is currently on and targets the next candidate', () => {
+    // sentinel_node_2 is the highest-index, but the player is standing on it.
+    // The mutation should fall back to sentinel_node_1 instead.
+    // Both nodes are at layer 5 so §9.5 check1 passes (no key anchor for layer 5).
+    const sNode1 = makeSentinelNode(1, { layer: 5 });
+    const sNode2 = makeSentinelNode(2, { layer: 5 });
+    const state = makeAriaState({
+      network: {
+        currentNodeId: 'sentinel_node_2',
+        previousNodeId: null,
+        nodes: { sentinel_node_1: sNode1, sentinel_node_2: sNode2 },
+      },
+      aria: { discovered: true, trustScore: 85, messageHistory: [], suppressedMutations: 0 },
+    });
+
+    const result = runAriaTurn(state);
+
+    // sentinel_node_2 protected (current node) — must be untouched
+    expect(result.state.network.nodes['sentinel_node_2']).toBeDefined();
+    // sentinel_node_1 is the next candidate and should be deleted
+    expect(result.state.network.nodes['sentinel_node_1']).toBeUndefined();
+    expect(result.state.sentinel.mutationLog[0]?.nodeId).toBe('sentinel_node_1');
+  });
+
+  it('skips deletion entirely when all sentinel nodes are on current or previous node', () => {
+    const sNode1 = makeSentinelNode(1, { layer: 5 });
+    const state = makeAriaState({
+      network: {
+        currentNodeId: 'sentinel_node_1',
+        previousNodeId: null,
+        nodes: { sentinel_node_1: sNode1 },
+      },
+      aria: { discovered: true, trustScore: 85, messageHistory: [], suppressedMutations: 0 },
+    });
+
+    const result = runAriaTurn(state);
+    expect(result.state.sentinel.mutationLog).toHaveLength(0);
+  });
+
   it('produces no visible terminal lines (silent mutation)', () => {
     const sNode = makeSentinelNode(1);
     const state = makeAriaState({
@@ -551,7 +590,7 @@ describe('runAriaTurn — mutation priority', () => {
           anchor_l4: anchorL4,
         },
       },
-      aria: { discovered: true, trustScore: 85, messageHistory: [], suppressedMutations: 0 }, // cage inactive
+      aria: { discovered: true, trustScore: 85, messageHistory: [], suppressedMutations: 0 },
     });
 
     const result = runAriaTurn(state);

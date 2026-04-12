@@ -22,10 +22,18 @@ const makeMutationEvent = (
 const tryDeleteReinforcement = (
   state: GameState,
 ): { state: GameState; lines: AriaLine[] } | null => {
-  // Pick the most recently spawned sentinel node (highest trailing index)
+  // Exclude the node the player is currently on or just left — deleting it would
+  // immediately fail isGameCompletable (current node unreachable) and always roll back.
+  const protectedIds = new Set(
+    [state.network.currentNodeId, state.network.previousNodeId].filter((id): id is string => !!id),
+  );
+
+  // Pick the most recently spawned sentinel node (highest trailing index) that is not protected
   const trailingNum = (id: string) => Number.parseInt(id.match(/_(\d+)$/)?.[1] ?? '0', 10);
   const sentinelNodes = Object.values(state.network.nodes)
-    .filter((n): n is LiveNode => !!n && n.id.startsWith('sentinel_node_'))
+    .filter(
+      (n): n is LiveNode => !!n && n.id.startsWith('sentinel_node_') && !protectedIds.has(n.id),
+    )
     .sort((a, b) => trailingNum(b.id) - trailingNum(a.id));
 
   if (sentinelNodes.length === 0) return null;
@@ -74,14 +82,16 @@ const tryRerouteEdge = (state: GameState): { state: GameState; lines: AriaLine[]
   const event = makeMutationEvent('reroute_edge', state.turnCount, { nodeId: target.id });
 
   const next = produce(state, s => {
-    const node = s.network.nodes[state.network.currentNodeId];
+    const node = s.network.nodes[s.network.currentNodeId];
     if (node) {
       node.connections.push(target.id);
     }
     s.sentinel.mutationLog.push(event);
   });
 
-  // §9.5: roll back silently if mutation would make the game unwinnable.
+  // §9.5: adding an edge can only maintain or improve BFS reachability — this
+  // rollback is structurally unreachable in practice, but kept for consistency
+  // with the sentinel pattern.
   if (!isGameCompletable(next)) return null;
 
   return { state: next, lines: [] };
