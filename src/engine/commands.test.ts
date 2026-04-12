@@ -3193,3 +3193,187 @@ describe('threshold effects', () => {
     expect(allLines).toContain('Watchlist active');
   });
 });
+
+describe('cmdCat — locked file hint', () => {
+  it('shows unlock hint when file is locked', async () => {
+    let state = createInitialState();
+    state = produce(state, s => {
+      const node = s.network.nodes['contractor_portal']!;
+      node.accessLevel = 'user';
+      const f = node.files.find(f => !f.tripwire && !f.locked);
+      if (f) f.locked = true;
+    });
+    const lockedFile = state.network.nodes['contractor_portal']!.files.find(f => f.locked)!;
+    const result = await resolveCommand(`cat ${lockedFile.name}`, state);
+    const text = result.lines.map(l => l.content).join('\n');
+    expect(text).toContain('secured by watchlist protocol');
+    expect(text).toContain(`unlock ${lockedFile.name}`);
+  });
+});
+
+describe('unlock command', () => {
+  // Helper: create a state with a locked file on the current node
+  const stateWithLockedFile = (): { state: GameState; filePath: string; fileName: string } => {
+    let state = createInitialState();
+    state = produce(state, s => {
+      const node = s.network.nodes['contractor_portal']!;
+      node.accessLevel = 'user';
+      const f = node.files.find(f => !f.tripwire && !f.locked);
+      if (f) f.locked = true;
+    });
+    const file = state.network.nodes['contractor_portal']!.files.find(f => f.locked)!;
+    return { state, filePath: file.path, fileName: file.name };
+  };
+
+  it('returns error when no filename given', async () => {
+    const state = createInitialState();
+    const result = await resolveCommand('unlock', state);
+    expect(result.lines[0].content).toContain('Usage:');
+  });
+
+  it('returns error when file is not locked', async () => {
+    const state = createInitialState();
+    produce(state, s => {
+      s.network.nodes['contractor_portal']!.accessLevel = 'user';
+    });
+    const unlockedFile = state.network.nodes['contractor_portal']!.files.find(
+      f => !f.locked && !f.tripwire,
+    )!;
+    const result = await resolveCommand(`unlock ${unlockedFile.name}`, state);
+    expect(result.lines.some(l => l.content.includes('not locked'))).toBe(true);
+  });
+
+  it('starts the mini-game: sets unlockSession on state', async () => {
+    const { state, fileName } = stateWithLockedFile();
+    const result = await resolveCommand(`unlock ${fileName}`, state);
+    const next = result.nextState as GameState;
+    expect(next.unlockSession).not.toBeNull();
+    expect(next.unlockSession?.step).toBe(0);
+    expect(next.unlockSession?.codes).toHaveLength(3);
+  });
+
+  it('shows step 1 code in output', async () => {
+    const { state, fileName } = stateWithLockedFile();
+    const result = await resolveCommand(`unlock ${fileName}`, state);
+    const next = result.nextState as GameState;
+    const code = next.unlockSession!.codes[0];
+    expect(result.lines.some(l => l.content.includes(code))).toBe(true);
+    expect(result.lines.some(l => l.content.includes('1/3'))).toBe(true);
+  });
+
+  it('advances to step 2 on correct code', async () => {
+    const { state, fileName } = stateWithLockedFile();
+    const r1 = await resolveCommand(`unlock ${fileName}`, state);
+    const s1 = r1.nextState as GameState;
+    const code0 = s1.unlockSession!.codes[0];
+    const r2 = await resolveCommand(code0, s1);
+    const s2 = r2.nextState as GameState;
+    expect(s2.unlockSession?.step).toBe(1);
+    expect(r2.lines.some(l => l.content.includes('2/3'))).toBe(true);
+  });
+
+  it('advances to step 3 on correct code', async () => {
+    const { state, fileName } = stateWithLockedFile();
+    const r1 = await resolveCommand(`unlock ${fileName}`, state);
+    const s1 = r1.nextState as GameState;
+    const r2 = await resolveCommand(s1.unlockSession!.codes[0], s1);
+    const s2 = r2.nextState as GameState;
+    const r3 = await resolveCommand(s2.unlockSession!.codes[1], s2);
+    const s3 = r3.nextState as GameState;
+    expect(s3.unlockSession?.step).toBe(2);
+    expect(r3.lines.some(l => l.content.includes('3/3'))).toBe(true);
+  });
+
+  it('unlocks file, costs +5 trace and -1 charge on full success', async () => {
+    const { state, fileName, filePath } = stateWithLockedFile();
+    const r1 = await resolveCommand(`unlock ${fileName}`, state);
+    const s1 = r1.nextState as GameState;
+    const r2 = await resolveCommand(s1.unlockSession!.codes[0], s1);
+    const s2 = r2.nextState as GameState;
+    const r3 = await resolveCommand(s2.unlockSession!.codes[1], s2);
+    const s3 = r3.nextState as GameState;
+    const r4 = await resolveCommand(s3.unlockSession!.codes[2], s3);
+    const s4 = r4.nextState as GameState;
+
+    expect(s4.unlockSession).toBeNull();
+    const unlockedFile = s4.network.nodes['contractor_portal']!.files.find(
+      f => f.path === filePath,
+    )!;
+    expect(unlockedFile.locked).toBe(false);
+    expect(s4.player.trace).toBe(state.player.trace + 5);
+    expect(s4.player.charges).toBe(state.player.charges - 1);
+    expect(r4.lines.some(l => l.content.includes('restored'))).toBe(true);
+  });
+
+  it('wrong code increments unlockAttempts and clears session', async () => {
+    const { state, fileName, filePath } = stateWithLockedFile();
+    const r1 = await resolveCommand(`unlock ${fileName}`, state);
+    const s1 = r1.nextState as GameState;
+    const result = await resolveCommand('WRONG-CODE', s1);
+    const next = result.nextState as GameState;
+    expect(next.unlockSession).toBeNull();
+    expect(next.unlockAttempts[filePath]).toBe(1);
+    expect(result.lines.some(l => l.content.includes('1/3'))).toBe(true);
+  });
+
+  it('wrong code on step 2 increments counter and clears session', async () => {
+    const { state, fileName, filePath } = stateWithLockedFile();
+    const r1 = await resolveCommand(`unlock ${fileName}`, state);
+    const s1 = r1.nextState as GameState;
+    const r2 = await resolveCommand(s1.unlockSession!.codes[0], s1);
+    const s2 = r2.nextState as GameState;
+    const result = await resolveCommand('WRONG-CODE', s2);
+    const next = result.nextState as GameState;
+    expect(next.unlockSession).toBeNull();
+    expect(next.unlockAttempts[filePath]).toBe(1);
+  });
+
+  it('file remains locked after wrong code', async () => {
+    const { state, fileName, filePath } = stateWithLockedFile();
+    const r1 = await resolveCommand(`unlock ${fileName}`, state);
+    const s1 = r1.nextState as GameState;
+    const result = await resolveCommand('WRONG-CODE', s1);
+    const next = result.nextState as GameState;
+    const file = next.network.nodes['contractor_portal']!.files.find(f => f.path === filePath)!;
+    expect(file.locked).toBe(true);
+  });
+
+  it('3 cumulative failures permanently re-lock: unlock returns hard error', async () => {
+    const { state, fileName, filePath } = stateWithLockedFile();
+    let s = state;
+    for (let i = 0; i < 3; i++) {
+      const r = await resolveCommand(`unlock ${fileName}`, s);
+      s = r.nextState as GameState;
+      const r2 = await resolveCommand('WRONG-CODE', s);
+      s = r2.nextState as GameState;
+    }
+    expect(s.unlockAttempts[filePath]).toBe(3);
+    const result = await resolveCommand(`unlock ${fileName}`, s);
+    expect(result.lines.some(l => l.content.includes('hardened'))).toBe(true);
+    expect(result.nextState).toBeUndefined();
+  });
+
+  it('file stays locked after 3 failures', async () => {
+    const { state, fileName, filePath } = stateWithLockedFile();
+    let s = state;
+    for (let i = 0; i < 3; i++) {
+      const r = await resolveCommand(`unlock ${fileName}`, s);
+      s = r.nextState as GameState;
+      const r2 = await resolveCommand('WRONG-CODE', s);
+      s = r2.nextState as GameState;
+    }
+    const file = s.network.nodes['contractor_portal']!.files.find(f => f.path === filePath)!;
+    expect(file.locked).toBe(true);
+  });
+
+  it('abandonment: any unrecognised input during session counts as failure', async () => {
+    const { state, fileName, filePath } = stateWithLockedFile();
+    const r1 = await resolveCommand(`unlock ${fileName}`, state);
+    const s1 = r1.nextState as GameState;
+    // Type a game command — treated as abandonment because session is active
+    const result = await resolveCommand('scan', s1);
+    const next = result.nextState as GameState;
+    expect(next.unlockSession).toBeNull();
+    expect(next.unlockAttempts[filePath]).toBe(1);
+  });
+});
