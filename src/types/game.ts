@@ -183,7 +183,12 @@ export interface ChannelTrigger {
 // ── Sentinel ───────────────────────────────────────────────
 export type SentinelAction = 'patch_node' | 'revoke_credential' | 'delete_file' | 'spawn_node';
 
-export type AriaAction = 'plant_file' | 'modify_file' | 'nudge_trust';
+export type AriaAction =
+  | 'plant_file'
+  | 'modify_file'
+  | 'nudge_trust'
+  | 'reroute_edge'
+  | 'delete_reinforcement';
 
 export interface MutationEvent {
   id: string;
