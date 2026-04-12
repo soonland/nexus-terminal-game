@@ -28,34 +28,6 @@ interface AriaAIResponse {
   offersFavor?: FavorOffer; // FavorOffer = { description: string; cost: number }
 }
 
-const KNOWN_VERBS = new Set([
-  'scan',
-  'connect',
-  'login',
-  'ls',
-  'cat',
-  'disconnect',
-  'exploit',
-  'exfil',
-  'wipe-logs',
-  'unlock',
-  'help',
-  'status',
-  'inventory',
-  'map',
-  'clear',
-  'msg',
-  'spoof',
-  'whoami',
-  'briefing',
-  'notes',
-  'inv',
-  'decrypt',
-  'exit',
-  'logoff',
-  'logout',
-]);
-
 const GENERIC_TOOL_DATA: Partial<Record<ToolId, { name: string; description: string }>> = {
   'log-wiper': {
     name: 'Log Wiper',
@@ -157,14 +129,15 @@ export const resolveCommand = async (raw: string, state: GameState): Promise<Com
     if (raw.trim() === expected) {
       if (step === 2) {
         // All 3 codes confirmed — unlock the file
-        const next = produce(state, s => {
+        const preTrace = produce(state, s => {
           s.unlockSession = null;
           const n = s.network.nodes[node.id];
           const f = n?.files.find(x => x.path === filePath);
           if (f) f.locked = false;
-          s.player.trace = Math.min(100, s.player.trace + 5);
           s.player.charges = Math.max(0, s.player.charges - 1);
         });
+        // Use addTrace so threshold-crossed flags are stamped correctly
+        const next = addTrace(preTrace, 5);
         return withTurn(
           {
             lines: [
@@ -202,8 +175,9 @@ export const resolveCommand = async (raw: string, state: GameState): Promise<Com
         s.unlockSession = null;
         s.unlockAttempts[filePath] = attempts;
       });
-      const firstWord = raw.trim().split(/\s+/)[0].toLowerCase();
-      const isAbandonment = KNOWN_VERBS.has(firstWord);
+      const CODE_PATTERN = /^[A-Z0-9]{4}-[A-Z0-9]{4}$/i;
+      const looksLikeCode = CODE_PATTERN.test(raw.trim());
+      const isAbandonment = !looksLikeCode;
       const failMsg = isAbandonment
         ? `  Unlock sequence interrupted — attempt ${String(attempts)}/3 recorded.`
         : `  Wrong code — attempt ${String(attempts)}/3 recorded.`;
@@ -311,9 +285,9 @@ export const resolveCommand = async (raw: string, state: GameState): Promise<Com
       break;
     case 'unlock': {
       const unlockResult = cmdUnlock(args, state);
-      // Hardened guard (bypass limit reached) returns no nextState — don't route through withTurn
-      // so the caller receives an unmodified error with no state mutation.
-      if (!unlockResult.nextState) return unlockResult;
+      // Only skip withTurn for hardened — no turn cost for a permanently blocked file.
+      // Other errors (no args, not found, not locked) still count as a turn.
+      if (unlockResult.hardened) return { lines: unlockResult.lines };
       return withTurn(unlockResult, raw, state);
     }
   }
@@ -1843,7 +1817,9 @@ const cmdSpoof = (state: GameState): CommandOutput => {
 };
 
 // ── unlock ────────────────────────────────────────────────
-const cmdUnlock = (args: string[], state: GameState): CommandOutput => {
+type UnlockResult = CommandOutput & { hardened?: true };
+
+const cmdUnlock = (args: string[], state: GameState): UnlockResult => {
   if (!args[0]) return { lines: [err('Usage: unlock [filename]')] };
 
   const node = currentNode(state);
@@ -1856,7 +1832,12 @@ const cmdUnlock = (args: string[], state: GameState): CommandOutput => {
   // Check if bypass limit reached (3 cumulative failures)
   const attempts = state.unlockAttempts[file.path] ?? 0;
   if (attempts >= 3) {
-    return { lines: [err(`unlock: bypass limit reached — file hardened`)] };
+    return { lines: [err(`unlock: bypass limit reached — file hardened`)], hardened: true };
+  }
+
+  // Require at least 1 charge to attempt a bypass
+  if (state.player.charges < 1) {
+    return { lines: [err('unlock: insufficient charges — bypass requires 1 charge')] };
   }
 
   const codes: [string, string, string] = [

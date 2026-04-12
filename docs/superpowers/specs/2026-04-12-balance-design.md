@@ -79,16 +79,15 @@ unlockAttempts: Record<string, number>; // keyed by file.path, counts cumulative
 
 #### Active channel integration
 
-The 3-step sequence uses `activeChannel` (already on `GameState`) to carry unlock context between turns:
+The 3-step sequence uses a dedicated `unlockSession` field on `GameState` to carry unlock context between turns:
 ```ts
-type UnlockChannel = {
-  type: 'unlock';
+type UnlockSession = {
   filePath: string;
   codes: [string, string, string]; // pre-generated for all 3 steps
   step: 0 | 1 | 2; // current step index
 };
 ```
-`App.tsx` checks `activeChannel.type === 'unlock'` before routing input to `resolveCommand`. When active, raw input is passed directly to a `resolveUnlockStep` handler instead of the command pipeline. Any other command typed while the channel is active (detected via the absence of `activeChannel` being cleared before submission) is treated as abandonment — the channel is cleared, counter increments, and the command is executed normally.
+The session gate lives entirely inside `resolveCommand`, at the top of the function before the command switch. When `state.unlockSession` is non-null, raw input is matched against the expected code for the current step — no routing through `App.tsx` or a separate handler is needed. Any input that does not look like a code (i.e. does not match the `XXXX-XXXX` format) is treated as abandonment — the session is cleared, the counter increments, and the input is re-dispatched through `resolveCommand` as a normal command.
 
 #### Code generation
 

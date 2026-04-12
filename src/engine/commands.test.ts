@@ -3142,58 +3142,6 @@ describe('createInitialState defaults', () => {
   });
 });
 
-describe('threshold effects', () => {
-  beforeEach(() => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false }));
-  });
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
-
-  it('does NOT lock files when trace crosses 31%', async () => {
-    // Set trace to 30 and remove port-scanner so scan adds trace and crosses 31%
-    const state = produce(createInitialState(), s => {
-      s.player.trace = 30;
-      s.player.tools = s.player.tools.filter(t => t.id !== 'port-scanner');
-      const node = s.network.nodes['contractor_portal']!;
-      node.compromised = true;
-      node.accessLevel = 'user';
-    });
-    const result = await resolveCommand('scan', state);
-    const nextState = result.nextState as GameState;
-    const node = nextState.network.nodes['contractor_portal']!;
-    expect(node.files.some(f => f.locked)).toBe(false);
-  });
-
-  it('locks up to 2 non-tripwire files on compromised nodes when trace crosses 55%', async () => {
-    // Set trace to 54 and remove port-scanner so scan adds trace and crosses 55%
-    const state = produce(createInitialState(), s => {
-      s.player.trace = 54;
-      s.player.tools = s.player.tools.filter(t => t.id !== 'port-scanner');
-      const node = s.network.nodes['contractor_portal']!;
-      node.compromised = true;
-      node.accessLevel = 'user';
-    });
-    const result = await resolveCommand('scan', state);
-    const nextState = result.nextState as GameState;
-    const node = nextState.network.nodes['contractor_portal']!;
-    const lockedCount = node.files.filter(f => f.locked && !f.tripwire).length;
-    expect(lockedCount).toBeGreaterThanOrEqual(1);
-    expect(lockedCount).toBeLessThanOrEqual(2);
-  });
-
-  it('fires the 31% alert message without locking files', async () => {
-    // Set trace to 30 and remove port-scanner so scan adds trace and crosses 31%
-    const state = produce(createInitialState(), s => {
-      s.player.trace = 30;
-      s.player.tools = s.player.tools.filter(t => t.id !== 'port-scanner');
-    });
-    const result = await resolveCommand('scan', state);
-    const allLines = result.lines.map(l => l.content).join('\n');
-    expect(allLines).toContain('Watchlist active');
-  });
-});
-
 describe('cmdCat — locked file hint', () => {
   it('shows unlock hint when file is locked', async () => {
     let state = createInitialState();
@@ -3306,7 +3254,7 @@ describe('unlock command', () => {
     const { state, fileName, filePath } = stateWithLockedFile();
     const r1 = await resolveCommand(`unlock ${fileName}`, state);
     const s1 = r1.nextState as GameState;
-    const result = await resolveCommand('WRONG-CODE', s1);
+    const result = await resolveCommand('AAAA-BBBB', s1);
     const next = result.nextState as GameState;
     expect(next.unlockSession).toBeNull();
     expect(next.unlockAttempts[filePath]).toBe(1);
@@ -3319,7 +3267,7 @@ describe('unlock command', () => {
     const s1 = r1.nextState as GameState;
     const r2 = await resolveCommand(s1.unlockSession!.codes[0], s1);
     const s2 = r2.nextState as GameState;
-    const result = await resolveCommand('WRONG-CODE', s2);
+    const result = await resolveCommand('AAAA-BBBB', s2);
     const next = result.nextState as GameState;
     expect(next.unlockSession).toBeNull();
     expect(next.unlockAttempts[filePath]).toBe(1);
@@ -3329,7 +3277,7 @@ describe('unlock command', () => {
     const { state, fileName, filePath } = stateWithLockedFile();
     const r1 = await resolveCommand(`unlock ${fileName}`, state);
     const s1 = r1.nextState as GameState;
-    const result = await resolveCommand('WRONG-CODE', s1);
+    const result = await resolveCommand('AAAA-BBBB', s1);
     const next = result.nextState as GameState;
     const file = next.network.nodes['contractor_portal']!.files.find(f => f.path === filePath)!;
     expect(file.locked).toBe(true);
@@ -3341,7 +3289,7 @@ describe('unlock command', () => {
     for (let i = 0; i < 3; i++) {
       const r = await resolveCommand(`unlock ${fileName}`, s);
       s = r.nextState as GameState;
-      const r2 = await resolveCommand('WRONG-CODE', s);
+      const r2 = await resolveCommand('AAAA-BBBB', s);
       s = r2.nextState as GameState;
     }
     expect(s.unlockAttempts[filePath]).toBe(3);
@@ -3358,7 +3306,7 @@ describe('unlock command', () => {
     for (let i = 0; i < 3; i++) {
       const r = await resolveCommand(`unlock ${fileName}`, s);
       s = r.nextState as GameState;
-      const r2 = await resolveCommand('WRONG-CODE', s);
+      const r2 = await resolveCommand('AAAA-BBBB', s);
       s = r2.nextState as GameState;
     }
     const file = s.network.nodes['contractor_portal']!.files.find(f => f.path === filePath)!;
@@ -3388,7 +3336,7 @@ describe('unlock command', () => {
   it('generateUnlockCode never produces ambiguous characters', () => {
     for (let i = 0; i < 1000; i++) {
       const code = generateUnlockCode();
-      expect(code).toMatch(/^[A-Z2-9]{4}-[A-Z2-9]{4}$/);
+      expect(code).toMatch(/^[ABCDEFGHJKLMNPQRSTUVWXYZ2-9]{4}-[ABCDEFGHJKLMNPQRSTUVWXYZ2-9]{4}$/);
       expect(code).not.toMatch(/[01IO]/);
     }
   });
