@@ -3340,4 +3340,66 @@ describe('unlock command', () => {
       expect(code).not.toMatch(/[01IO]/);
     }
   });
+
+  it('returns error when player has no charges', async () => {
+    const { state, fileName, filePath } = stateWithLockedFile();
+    const broke = produce(state, s => {
+      s.player.charges = 0;
+    });
+    const result = await resolveCommand(`unlock ${fileName}`, broke);
+    expect(result.lines.some(l => l.content.includes('insufficient charges'))).toBe(true);
+    const nextState = result.nextState as GameState;
+    // Session must not have been started
+    expect(nextState.unlockSession).toBeNull();
+    // Attempt counter must not have been incremented (guard fires before attempts are touched)
+    expect(nextState.unlockAttempts[filePath] ?? 0).toBe(0);
+  });
+
+  it('success stamps threshold flag when unlock crosses a trace threshold', async () => {
+    const { state, fileName } = stateWithLockedFile();
+    // Set trace just below 31% so the +5 from success crosses the threshold
+    const nearThreshold = produce(state, s => {
+      s.player.trace = 28;
+    });
+    const r1 = await resolveCommand(`unlock ${fileName}`, nearThreshold);
+    const s1 = r1.nextState as GameState;
+    const r2 = await resolveCommand(s1.unlockSession!.codes[0], s1);
+    const s2 = r2.nextState as GameState;
+    const r3 = await resolveCommand(s2.unlockSession!.codes[1], s2);
+    const s3 = r3.nextState as GameState;
+    const r4 = await resolveCommand(s3.unlockSession!.codes[2], s3);
+    const s4 = r4.nextState as GameState;
+    expect(s4.player.trace).toBe(33);
+    expect(s4.flags['threshold_31_crossed']).toBe(true);
+  });
+
+  it('lowercase code is treated as abandonment, not a wrong-code attempt', async () => {
+    const { state, fileName, filePath } = stateWithLockedFile();
+    const r1 = await resolveCommand(`unlock ${fileName}`, state);
+    const s1 = r1.nextState as GameState;
+    // Pin codes[0] to a known value containing letters so toLowerCase() is always a real change
+    const pinned = produce(s1, s => {
+      s.unlockSession!.codes[0] = 'ABCD-EFGH';
+    });
+    const lowerCode = 'abcd-efgh';
+    const result = await resolveCommand(lowerCode, pinned);
+    const next = result.nextState as GameState;
+    expect(next.unlockSession).toBeNull();
+    expect(next.unlockAttempts[filePath]).toBe(1);
+    expect(result.lines.some(l => l.content.includes('interrupted'))).toBe(true);
+    expect(result.lines.some(l => l.content.includes('Wrong code'))).toBe(false);
+  });
+
+  it('code containing excluded chars (0, 1, I, O) is treated as abandonment', async () => {
+    const { state, fileName, filePath } = stateWithLockedFile();
+    const r1 = await resolveCommand(`unlock ${fileName}`, state);
+    const s1 = r1.nextState as GameState;
+    // A000-B111 looks like a code but contains excluded chars — abandonment
+    const result = await resolveCommand('A000-B111', s1);
+    const next = result.nextState as GameState;
+    expect(next.unlockSession).toBeNull();
+    expect(next.unlockAttempts[filePath]).toBe(1);
+    expect(result.lines.some(l => l.content.includes('interrupted'))).toBe(true);
+    expect(result.lines.some(l => l.content.includes('Wrong code'))).toBe(false);
+  });
 });
