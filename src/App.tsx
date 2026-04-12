@@ -59,7 +59,9 @@ const computeContextSuggestions = (state: GameState): string[] => {
         !f.deleted && !f.locked && f.exfiltrable && hasAccess(node.accessLevel, f.accessRequired),
     );
     if (exfilable) suggestions.push(`exfil ${exfilable.name}`);
-    const lockable = node.files.find(f => !f.deleted && f.locked);
+    const lockable = node.files.find(
+      f => !f.deleted && f.locked && hasAccess(node.accessLevel, f.accessRequired),
+    );
     if (lockable) suggestions.push(`unlock ${lockable.name}`);
   }
 
