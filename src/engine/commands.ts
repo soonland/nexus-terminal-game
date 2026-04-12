@@ -44,6 +44,16 @@ const KNOWN_VERBS = new Set([
   'inventory',
   'map',
   'clear',
+  'msg',
+  'spoof',
+  'whoami',
+  'briefing',
+  'notes',
+  'inv',
+  'decrypt',
+  'exit',
+  'logoff',
+  'logout',
 ]);
 
 const GENERIC_TOOL_DATA: Partial<Record<ToolId, { name: string; description: string }>> = {
@@ -204,7 +214,9 @@ export const resolveCommand = async (raw: string, state: GameState): Promise<Com
         failLines.push(sys(`  ${String(3 - attempts)} attempt(s) remaining.`));
       }
       if (isAbandonment) {
-        // Execute the interrupted command now that the session is cleared
+        // withTurn is not applied to the abandonment failure itself — session-clear
+        // carries no trace/charge changes, so no threshold effects can fire.
+        // The recursive resolveCommand call below applies withTurn for the actual command.
         const commandResult = await resolveCommand(raw, failNextState);
         return {
           lines: [...failLines, ...commandResult.lines],

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { resolveCommand } from './commands';
+import { resolveCommand, generateUnlockCode } from './commands';
 import { createInitialState } from './state';
 import type { GameState } from '../types/game';
 import produce from './produce';
@@ -3233,9 +3233,6 @@ describe('unlock command', () => {
 
   it('returns error when file is not locked', async () => {
     const state = createInitialState();
-    produce(state, s => {
-      s.network.nodes['contractor_portal']!.accessLevel = 'user';
-    });
     const unlockedFile = state.network.nodes['contractor_portal']!.files.find(
       f => !f.locked && !f.tripwire,
     )!;
@@ -3386,5 +3383,13 @@ describe('unlock command', () => {
     expect(result.lines.some(l => l.content.includes('Wrong code'))).toBe(false);
     // The abandoned scan command should also have executed
     expect(result.lines.some(l => l.content.includes('Scanning subnet'))).toBe(true);
+  });
+
+  it('generateUnlockCode never produces ambiguous characters', () => {
+    for (let i = 0; i < 1000; i++) {
+      const code = generateUnlockCode();
+      expect(code).toMatch(/^[A-Z2-9]{4}-[A-Z2-9]{4}$/);
+      expect(code).not.toMatch(/[01IO]/);
+    }
   });
 });

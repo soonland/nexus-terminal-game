@@ -26,7 +26,7 @@ interface NodeDelta {
   compromisedAtTurn?: number;
   sentinelPatched?: boolean;
   locked?: boolean;
-  lockedFilePaths?: string[]; // file paths locked by the 31% watchlist
+  lockedFilePaths?: string[]; // file paths locked by watchlist protocol
   deletedFilePaths?: string[]; // file paths deleted by sentinel P3
   plantedFiles?: GameFile[]; // files added dynamically (e.g. sentinel RESET_NOTICE.txt)
   cachedFileContents: Record<string, string>; // path → AI-generated content only
