@@ -170,6 +170,26 @@ const tryRevokeCredential = (
 // Note: cmdExfil already gates queue insertion behind `node.layer !== 5`, so
 // pendingFileDeletes will never contain Aria-layer entries — no Aria check needed here.
 
+// §9.5 pre-scrub: remove any pending file-delete entries whose deletion would make
+// the game unwinnable. Must run before the priority chain so tryDeleteFile returns
+// null on an empty queue, allowing trySpawnNode to proceed.
+const scrubBlockedFileDeletes = (state: GameState): GameState => {
+  const safe = state.sentinel.pendingFileDeletes.filter(p => {
+    const testNext = produce(state, s => {
+      const node = s.network.nodes[p.nodeId];
+      if (node) {
+        const file = node.files.find(f => f.path === p.filePath);
+        if (file) file.deleted = true;
+      }
+    });
+    return isGameCompletable(testNext);
+  });
+  if (safe.length === state.sentinel.pendingFileDeletes.length) return state;
+  return produce(state, s => {
+    s.sentinel.pendingFileDeletes = safe;
+  });
+};
+
 const tryDeleteFile = (state: GameState): { state: GameState; lines: SentinelLine[] } | null => {
   const pending = state.sentinel.pendingFileDeletes.find(p => p.targetTurn <= state.turnCount);
   if (!pending) return null;
@@ -191,19 +211,10 @@ const tryDeleteFile = (state: GameState): { state: GameState; lines: SentinelLin
     );
   });
 
-  // §9.5: if deletion would make the game unwinnable, drop the queued entry so it
-  // isn't retried on every subsequent turn. The source file survives; the liveness
-  // of the sentinel's priority queue is preserved.
-  if (!isGameCompletable(next)) {
-    return {
-      state: produce(state, s => {
-        s.sentinel.pendingFileDeletes = s.sentinel.pendingFileDeletes.filter(
-          p => p.filePath !== pending.filePath || p.nodeId !== pending.nodeId,
-        );
-      }),
-      lines: [],
-    };
-  }
+  // §9.5: roll back silently if mutation would make the game unwinnable.
+  // Blocked entries are pre-scrubbed by scrubBlockedFileDeletes before the priority
+  // chain runs, so this branch is a safety net for entries that became due mid-scrub.
+  if (!isGameCompletable(next)) return null;
 
   const fileName = pending.filePath.split('/').pop() ?? pending.filePath;
   return {
@@ -303,6 +314,11 @@ export const runSentinelTurn = (state: GameState): { state: GameState; lines: Se
   if (current.turnCount % current.sentinel.sentinelInterval !== 0) {
     return { state: current, lines: [] };
   }
+
+  // §9.5 pre-scrub: drop pending file-delete entries that would make the game unwinnable.
+  // Must precede the priority chain so tryDeleteFile returns null (not a truthy no-op
+  // result) when all its entries are blocked, allowing trySpawnNode to proceed.
+  current = scrubBlockedFileDeletes(current);
 
   // Evaluate priority queue — one action per turn.
   // Each try* returns null if its mutation would create an unwinnable state (§9.5 rollback).

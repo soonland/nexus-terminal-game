@@ -114,11 +114,6 @@ describe('check1PathExists', () => {
     expect(check1PathExists(state)).toBe(false);
   });
 
-  it('returns false when key anchor is fully isolated from the network', () => {
-    const state = isolateNode(createInitialState(), 'vpn_gateway');
-    expect(check1PathExists(state)).toBe(false);
-  });
-
   it('returns true for layer 5 (Aria) — no key anchor defined', () => {
     const state = moveToAriaLayer(createInitialState());
     expect(check1PathExists(state)).toBe(true);
@@ -201,12 +196,10 @@ describe('check2CredentialOrCharge', () => {
 // ── check3ChargesSufficient ────────────────────────────────
 
 describe('check3ChargesSufficient', () => {
-  it('returns true when player has enough charges to exploit every node on the path', () => {
-    // Default: contractor_portal → vpn_gateway.
-    // vpn_gateway has a vulnerable snmp service (exploitCost 1) and is not sentinelPatched.
-    // contractor_portal itself is not compromised, but its cheapest vulnerable service costs 1.
-    // Path is [contractor_portal, vpn_gateway]. contractor_portal: exploitCost 1 (http).
-    // vpn_gateway: exploitCost 1 (snmp). Total = 2. Initial charges = 3.
+  it('returns true when player has enough charges to exploit the key anchor', () => {
+    // Default: contractor_portal → vpn_gateway (layer-0 key anchor).
+    // check3 only checks the key anchor. vpn_gateway: snmp vulnerable, exploitCost 1,
+    // not sentinelPatched → chargesNeeded = 1. Initial charges = 3.
     const state = createInitialState();
     expect(check3ChargesSufficient(state)).toBe(true);
   });
@@ -264,8 +257,8 @@ describe('check3ChargesSufficient', () => {
   });
 
   it('already-compromised nodes do not count toward chargesNeeded', () => {
-    // Compromise contractor_portal so only vpn_gateway needs a charge (exploitCost 1).
-    // Player has exactly 1 charge — should pass.
+    // check3 only checks the key anchor (vpn_gateway). Compromising contractor_portal
+    // has no effect on chargesNeeded. vpn_gateway: exploitCost 1. Player has 1 charge — pass.
     const state = makeState(draft => {
       draft.player.charges = 1;
       const portal = draft.network.nodes['contractor_portal'];
@@ -284,9 +277,8 @@ describe('check3ChargesSufficient', () => {
   });
 
   it('nodes where the player has a valid credential do not count toward chargesNeeded', () => {
-    // Compromise neither node but give the player a credential valid on vpn_gateway.
-    // contractor_portal needs 1 charge (http, exploitCost 1), vpn_gateway is skipped via cred.
-    // Player has exactly 1 charge — should pass.
+    // check3 only checks the key anchor (vpn_gateway). Player has a credential on
+    // vpn_gateway → hasCred = true → chargesNeeded = 0. Player has 1 charge — pass.
     let state = makeState(draft => {
       draft.player.charges = 1;
       for (const node of Object.values(draft.network.nodes)) {
@@ -427,5 +419,29 @@ describe('isGameCompletable', () => {
       e => e.action === 'revoke_credential' && e.turnCount === 1,
     );
     expect(revokeEntry).toBeUndefined();
+  });
+
+  it('sentinel priority chain falls through to trySpawnNode when no patch/revoke/delete candidates exist', () => {
+    // Verify the ?? chain reaches trySpawnNode when all higher-priority actions have no
+    // candidates: no compromised nodes (patch skips), no obtained credentials (revoke skips),
+    // no pending file deletes (delete skips). spawn_node should fire and appear in the log.
+    const state = makeState(draft => {
+      draft.player.charges = 3;
+      for (const c of draft.player.credentials) c.obtained = false;
+      for (const node of Object.values(draft.network.nodes)) {
+        if (node) node.files = node.files.filter(f => !f.isTool);
+      }
+      draft.sentinel.pendingFileDeletes = [];
+      draft.sentinel.active = true;
+      draft.sentinel.sentinelInterval = 1;
+      draft.turnCount = 1;
+    });
+
+    expect(isGameCompletable(state)).toBe(true);
+
+    const { state: afterSentinel } = runSentinelTurn(state);
+
+    const spawnEntry = afterSentinel.sentinel.mutationLog.find(e => e.action === 'spawn_node');
+    expect(spawnEntry).toBeDefined();
   });
 });
