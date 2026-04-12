@@ -204,16 +204,13 @@ describe('check3ChargesSufficient', () => {
     expect(check3ChargesSufficient(state)).toBe(true);
   });
 
-  it('returns false when player has 0 charges, no exploit-kit nearby, and path has uncompromised nodes', () => {
-    // Remove any tool files within 3 hops of contractor_portal to ensure no exploit-kit shortcut,
-    // then set charges to 0.
+  it('returns false when player has 0 charges and no valid credential for the key anchor', () => {
+    // check3 only examines the key anchor (vpn_gateway) — node.files are not inspected.
+    // With 0 charges and no obtained credential, there is no way to compromise it.
     const state = makeState(draft => {
       draft.player.charges = 0;
-      // Strip isTool files from all nodes so no exploit-kit is nearby
-      for (const node of Object.values(draft.network.nodes)) {
-        if (node) {
-          node.files = node.files.filter(f => !f.isTool);
-        }
+      for (const c of draft.player.credentials) {
+        c.obtained = false;
       }
     });
     expect(check3ChargesSufficient(state)).toBe(false);
@@ -229,28 +226,13 @@ describe('check3ChargesSufficient', () => {
     expect(check3ChargesSufficient(state)).toBe(true);
   });
 
-  it('returns false when exploit-kit file within 3 hops is deleted', () => {
+  it('returns false when player has 0 charges and key anchor is not yet compromised', () => {
+    // check3 does not inspect node.files or tool-file proximity — that logic is not yet
+    // implemented. The guard returns false solely because charges < chargesNeeded (1).
     const state = makeState(draft => {
       draft.player.charges = 0;
-      for (const node of Object.values(draft.network.nodes)) {
-        if (node) {
-          node.files = node.files.filter(f => !f.isTool);
-        }
-      }
-      // Plant a DELETED exploit-kit file on contractor_portal
-      const portal = draft.network.nodes['contractor_portal'];
-      if (portal) {
-        portal.files.push({
-          name: 'exploit-kit.bin',
-          path: '/tools/exploit-kit.bin',
-          type: 'binary',
-          content: null,
-          exfiltrable: true,
-          accessRequired: 'user',
-          isTool: true,
-          toolId: 'exploit-kit',
-          deleted: true,
-        });
+      for (const c of draft.player.credentials) {
+        c.obtained = false;
       }
     });
     expect(check3ChargesSufficient(state)).toBe(false);
@@ -266,12 +248,7 @@ describe('check3ChargesSufficient', () => {
         portal.compromised = true;
         portal.compromisedAtTurn = 0;
       }
-      // Strip isTool files so the exploit-kit shortcut is not available
-      for (const node of Object.values(draft.network.nodes)) {
-        if (node) {
-          node.files = node.files.filter(f => !f.isTool);
-        }
-      }
+      for (const c of draft.player.credentials) c.obtained = false;
     });
     expect(check3ChargesSufficient(state)).toBe(true);
   });

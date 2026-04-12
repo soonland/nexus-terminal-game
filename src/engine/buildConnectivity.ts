@@ -23,7 +23,7 @@ export const DIVISION_ANCHORS: Record<string, { entry: string; key: string } | u
 };
 
 /** Maps layer number → the key anchor ID that must be compromised before advancing. */
-export const LAYER_KEY_ANCHOR: Record<number, string> = Object.fromEntries(
+export const LAYER_KEY_ANCHOR: Partial<Record<number, string>> = Object.fromEntries(
   Object.entries(DIVISION_LAYER).flatMap(([div, layer]) => {
     const key = DIVISION_ANCHORS[div]?.key;
     return key !== undefined ? [[layer, key]] : [];

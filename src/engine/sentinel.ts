@@ -173,6 +173,10 @@ const tryRevokeCredential = (
 // §9.5 pre-scrub: remove any pending file-delete entries whose deletion would make
 // the game unwinnable. Must run before the priority chain so tryDeleteFile returns
 // null on an empty queue, allowing trySpawnNode to proceed.
+//
+// TODO(§9.5-files): isGameCompletable does not yet inspect node.files, so no file
+// deletion can currently fail the guard. This scrub (and the rollback in tryDeleteFile)
+// will become effective once the guard models tool-file availability.
 const scrubBlockedFileDeletes = (state: GameState): GameState => {
   const safe = state.sentinel.pendingFileDeletes.filter(p => {
     const testNext = produce(state, s => {
@@ -214,6 +218,7 @@ const tryDeleteFile = (state: GameState): { state: GameState; lines: SentinelLin
   // §9.5: roll back silently if mutation would make the game unwinnable.
   // Blocked entries are pre-scrubbed by scrubBlockedFileDeletes before the priority
   // chain runs, so this branch is a safety net for entries that became due mid-scrub.
+  // Note: currently unreachable — see scrubBlockedFileDeletes TODO above.
   if (!isGameCompletable(next)) return null;
 
   const fileName = pending.filePath.split('/').pop() ?? pending.filePath;
