@@ -127,6 +127,8 @@ export const createInitialState = (sessionSeed?: number, contractId?: string): G
       messageHistory: [],
       channelEstablished: false,
     },
+    unlockSession: null,
+    unlockAttempts: {},
   };
 };
 

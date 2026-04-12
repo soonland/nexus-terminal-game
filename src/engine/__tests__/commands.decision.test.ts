@@ -101,6 +101,8 @@ const makeState = (overrides: Partial<GameState> = {}): GameState => {
       messageHistory: [],
       channelEstablished: false,
     },
+    unlockSession: null,
+    unlockAttempts: {},
     ...overrides,
   };
 };
