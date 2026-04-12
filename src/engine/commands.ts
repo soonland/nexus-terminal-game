@@ -4,6 +4,7 @@ import { currentNode, addTrace, thresholdFlag, TRACE_THRESHOLDS } from './state'
 import produce from './produce';
 import { LAYER_KEY_ANCHOR } from './buildConnectivity';
 import { runSentinelTurn } from './sentinel';
+import { runAriaTurn } from './ariaMutations';
 import { loadDossier, recordEnding, addLoreFragment } from './dossierPersistence';
 import type { EndingName } from '../types/dossier';
 import { shouldSuppressMutation, injectConstraintFragment } from './faradayCage';
@@ -317,7 +318,8 @@ const withTurn = (result: CommandOutput, raw: string, baseState: GameState): Com
   const withObjectives = applyObjectiveEffects(baseState, withAlerts);
   const advanced = advanceTurn(withObjectives.nextState as GameState, raw);
   const sentinel: ReturnType<typeof runSentinelTurn> = runSentinelTurn(advanced);
-  const finalState = sentinel.state;
+  const aria: ReturnType<typeof runAriaTurn> = runAriaTurn(sentinel.state);
+  const finalState = aria.state;
 
   // Detect whether this turn fires a Sentinel channel trigger
   const trigger = detectChannelTrigger(baseState, finalState, raw);
@@ -337,7 +339,7 @@ const withTurn = (result: CommandOutput, raw: string, baseState: GameState): Com
 
   return {
     ...withObjectives,
-    lines: [...withObjectives.lines, ...sentinel.lines],
+    lines: [...withObjectives.lines, ...sentinel.lines, ...aria.lines],
     nextState: postTriggerState,
     ...(trigger ? { channelTrigger: trigger } : {}),
   };

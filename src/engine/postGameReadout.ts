@@ -36,6 +36,10 @@ const formatAriaEvent = (event: MutationEvent): string => {
     }
     case 'nudge_trust':
       return `${prefix} Trust score adjusted silently`;
+    case 'reroute_edge':
+      return `${prefix} Shortcut edge added to '${event.nodeId ?? '?'}'`;
+    case 'delete_reinforcement':
+      return `${prefix} Reinforcement node '${event.nodeId ?? '?'}' removed from network`;
     default:
       return `${prefix} Silent operation performed`;
   }
