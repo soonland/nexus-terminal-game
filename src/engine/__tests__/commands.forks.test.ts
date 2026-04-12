@@ -946,11 +946,20 @@ describe('Fork 2 — sec_firewall / fw_backup_2024.cfg', () => {
 
 describe('Fork 2 — sentinel cadence checks', () => {
   it('should act on every turn when sentinelInterval=1 and turnCount=1', () => {
+    // ops_hr_db is the layer-1 key anchor — include it (already compromised) so the
+    // completability guard (§9.5) considers the game still winnable after patching some_node.
+    const keyAnchor = makeNode({
+      id: 'ops_hr_db',
+      layer: 1,
+      compromised: true,
+      connections: ['some_node'],
+    });
     const patchTarget = makeNode({
       id: 'some_node',
       compromised: true,
       sentinelPatched: false,
       layer: 1,
+      connections: ['ops_hr_db'],
     });
     const state = makeState({
       turnCount: 1,
@@ -965,7 +974,7 @@ describe('Fork 2 — sentinel cadence checks', () => {
       network: {
         currentNodeId: patchTarget.id,
         previousNodeId: null,
-        nodes: { [patchTarget.id]: patchTarget },
+        nodes: { [patchTarget.id]: patchTarget, [keyAnchor.id]: keyAnchor },
       },
     });
 
@@ -1006,11 +1015,20 @@ describe('Fork 2 — sentinel cadence checks', () => {
   });
 
   it('should act when sentinelInterval=3 and turnCount=3 (divisible)', () => {
+    // ops_hr_db is the layer-1 key anchor — include it (already compromised) so the
+    // completability guard (§9.5) considers the game still winnable after patching some_node.
+    const keyAnchor = makeNode({
+      id: 'ops_hr_db',
+      layer: 1,
+      compromised: true,
+      connections: ['some_node'],
+    });
     const patchTarget = makeNode({
       id: 'some_node',
       compromised: true,
       sentinelPatched: false,
       layer: 1,
+      connections: ['ops_hr_db'],
     });
     const state = makeState({
       turnCount: 3,
@@ -1025,7 +1043,7 @@ describe('Fork 2 — sentinel cadence checks', () => {
       network: {
         currentNodeId: patchTarget.id,
         previousNodeId: null,
-        nodes: { [patchTarget.id]: patchTarget },
+        nodes: { [patchTarget.id]: patchTarget, [keyAnchor.id]: keyAnchor },
       },
     });
 
