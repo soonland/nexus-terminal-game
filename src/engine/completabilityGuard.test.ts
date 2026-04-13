@@ -3,6 +3,7 @@ import {
   check1PathExists,
   check2CredentialOrCharge,
   check3ChargesSufficient,
+  isFutureLayerCompletable,
   isGameCompletable,
 } from './completabilityGuard';
 import { runSentinelTurn } from './sentinel';
@@ -420,5 +421,214 @@ describe('isGameCompletable', () => {
 
     const spawnEntry = afterSentinel.sentinel.mutationLog.find(e => e.action === 'spawn_node');
     expect(spawnEntry).toBeDefined();
+  });
+
+  // ── Multi-layer look-ahead (§9.5 extension) ──────────────
+
+  it('returns false when future-layer key anchor credential was revoked and player has 0 charges', () => {
+    // Player at layer 0. Player has a credential for vpn_gateway (current-layer checks pass)
+    // and previously held a credential for ops_hr_db (layer-1 key anchor) that was revoked.
+    // 0 charges and the revoked credential signal layer 1 was made unwinnable.
+    let state = makeState(draft => {
+      draft.player.charges = 0;
+      for (const c of draft.player.credentials) c.obtained = false;
+      for (const node of Object.values(draft.network.nodes)) {
+        if (node) node.files = node.files.filter(f => !f.isTool);
+      }
+    });
+    // Layer-0 credential — current-layer checks pass.
+    state = grantCredential(state, 'cred_layer0', ['vpn_gateway']);
+    // Revoked layer-1 credential — signals the mutation eliminated access to ops_hr_db.
+    state = grantCredential(state, 'cred_ops_revoked', ['ops_hr_db'], true, true);
+    expect(isGameCompletable(state)).toBe(false);
+  });
+
+  it('returns true when player has charges sufficient for all exploitable future-layer key anchors', () => {
+    // Player at layer 0 with 4 charges and no credentials.
+    // vpn_gateway (layer 0): snmp exploitCost 1 → needs 1 charge → 4 >= 1 → pass.
+    // ops_hr_db (layer 1): mysql exploitCost 1 → 4 >= 1 → pass.
+    // sec_firewall (layer 2): proprietary exploitCost 2 → 4 >= 2 → pass.
+    // fin_exec_accounts (layer 3): no exploitable service → guard skips charge check → pass.
+    // exec_ceo (layer 4): aria-socket exploitCost 0 → 4 >= 0 → pass.
+    const state = makeState(draft => {
+      draft.player.charges = 4;
+      for (const c of draft.player.credentials) c.obtained = false;
+      for (const node of Object.values(draft.network.nodes)) {
+        if (node) node.files = node.files.filter(f => !f.isTool);
+      }
+    });
+    expect(isGameCompletable(state)).toBe(true);
+  });
+
+  it('returns true when future-layer key anchor is already compromised', () => {
+    // ops_hr_db (layer 1 key anchor) already compromised — look-ahead skips it.
+    // Player has 0 charges and a credential only on vpn_gateway.
+    let state = makeState(draft => {
+      draft.player.charges = 0;
+      for (const c of draft.player.credentials) c.obtained = false;
+      for (const node of Object.values(draft.network.nodes)) {
+        if (node) node.files = node.files.filter(f => !f.isTool);
+      }
+      const hrDb = draft.network.nodes['ops_hr_db'];
+      if (hrDb) {
+        hrDb.compromised = true;
+        hrDb.compromisedAtTurn = 0;
+        hrDb.accessLevel = 'admin';
+      }
+    });
+    state = grantCredential(state, 'cred_vpn_only', ['vpn_gateway']);
+    // Layer 0: check3 passes via credential on vpn_gateway.
+    // Layer 1: ops_hr_db already compromised → isFutureLayerCompletable returns true.
+    // Remaining future layers still need charges — with 0 charges and no credentials,
+    // those will fail. This test only verifies the "already compromised" short-circuit,
+    // so we grant credentials for all remaining anchors too.
+    state = grantCredential(state, 'cred_firewall', ['sec_firewall']);
+    state = grantCredential(state, 'cred_fin', ['fin_exec_accounts']);
+    state = grantCredential(state, 'cred_ceo', ['exec_ceo']);
+    expect(isGameCompletable(state)).toBe(true);
+  });
+});
+
+// ── isFutureLayerCompletable ───────────────────────────────
+
+describe('isFutureLayerCompletable', () => {
+  it('returns true when layer has no key anchor (e.g. layer 5 — Aria)', () => {
+    const state = createInitialState();
+    expect(isFutureLayerCompletable(state, 5)).toBe(true);
+  });
+
+  it('returns true when key anchor is already compromised', () => {
+    const state = makeState(draft => {
+      draft.player.charges = 0;
+      const hrDb = draft.network.nodes['ops_hr_db'];
+      if (hrDb) {
+        hrDb.compromised = true;
+        hrDb.compromisedAtTurn = 0;
+      }
+    });
+    expect(isFutureLayerCompletable(state, 1)).toBe(true);
+  });
+
+  it('returns true when player has a valid credential for the key anchor', () => {
+    let state = makeState(draft => {
+      draft.player.charges = 0;
+    });
+    state = grantCredential(state, 'cred_ops', ['ops_hr_db']);
+    expect(isFutureLayerCompletable(state, 1)).toBe(true);
+  });
+
+  it('returns true when player has 0 charges and no credential for an exploitable key anchor (never obtained)', () => {
+    // ops_hr_db (layer 1) is exploitable. Player has 0 charges and no credential —
+    // but they never held a credential for it. This is a normal pre-gameplay state;
+    // the guard does not block it (player will acquire a credential through gameplay).
+    const state = makeState(draft => {
+      draft.player.charges = 0;
+      for (const c of draft.player.credentials) c.obtained = false;
+    });
+    expect(isFutureLayerCompletable(state, 1)).toBe(true);
+  });
+
+  it('returns false when only credential for an exploitable key anchor was revoked', () => {
+    // Player previously held cred_ops for ops_hr_db but it was revoked.
+    // 0 charges and the revoked credential signal that access was eliminated.
+    let state = makeState(draft => {
+      draft.player.charges = 0;
+    });
+    state = grantCredential(state, 'cred_ops', ['ops_hr_db'], true, true); // revoked
+    expect(isFutureLayerCompletable(state, 1)).toBe(false);
+  });
+
+  it('returns true when key anchor has no exploitable service and player has no credential', () => {
+    // fin_exec_accounts (layer 3) has no vulnerable services — charges can never satisfy
+    // the check. Player has no credential and no revoked credential either, so the guard
+    // treats this as a normal pre-gameplay state (credential to be found through gameplay).
+    const state = makeState(draft => {
+      draft.player.charges = 0;
+      for (const c of draft.player.credentials) c.obtained = false;
+    });
+    expect(isFutureLayerCompletable(state, 3)).toBe(true);
+  });
+
+  it('returns true when player has enough charges to exploit the key anchor', () => {
+    // ops_hr_db layer-1 key anchor — check its exploitCost via the guard.
+    const state = makeState(draft => {
+      draft.player.charges = 3;
+      for (const c of draft.player.credentials) c.obtained = false;
+    });
+    expect(isFutureLayerCompletable(state, 1)).toBe(true);
+  });
+});
+
+// ── isGameCompletable — sentinel cross-layer rollback ──────
+
+describe('isGameCompletable — cross-layer sentinel rollback', () => {
+  it('sentinel rolls back revoke_credential when it would make a future layer unwinnable', () => {
+    // Reproducer from issue #123:
+    // - Player at layer 0 (contractor_portal), 0 charges
+    // - Has cred_ops on ops_hr_db (layer-1 key anchor, FIRST in credentials list so sentinel
+    //   picks it first) — only means of accessing layer 1 with 0 charges
+    // - Has cred_vpn on vpn_gateway (layer-0 key anchor, added second) — keeps current-layer
+    //   checks passing
+    // - Sentinel fires tryRevokeCredential → picks cred_ops (first obtained cred)
+    // - Post-mutation guard: check3 passes (cred_vpn on vpn_gateway), but future layer 1
+    //   has no credential and 0 charges → isFutureLayerCompletable(layer 1) = false
+    // - Guard returns false → rollback → cred_ops preserved
+    let state = makeState(draft => {
+      draft.player.charges = 0;
+      for (const c of draft.player.credentials) c.obtained = false;
+      for (const node of Object.values(draft.network.nodes)) {
+        if (node) node.files = node.files.filter(f => !f.isTool);
+      }
+      draft.sentinel.active = true;
+      draft.sentinel.sentinelInterval = 1;
+      draft.turnCount = 1;
+    });
+    // Grant cred_ops FIRST so sentinel picks it (credentials.find returns the first match)
+    state = grantCredential(state, 'cred_ops', ['ops_hr_db']);
+    // Grant cred_vpn SECOND — current-layer check3 passes via this credential
+    state = grantCredential(state, 'cred_vpn', ['vpn_gateway']);
+
+    // Pre-mutation: current-layer checks pass, future layer 1 has cred → completable
+    expect(isGameCompletable(state)).toBe(true);
+
+    const { state: afterSentinel } = runSentinelTurn(state);
+
+    // cred_ops must still be present and not revoked (revocation was rolled back)
+    const cred = afterSentinel.player.credentials.find(c => c.id === 'cred_ops');
+    expect(cred?.obtained).toBe(true);
+    expect(cred?.revoked).toBeFalsy();
+
+    // No revoke_credential entry for turn 1
+    const revokeEntry = afterSentinel.sentinel.mutationLog.find(
+      e => e.action === 'revoke_credential' && e.turnCount === 1,
+    );
+    expect(revokeEntry).toBeUndefined();
+  });
+
+  it('sentinel allows revoke_credential when player has charges to cover the future layer', () => {
+    // Player at layer 0 with 4 charges — sufficient to exploit ops_hr_db (cost 1)
+    // even without a credential. Sentinel can safely revoke the ops_hr_db credential.
+    let state = makeState(draft => {
+      draft.player.charges = 4;
+      for (const c of draft.player.credentials) c.obtained = false;
+      for (const node of Object.values(draft.network.nodes)) {
+        if (node) node.files = node.files.filter(f => !f.isTool);
+      }
+      // No compromised nodes so patch_node has no candidates
+      draft.sentinel.active = true;
+      draft.sentinel.sentinelInterval = 1;
+      draft.turnCount = 1;
+    });
+    // Grant credential for ops_hr_db — sentinel picks it first
+    state = grantCredential(state, 'cred_ops', ['ops_hr_db']);
+
+    const { state: afterSentinel } = runSentinelTurn(state);
+
+    // With 4 charges, revoking cred_ops leaves charges sufficient for layer 1 (cost 1).
+    // The revocation should have gone through.
+    const revokeEntry = afterSentinel.sentinel.mutationLog.find(
+      e => e.action === 'revoke_credential' && e.turnCount === 1,
+    );
+    expect(revokeEntry).toBeDefined();
   });
 });
