@@ -534,8 +534,18 @@ describe('isFutureLayerCompletable', () => {
     let state = makeState(draft => {
       draft.player.charges = 0;
     });
-    state = grantCredential(state, 'cred_ops', ['ops_hr_db'], true, true); // revoked
+    state = grantCredential(state, 'cred_ops', ['ops_hr_db'], true, true); // obtained + revoked
     expect(isFutureLayerCompletable(state, 1)).toBe(false);
+  });
+
+  it('returns true when a never-obtained credential has revoked: true (not a real access path)', () => {
+    // grantCredential with obtained=false, revoked=true — the player never actually held
+    // this credential, so it must not trigger the hadRevokedCred signal.
+    let state = makeState(draft => {
+      draft.player.charges = 0;
+    });
+    state = grantCredential(state, 'cred_ops', ['ops_hr_db'], false, true); // not obtained, revoked
+    expect(isFutureLayerCompletable(state, 1)).toBe(true);
   });
 
   it('returns true when key anchor has no exploitable service and player has no credential', () => {

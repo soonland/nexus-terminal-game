@@ -153,15 +153,17 @@ export const isFutureLayerCompletable = (state: GameState, layer: number): boole
 
   // No valid credential. Check if the node can be exploited with current charges.
   const chargesNeeded = minExploitCostForNode(keyAnchorId, state.network.nodes);
-  if (state.player.charges >= chargesNeeded) return true; // handles Infinity correctly: charges < Infinity
+  if (state.player.charges >= chargesNeeded) return true; // false when chargesNeeded === Infinity
 
   // Neither credential nor sufficient charges. This is only a problem if the
   // player previously held a (now-revoked) credential for this anchor — meaning
   // the mutation just eliminated their only acquired access path. If no revoked
   // credential exists for this anchor, the player simply hasn't obtained one yet
   // (normal pre-gameplay state), and the guard does not block that.
+  // `c.obtained` is required: a credential that was never held (obtained: false)
+  // cannot represent an eliminated access path even if revoked is somehow true.
   const hadRevokedCred = state.player.credentials.some(
-    c => c.revoked && c.validOnNodes.includes(keyAnchorId),
+    c => c.obtained && c.revoked && c.validOnNodes.includes(keyAnchorId),
   );
   return !hadRevokedCred;
 };
@@ -175,7 +177,7 @@ export const isFutureLayerCompletable = (state: GameState, layer: number): boole
  *
  * Checks the player's current layer (checks 1–3) then performs a look-ahead
  * over every subsequent layer to catch mutations — particularly credential
- * revocations — that would silently unwin future layers.
+ * revocations — that would silently make future layers unwinnable.
  */
 export const isGameCompletable = (state: GameState): boolean => {
   if (
@@ -190,6 +192,12 @@ export const isGameCompletable = (state: GameState): boolean => {
   if (!currentNode) return false;
 
   const maxLayer = Math.max(...Object.keys(LAYER_KEY_ANCHOR).map(Number));
+  // Each layer is checked independently against current charges — charges are NOT
+  // subtracted between layers. Two future layers each needing 1 charge would both
+  // pass with 1 charge available. This is intentional: the guard optimises for
+  // avoiding false positives (blocking valid states) over false negatives; the
+  // per-layer model is conservative enough given that charges are the rare case
+  // (most future layers are accessed via credentials found through gameplay).
   for (let layer = currentNode.layer + 1; layer <= maxLayer; layer++) {
     if (!isFutureLayerCompletable(state, layer)) return false;
   }
