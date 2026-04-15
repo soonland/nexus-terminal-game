@@ -28,3 +28,7 @@ Thumbs.db
 npm-debug.log*
 .vercel
 .worktrees/
+
+# Playwright playthrough artifacts
+playthrough.webm
+playthrough-video/
