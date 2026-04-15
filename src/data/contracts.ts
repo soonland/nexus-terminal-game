@@ -206,6 +206,8 @@ export const selectContract = (excludeId?: string, runsCompleted = 0): ContractD
   const unlocked = CONTRACT_POOL.filter(c => (c.unlockedAfterRun ?? 0) <= runsCompleted);
   const base = unlocked.length > 0 ? unlocked : CONTRACT_POOL;
   const eligible = excludeId ? base.filter(c => c.id !== excludeId) : base;
+  // c8 ignore next — eligible is only empty when a single excludeId matches every contract
+  // in base, which cannot happen with a pool of ≥ 2 contracts.
   const pool = eligible.length > 0 ? eligible : base;
   return pool[Math.floor(Math.random() * pool.length)];
 };

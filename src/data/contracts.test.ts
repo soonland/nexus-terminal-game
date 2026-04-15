@@ -418,6 +418,13 @@ describe('selectContract', () => {
     expect(typeof result.id).toBe('string');
   });
 
+  it('should fall back to the full CONTRACT_POOL when runsCompleted filters out all contracts', () => {
+    // runsCompleted = -1 makes unlocked = [] (all contracts have unlockedAfterRun >= 0),
+    // triggering the CONTRACT_POOL fallback on the base assignment.
+    const result = selectContract(undefined, -1);
+    expect(CONTRACT_POOL).toContain(result);
+  });
+
   it('should use Math.random to pick from the eligible pool', () => {
     // With ghost_protocol excluded and runsCompleted=0, the eligible basic pool has 2
     // contracts: [data_harvest, blitz]. Math.random → 0 picks index 0 → data_harvest.
