@@ -122,7 +122,7 @@ export const createInitialState = (sessionSeed?: number, contractId?: string): G
     worldCredentials: employeeCredentials,
     sentinel: {
       active: false,
-      sentinelInterval: 2, // acts every 2nd turn; wipe-logs exfil upgrade sets this to 3
+      sentinelInterval: 2, // acts every 2nd turn; raised to 3 when player exfils fw_backup_2024.cfg (Fork 2 / FIREWALL_TAMPERED)
       mutationLog: [],
       pendingFileDeletes: [],
       messageHistory: [],
@@ -148,7 +148,7 @@ export const addTrace = (state: GameState, amount: number, source = 'unknown'): 
   const entry: TraceAuditEntry = {
     turn: state.turnCount,
     source,
-    delta: amount,
+    delta: trace - prevTrace, // actual applied change (may differ from amount when clamped)
     totalAfter: trace,
   };
   let next: GameState = {
@@ -224,7 +224,7 @@ export const burnRetry = (state: GameState): GameState => {
     player: { ...state.player, trace: 0, burnCount },
     network: { ...state.network, currentNodeId: entryNodeId, previousNodeId: null, nodes },
     flags,
-    traceAuditLog: state.traceAuditLog, // preserved across burns for full-run analysis
+    traceAuditLog: state.traceAuditLog, // preserved across burns for full-run analysis (in-memory only; not restored on page reload by design)
     sentinel: {
       active: false,
       sentinelInterval: state.sentinel.sentinelInterval, // preserve fork 2 cadence penalty across burns

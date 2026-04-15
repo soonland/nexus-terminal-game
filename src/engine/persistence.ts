@@ -254,7 +254,7 @@ export const saveGame = (state: GameState): void => {
   try {
     localStorage.setItem(SAVE_KEY, JSON.stringify(toSaveState(state)));
     // Write audit log to its own key so the Playwright balance script can read it
-    // without parsing the full save. Not versioned — safe to discard on mismatch.
+    // without parsing the full save. Session-only: not restored on page reload by design.
     localStorage.setItem(TRACE_AUDIT_KEY, JSON.stringify(state.traceAuditLog));
   } catch (e) {
     console.warn('[persistence] saveGame failed', e);
@@ -279,6 +279,7 @@ export const loadGame = (): GameState | null => {
 
 export const clearSave = (): void => {
   localStorage.removeItem(SAVE_KEY);
+  localStorage.removeItem(TRACE_AUDIT_KEY);
 };
 
 export const hasSave = (): boolean => {

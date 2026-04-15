@@ -945,15 +945,7 @@ const cmdInventory = (state: GameState): CommandOutput => {
 const cmdScan = (args: string[], state: GameState): CommandOutput => {
   const hasPortScanner = state.player.tools.some(t => t.id === 'port-scanner' && !t.used);
   const traceDelta = hasPortScanner ? 0 : Math.random() < 0.5 ? 1 : 2;
-  let next = hasPortScanner
-    ? {
-        ...state,
-        traceAuditLog: [
-          ...state.traceAuditLog,
-          { turn: state.turnCount, source: 'scan', delta: 0, totalAfter: state.player.trace },
-        ],
-      }
-    : addTrace(state, traceDelta, 'scan');
+  let next = addTrace(state, traceDelta, 'scan');
   const lines: Out = [];
 
   if (args[0]) {
@@ -1789,7 +1781,7 @@ const cmdDecrypt = (args: string[], state: GameState): CommandOutput => {
   }
 
   // Only charge +2 trace when new credentials are actually found.
-  const baseState = toUnlock.length > 0 ? addTrace(state, 2, 'wipe-logs:new-cred') : state;
+  const baseState = toUnlock.length > 0 ? addTrace(state, 2, 'decrypt:new-cred') : state;
   const next =
     toUnlock.length > 0
       ? produce(baseState, s => {

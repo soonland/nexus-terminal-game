@@ -17,7 +17,7 @@
 import { chromium } from 'playwright';
 import { rename } from 'node:fs/promises';
 
-const URL = 'http://localhost:5174';
+const URL = 'http://localhost:5173'; // default Vite port; change to 5174 if 5173 is already occupied
 const VIDEO_DIR = './playthrough-video';
 
 const TYPE_DELAY = 55; // ms between keystrokes
@@ -266,7 +266,7 @@ try {
     console.log('───────────────────────────────────────');
     const sorted = Object.entries(totals).sort(([, a], [, b]) => b - a);
     for (const [src, total] of sorted) {
-      console.log(` ${src.padEnd(36)} +${total}`);
+      console.log(` ${src.padEnd(36)} ${total >= 0 ? '+' : ''}${total}`);
     }
     console.log('═══════════════════════════════════════\n');
   }

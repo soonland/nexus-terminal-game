@@ -551,12 +551,12 @@ describe('traceAuditLog', () => {
     expect(next.traceAuditLog[0]?.source).toBe('unknown');
   });
 
-  it('should record totalAfter as the clamped trace value, not the raw sum', () => {
+  it('should record the actual applied delta (clamped), not the requested amount', () => {
     const state = produce(createInitialState(), s => {
       s.player.trace = 95;
     });
-    const next = addTrace(state, 20, 'scan'); // would be 115, clamped to 100
-    expect(next.traceAuditLog[0]).toEqual({ turn: 0, source: 'scan', delta: 20, totalAfter: 100 });
+    const next = addTrace(state, 20, 'scan'); // requested 20, but only 5 applied (100 - 95)
+    expect(next.traceAuditLog[0]).toEqual({ turn: 0, source: 'scan', delta: 5, totalAfter: 100 });
   });
 
   it('should accumulate entries in order across multiple addTrace calls', () => {
