@@ -39,7 +39,10 @@ const tryDeleteReinforcement = (
   if (sentinelNodes.length === 0) return null;
 
   const target = sentinelNodes[0];
-  const event = makeMutationEvent('delete_reinforcement', state.turnCount, { nodeId: target.id });
+  const event = makeMutationEvent('delete_reinforcement', state.turnCount, {
+    nodeId: target.id,
+    reason: 'Removing sentinel reinforcement node to aid player progress',
+  });
 
   const next = produce(state, s => {
     // Remove the node from the network (set to undefined to satisfy no-dynamic-delete)
@@ -79,7 +82,10 @@ const tryRerouteEdge = (state: GameState): { state: GameState; lines: AriaLine[]
   if (candidates.length === 0) return null;
 
   const target = candidates[0];
-  const event = makeMutationEvent('reroute_edge', state.turnCount, { nodeId: target.id });
+  const event = makeMutationEvent('reroute_edge', state.turnCount, {
+    nodeId: target.id,
+    reason: 'Adding shortcut edge to accelerate player navigation',
+  });
 
   const next = produce(state, s => {
     const node = s.network.nodes[s.network.currentNodeId];
