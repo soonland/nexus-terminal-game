@@ -28,6 +28,7 @@ const BODY: HelpLine[] = [
   { text: r('  status        -session overview'), color: 'var(--color-system)' },
   { text: r('  map           -discovered network nodes'), color: 'var(--color-system)' },
   { text: r('  clear         -clear terminal'), color: 'var(--color-system)' },
+  { text: r('  theme [name]  -list or switch color themes'), color: 'var(--color-system)' },
   { text: r(), color: 'var(--color-system)' },
   { text: r('ENGINE COMMANDS:'), color: 'var(--color-output)' },
   {
