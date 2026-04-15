@@ -50,7 +50,10 @@ const tryPatchNode = (state: GameState): { state: GameState; lines: SentinelLine
     return n.id < best.id ? n : best;
   });
 
-  const event = makeMutationEvent('patch_node', state.turnCount, { nodeId: target.id });
+  const event = makeMutationEvent('patch_node', state.turnCount, {
+    nodeId: target.id,
+    reason: 'Hardening compromised node to slow intrusion',
+  });
   const next = produce(state, s => {
     const node = s.network.nodes[target.id];
     if (node) node.sentinelPatched = true;
@@ -109,6 +112,7 @@ const tryRevokeCredential = (
   const event = makeMutationEvent('revoke_credential', state.turnCount, {
     credentialId: target.id,
     nodeId: primaryNodeId,
+    reason: 'Rotating credentials after breach detected',
   });
 
   const next = produce(state, s => {
@@ -211,6 +215,7 @@ const tryDeleteFile = (state: GameState): { state: GameState; lines: SentinelLin
       makeMutationEvent('delete_file', state.turnCount, {
         nodeId: pending.nodeId,
         filePath: pending.filePath,
+        reason: 'Destroying source file after exfiltration detected',
       }),
     );
   });
@@ -245,7 +250,10 @@ const trySpawnNode = (state: GameState): { state: GameState; lines: SentinelLine
     .map(n => n.id)
     .slice(0, 2);
 
-  const event = makeMutationEvent('spawn_node', state.turnCount, { nodeId });
+  const event = makeMutationEvent('spawn_node', state.turnCount, {
+    nodeId,
+    reason: 'Deploying reinforcement node in response to sustained intrusion',
+  });
 
   const next = produce(state, s => {
     s.network.nodes[nodeId] = {

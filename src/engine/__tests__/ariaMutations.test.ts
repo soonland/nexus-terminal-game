@@ -600,3 +600,70 @@ describe('runAriaTurn — mutation priority', () => {
     expect(events[0].action).toBe('delete_reinforcement');
   });
 });
+
+// ── MutationEvent.reason field ─────────────────────────────
+
+describe('runAriaTurn — MutationEvent.reason populated', () => {
+  it('reroute_edge event has a non-empty reason string', () => {
+    const current = makeNode({
+      id: 'current',
+      ip: '10.0.0.1',
+      layer: 0,
+      connections: ['vpn_gateway'],
+    });
+    const vpnGateway = makeNode({
+      id: 'vpn_gateway',
+      ip: '10.1.0.1',
+      layer: 1,
+      anchor: true,
+      connections: [],
+      compromised: true,
+    });
+    const anchorL2 = makeAnchorAt(2, 'anchor_l2');
+
+    const state = makeState({
+      network: {
+        currentNodeId: 'current',
+        previousNodeId: null,
+        nodes: { current, vpn_gateway: vpnGateway, anchor_l2: anchorL2 },
+      },
+      aria: { discovered: true, trustScore: 60, messageHistory: [], suppressedMutations: 0 },
+      player: {
+        handle: 'ghost',
+        trace: 0,
+        charges: 3,
+        credentials: [],
+        exfiltrated: [],
+        tools: [],
+        burnCount: 0,
+      },
+    });
+
+    const result = runAriaTurn(state);
+    const event = result.state.sentinel.mutationLog[0];
+    expect(event.action).toBe('reroute_edge');
+    expect(typeof event.reason).toBe('string');
+    expect(event.reason!.length).toBeGreaterThan(0);
+  });
+
+  it('delete_reinforcement event has a non-empty reason string', () => {
+    const sentinelNode = makeSentinelNode(1, { connections: [] });
+    const state = makeAriaState({
+      network: {
+        currentNodeId: 'current',
+        previousNodeId: null,
+        nodes: {
+          current: makeNode({ id: 'current', ip: '10.5.0.1', layer: 5, connections: [] }),
+          sentinel_node_1: sentinelNode,
+        },
+      },
+      aria: { discovered: true, trustScore: 85, messageHistory: [], suppressedMutations: 0 },
+    });
+
+    const result = runAriaTurn(state);
+    const event = result.state.sentinel.mutationLog[0];
+    expect(event.action).toBe('delete_reinforcement');
+    expect(typeof event.reason).toBe('string');
+    expect(event.reason!.length).toBeGreaterThan(0);
+  });
+});

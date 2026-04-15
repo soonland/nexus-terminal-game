@@ -764,3 +764,67 @@ describe('runSentinelTurn — priority 1: reduce tie-break branches', () => {
     expect(result.state.network.nodes['vpn_gateway']?.sentinelPatched).toBeFalsy();
   });
 });
+
+// ── MutationEvent.reason field ─────────────────────────────
+
+describe('runSentinelTurn — MutationEvent.reason populated', () => {
+  it('patch_node event has a non-empty reason string', () => {
+    const state = produce(activeState(), s => {
+      const n = s.network.nodes['contractor_portal'];
+      if (n) {
+        n.compromised = true;
+        n.compromisedAtTurn = 1;
+        n.layer = 1;
+      }
+    });
+    const result = runSentinelTurn(state);
+    const event = result.state.sentinel.mutationLog[0];
+    expect(event.action).toBe('patch_node');
+    expect(typeof event.reason).toBe('string');
+    expect(event.reason!.length).toBeGreaterThan(0);
+  });
+
+  it('revoke_credential event has a non-empty reason string', () => {
+    const base = patchAllCompromised(
+      produce(activeState(), s => {
+        const n = s.network.nodes['contractor_portal'];
+        if (n) {
+          n.compromised = true;
+          n.compromisedAtTurn = 1;
+          n.layer = 1;
+        }
+      }),
+    );
+    const state = obtainFirstCredential(base);
+    const result = runSentinelTurn(state);
+    const event = result.state.sentinel.mutationLog[0];
+    expect(event.action).toBe('revoke_credential');
+    expect(typeof event.reason).toBe('string');
+    expect(event.reason!.length).toBeGreaterThan(0);
+  });
+
+  it('delete_file event has a non-empty reason string', () => {
+    const base = patchAllCompromised(revokeAllCredentials(activeState()));
+    const state = produce(base, s => {
+      s.sentinel.pendingFileDeletes.push({
+        filePath: '/data/report.txt',
+        nodeId: 'contractor_portal',
+        targetTurn: 0,
+      });
+    });
+    const result = runSentinelTurn(state);
+    const event = result.state.sentinel.mutationLog.find(e => e.action === 'delete_file');
+    expect(event).toBeDefined();
+    expect(typeof event!.reason).toBe('string');
+    expect(event!.reason!.length).toBeGreaterThan(0);
+  });
+
+  it('spawn_node event has a non-empty reason string', () => {
+    const state = patchAllCompromised(revokeAllCredentials(activeState()));
+    const result = runSentinelTurn(state);
+    const event = result.state.sentinel.mutationLog.find(e => e.action === 'spawn_node');
+    expect(event).toBeDefined();
+    expect(typeof event!.reason).toBe('string');
+    expect(event!.reason!.length).toBeGreaterThan(0);
+  });
+});

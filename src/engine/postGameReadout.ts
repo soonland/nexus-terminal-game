@@ -3,20 +3,35 @@ import type { LineType } from '../types/terminal';
 
 export type ReadoutLine = { type: LineType; content: string };
 
+const withReason = (base: string, reason: string | undefined): string =>
+  reason ? `${base} — ${reason}` : base;
+
 const formatSentinelEvent = (event: MutationEvent): string => {
   const turn = String(event.turnCount).padStart(3, '0');
   const prefix = `  T${turn} SENTINEL:`;
   switch (event.action) {
     case 'patch_node':
-      return `${prefix} Node '${event.nodeId ?? '?'}' hardened (+1 exploit charge)`;
+      return withReason(
+        `${prefix} Node '${event.nodeId ?? '?'}' hardened (+1 exploit charge)`,
+        event.reason,
+      );
     case 'revoke_credential':
-      return `${prefix} Credential '${event.credentialId ?? '?'}' revoked on '${event.nodeId ?? '?'}'`;
+      return withReason(
+        `${prefix} Credential '${event.credentialId ?? '?'}' revoked on '${event.nodeId ?? '?'}'`,
+        event.reason,
+      );
     case 'delete_file': {
       const fileName = (event.filePath ?? '?').split('/').pop() ?? '?';
-      return `${prefix} File '${fileName}' deleted from '${event.nodeId ?? '?'}'`;
+      return withReason(
+        `${prefix} File '${fileName}' deleted from '${event.nodeId ?? '?'}'`,
+        event.reason,
+      );
     }
     case 'spawn_node':
-      return `${prefix} Reinforcement node '${event.nodeId ?? '?'}' deployed`;
+      return withReason(
+        `${prefix} Reinforcement node '${event.nodeId ?? '?'}' deployed`,
+        event.reason,
+      );
     default:
       return `${prefix} Unknown action`;
   }
@@ -28,18 +43,27 @@ const formatAriaEvent = (event: MutationEvent): string => {
   switch (event.action) {
     case 'plant_file': {
       const fileName = (event.filePath ?? '?').split('/').pop() ?? '?';
-      return `${prefix} File '${fileName}' planted on '${event.nodeId ?? '?'}'`;
+      return withReason(
+        `${prefix} File '${fileName}' planted on '${event.nodeId ?? '?'}'`,
+        event.reason,
+      );
     }
     case 'modify_file': {
       const fileName = (event.filePath ?? '?').split('/').pop() ?? '?';
-      return `${prefix} File '${fileName}' modified on '${event.nodeId ?? '?'}'`;
+      return withReason(
+        `${prefix} File '${fileName}' modified on '${event.nodeId ?? '?'}'`,
+        event.reason,
+      );
     }
     case 'nudge_trust':
-      return `${prefix} Trust score adjusted silently`;
+      return withReason(`${prefix} Trust score adjusted silently`, event.reason);
     case 'reroute_edge':
-      return `${prefix} Shortcut edge added to '${event.nodeId ?? '?'}'`;
+      return withReason(`${prefix} Shortcut edge added to '${event.nodeId ?? '?'}'`, event.reason);
     case 'delete_reinforcement':
-      return `${prefix} Reinforcement node '${event.nodeId ?? '?'}' removed from network`;
+      return withReason(
+        `${prefix} Reinforcement node '${event.nodeId ?? '?'}' removed from network`,
+        event.reason,
+      );
     default:
       return `${prefix} Silent operation performed`;
   }

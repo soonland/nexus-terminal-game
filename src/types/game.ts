@@ -196,6 +196,7 @@ export interface MutationEvent {
   action: SentinelAction | AriaAction;
   turnCount: number;
   visibleToPlayer: boolean;
+  reason?: string;
   nodeId?: string;
   credentialId?: string;
   filePath?: string;

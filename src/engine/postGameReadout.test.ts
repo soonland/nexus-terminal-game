@@ -639,3 +639,58 @@ describe('buildPostGameReadout', () => {
     expect(eventLine?.content).toContain('removed from network');
   });
 });
+
+// ── reason field rendering ─────────────────────────────────
+
+describe('buildPostGameReadout — reason field appended when present', () => {
+  it('appends reason to a sentinel patch_node line', () => {
+    const state = produce(withEnding(createInitialState(), 'LEAK'), s => {
+      s.sentinel.mutationLog.push(
+        makeMutation('patch_node', 3, { nodeId: 'ops_node', reason: 'Hardening test reason' }),
+      );
+    });
+    const lines = buildPostGameReadout(state);
+    const eventLine = lines.find(l => l.type === 'error' && l.content.includes('SENTINEL:'));
+    expect(eventLine?.content).toContain('— Hardening test reason');
+  });
+
+  it('does not append separator when reason is absent on a sentinel event', () => {
+    const state = produce(withEnding(createInitialState(), 'SELL'), s => {
+      s.sentinel.mutationLog.push(makeMutation('patch_node', 3, { nodeId: 'ops_node' }));
+    });
+    const lines = buildPostGameReadout(state);
+    const eventLine = lines.find(l => l.type === 'error' && l.content.includes('SENTINEL:'));
+    expect(eventLine?.content).not.toContain('—');
+  });
+
+  it('appends reason to an aria reroute_edge line', () => {
+    const state = produce(withEnding(createInitialState(), 'FREE'), s => {
+      s.sentinel.mutationLog.push(
+        makeMutation('reroute_edge', 7, {
+          agent: 'aria',
+          visibleToPlayer: false,
+          nodeId: 'exec_node',
+          reason: 'Aiding navigation',
+        }),
+      );
+    });
+    const lines = buildPostGameReadout(state);
+    const eventLine = lines.find(l => l.type === 'aria' && l.content.includes('ARIA:'));
+    expect(eventLine?.content).toContain('— Aiding navigation');
+  });
+
+  it('does not append separator when reason is absent on an aria event', () => {
+    const state = produce(withEnding(createInitialState(), 'FREE'), s => {
+      s.sentinel.mutationLog.push(
+        makeMutation('reroute_edge', 7, {
+          agent: 'aria',
+          visibleToPlayer: false,
+          nodeId: 'exec_node',
+        }),
+      );
+    });
+    const lines = buildPostGameReadout(state);
+    const eventLine = lines.find(l => l.type === 'aria' && l.content.includes('ARIA:'));
+    expect(eventLine?.content).not.toContain('—');
+  });
+});
