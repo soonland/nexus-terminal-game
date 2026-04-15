@@ -360,7 +360,7 @@ export const App = () => {
         bootHandled.current = false;
         const dossierAfterEnd = loadDossier();
         if (dossierAfterEnd.runsCompleted > 0) {
-          const contract = selectContract();
+          const contract = selectContract(undefined, dossierAfterEnd.runsCompleted);
           setPendingContract(contract);
           setContractRerollUsed(false);
           setSessionLines(buildContractLines(contract));
@@ -406,7 +406,7 @@ export const App = () => {
           } else {
             const dossier = loadDossier();
             if (dossier.runsCompleted > 0) {
-              const contract = selectContract();
+              const contract = selectContract(undefined, dossier.runsCompleted);
               setPendingContract(contract);
               setContractRerollUsed(false);
               setSessionLines(buildContractLines(contract));
@@ -445,7 +445,7 @@ export const App = () => {
           if (contractRerollUsed) {
             push([makeLine('system', '// REROLL: already used — one reroll per session')]);
           } else {
-            const rerolled = selectContract(pendingContract?.id);
+            const rerolled = selectContract(pendingContract?.id, loadDossier().runsCompleted);
             setPendingContract(rerolled);
             setContractRerollUsed(true);
             push(buildContractLines(rerolled));
@@ -475,7 +475,7 @@ export const App = () => {
           clearSave();
           const dossier = loadDossier();
           if (dossier.runsCompleted > 0) {
-            const contract = selectContract();
+            const contract = selectContract(undefined, dossier.runsCompleted);
             setPendingContract(contract);
             setContractRerollUsed(false);
             setSessionLines(buildContractLines(contract));
@@ -630,16 +630,33 @@ export const App = () => {
           // Do NOT clearSave here — state is needed for burnRetry on Enter.
         } else if (next.phase === 'ended') {
           // Finalise objective for condition types evaluated at run-end rather than mid-run.
+          // Layer → divisionId mapping for avoid_division end-of-run checks.
+          const DIVISION_LAYER: Record<string, number | undefined> = {
+            external_perimeter: 0,
+            operations: 1,
+            security: 2,
+            finance: 3,
+            executive: 4,
+          };
           const activeContract = next.contract;
           const finalNext =
             activeContract && !activeContract.objectiveComplete
               ? produce(next, s => {
                   if (!s.contract) return;
-                  const type = s.contract.objectiveCondition.type;
-                  if (type === 'trace_cap' && !s.flags['contract_cap_exceeded']) {
+                  const condition = s.contract.objectiveCondition;
+                  if (condition.type === 'trace_cap' && !s.flags['contract_cap_exceeded']) {
                     s.contract.objectiveComplete = true;
-                  } else if (type === 'no_burn' && s.player.burnCount === 0) {
+                  } else if (condition.type === 'no_burn' && s.player.burnCount === 0) {
                     s.contract.objectiveComplete = true;
+                  } else if (condition.type === 'avoid_division') {
+                    const avoidCond = condition as { type: 'avoid_division'; divisionId: string };
+                    const targetLayer = DIVISION_LAYER[avoidCond.divisionId];
+                    if (targetLayer !== undefined) {
+                      const anyCompromised = Object.values(s.network.nodes).some(
+                        n => n?.layer === targetLayer && n.compromised,
+                      );
+                      if (!anyCompromised) s.contract.objectiveComplete = true;
+                    }
                   }
                 })
               : next;

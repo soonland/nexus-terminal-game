@@ -220,7 +220,10 @@ export interface SentinelState {
 export type ObjectiveCondition =
   | { type: 'trace_cap'; maxTrace: number }
   | { type: 'exfil_count'; minCount: number }
-  | { type: 'no_burn' };
+  | { type: 'no_burn' }
+  | { type: 'exfil_file'; targetFileName: string }
+  | { type: 'identify_employee'; divisionId: string }
+  | { type: 'avoid_division'; divisionId: string };
 
 export interface ContractDefinition {
   id: string;
@@ -234,6 +237,10 @@ export interface ContractDefinition {
   };
   networkVariant: string;
   objectiveCondition: ObjectiveCondition;
+  /** Run index after which this contract enters the pool (0 = available from run 2 onward). */
+  unlockedAfterRun?: number;
+  /** Lore fragment key added to the dossier when this contract's objective is completed. */
+  rewardOnComplete?: string;
 }
 
 /** Runtime contract state stored in GameState. */

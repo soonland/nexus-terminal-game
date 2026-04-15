@@ -44,17 +44,25 @@ describe('CONTRACT_POOL', () => {
     'objectiveCondition',
   ] as const;
 
-  it('should contain exactly 5 contracts', () => {
-    expect(CONTRACT_POOL).toHaveLength(5);
+  it('should contain exactly 10 contracts', () => {
+    expect(CONTRACT_POOL).toHaveLength(10);
   });
 
   it('should contain the expected contract IDs', () => {
     const ids = CONTRACT_POOL.map(c => c.id);
+    // Basic pool (run 2+)
     expect(ids).toContain('ghost_protocol');
     expect(ids).toContain('data_harvest');
     expect(ids).toContain('blitz');
+    // Mid pool (run 3+)
     expect(ids).toContain('scorched_earth');
     expect(ids).toContain('clean_sweep');
+    expect(ids).toContain('inside_job');
+    // Full pool (run 4+)
+    expect(ids).toContain('paper_trail');
+    expect(ids).toContain('dark_corridor');
+    expect(ids).toContain('board_exposure');
+    expect(ids).toContain('zero_footprint');
   });
 
   it.each(CONTRACT_POOL)(
@@ -90,7 +98,14 @@ describe('CONTRACT_POOL', () => {
   );
 
   it.each(CONTRACT_POOL)('contract "$id" objectiveCondition should have a known type', contract => {
-    const validTypes = ['trace_cap', 'exfil_count', 'no_burn'];
+    const validTypes = [
+      'trace_cap',
+      'exfil_count',
+      'no_burn',
+      'exfil_file',
+      'identify_employee',
+      'avoid_division',
+    ];
     expect(validTypes).toContain(contract.objectiveCondition.type);
   });
 
@@ -119,9 +134,122 @@ describe('CONTRACT_POOL', () => {
     expect(contract.objectiveCondition).toEqual({ type: 'no_burn' });
   });
 
+  it('paper_trail should have an exfil_file condition for wire_transfers_q4.csv', () => {
+    const contract = CONTRACT_POOL.find(c => c.id === 'paper_trail')!;
+    expect(contract.objectiveCondition).toEqual({
+      type: 'exfil_file',
+      targetFileName: 'wire_transfers_q4.csv',
+    });
+  });
+
+  it('board_exposure should have an exfil_file condition for board_minutes_oct.pdf', () => {
+    const contract = CONTRACT_POOL.find(c => c.id === 'board_exposure')!;
+    expect(contract.objectiveCondition).toEqual({
+      type: 'exfil_file',
+      targetFileName: 'board_minutes_oct.pdf',
+    });
+  });
+
+  it('dark_corridor should have an avoid_division condition for security', () => {
+    const contract = CONTRACT_POOL.find(c => c.id === 'dark_corridor')!;
+    expect(contract.objectiveCondition).toEqual({ type: 'avoid_division', divisionId: 'security' });
+  });
+
+  it('inside_job should have an identify_employee condition for security division', () => {
+    const contract = CONTRACT_POOL.find(c => c.id === 'inside_job')!;
+    expect(contract.objectiveCondition).toEqual({
+      type: 'identify_employee',
+      divisionId: 'security',
+    });
+  });
+
+  it('zero_footprint should have an identify_employee condition for finance division', () => {
+    const contract = CONTRACT_POOL.find(c => c.id === 'zero_footprint')!;
+    expect(contract.objectiveCondition).toEqual({
+      type: 'identify_employee',
+      divisionId: 'finance',
+    });
+  });
+
   it('all contract IDs should be unique', () => {
     const ids = CONTRACT_POOL.map(c => c.id);
     expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  // ── unlockedAfterRun progression ─────────────────────────
+  it('basic pool (unlockedAfterRun=0) should have exactly 3 contracts', () => {
+    const basic = CONTRACT_POOL.filter(c => (c.unlockedAfterRun ?? 0) === 0);
+    expect(basic).toHaveLength(3);
+    expect(basic.map(c => c.id)).toEqual(
+      expect.arrayContaining(['ghost_protocol', 'data_harvest', 'blitz']),
+    );
+  });
+
+  it('mid pool (unlockedAfterRun=1) should have exactly 3 contracts', () => {
+    const mid = CONTRACT_POOL.filter(c => (c.unlockedAfterRun ?? 0) === 1);
+    expect(mid).toHaveLength(3);
+    expect(mid.map(c => c.id)).toEqual(
+      expect.arrayContaining(['scorched_earth', 'clean_sweep', 'inside_job']),
+    );
+  });
+
+  it('full pool addition (unlockedAfterRun=2) should have exactly 4 contracts', () => {
+    const full = CONTRACT_POOL.filter(c => (c.unlockedAfterRun ?? 0) === 2);
+    expect(full).toHaveLength(4);
+    expect(full.map(c => c.id)).toEqual(
+      expect.arrayContaining(['paper_trail', 'dark_corridor', 'board_exposure', 'zero_footprint']),
+    );
+  });
+
+  // ── rewardOnComplete ──────────────────────────────────────
+  it('contracts with rewardOnComplete should have non-empty string values', () => {
+    for (const contract of CONTRACT_POOL) {
+      if (contract.rewardOnComplete !== undefined) {
+        expect(contract.rewardOnComplete.length).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it('inside_job should reward SECURITY_INSIDER_IDENTIFIED on completion', () => {
+    const contract = CONTRACT_POOL.find(c => c.id === 'inside_job')!;
+    expect(contract.rewardOnComplete).toBe('SECURITY_INSIDER_IDENTIFIED');
+  });
+
+  it('paper_trail should reward WIRE_TRANSFERS_OBTAINED on completion', () => {
+    const contract = CONTRACT_POOL.find(c => c.id === 'paper_trail')!;
+    expect(contract.rewardOnComplete).toBe('WIRE_TRANSFERS_OBTAINED');
+  });
+
+  it('dark_corridor should reward SECURITY_BYPASSED on completion', () => {
+    const contract = CONTRACT_POOL.find(c => c.id === 'dark_corridor')!;
+    expect(contract.rewardOnComplete).toBe('SECURITY_BYPASSED');
+  });
+
+  it('board_exposure should reward BOARD_EXPOSED on completion', () => {
+    const contract = CONTRACT_POOL.find(c => c.id === 'board_exposure')!;
+    expect(contract.rewardOnComplete).toBe('BOARD_EXPOSED');
+  });
+
+  it('zero_footprint should reward FINANCE_PERSONNEL_IDENTIFIED on completion', () => {
+    const contract = CONTRACT_POOL.find(c => c.id === 'zero_footprint')!;
+    expect(contract.rewardOnComplete).toBe('FINANCE_PERSONNEL_IDENTIFIED');
+  });
+
+  // ── Insider loadout contracts ─────────────────────────────
+  it('inside_job should start with cred_sec_analyst pre-obtained', () => {
+    const contract = CONTRACT_POOL.find(c => c.id === 'inside_job')!;
+    expect(contract.loadout.startingCredentials).toContain('cred_sec_analyst');
+  });
+
+  it('zero_footprint should start with cred_fin_analyst pre-obtained', () => {
+    const contract = CONTRACT_POOL.find(c => c.id === 'zero_footprint')!;
+    expect(contract.loadout.startingCredentials).toContain('cred_fin_analyst');
+  });
+
+  // ── Equipped loadout contracts ────────────────────────────
+  it('paper_trail should include decryptor in startingTools', () => {
+    const contract = CONTRACT_POOL.find(c => c.id === 'paper_trail')!;
+    expect(contract.loadout.startingTools).toContain('decryptor');
   });
 });
 
@@ -157,6 +285,37 @@ describe('getContract', () => {
     const result = getContract('clean_sweep');
     expect(result).toBeDefined();
     expect(result!.id).toBe('clean_sweep');
+  });
+
+  it('should return the inside_job contract when queried by id', () => {
+    const result = getContract('inside_job');
+    expect(result).toBeDefined();
+    expect(result!.id).toBe('inside_job');
+    expect(result!.title).toBe('INSIDE JOB');
+  });
+
+  it('should return the paper_trail contract when queried by id', () => {
+    const result = getContract('paper_trail');
+    expect(result).toBeDefined();
+    expect(result!.id).toBe('paper_trail');
+  });
+
+  it('should return the dark_corridor contract when queried by id', () => {
+    const result = getContract('dark_corridor');
+    expect(result).toBeDefined();
+    expect(result!.id).toBe('dark_corridor');
+  });
+
+  it('should return the board_exposure contract when queried by id', () => {
+    const result = getContract('board_exposure');
+    expect(result).toBeDefined();
+    expect(result!.id).toBe('board_exposure');
+  });
+
+  it('should return the zero_footprint contract when queried by id', () => {
+    const result = getContract('zero_footprint');
+    expect(result).toBeDefined();
+    expect(result!.id).toBe('zero_footprint');
   });
 
   it('should return undefined for a nonexistent id', () => {
@@ -199,48 +358,80 @@ describe('selectContract', () => {
     expect(CONTRACT_POOL).toContain(result);
   });
 
-  it('should return from the full pool when excludeId is undefined', () => {
-    // Verify all contracts are reachable — mock random to hit each index
-    const ids = CONTRACT_POOL.map(c => c.id);
-    CONTRACT_POOL.forEach((_, i) => {
-      vi.spyOn(Math, 'random').mockReturnValueOnce(i / CONTRACT_POOL.length);
-      const result = selectContract(undefined);
-      expect(ids).toContain(result.id);
-    });
+  it('should return a contract from the basic pool (runsCompleted=0) when no excludeId', () => {
+    const basicIds = ['ghost_protocol', 'data_harvest', 'blitz'];
+    const result = selectContract(undefined, 0);
+    expect(basicIds).toContain(result.id);
   });
 
-  it('should return from the full pool when excludeId does not match any contract', () => {
-    // A nonexistent excludeId still leaves the eligible pool = full pool
-    const result = selectContract('does_not_exist');
+  it('should not return locked contracts when runsCompleted is 0', () => {
+    const lockedIds = [
+      'scorched_earth',
+      'clean_sweep',
+      'inside_job',
+      'paper_trail',
+      'dark_corridor',
+      'board_exposure',
+      'zero_footprint',
+    ];
+    for (let i = 0; i < 50; i++) {
+      const result = selectContract(undefined, 0);
+      expect(lockedIds).not.toContain(result.id);
+    }
+  });
+
+  it('should include run-3 contracts when runsCompleted is 1', () => {
+    const midPoolIds = [
+      'ghost_protocol',
+      'data_harvest',
+      'blitz',
+      'scorched_earth',
+      'clean_sweep',
+      'inside_job',
+    ];
+    const results = new Set<string>();
+    for (let i = 0; i < 200; i++) results.add(selectContract(undefined, 1).id);
+    // All 6 mid-pool contracts should be reachable
+    for (const id of midPoolIds) expect(results).toContain(id);
+    // Run-4-only contracts should not appear
+    expect(results).not.toContain('paper_trail');
+    expect(results).not.toContain('dark_corridor');
+  });
+
+  it('should return any of the 10 contracts when runsCompleted is 3 (full pool)', () => {
+    const results = new Set<string>();
+    for (let i = 0; i < 300; i++) results.add(selectContract(undefined, 3).id);
+    expect(results.size).toBe(10);
+  });
+
+  it('should return from the base pool when excludeId does not match any contract', () => {
+    const result = selectContract('does_not_exist', 0);
     expect(CONTRACT_POOL).toContain(result);
   });
 
-  it('should fall back to the full pool when excludeId would exclude all eligible contracts (single-element pool simulation)', () => {
-    // We can't reduce the real pool to 1 entry without modifying source, but we CAN
-    // verify the fallback branch: the only way eligible.length === 0 with the real pool
-    // is impossible (5 contracts, only 1 excluded). Verify the fallback is at least
-    // consistent by checking that with any valid excludeId the returned contract is
-    // still from CONTRACT_POOL (i.e. pool fallback yields a valid result).
-    const result = selectContract('ghost_protocol');
+  it('should fall back to the unlocked pool when excludeId would exclude all eligible contracts', () => {
+    // With runsCompleted=0 the base pool has 3 contracts. Excluding all 3 individually is
+    // impossible via a single excludeId, so verify the fallback: excluding a nonexistent ID
+    // still yields a valid contract from the basic pool.
+    const result = selectContract('nonexistent', 0);
     expect(result).toBeDefined();
     expect(typeof result.id).toBe('string');
   });
 
   it('should use Math.random to pick from the eligible pool', () => {
-    // With ghost_protocol excluded the eligible pool has 4 contracts (indices 0–3).
-    // Mock Math.random → 0 to deterministically pick the first eligible contract.
+    // With ghost_protocol excluded and runsCompleted=0, the eligible basic pool has 2
+    // contracts: [data_harvest, blitz]. Math.random → 0 picks index 0 → data_harvest.
     vi.spyOn(Math, 'random').mockReturnValue(0);
-    const result = selectContract('ghost_protocol');
-    // First eligible contract (ghost_protocol excluded) is data_harvest (index 1 in pool → index 0 eligible).
+    const result = selectContract('ghost_protocol', 0);
     expect(result.id).toBe('data_harvest');
   });
 
   it('should return contracts with different ids across multiple calls (randomness exercised)', () => {
     const results = new Set<string>();
     for (let i = 0; i < 100; i++) {
-      results.add(selectContract().id);
+      results.add(selectContract(undefined, 3).id);
     }
-    // With 5 contracts and 100 trials, we expect to see more than 1 distinct result
+    // With 10 contracts and 100 trials, expect multiple distinct results
     expect(results.size).toBeGreaterThan(1);
   });
 });
