@@ -413,9 +413,9 @@ describe('selectContract', () => {
     expect(CONTRACT_POOL).toContain(result);
   });
 
-  it('should fall back to the unlocked pool when excludeId would exclude all eligible contracts', () => {
+  it('should return a valid contract when excludeId does not match any eligible contract', () => {
     // With runsCompleted=1 the base pool has 3 contracts. Excluding a nonexistent ID
-    // leaves the eligible pool unchanged — verifies the fallback path is consistent.
+    // leaves the eligible pool unchanged — verifies normal selection still works.
     const result = selectContract('nonexistent', 1);
     expect(result).toBeDefined();
     expect(typeof result.id).toBe('string');

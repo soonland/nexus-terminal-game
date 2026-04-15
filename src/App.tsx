@@ -29,8 +29,7 @@ import {
 } from './engine/persistence';
 import { loadDossier } from './engine/dossierPersistence';
 import { selectContract } from './data/contracts';
-import { DIVISION_LAYER } from './engine/buildCredentialChains';
-import type { DivisionId } from './types/divisionSeed';
+import { DIVISION_LAYER } from './data/divisionSeeds';
 import type { ContractDefinition } from './types/game';
 
 const computeContextSuggestions = (state: GameState): string[] => {
@@ -643,7 +642,7 @@ export const App = () => {
                   } else if (condition.type === 'no_burn' && s.player.burnCount === 0) {
                     s.contract.objectiveComplete = true;
                   } else if (condition.type === 'avoid_division') {
-                    const targetLayer = DIVISION_LAYER[condition.divisionId as DivisionId];
+                    const targetLayer = DIVISION_LAYER[condition.divisionId];
                     const anyCompromised = Object.values(s.network.nodes).some(
                       n => n?.layer === targetLayer && n.compromised,
                     );

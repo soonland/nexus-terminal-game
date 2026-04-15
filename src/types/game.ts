@@ -1,3 +1,5 @@
+import type { DivisionId } from './divisionSeed';
+
 // ── Access levels ──────────────────────────────────────────
 export type AccessLevel = 'none' | 'user' | 'admin' | 'root';
 
@@ -222,8 +224,8 @@ export type ObjectiveCondition =
   | { type: 'exfil_count'; minCount: number }
   | { type: 'no_burn' }
   | { type: 'exfil_file'; targetFileName: string }
-  | { type: 'identify_employee'; divisionId: string }
-  | { type: 'avoid_division'; divisionId: string };
+  | { type: 'identify_employee'; divisionId: DivisionId }
+  | { type: 'avoid_division'; divisionId: DivisionId };
 
 export interface ContractDefinition {
   id: string;
@@ -239,7 +241,8 @@ export interface ContractDefinition {
   objectiveCondition: ObjectiveCondition;
   /** Run index after which this contract enters the pool (0 = available from run 2 onward). */
   unlockedAfterRun?: number;
-  /** Lore fragment key added to the dossier when this contract's objective is completed. */
+  /** Lore fragment key added to the dossier when this contract's objective is completed.
+   * TODO(phase-7): read this field after objectiveComplete flips and write the key to the dossier. */
   rewardOnComplete?: string;
 }
 

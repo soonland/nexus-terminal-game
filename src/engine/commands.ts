@@ -414,6 +414,8 @@ const applyObjectiveEffects = (prevState: GameState, result: CommandOutput): Com
     }
   } else if (condition.type === 'identify_employee') {
     // Proxy check: the employee roster is the only file that covers all division personnel.
+    // TODO: filter by condition.divisionId once GameFile.sourceNodeId exists — currently
+    // all identify_employee contracts complete on the same file regardless of target division.
     const EMPLOYEE_ROSTER = 'employee_roster.csv';
     const prevNames = prevState.player.exfiltrated.map(f => f.name);
     const nextNames = nextState.player.exfiltrated.map(f => f.name);
