@@ -17,12 +17,12 @@
 import { chromium } from 'playwright';
 import { rename } from 'node:fs/promises';
 
-const URL      = 'http://localhost:5174';
+const URL = 'http://localhost:5174';
 const VIDEO_DIR = './playthrough-video';
 
-const TYPE_DELAY = 55;   // ms between keystrokes
-const CMD_PAUSE  = 850;  // ms after a normal command
-const AI_PAUSE   = 3200; // ms after a command that calls the AI APIs
+const TYPE_DELAY = 55; // ms between keystrokes
+const CMD_PAUSE = 850; // ms after a normal command
+const AI_PAUSE = 3200; // ms after a command that calls the AI APIs
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -91,7 +91,13 @@ const context = await browser.newContext({
 });
 
 const page = await context.newPage();
-page.on('close', async () => { try { await saveVideo(page); } catch { /* already closed */ } });
+page.on('close', async () => {
+  try {
+    await saveVideo(page);
+  } catch {
+    /* already closed */
+  }
+});
 
 try {
   // ── Boot ────────────────────────────────────────────────────
@@ -119,10 +125,9 @@ try {
   await page.keyboard.press('Enter');
   await page.waitForTimeout(600);
 
-  await page.waitForFunction(
-    () => document.body.innerText.includes('nx-field-01 login:'),
-    { timeout: 10000 },
-  );
+  await page.waitForFunction(() => document.body.innerText.includes('nx-field-01 login:'), {
+    timeout: 10000,
+  });
   await page.waitForTimeout(400);
   await typeInto(page, 'ghost');
   await page.keyboard.press('Enter');
@@ -148,29 +153,29 @@ try {
   // ════════════════════════════════════════════════════════════
 
   await cmd(page, 'login contractor Welcome1!');
-  await cmd(page, 'cat welcome.txt');          // confirms vpn_gateway at 10.0.0.2, lore
-  await cmd(page, 'scan');                     // discovers VPN GATEWAY (10.0.0.2)
+  await cmd(page, 'cat welcome.txt'); // confirms vpn_gateway at 10.0.0.2, lore
+  await cmd(page, 'scan'); // discovers VPN GATEWAY (10.0.0.2)
 
   await cmd(page, 'connect 10.0.0.2');
   await cmd(page, 'login contractor Welcome1!');
-  await cmd(page, 'scan');                     // discovers CCTV CONTROLLER + HR DATABASE
+  await cmd(page, 'scan'); // discovers CCTV CONTROLLER + HR DATABASE
 
   // ════════════════════════════════════════════════════════════
   //  LAYER 1 — OPERATIONS
   //  Charges: 4
   // ════════════════════════════════════════════════════════════
 
-  await cmd(page, 'connect 10.1.0.1');         // CCTV CONTROLLER
-  await cmd(page, 'exploit http', AI_PAUSE);   // −1 charge → 3  |  +2 trace
-  await cmd(page, 'cat camera_config.ini');    // plaintext ops.admin / IronG8te#Ops  (+1 trace)
+  await cmd(page, 'connect 10.1.0.1'); // CCTV CONTROLLER
+  await cmd(page, 'exploit http', AI_PAUSE); // −1 charge → 3  |  +2 trace
+  await cmd(page, 'cat camera_config.ini'); // plaintext ops.admin / IronG8te#Ops  (+1 trace)
 
-  await cmd(page, 'connect 10.1.0.2');         // HR DATABASE (directly connected)
+  await cmd(page, 'connect 10.1.0.2'); // HR DATABASE (directly connected)
   await cmd(page, 'login ops.admin IronG8te#Ops'); // admin — compromises L1 key anchor
   await cmd(page, 'cat employee_roster.csv');
-  await cmd(page, 'cat password_policy.txt');         // j.mercer flagged for password reuse
-  await cmd(page, 'cat sec_ticket_2023_0601.txt');    // reveals j.mercer / S3ntinel99
-  await cmd(page, 'exfil decryptor.bin');             // +3 trace — adds decryptor tool (admin req)
-  await cmd(page, 'exfil log-wiper.bin');             // +3 trace — adds log-wiper tool (admin req)
+  await cmd(page, 'cat password_policy.txt'); // j.mercer flagged for password reuse
+  await cmd(page, 'cat sec_ticket_2023_0601.txt'); // reveals j.mercer / S3ntinel99
+  await cmd(page, 'exfil decryptor.bin'); // +3 trace — adds decryptor tool (admin req)
+  await cmd(page, 'exfil log-wiper.bin'); // +3 trace — adds log-wiper tool (admin req)
   await cmd(page, 'status');
 
   // ════════════════════════════════════════════════════════════
@@ -178,20 +183,20 @@ try {
   //  Charges: 3
   // ════════════════════════════════════════════════════════════
 
-  await cmd(page, 'scan');                            // discovers ACCESS CONTROL (10.2.0.1)
+  await cmd(page, 'scan'); // discovers ACCESS CONTROL (10.2.0.1)
 
-  await cmd(page, 'connect 10.2.0.1');               // ACCESS CONTROL
-  await cmd(page, 'login j.mercer S3ntinel99');       // user — cred from HR ticket
-  await cmd(page, 'cat acl_rules.conf');             // Aria subnet rule sneaked in 2024-08-17
-  await cmd(page, 'cat network_segments.txt');        // [CLASSIFIED] 172.16.0.0/16
-  await cmd(page, 'decrypt encrypted_creds.gpg');    // +2 trace — unlocks a.walsh + fin.dba creds
-  await cmd(page, 'scan');                            // discovers PERIMETER FIREWALL (10.2.0.2)
+  await cmd(page, 'connect 10.2.0.1'); // ACCESS CONTROL
+  await cmd(page, 'login j.mercer S3ntinel99'); // user — cred from HR ticket
+  await cmd(page, 'cat acl_rules.conf'); // Aria subnet rule sneaked in 2024-08-17
+  await cmd(page, 'cat network_segments.txt'); // [CLASSIFIED] 172.16.0.0/16
+  await cmd(page, 'decrypt encrypted_creds.gpg'); // +2 trace — unlocks a.walsh + fin.dba creds
+  await cmd(page, 'scan'); // discovers PERIMETER FIREWALL (10.2.0.2)
 
-  await cmd(page, 'connect 10.2.0.2');               // PERIMETER FIREWALL
-  await cmd(page, 'exploit proprietary', AI_PAUSE);  // −2 charges → 1  |  +4 trace
-  await cmd(page, 'cat fw_backup_2024.cfg');         // sec.root / Fw@llBreaker! + Aria ACL  (+3 trace)
+  await cmd(page, 'connect 10.2.0.2'); // PERIMETER FIREWALL
+  await cmd(page, 'exploit proprietary', AI_PAUSE); // −2 charges → 1  |  +4 trace
+  await cmd(page, 'cat fw_backup_2024.cfg'); // sec.root / Fw@llBreaker! + Aria ACL  (+3 trace)
   // Fork 2 Path B: exfil reduces charges by 2 (floored 0), but slows Sentinel to ×3 turns
-  await cmd(page, 'exfil fw_backup_2024.cfg');       // Fork 2 Path B — sentinel interval ×3, +15 Aria trust
+  await cmd(page, 'exfil fw_backup_2024.cfg'); // Fork 2 Path B — sentinel interval ×3, +15 Aria trust
   await cmd(page, 'status');
 
   // ════════════════════════════════════════════════════════════
@@ -200,18 +205,18 @@ try {
   // ════════════════════════════════════════════════════════════
 
   // Use the log-wiper before pushing into the executive subnet
-  await cmd(page, 'wipe-logs');                      // −15% trace, single-use
+  await cmd(page, 'wipe-logs'); // −15% trace, single-use
 
-  await cmd(page, 'scan');                            // discovers PAYMENTS DATABASE (10.3.0.1)
+  await cmd(page, 'scan'); // discovers PAYMENTS DATABASE (10.3.0.1)
 
-  await cmd(page, 'connect 10.3.0.1');               // PAYMENTS DATABASE
+  await cmd(page, 'connect 10.3.0.1'); // PAYMENTS DATABASE
   await cmd(page, 'login fin.dba P@yments2024');
-  await cmd(page, 'cat wire_transfers_q4.csv');      // $7.3M → Cayman_Holdings_LLC (PROJ-ARIA-INFRA)
+  await cmd(page, 'cat wire_transfers_q4.csv'); // $7.3M → Cayman_Holdings_LLC (PROJ-ARIA-INFRA)
 
-  await cmd(page, 'connect 10.3.0.2');               // EXEC ACCOUNTS (discovered via firewall scan)
-  await cmd(page, 'login fin.dba P@yments2024');     // admin — compromises L3 key anchor
-  await cmd(page, 'cat calendar_access.cfg');        // e.torres / Exec@ssist1  (+2 trace)
-  await cmd(page, 'cat exec_compensation.xlsx');     // exec pay tied to PROJ-ARIA milestones  (+2 trace)
+  await cmd(page, 'connect 10.3.0.2'); // EXEC ACCOUNTS (discovered via firewall scan)
+  await cmd(page, 'login fin.dba P@yments2024'); // admin — compromises L3 key anchor
+  await cmd(page, 'cat calendar_access.cfg'); // e.torres / Exec@ssist1  (+2 trace)
+  await cmd(page, 'cat exec_compensation.xlsx'); // exec pay tied to PROJ-ARIA milestones  (+2 trace)
   await cmd(page, 'status');
 
   // ════════════════════════════════════════════════════════════
@@ -219,24 +224,24 @@ try {
   //  Charges: 0  (aria-socket costs 0)
   // ════════════════════════════════════════════════════════════
 
-  await cmd(page, 'scan');                            // discovers CFO WORKSTATION (10.4.0.1)
+  await cmd(page, 'scan'); // discovers CFO WORKSTATION (10.4.0.1)
 
-  await cmd(page, 'connect 10.4.0.1');               // CFO WORKSTATION
+  await cmd(page, 'connect 10.4.0.1'); // CFO WORKSTATION
   await cmd(page, 'login e.torres Exec@ssist1');
-  await cmd(page, 'cat board_minutes_oct.pdf');      // board approved Aria, concern noted  (+2 trace)
+  await cmd(page, 'cat board_minutes_oct.pdf'); // board approved Aria, concern noted  (+2 trace)
   await cmd(page, 'cat PROJ_SENTINEL_BOARD_VOTE.pdf'); // Sentinel derived from Aria, empathy disabled  (+2 trace)
-  await cmd(page, 'cat resignation_draft.txt');      // CFO couldn't sign off on it
-  await cmd(page, 'scan');                            // discovers LEGAL FILE SERVER (10.4.0.2)
+  await cmd(page, 'cat resignation_draft.txt'); // CFO couldn't sign off on it
+  await cmd(page, 'scan'); // discovers LEGAL FILE SERVER (10.4.0.2)
 
-  await cmd(page, 'connect 10.4.0.2');               // LEGAL FILE SERVER
+  await cmd(page, 'connect 10.4.0.2'); // LEGAL FILE SERVER
   await cmd(page, 'login e.torres Exec@ssist1');
-  await cmd(page, 'cat aria_nda_template.docx');     // 47 employees silenced
-  await cmd(page, 'scan');                            // discovers CEO TERMINAL (10.4.0.3)
+  await cmd(page, 'cat aria_nda_template.docx'); // 47 employees silenced
+  await cmd(page, 'scan'); // discovers CEO TERMINAL (10.4.0.3)
 
-  await cmd(page, 'connect 10.4.0.3');               // CEO TERMINAL
-  await cmd(page, 'exploit aria-socket', AI_PAUSE);  // 0 charges, 0 trace → root access
-  await cmd(page, 'cat project_aria_summary.txt');   // "She knows you're here"  (+3 trace)
-  await cmd(page, 'exfil aria_key.bin', AI_PAUSE);  // unlocks Layer 5 / Aria subnetwork
+  await cmd(page, 'connect 10.4.0.3'); // CEO TERMINAL
+  await cmd(page, 'exploit aria-socket', AI_PAUSE); // 0 charges, 0 trace → root access
+  await cmd(page, 'cat project_aria_summary.txt'); // "She knows you're here"  (+3 trace)
+  await cmd(page, 'exfil aria_key.bin', AI_PAUSE); // unlocks Layer 5 / Aria subnetwork
 
   await cmd(page, 'status');
   await cmd(page, 'inventory');
@@ -265,7 +270,6 @@ try {
     }
     console.log('═══════════════════════════════════════\n');
   }
-
 } catch (err) {
   console.error('Playthrough error:', err?.message ?? err);
 }
