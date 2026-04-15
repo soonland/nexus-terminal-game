@@ -122,7 +122,7 @@ export const createInitialState = (sessionSeed?: number, contractId?: string): G
     worldCredentials: employeeCredentials,
     sentinel: {
       active: false,
-      sentinelInterval: 1,
+      sentinelInterval: 2, // acts every 2nd turn; wipe-logs exfil upgrade sets this to 3
       mutationLog: [],
       pendingFileDeletes: [],
       messageHistory: [],

@@ -58,9 +58,8 @@ describe('saveGame — save format', () => {
 
   it('writes to the correct localStorage key', () => {
     saveGame(state);
-    expect(mockStorage.setItem).toHaveBeenCalledOnce();
-    const [key] = mockStorage.setItem.mock.calls[0] as [string, string];
-    expect(key).toBe(SAVE_KEY);
+    // saveGame writes both the main save and the trace audit key — check the main save call
+    expect(mockStorage.setItem).toHaveBeenCalledWith(SAVE_KEY, expect.any(String));
   });
 
   it('includes a version field', () => {

@@ -211,7 +211,7 @@ export interface SentinelMessage {
 
 export interface SentinelState {
   active: boolean; // true once trace has crossed 61
-  sentinelInterval: number; // turns between sentinel actions; default 1, raised to 3 by FIREWALL_TAMPERED
+  sentinelInterval: number; // turns between sentinel actions; default 2, raised to 3 by FIREWALL_TAMPERED
   mutationLog: MutationEvent[];
   pendingFileDeletes: Array<{ filePath: string; nodeId: string; targetTurn: number }>;
   messageHistory: SentinelMessage[]; // DM channel conversation history
