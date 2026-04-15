@@ -3123,6 +3123,161 @@ describe('resolveCommand — contract objective detection', () => {
       expect((result.nextState as GameState).flags['contract_cap_exceeded']).toBeFalsy();
     });
   });
+
+  // ── exfil_file ────────────────────────────────────────────
+
+  describe('exfil_file contract', () => {
+    it('should set objectiveComplete = true when the target file is exfiltrated', async () => {
+      const state = produce(createInitialState(), s => {
+        s.network.nodes['contractor_portal']!.accessLevel = 'user';
+        s.contract = {
+          id: 'paper_trail',
+          networkVariant: 'standard',
+          objectiveComplete: false,
+          objectiveCondition: { type: 'exfil_file', targetFileName: 'welcome.txt' },
+        };
+      });
+      const result = await resolveCommand('exfil welcome.txt', state);
+      expect((result.nextState as GameState).contract?.objectiveComplete).toBe(true);
+    });
+
+    it('should append an objective complete system line when the target file is exfiltrated', async () => {
+      const state = produce(createInitialState(), s => {
+        s.network.nodes['contractor_portal']!.accessLevel = 'user';
+        s.contract = {
+          id: 'paper_trail',
+          networkVariant: 'standard',
+          objectiveComplete: false,
+          objectiveCondition: { type: 'exfil_file', targetFileName: 'welcome.txt' },
+        };
+      });
+      const result = await resolveCommand('exfil welcome.txt', state);
+      const completeLine = result.lines.find(l => l.content.includes('objective complete'));
+      expect(completeLine).toBeDefined();
+      expect(completeLine?.type).toBe('system');
+    });
+
+    it('should include the target file name in the objective complete message', async () => {
+      const state = produce(createInitialState(), s => {
+        s.network.nodes['contractor_portal']!.accessLevel = 'user';
+        s.contract = {
+          id: 'paper_trail',
+          networkVariant: 'standard',
+          objectiveComplete: false,
+          objectiveCondition: { type: 'exfil_file', targetFileName: 'welcome.txt' },
+        };
+      });
+      const result = await resolveCommand('exfil welcome.txt', state);
+      const completeLine = result.lines.find(l => l.content.includes('welcome.txt'));
+      expect(completeLine).toBeDefined();
+    });
+
+    it('should NOT set objectiveComplete when a different file is exfiltrated', async () => {
+      const state = produce(createInitialState(), s => {
+        s.network.nodes['contractor_portal']!.accessLevel = 'user';
+        s.contract = {
+          id: 'paper_trail',
+          networkVariant: 'standard',
+          objectiveComplete: false,
+          objectiveCondition: { type: 'exfil_file', targetFileName: 'other_file.txt' },
+        };
+      });
+      const result = await resolveCommand('exfil welcome.txt', state);
+      expect((result.nextState as GameState).contract?.objectiveComplete).toBe(false);
+    });
+
+    it('should NOT fire a second time when objectiveComplete is already true', async () => {
+      const state = produce(createInitialState(), s => {
+        s.network.nodes['contractor_portal']!.accessLevel = 'user';
+        // File already in exfiltrated (simulates prior exfil that triggered completion)
+        s.player.exfiltrated.push({
+          name: 'welcome.txt',
+          path: '/var/www/contractor/welcome.txt',
+          type: 'document',
+          content: 'already done',
+          exfiltrable: true,
+          accessRequired: 'user',
+        });
+        s.contract = {
+          id: 'paper_trail',
+          networkVariant: 'standard',
+          objectiveComplete: true,
+          objectiveCondition: { type: 'exfil_file', targetFileName: 'welcome.txt' },
+        };
+      });
+      // Re-exfil the same file — prevNames already includes welcome.txt so no re-trigger
+      const result = await resolveCommand('exfil welcome.txt', state);
+      const objectiveLines = result.lines.filter(l => l.content.includes('objective complete'));
+      expect(objectiveLines).toHaveLength(0);
+    });
+  });
+
+  // ── identify_employee ─────────────────────────────────────
+
+  describe('identify_employee contract', () => {
+    it('should set objectiveComplete = true when employee_roster.csv is exfiltrated', async () => {
+      // employee_roster.csv lives on ops_hr_db; connect there and get user access
+      const state = produce(createInitialState(), s => {
+        s.network.currentNodeId = 'ops_hr_db';
+        s.network.nodes['ops_hr_db']!.accessLevel = 'user';
+        s.contract = {
+          id: 'inside_job',
+          networkVariant: 'standard',
+          objectiveComplete: false,
+          objectiveCondition: { type: 'identify_employee', divisionId: 'security' },
+        };
+      });
+      const result = await resolveCommand('exfil employee_roster.csv', state);
+      expect((result.nextState as GameState).contract?.objectiveComplete).toBe(true);
+    });
+
+    it('should append an objective complete system line when employee_roster.csv is exfiltrated', async () => {
+      const state = produce(createInitialState(), s => {
+        s.network.currentNodeId = 'ops_hr_db';
+        s.network.nodes['ops_hr_db']!.accessLevel = 'user';
+        s.contract = {
+          id: 'inside_job',
+          networkVariant: 'standard',
+          objectiveComplete: false,
+          objectiveCondition: { type: 'identify_employee', divisionId: 'security' },
+        };
+      });
+      const result = await resolveCommand('exfil employee_roster.csv', state);
+      const completeLine = result.lines.find(l => l.content.includes('objective complete'));
+      expect(completeLine).toBeDefined();
+      expect(completeLine?.type).toBe('system');
+    });
+
+    it('should include the divisionId in the objective complete message', async () => {
+      const state = produce(createInitialState(), s => {
+        s.network.currentNodeId = 'ops_hr_db';
+        s.network.nodes['ops_hr_db']!.accessLevel = 'user';
+        s.contract = {
+          id: 'inside_job',
+          networkVariant: 'standard',
+          objectiveComplete: false,
+          objectiveCondition: { type: 'identify_employee', divisionId: 'security' },
+        };
+      });
+      const result = await resolveCommand('exfil employee_roster.csv', state);
+      const completeLine = result.lines.find(l => l.content.includes('security'));
+      expect(completeLine).toBeDefined();
+    });
+
+    it('should NOT set objectiveComplete when a non-roster file is exfiltrated', async () => {
+      const state = produce(createInitialState(), s => {
+        s.network.nodes['contractor_portal']!.accessLevel = 'user';
+        s.contract = {
+          id: 'inside_job',
+          networkVariant: 'standard',
+          objectiveComplete: false,
+          objectiveCondition: { type: 'identify_employee', divisionId: 'security' },
+        };
+      });
+      const result = await resolveCommand('exfil welcome.txt', state);
+      expect((result.nextState as GameState).contract?.objectiveComplete).toBe(false);
+    });
+  });
 });
 
 describe('createInitialState defaults', () => {

@@ -1,18 +1,10 @@
 import type { LiveNode, GameFile, Credential } from '../types/game';
 import type { Employee } from '../types/employee';
-import type { DivisionId } from '../types/divisionSeed';
-import { DIVISION_SEEDS } from '../data/divisionSeeds';
+import { DIVISION_LAYER, DIVISION_SEEDS } from '../data/divisionSeeds';
 import { createPRNG } from './prng';
 
-// ── Division → layer mapping (mirrors generateFillerNodes) ──
-// Exported so test files can import rather than duplicate it.
-export const DIVISION_LAYER: Record<DivisionId, number> = {
-  external_perimeter: 0,
-  operations: 1,
-  security: 2,
-  finance: 3,
-  executive: 4,
-};
+// Re-exported so existing consumers (test files, App.tsx) don't need immediate updates.
+export { DIVISION_LAYER };
 
 // ── Public result type ──────────────────────────────────────
 

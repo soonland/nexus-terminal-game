@@ -37,8 +37,12 @@ export const TOOL_REGISTRY: Record<ToolId, Tool> = {
   },
 };
 
-// ── Contract pool (run 2+) ─────────────────────────────────
+// ── Contract pool ──────────────────────────────────────────
+// unlockedAfterRun: 0 → available from run 2 onward  (runsCompleted=1 → 0 < 1 ✓)
+//                   1 → available from run 3 onward  (runsCompleted=2 → 1 < 2 ✓)
+//                   2 → available from run 4 onward  (runsCompleted=3 → 2 < 3 ✓)
 export const CONTRACT_POOL: ContractDefinition[] = [
+  // ── Run 2+ (basic pool) ────────────────────────────────
   {
     id: 'ghost_protocol',
     title: 'GHOST PROTOCOL',
@@ -48,6 +52,7 @@ export const CONTRACT_POOL: ContractDefinition[] = [
     loadout: { exploitCharges: 2, startingTools: ['port-scanner', 'exploit-kit', 'spoof-id'] },
     networkVariant: 'standard',
     objectiveCondition: { type: 'trace_cap', maxTrace: 50 },
+    unlockedAfterRun: 0,
   },
   {
     id: 'data_harvest',
@@ -58,6 +63,7 @@ export const CONTRACT_POOL: ContractDefinition[] = [
     loadout: { exploitCharges: 3, startingTools: ['port-scanner', 'exploit-kit'] },
     networkVariant: 'standard',
     objectiveCondition: { type: 'exfil_count', minCount: 3 },
+    unlockedAfterRun: 0,
   },
   {
     id: 'blitz',
@@ -68,7 +74,10 @@ export const CONTRACT_POOL: ContractDefinition[] = [
     loadout: { exploitCharges: 5, startingTools: ['port-scanner', 'exploit-kit'] },
     networkVariant: 'standard',
     objectiveCondition: { type: 'no_burn' },
+    unlockedAfterRun: 0,
   },
+
+  // ── Run 3+ (mid pool) ──────────────────────────────────
   {
     id: 'scorched_earth',
     title: 'SCORCHED EARTH',
@@ -81,6 +90,7 @@ export const CONTRACT_POOL: ContractDefinition[] = [
     },
     networkVariant: 'standard',
     objectiveCondition: { type: 'exfil_count', minCount: 5 },
+    unlockedAfterRun: 1,
   },
   {
     id: 'clean_sweep',
@@ -94,6 +104,87 @@ export const CONTRACT_POOL: ContractDefinition[] = [
     },
     networkVariant: 'standard',
     objectiveCondition: { type: 'trace_cap', maxTrace: 40 },
+    unlockedAfterRun: 1,
+  },
+  {
+    id: 'inside_job',
+    title: 'INSIDE JOB',
+    brief:
+      "Someone inside IronGate's security team has opened a window — brief, deniable, and closing soon. Use the access while it lasts and pull whatever you can on their internal contacts.",
+    objectiveDescription:
+      "Exfiltrate the HR employee roster to expose IronGate's security division personnel.",
+    loadout: {
+      exploitCharges: 3,
+      startingTools: ['port-scanner', 'exploit-kit'],
+      startingCredentials: ['cred_sec_analyst'],
+    },
+    networkVariant: 'standard',
+    objectiveCondition: { type: 'identify_employee', divisionId: 'security' },
+    unlockedAfterRun: 1,
+    rewardOnComplete: 'SECURITY_INSIDER_IDENTIFIED',
+  },
+
+  // ── Run 4+ (full pool) ─────────────────────────────────
+  {
+    id: 'paper_trail',
+    title: 'PAPER TRAIL',
+    brief:
+      "The Q4 wire transfer records tell a story IronGate would rather keep buried. Our client needs them unredacted. The files are encrypted — come prepared, or don't come at all.",
+    objectiveDescription: 'Exfiltrate the Q4 wire transfer records from the finance database.',
+    loadout: {
+      exploitCharges: 3,
+      startingTools: ['port-scanner', 'exploit-kit', 'decryptor'],
+    },
+    networkVariant: 'standard',
+    objectiveCondition: { type: 'exfil_file', targetFileName: 'wire_transfers_q4.csv' },
+    unlockedAfterRun: 2,
+    rewardOnComplete: 'WIRE_TRANSFERS_OBTAINED',
+  },
+  {
+    id: 'dark_corridor',
+    title: 'DARK CORRIDOR',
+    brief:
+      "IronGate's security division runs its own counter-intelligence operation. We have reason to believe this channel is being monitored. Avoid their network entirely — find another path to your objective.",
+    objectiveDescription:
+      'Complete the run without compromising any node in the security division.',
+    loadout: { exploitCharges: 4, startingTools: ['port-scanner', 'exploit-kit'] },
+    networkVariant: 'standard',
+    objectiveCondition: { type: 'avoid_division', divisionId: 'security' },
+    unlockedAfterRun: 2,
+    rewardOnComplete: 'SECURITY_BYPASSED',
+  },
+  {
+    id: 'board_exposure',
+    title: 'BOARD EXPOSURE',
+    brief:
+      "IronGate's board has been authorising operations they cannot legally sanction — and they kept minutes. The legal division has the documentation. Extract it before the next external audit erases it.",
+    objectiveDescription:
+      'Exfiltrate the October board meeting minutes from the executive legal node.',
+    loadout: {
+      exploitCharges: 5,
+      startingTools: ['port-scanner', 'exploit-kit'],
+    },
+    networkVariant: 'standard',
+    objectiveCondition: { type: 'exfil_file', targetFileName: 'board_minutes_oct.pdf' },
+    unlockedAfterRun: 2,
+    rewardOnComplete: 'BOARD_EXPOSED',
+  },
+  {
+    id: 'zero_footprint',
+    title: 'ZERO FOOTPRINT',
+    brief:
+      "Our client has a specific interest in IronGate's finance personnel — names, clearance levels, access patterns. The HR records are the only source that covers all of them. Pull it clean and get out.",
+    objectiveDescription:
+      "Exfiltrate the HR employee roster to expose IronGate's finance division personnel.",
+    loadout: {
+      exploitCharges: 3,
+      startingTools: ['port-scanner', 'exploit-kit'],
+      startingCredentials: ['cred_fin_analyst'],
+    },
+    networkVariant: 'standard',
+    objectiveCondition: { type: 'identify_employee', divisionId: 'finance' },
+    unlockedAfterRun: 2,
+    rewardOnComplete: 'FINANCE_PERSONNEL_IDENTIFIED',
   },
 ];
 
@@ -102,11 +193,24 @@ export const getContract = (id: string): ContractDefinition | undefined =>
   CONTRACT_POOL.find(c => c.id === id);
 
 /**
- * Pick a random contract from the pool, optionally excluding one by ID.
- * Falls back to a random contract from the full pool if all are excluded (edge case with pool of 1).
+ * Pick a random contract from the pool.
+ *
+ * @param excludeId - Contract ID to exclude (e.g. the one just completed).
+ * @param runsCompleted - Number of completed runs from the dossier (`dossier.runsCompleted`).
+ *   A contract with `unlockedAfterRun: N` enters the pool when `N < runsCompleted`, so:
+ *   - runsCompleted=1 (run 2): only level-0 contracts
+ *   - runsCompleted=2 (run 3): level 0+1
+ *   - runsCompleted=3 (run 4): full pool
+ *   Defaults to 1 (the smallest value App.tsx passes) to avoid accidentally showing an empty pool.
+ *
+ * Falls back to the full pool if the unlocked pool is empty (guard against bad runsCompleted input).
  */
-export const selectContract = (excludeId?: string): ContractDefinition => {
-  const eligible = excludeId ? CONTRACT_POOL.filter(c => c.id !== excludeId) : CONTRACT_POOL;
-  const pool = eligible.length > 0 ? eligible : CONTRACT_POOL;
+export const selectContract = (excludeId?: string, runsCompleted = 1): ContractDefinition => {
+  const unlocked = CONTRACT_POOL.filter(c => (c.unlockedAfterRun ?? 0) < runsCompleted);
+  const base = unlocked.length > 0 ? unlocked : CONTRACT_POOL;
+  const eligible = excludeId ? base.filter(c => c.id !== excludeId) : base;
+  // c8 ignore next — eligible is only empty when a single excludeId matches every contract
+  // in base, which cannot happen with a pool of ≥ 2 contracts.
+  const pool = eligible.length > 0 ? eligible : base;
   return pool[Math.floor(Math.random() * pool.length)];
 };

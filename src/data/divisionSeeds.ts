@@ -1,9 +1,20 @@
-import type { DivisionSeed } from '../types/divisionSeed';
+import type { DivisionId, DivisionSeed } from '../types/divisionSeed';
 
 // ── Division Seeds ──────────────────────────────────────────
 // Static configuration read by the Phase 4 procedural node generator.
 // ariaInfluenceRate values per spec §6.3: 0.3 / 0.2 / 0.1 / 0.25 / 0.4
 // fillerTemplates weights must sum to 1.0 per division.
+
+// ── Division → layer mapping ────────────────────────────────
+// Single source of truth for division→network-layer relationships.
+// Used by buildCredentialChains.ts (node generation) and App.tsx (avoid_division evaluation).
+export const DIVISION_LAYER: Readonly<Record<DivisionId, number>> = {
+  external_perimeter: 0,
+  operations: 1,
+  security: 2,
+  finance: 3,
+  executive: 4,
+} as const;
 
 export const DIVISION_SEEDS: DivisionSeed[] = [
   {

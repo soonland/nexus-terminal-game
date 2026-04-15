@@ -344,7 +344,12 @@ const THRESHOLD_ALERT_META: Record<
  *   - trace_cap: notify when trace newly crosses the cap (sets a flag so the
  *     message fires exactly once per violation).
  *   - exfil_count: set objectiveComplete = true when the exfil target is reached.
+ *   - exfil_file: set objectiveComplete = true when the specific file is exfiltrated.
+ *   - identify_employee: set objectiveComplete = true when the employee_roster.csv is
+ *     exfiltrated (the roster is the only cross-division employee attribution source).
+ *     NOTE: per-division attribution requires tracking source-node on GameFile — deferred.
  *   - no_burn: detected in App.tsx at the burn-retry boundary; nothing to do here.
+ *   - avoid_division: evaluated at run-end in App.tsx; nothing to do here.
  */
 const applyObjectiveEffects = (prevState: GameState, result: CommandOutput): CommandOutput => {
   const nextState = result.nextState as GameState | undefined;
@@ -384,6 +389,46 @@ const applyObjectiveEffects = (prevState: GameState, result: CommandOutput): Com
       alertLines.push(
         sep(),
         sys(`// CONTRACT: objective complete — ${String(condition.minCount)} file(s) exfiltrated`),
+        sep(),
+      );
+      mutated = produce(mutated, s => {
+        if (s.contract) s.contract.objectiveComplete = true;
+      });
+    }
+  } else if (condition.type === 'exfil_file') {
+    const prevNames = prevState.player.exfiltrated.map(f => f.name);
+    const nextNames = nextState.player.exfiltrated.map(f => f.name);
+    if (
+      !contract.objectiveComplete &&
+      !prevNames.includes(condition.targetFileName) &&
+      nextNames.includes(condition.targetFileName)
+    ) {
+      alertLines.push(
+        sep(),
+        sys(`// CONTRACT: objective complete — '${condition.targetFileName}' exfiltrated`),
+        sep(),
+      );
+      mutated = produce(mutated, s => {
+        if (s.contract) s.contract.objectiveComplete = true;
+      });
+    }
+  } else if (condition.type === 'identify_employee') {
+    // Proxy check: the employee roster is the only file that covers all division personnel.
+    // TODO: filter by condition.divisionId once GameFile.sourceNodeId exists — currently
+    // all identify_employee contracts complete on the same file regardless of target division.
+    const EMPLOYEE_ROSTER = 'employee_roster.csv';
+    const prevNames = prevState.player.exfiltrated.map(f => f.name);
+    const nextNames = nextState.player.exfiltrated.map(f => f.name);
+    if (
+      !contract.objectiveComplete &&
+      !prevNames.includes(EMPLOYEE_ROSTER) &&
+      nextNames.includes(EMPLOYEE_ROSTER)
+    ) {
+      alertLines.push(
+        sep(),
+        sys(
+          `// CONTRACT: objective complete — employee records for '${condition.divisionId}' obtained`,
+        ),
         sep(),
       );
       mutated = produce(mutated, s => {

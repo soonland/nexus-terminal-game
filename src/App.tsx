@@ -29,6 +29,7 @@ import {
 } from './engine/persistence';
 import { loadDossier } from './engine/dossierPersistence';
 import { selectContract } from './data/contracts';
+import { DIVISION_LAYER } from './data/divisionSeeds';
 import type { ContractDefinition } from './types/game';
 
 const computeContextSuggestions = (state: GameState): string[] => {
@@ -360,7 +361,7 @@ export const App = () => {
         bootHandled.current = false;
         const dossierAfterEnd = loadDossier();
         if (dossierAfterEnd.runsCompleted > 0) {
-          const contract = selectContract();
+          const contract = selectContract(undefined, dossierAfterEnd.runsCompleted);
           setPendingContract(contract);
           setContractRerollUsed(false);
           setSessionLines(buildContractLines(contract));
@@ -406,7 +407,7 @@ export const App = () => {
           } else {
             const dossier = loadDossier();
             if (dossier.runsCompleted > 0) {
-              const contract = selectContract();
+              const contract = selectContract(undefined, dossier.runsCompleted);
               setPendingContract(contract);
               setContractRerollUsed(false);
               setSessionLines(buildContractLines(contract));
@@ -445,7 +446,7 @@ export const App = () => {
           if (contractRerollUsed) {
             push([makeLine('system', '// REROLL: already used — one reroll per session')]);
           } else {
-            const rerolled = selectContract(pendingContract?.id);
+            const rerolled = selectContract(pendingContract?.id, loadDossier().runsCompleted);
             setPendingContract(rerolled);
             setContractRerollUsed(true);
             push(buildContractLines(rerolled));
@@ -475,7 +476,7 @@ export const App = () => {
           clearSave();
           const dossier = loadDossier();
           if (dossier.runsCompleted > 0) {
-            const contract = selectContract();
+            const contract = selectContract(undefined, dossier.runsCompleted);
             setPendingContract(contract);
             setContractRerollUsed(false);
             setSessionLines(buildContractLines(contract));
@@ -635,11 +636,17 @@ export const App = () => {
             activeContract && !activeContract.objectiveComplete
               ? produce(next, s => {
                   if (!s.contract) return;
-                  const type = s.contract.objectiveCondition.type;
-                  if (type === 'trace_cap' && !s.flags['contract_cap_exceeded']) {
+                  const condition = s.contract.objectiveCondition;
+                  if (condition.type === 'trace_cap' && !s.flags['contract_cap_exceeded']) {
                     s.contract.objectiveComplete = true;
-                  } else if (type === 'no_burn' && s.player.burnCount === 0) {
+                  } else if (condition.type === 'no_burn' && s.player.burnCount === 0) {
                     s.contract.objectiveComplete = true;
+                  } else if (condition.type === 'avoid_division') {
+                    const targetLayer = DIVISION_LAYER[condition.divisionId];
+                    const anyCompromised = Object.values(s.network.nodes).some(
+                      n => n?.layer === targetLayer && n.compromised,
+                    );
+                    if (!anyCompromised) s.contract.objectiveComplete = true;
                   }
                 })
               : next;
