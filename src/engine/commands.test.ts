@@ -3205,7 +3205,7 @@ describe('resolveCommand — contract objective detection', () => {
           objectiveCondition: { type: 'exfil_file', targetFileName: 'welcome.txt' },
         };
       });
-      // Exfil a different file — prevNames already includes welcome.txt so no re-trigger
+      // Re-exfil the same file — prevNames already includes welcome.txt so no re-trigger
       const result = await resolveCommand('exfil welcome.txt', state);
       const objectiveLines = result.lines.filter(l => l.content.includes('objective complete'));
       expect(objectiveLines).toHaveLength(0);

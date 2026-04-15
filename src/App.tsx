@@ -29,6 +29,8 @@ import {
 } from './engine/persistence';
 import { loadDossier } from './engine/dossierPersistence';
 import { selectContract } from './data/contracts';
+import { DIVISION_LAYER } from './engine/buildCredentialChains';
+import type { DivisionId } from './types/divisionSeed';
 import type { ContractDefinition } from './types/game';
 
 const computeContextSuggestions = (state: GameState): string[] => {
@@ -630,14 +632,6 @@ export const App = () => {
           // Do NOT clearSave here — state is needed for burnRetry on Enter.
         } else if (next.phase === 'ended') {
           // Finalise objective for condition types evaluated at run-end rather than mid-run.
-          // Layer → divisionId mapping for avoid_division end-of-run checks.
-          const DIVISION_LAYER: Record<string, number | undefined> = {
-            external_perimeter: 0,
-            operations: 1,
-            security: 2,
-            finance: 3,
-            executive: 4,
-          };
           const activeContract = next.contract;
           const finalNext =
             activeContract && !activeContract.objectiveComplete
@@ -649,14 +643,11 @@ export const App = () => {
                   } else if (condition.type === 'no_burn' && s.player.burnCount === 0) {
                     s.contract.objectiveComplete = true;
                   } else if (condition.type === 'avoid_division') {
-                    const avoidCond = condition as { type: 'avoid_division'; divisionId: string };
-                    const targetLayer = DIVISION_LAYER[avoidCond.divisionId];
-                    if (targetLayer !== undefined) {
-                      const anyCompromised = Object.values(s.network.nodes).some(
-                        n => n?.layer === targetLayer && n.compromised,
-                      );
-                      if (!anyCompromised) s.contract.objectiveComplete = true;
-                    }
+                    const targetLayer = DIVISION_LAYER[condition.divisionId as DivisionId];
+                    const anyCompromised = Object.values(s.network.nodes).some(
+                      n => n?.layer === targetLayer && n.compromised,
+                    );
+                    if (!anyCompromised) s.contract.objectiveComplete = true;
                   }
                 })
               : next;

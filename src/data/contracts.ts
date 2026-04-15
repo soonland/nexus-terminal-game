@@ -38,9 +38,9 @@ export const TOOL_REGISTRY: Record<ToolId, Tool> = {
 };
 
 // ── Contract pool ──────────────────────────────────────────
-// unlockedAfterRun: 0 → available from run 2 (first contracted run)
-//                   1 → available from run 3
-//                   2 → available from run 4 (full pool)
+// unlockedAfterRun: 0 → available from run 2 onward  (runsCompleted=1 → 0 < 1 ✓)
+//                   1 → available from run 3 onward  (runsCompleted=2 → 1 < 2 ✓)
+//                   2 → available from run 4 onward  (runsCompleted=3 → 2 < 3 ✓)
 export const CONTRACT_POOL: ContractDefinition[] = [
   // ── Run 2+ (basic pool) ────────────────────────────────
   {
@@ -196,14 +196,17 @@ export const getContract = (id: string): ContractDefinition | undefined =>
  * Pick a random contract from the pool.
  *
  * @param excludeId - Contract ID to exclude (e.g. the one just completed).
- * @param runsCompleted - Number of completed runs from the dossier; filters out contracts
- *   whose `unlockedAfterRun` exceeds this value. Defaults to 0 (basic pool only).
+ * @param runsCompleted - Number of completed runs from the dossier (`dossier.runsCompleted`).
+ *   A contract with `unlockedAfterRun: N` enters the pool when `N < runsCompleted`, so:
+ *   - runsCompleted=1 (run 2): only level-0 contracts
+ *   - runsCompleted=2 (run 3): level 0+1
+ *   - runsCompleted=3 (run 4): full pool
+ *   Defaults to 1 (the smallest value App.tsx passes) to avoid accidentally showing an empty pool.
  *
- * Falls back to the unfiltered eligible pool if all unlocked contracts are excluded,
- * and to the full pool if the unlocked pool itself is empty (should not happen in practice).
+ * Falls back to the full pool if the unlocked pool is empty (guard against bad runsCompleted input).
  */
-export const selectContract = (excludeId?: string, runsCompleted = 0): ContractDefinition => {
-  const unlocked = CONTRACT_POOL.filter(c => (c.unlockedAfterRun ?? 0) <= runsCompleted);
+export const selectContract = (excludeId?: string, runsCompleted = 1): ContractDefinition => {
+  const unlocked = CONTRACT_POOL.filter(c => (c.unlockedAfterRun ?? 0) < runsCompleted);
   const base = unlocked.length > 0 ? unlocked : CONTRACT_POOL;
   const eligible = excludeId ? base.filter(c => c.id !== excludeId) : base;
   // c8 ignore next — eligible is only empty when a single excludeId matches every contract

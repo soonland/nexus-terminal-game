@@ -358,13 +358,16 @@ describe('selectContract', () => {
     expect(CONTRACT_POOL).toContain(result);
   });
 
-  it('should return a contract from the basic pool (runsCompleted=0) when no excludeId', () => {
+  it('should return only basic-pool contracts on the first contracted run (runsCompleted=1)', () => {
+    // runsCompleted=1 is the smallest value App.tsx passes (gate is runsCompleted > 0).
+    // With < semantics: unlockedAfterRun=0 → 0 < 1 ✓, unlockedAfterRun=1 → 1 < 1 ✗
     const basicIds = ['ghost_protocol', 'data_harvest', 'blitz'];
-    const result = selectContract(undefined, 0);
-    expect(basicIds).toContain(result.id);
+    for (let i = 0; i < 50; i++) {
+      expect(basicIds).toContain(selectContract(undefined, 1).id);
+    }
   });
 
-  it('should not return locked contracts when runsCompleted is 0', () => {
+  it('should not return locked contracts when runsCompleted is 1', () => {
     const lockedIds = [
       'scorched_earth',
       'clean_sweep',
@@ -375,12 +378,13 @@ describe('selectContract', () => {
       'zero_footprint',
     ];
     for (let i = 0; i < 50; i++) {
-      const result = selectContract(undefined, 0);
+      const result = selectContract(undefined, 1);
       expect(lockedIds).not.toContain(result.id);
     }
   });
 
-  it('should include run-3 contracts when runsCompleted is 1', () => {
+  it('should include run-3 contracts when runsCompleted is 2', () => {
+    // unlockedAfterRun=1 → 1 < 2 ✓ — mid-pool unlocks for run 3
     const midPoolIds = [
       'ghost_protocol',
       'data_harvest',
@@ -390,8 +394,7 @@ describe('selectContract', () => {
       'inside_job',
     ];
     const results = new Set<string>();
-    for (let i = 0; i < 200; i++) results.add(selectContract(undefined, 1).id);
-    // All 6 mid-pool contracts should be reachable
+    for (let i = 0; i < 200; i++) results.add(selectContract(undefined, 2).id);
     for (const id of midPoolIds) expect(results).toContain(id);
     // Run-4-only contracts should not appear
     expect(results).not.toContain('paper_trail');
@@ -399,37 +402,37 @@ describe('selectContract', () => {
   });
 
   it('should return any of the 10 contracts when runsCompleted is 3 (full pool)', () => {
+    // unlockedAfterRun=2 → 2 < 3 ✓ — full pool available from run 4
     const results = new Set<string>();
     for (let i = 0; i < 300; i++) results.add(selectContract(undefined, 3).id);
     expect(results.size).toBe(10);
   });
 
   it('should return from the base pool when excludeId does not match any contract', () => {
-    const result = selectContract('does_not_exist', 0);
+    const result = selectContract('does_not_exist', 1);
     expect(CONTRACT_POOL).toContain(result);
   });
 
   it('should fall back to the unlocked pool when excludeId would exclude all eligible contracts', () => {
-    // With runsCompleted=0 the base pool has 3 contracts. Excluding all 3 individually is
-    // impossible via a single excludeId, so verify the fallback: excluding a nonexistent ID
-    // still yields a valid contract from the basic pool.
-    const result = selectContract('nonexistent', 0);
+    // With runsCompleted=1 the base pool has 3 contracts. Excluding a nonexistent ID
+    // leaves the eligible pool unchanged — verifies the fallback path is consistent.
+    const result = selectContract('nonexistent', 1);
     expect(result).toBeDefined();
     expect(typeof result.id).toBe('string');
   });
 
   it('should fall back to the full CONTRACT_POOL when runsCompleted filters out all contracts', () => {
-    // runsCompleted = -1 makes unlocked = [] (all contracts have unlockedAfterRun >= 0),
-    // triggering the CONTRACT_POOL fallback on the base assignment.
-    const result = selectContract(undefined, -1);
+    // runsCompleted=0 with < semantics: no contract has unlockedAfterRun < 0,
+    // so unlocked=[] → triggers the CONTRACT_POOL fallback.
+    const result = selectContract(undefined, 0);
     expect(CONTRACT_POOL).toContain(result);
   });
 
   it('should use Math.random to pick from the eligible pool', () => {
-    // With ghost_protocol excluded and runsCompleted=0, the eligible basic pool has 2
+    // With ghost_protocol excluded and runsCompleted=1, the eligible basic pool has 2
     // contracts: [data_harvest, blitz]. Math.random → 0 picks index 0 → data_harvest.
     vi.spyOn(Math, 'random').mockReturnValue(0);
-    const result = selectContract('ghost_protocol', 0);
+    const result = selectContract('ghost_protocol', 1);
     expect(result.id).toBe('data_harvest');
   });
 
