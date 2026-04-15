@@ -131,6 +131,7 @@ describe('runSentinelTurn — priority 1: patch node', () => {
   it('should log the current turnCount on the mutation event', () => {
     const state = produce(compromiseNode(base, 'contractor_portal', 1), s => {
       s.turnCount = 7;
+      s.sentinel.sentinelInterval = 1; // ensure sentinel acts on every turn for this test
     });
     const result = runSentinelTurn(state);
     expect(result.state.sentinel.mutationLog[0].turnCount).toBe(7);
@@ -523,6 +524,7 @@ describe('runSentinelTurn — priority 3: delete file', () => {
         });
       }
       s.turnCount = 3;
+      s.sentinel.sentinelInterval = 1; // ensure sentinel acts on every turn for this test
       s.sentinel.pendingFileDeletes.push({
         filePath: '/tmp/future.txt',
         nodeId: 'contractor_portal',
@@ -551,6 +553,7 @@ describe('runSentinelTurn — priority 3: delete file', () => {
         });
       }
       s.turnCount = 5;
+      s.sentinel.sentinelInterval = 1; // ensure sentinel acts on every turn for this test
       s.sentinel.pendingFileDeletes.push({
         filePath: '/tmp/exact.txt',
         nodeId: 'contractor_portal',

@@ -34,6 +34,7 @@ function makeMockStorage() {
 }
 
 const SAVE_KEY = 'irongate_save';
+const TRACE_AUDIT_KEY = 'irongate_trace_audit';
 
 // Helper: save a state and parse the raw JSON written to storage
 function savedJson(mockStorage: ReturnType<typeof makeMockStorage>, state: GameState) {
@@ -58,9 +59,19 @@ describe('saveGame — save format', () => {
 
   it('writes to the correct localStorage key', () => {
     saveGame(state);
-    expect(mockStorage.setItem).toHaveBeenCalledOnce();
-    const [key] = mockStorage.setItem.mock.calls[0] as [string, string];
-    expect(key).toBe(SAVE_KEY);
+    // saveGame writes both the main save and the trace audit key — check the main save call
+    expect(mockStorage.setItem).toHaveBeenCalledWith(SAVE_KEY, expect.any(String));
+  });
+
+  it('writes traceAuditLog to the audit key', () => {
+    const withAudit = produce(state, s => {
+      s.traceAuditLog = [{ turn: 1, source: 'scan', delta: 2, totalAfter: 2 }];
+    });
+    saveGame(withAudit);
+    expect(mockStorage.setItem).toHaveBeenCalledWith(
+      TRACE_AUDIT_KEY,
+      JSON.stringify(withAudit.traceAuditLog),
+    );
   });
 
   it('includes a version field', () => {
@@ -444,6 +455,11 @@ describe('clearSave', () => {
   it('removes the save key', () => {
     clearSave();
     expect(mockStorage.removeItem).toHaveBeenCalledWith(SAVE_KEY);
+  });
+
+  it('also removes the trace audit key', () => {
+    clearSave();
+    expect(mockStorage.removeItem).toHaveBeenCalledWith(TRACE_AUDIT_KEY);
   });
 
   it('causes hasSave to return false after clearing', () => {

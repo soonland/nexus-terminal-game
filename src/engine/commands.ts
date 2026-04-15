@@ -140,7 +140,7 @@ export const resolveCommand = async (raw: string, state: GameState): Promise<Com
           s.player.charges = Math.max(0, s.player.charges - 1);
         });
         // Use addTrace so threshold-crossed flags are stamped correctly
-        const next = addTrace(preTrace, 5);
+        const next = addTrace(preTrace, 5, 'unlock-bypass');
         return withTurn(
           {
             lines: [
@@ -565,7 +565,7 @@ const cmdWorldAI = async (raw: string, state: GameState): Promise<CommandOutput>
   let next = state;
 
   if (aiResponse.traceChange > 0) {
-    next = addTrace(next, aiResponse.traceChange);
+    next = addTrace(next, aiResponse.traceChange, 'ai-world-command');
   }
 
   if (aiResponse.accessGranted && aiResponse.newAccessLevel) {
@@ -717,7 +717,7 @@ const cmdAcceptFavor = (state: GameState): CommandOutput => {
   if (sanitizedCost === null) {
     return cmdDeclineFavor(state);
   }
-  const next = produce(addTrace(state, sanitizedCost), s => {
+  const next = produce(addTrace(state, sanitizedCost, 'aria-favor'), s => {
     s.aria.pendingFavor = undefined;
   });
   return {
@@ -945,7 +945,7 @@ const cmdInventory = (state: GameState): CommandOutput => {
 const cmdScan = (args: string[], state: GameState): CommandOutput => {
   const hasPortScanner = state.player.tools.some(t => t.id === 'port-scanner' && !t.used);
   const traceDelta = hasPortScanner ? 0 : Math.random() < 0.5 ? 1 : 2;
-  let next = hasPortScanner ? state : addTrace(state, traceDelta);
+  let next = addTrace(state, traceDelta, 'scan');
   const lines: Out = [];
 
   if (args[0]) {
@@ -1106,7 +1106,7 @@ const cmdLogin = (args: string[], state: GameState): CommandOutput => {
   const match = matchInPlayer ?? matchInWorld;
 
   if (!match) {
-    const next = addTrace(state, 5);
+    const next = addTrace(state, 5, 'failed-login');
     return {
       lines: [err(`Authentication failed. (+5 trace)`)],
       nextState: next,
@@ -1115,7 +1115,7 @@ const cmdLogin = (args: string[], state: GameState): CommandOutput => {
 
   // Sentinel may have revoked this credential — deny login even though password matched.
   if (match.revoked) {
-    const next = addTrace(state, 5);
+    const next = addTrace(state, 5, 'revoked-login');
     return {
       lines: [err(`CREDENTIAL REVOKED — account locked by security policy. (+5 trace)`)],
       nextState: next,
@@ -1250,11 +1250,11 @@ const cmdCat = async (args: string[], state: GameState): Promise<CommandOutput> 
   let next = state;
   let traceFeedback: { msg: string; type: 'error' | 'system' } | null = null;
   if (file.tripwire) {
-    next = addTrace(state, 25);
+    next = addTrace(state, 25, 'tripwire');
     const applied = next.player.trace - state.player.trace;
     traceFeedback = { msg: `  [!] TRIPWIRE TRIGGERED  +${String(applied)} trace`, type: 'error' };
   } else if (file.traceOnRead != null && file.traceOnRead > 0) {
-    next = addTrace(state, file.traceOnRead);
+    next = addTrace(state, file.traceOnRead, `cat:${file.name}`);
     const applied = next.player.trace - state.player.trace;
     traceFeedback = { msg: `  +${String(applied)} trace`, type: 'system' };
   }
@@ -1409,7 +1409,7 @@ const cmdExploit = async (args: string[], state: GameState): Promise<CommandOutp
   }
 
   if (svc.patched) {
-    const nextState = addTrace(state, 10);
+    const nextState = addTrace(state, 10, `exploit-failed:${service}`);
     const applied = nextState.player.trace - state.player.trace;
     return {
       lines: [err(`${service}: patched — exploit unavailable (+${String(applied)} trace)`)],
@@ -1417,7 +1417,7 @@ const cmdExploit = async (args: string[], state: GameState): Promise<CommandOutp
     };
   }
   if (!svc.vulnerable) {
-    const nextState = addTrace(state, 10);
+    const nextState = addTrace(state, 10, `exploit-failed:${service}`);
     const applied = nextState.player.trace - state.player.trace;
     return {
       lines: [err(`${service}: no known vulnerability (+${String(applied)} trace)`)],
@@ -1483,7 +1483,7 @@ const cmdExploit = async (args: string[], state: GameState): Promise<CommandOutp
 
   // Apply trace: service's base contribution + any AI-supplied delta (negative = silent exploit).
   const traceAdded = (svc.traceContribution ?? 2) + aiResponse.traceChange;
-  const stateAfterTrace = addTrace(stateAfterCharges, traceAdded);
+  const stateAfterTrace = addTrace(stateAfterCharges, traceAdded, `exploit:${service}`);
   const applied = stateAfterTrace.player.trace - state.player.trace;
 
   let next = stateAfterTrace;
@@ -1563,7 +1563,7 @@ const cmdExfil = (args: string[], state: GameState): CommandOutput => {
   const isAriaKey = file.path === '/root/.aria/aria_key.bin';
   const isDecryptorBin = file.path === '/home/ops.admin/sec_tools/decryptor.bin';
 
-  let next = produce(addTrace(state, 3), s => {
+  let next = produce(addTrace(state, 3, `exfil:${file.name}`), s => {
     s.player.exfiltrated.push({ ...file });
     // Queue sentinel file-delete for non-Aria nodes.
     // Sentinel processes after turnCount is incremented, so +4 here achieves a true 3-turn delay.
@@ -1672,7 +1672,7 @@ const cmdExfil = (args: string[], state: GameState): CommandOutput => {
   ) {
     if (state.flags['COMPLAINT_READ']) {
       // Path B: player read the complaint before exfilling — investigation trail
-      next = addTrace(next, 25);
+      next = addTrace(next, 25, 'exfil-anomaly:employee_roster');
       next = produce(next, s => {
         s.flags['WHISTLEBLOWER_FOUND'] = true;
         s.forks['fork_ops_hr_db'] = 'path_b';
@@ -1781,7 +1781,7 @@ const cmdDecrypt = (args: string[], state: GameState): CommandOutput => {
   }
 
   // Only charge +2 trace when new credentials are actually found.
-  const baseState = toUnlock.length > 0 ? addTrace(state, 2) : state;
+  const baseState = toUnlock.length > 0 ? addTrace(state, 2, 'decrypt:new-cred') : state;
   const next =
     toUnlock.length > 0
       ? produce(baseState, s => {
@@ -1824,12 +1824,25 @@ const cmdWipeLogs = (state: GameState): CommandOutput => {
   if (!tool) return { lines: [err('log-wiper tool required')] };
   if (tool.used) return { lines: [err('log-wiper: tool depleted — single-use only')] };
 
-  const next = produce(state, s => {
+  const rawNext = produce(state, s => {
     s.player.trace = Math.max(0, s.player.trace - 15);
     const t = s.player.tools.find(x => x.id === 'log-wiper');
     if (t) t.used = true;
   });
-  const applied = state.player.trace - next.player.trace;
+  const applied = state.player.trace - rawNext.player.trace;
+  // Record the reduction in the audit log (negative delta) for balance analysis.
+  const next: GameState = {
+    ...rawNext,
+    traceAuditLog: [
+      ...rawNext.traceAuditLog,
+      {
+        turn: state.turnCount,
+        source: 'wipe-logs',
+        delta: -applied,
+        totalAfter: rawNext.player.trace,
+      },
+    ],
+  };
 
   return {
     lines: [
