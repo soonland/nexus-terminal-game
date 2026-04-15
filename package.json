@@ -42,7 +42,7 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vercel/node": "^5.7.7",
-    "@vitejs/plugin-react": "^4.7.0",
+    "@vitejs/plugin-react": "^6.0.1",
     "@vitest/coverage-v8": "^4.1.4",
     "@vitest/ui": "^4.1.4",
     "eslint": "^9.39.4",
@@ -59,9 +59,9 @@
     "playwright": "^1.59.1",
     "prettier": "^3.8.3",
     "rollup-plugin-visualizer": "^7.0.1",
-    "typescript": "~5.7.2",
+    "typescript": "^6.0.2",
     "typescript-eslint": "^8.58.2",
-    "vite": "^6.4.2",
+    "vite": "^8.0.8",
     "vitest": "^4.1.4"
   }
 }
