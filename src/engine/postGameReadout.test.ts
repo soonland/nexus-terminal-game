@@ -654,7 +654,7 @@ describe('buildPostGameReadout — reason field appended when present', () => {
     expect(eventLine?.content).toContain('— Hardening test reason');
   });
 
-  it('does not append separator when reason is absent on a sentinel event', () => {
+  it('does not append reason suffix when reason is absent on a sentinel event', () => {
     const state = produce(withEnding(createInitialState(), 'SELL'), s => {
       s.sentinel.mutationLog.push(makeMutation('patch_node', 3, { nodeId: 'ops_node' }));
     });
@@ -679,7 +679,7 @@ describe('buildPostGameReadout — reason field appended when present', () => {
     expect(eventLine?.content).toContain('— Aiding navigation');
   });
 
-  it('does not append separator when reason is absent on an aria event', () => {
+  it('does not append reason suffix when reason is absent on an aria event', () => {
     const state = produce(withEnding(createInitialState(), 'FREE'), s => {
       s.sentinel.mutationLog.push(
         makeMutation('reroute_edge', 7, {
