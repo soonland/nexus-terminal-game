@@ -14,7 +14,9 @@ const isTheme = (value: string): value is Theme => (THEMES as readonly string[])
 
 export const applyTheme = (theme: Theme): void => {
   const root = document.documentElement;
-  THEMES.forEach(t => { root.classList.remove(`theme-${t}`); });
+  THEMES.forEach(t => {
+    root.classList.remove(`theme-${t}`);
+  });
   if (theme !== 'classic') {
     root.classList.add(`theme-${theme}`);
   }
