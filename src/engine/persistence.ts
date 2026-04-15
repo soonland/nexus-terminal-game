@@ -248,9 +248,14 @@ const fromSaveState = (save: SaveState): GameState => {
 
 // ── Public API ─────────────────────────────────────────────
 
+const TRACE_AUDIT_KEY = 'irongate_trace_audit';
+
 export const saveGame = (state: GameState): void => {
   try {
     localStorage.setItem(SAVE_KEY, JSON.stringify(toSaveState(state)));
+    // Write audit log to its own key so the Playwright balance script can read it
+    // without parsing the full save. Not versioned — safe to discard on mismatch.
+    localStorage.setItem(TRACE_AUDIT_KEY, JSON.stringify(state.traceAuditLog));
   } catch (e) {
     console.warn('[persistence] saveGame failed', e);
   }

@@ -1,4 +1,4 @@
-import type { GameState, LiveNode, ActiveContract } from '../types/game';
+import type { GameState, LiveNode, ActiveContract, TraceAuditEntry } from '../types/game';
 import { buildNodeMap, ANCHOR_CREDENTIALS, LAYER_ENTRY_NODES } from '../data/anchorNodes';
 import { generateFillerNodes } from './generateFillerNodes';
 import { generateEmployeePool } from './generateEmployeePool';
@@ -95,6 +95,7 @@ export const createInitialState = (sessionSeed?: number, contractId?: string): G
     recentCommands: [],
     ariaInfluencedFilesRead: [],
     decisionLog: [],
+    traceAuditLog: [],
     player: {
       handle: 'ghost',
       trace: 0,
@@ -141,13 +142,20 @@ export const currentNode = (state: GameState): LiveNode => {
 export const TRACE_THRESHOLDS = [31, 55, 61, 86] as const;
 export const thresholdFlag = (pct: number): string => `threshold_${String(pct)}_crossed`;
 
-export const addTrace = (state: GameState, amount: number): GameState => {
+export const addTrace = (state: GameState, amount: number, source = 'unknown'): GameState => {
   const prevTrace = state.player.trace;
   const trace = Math.max(0, Math.min(100, prevTrace + amount));
+  const entry: TraceAuditEntry = {
+    turn: state.turnCount,
+    source,
+    delta: amount,
+    totalAfter: trace,
+  };
   let next: GameState = {
     ...state,
     player: { ...state.player, trace },
     phase: trace >= 100 ? 'burned' : state.phase,
+    traceAuditLog: [...state.traceAuditLog, entry],
   };
 
   // Stamp flags for newly crossed thresholds (each fires exactly once per run).
@@ -216,6 +224,7 @@ export const burnRetry = (state: GameState): GameState => {
     player: { ...state.player, trace: 0, burnCount },
     network: { ...state.network, currentNodeId: entryNodeId, previousNodeId: null, nodes },
     flags,
+    traceAuditLog: state.traceAuditLog, // preserved across burns for full-run analysis
     sentinel: {
       active: false,
       sentinelInterval: state.sentinel.sentinelInterval, // preserve fork 2 cadence penalty across burns

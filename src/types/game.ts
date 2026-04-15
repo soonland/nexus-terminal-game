@@ -276,6 +276,15 @@ export interface Contract {
   status: 'active' | 'completed' | 'failed';
 }
 
+// ── Trace audit ────────────────────────────────────────────
+/** One recorded trace-delta event, written by addTrace for playthrough analysis. */
+export interface TraceAuditEntry {
+  turn: number;
+  source: string; // free-text label, e.g. 'exploit:http', 'scan', 'failed-login'
+  delta: number;
+  totalAfter: number;
+}
+
 // ── Session ────────────────────────────────────────────────
 export type GamePhase = 'boot' | 'playing' | 'aria' | 'burned' | 'ended';
 
@@ -299,6 +308,7 @@ export interface GameState {
   recentCommands: string[]; // last 8 commands for AI context
   ariaInfluencedFilesRead: string[]; // file paths of ariaPlanted files the player has read
   decisionLog: Array<{ turn: number; command: string }>; // key player actions with turn numbers
+  traceAuditLog: TraceAuditEntry[]; // append-only log of every trace delta; used for balance analysis
   player: Player;
   network: {
     currentNodeId: string;

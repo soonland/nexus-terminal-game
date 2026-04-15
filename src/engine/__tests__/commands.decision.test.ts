@@ -69,6 +69,7 @@ const makeState = (overrides: Partial<GameState> = {}): GameState => {
     recentCommands: [],
     ariaInfluencedFilesRead: [],
     decisionLog: [],
+    traceAuditLog: [],
     player: {
       handle: 'ghost',
       trace: 0,
