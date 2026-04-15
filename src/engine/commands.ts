@@ -945,7 +945,15 @@ const cmdInventory = (state: GameState): CommandOutput => {
 const cmdScan = (args: string[], state: GameState): CommandOutput => {
   const hasPortScanner = state.player.tools.some(t => t.id === 'port-scanner' && !t.used);
   const traceDelta = hasPortScanner ? 0 : Math.random() < 0.5 ? 1 : 2;
-  let next = hasPortScanner ? state : addTrace(state, traceDelta, 'scan');
+  let next = hasPortScanner
+    ? {
+        ...state,
+        traceAuditLog: [
+          ...state.traceAuditLog,
+          { turn: state.turnCount, source: 'scan', delta: 0, totalAfter: state.player.trace },
+        ],
+      }
+    : addTrace(state, traceDelta, 'scan');
   const lines: Out = [];
 
   if (args[0]) {
@@ -1824,12 +1832,25 @@ const cmdWipeLogs = (state: GameState): CommandOutput => {
   if (!tool) return { lines: [err('log-wiper tool required')] };
   if (tool.used) return { lines: [err('log-wiper: tool depleted — single-use only')] };
 
-  const next = produce(state, s => {
+  const rawNext = produce(state, s => {
     s.player.trace = Math.max(0, s.player.trace - 15);
     const t = s.player.tools.find(x => x.id === 'log-wiper');
     if (t) t.used = true;
   });
-  const applied = state.player.trace - next.player.trace;
+  const applied = state.player.trace - rawNext.player.trace;
+  // Record the reduction in the audit log (negative delta) for balance analysis.
+  const next: GameState = {
+    ...rawNext,
+    traceAuditLog: [
+      ...rawNext.traceAuditLog,
+      {
+        turn: state.turnCount,
+        source: 'wipe-logs',
+        delta: -applied,
+        totalAfter: rawNext.player.trace,
+      },
+    ],
+  };
 
   return {
     lines: [
