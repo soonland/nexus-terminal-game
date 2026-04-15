@@ -1,6 +1,6 @@
 {
   "$schema": "https://unpkg.com/knip@latest/schema.json",
-  "entry": ["api/*.ts"],
+  "entry": ["api/*.ts", "playwright-playthrough.mjs"],
   "project": ["src/**/*.{ts,tsx}", "api/**/*.ts"],
   "ignoreDependencies": ["@fontsource/*"]
 }

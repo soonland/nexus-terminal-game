@@ -40,7 +40,7 @@ the port-scanner active):
 | cat:project_aria_summary.txt     | +3      |
 | exfil:aria_key.bin               | +3      |
 | exploit:http                     | +2      |
-| wipe-logs:new-cred               | +2      |
+| decrypt:new-cred                 | +2      |
 | cat:calendar_access.cfg          | +2      |
 | cat:exec_compensation.xlsx       | +2      |
 | cat:board_minutes_oct.pdf        | +2      |

@@ -17,7 +17,7 @@
 import { chromium } from 'playwright';
 import { rename } from 'node:fs/promises';
 
-const URL = 'http://localhost:5173'; // default Vite port; change to 5174 if 5173 is already occupied
+const BASE_URL = 'http://localhost:5173'; // default Vite port; change to 5174 if 5173 is already occupied
 const VIDEO_DIR = './playthrough-video';
 
 const TYPE_DELAY = 55; // ms between keystrokes
@@ -91,17 +91,10 @@ const context = await browser.newContext({
 });
 
 const page = await context.newPage();
-page.on('close', async () => {
-  try {
-    await saveVideo(page);
-  } catch {
-    /* already closed */
-  }
-});
 
 try {
   // ── Boot ────────────────────────────────────────────────────
-  await page.goto(URL);
+  await page.goto(BASE_URL);
   await page.evaluate(() => {
     localStorage.removeItem('irongate_save');
     localStorage.removeItem('irongate_disclaimer_agreed');
