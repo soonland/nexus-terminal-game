@@ -523,3 +523,112 @@ describe('burnRetry — burnCount tracking', () => {
     expect(state.player.burnCount).toBe(0);
   });
 });
+
+// ── traceAuditLog ─────────────────────────────────────────────────────────────
+
+describe('traceAuditLog', () => {
+  it('should be empty on createInitialState()', () => {
+    const state = createInitialState();
+    expect(state.traceAuditLog).toHaveLength(0);
+  });
+
+  it('should append one entry with correct fields when addTrace is called with a source', () => {
+    const state = produce(createInitialState(), s => {
+      s.turnCount = 3;
+    });
+    const next = addTrace(state, 15, 'exploit:http');
+    expect(next.traceAuditLog).toHaveLength(1);
+    expect(next.traceAuditLog[0]).toEqual({
+      turn: 3,
+      source: 'exploit:http',
+      delta: 15,
+      totalAfter: 15,
+    });
+  });
+
+  it('should default source to "unknown" when no source is provided', () => {
+    const next = addTrace(createInitialState(), 10);
+    expect(next.traceAuditLog[0]?.source).toBe('unknown');
+  });
+
+  it('should record totalAfter as the clamped trace value, not the raw sum', () => {
+    const state = produce(createInitialState(), s => {
+      s.player.trace = 95;
+    });
+    const next = addTrace(state, 20, 'scan'); // would be 115, clamped to 100
+    expect(next.traceAuditLog[0]).toEqual({ turn: 0, source: 'scan', delta: 20, totalAfter: 100 });
+  });
+
+  it('should accumulate entries in order across multiple addTrace calls', () => {
+    const state = produce(createInitialState(), s => {
+      s.turnCount = 1;
+    });
+    const after1 = addTrace(state, 10, 'scan');
+    const after2 = addTrace(
+      produce(after1, s => {
+        s.turnCount = 2;
+      }),
+      5,
+      'failed-login',
+    );
+    expect(after2.traceAuditLog).toHaveLength(2);
+    expect(after2.traceAuditLog[0]).toEqual({ turn: 1, source: 'scan', delta: 10, totalAfter: 10 });
+    expect(after2.traceAuditLog[1]).toEqual({
+      turn: 2,
+      source: 'failed-login',
+      delta: 5,
+      totalAfter: 15,
+    });
+  });
+
+  it('should still append an entry when delta is 0', () => {
+    // Scan commands may call addTrace(state, 0) to log a no-cost event
+    const next = addTrace(createInitialState(), 0, 'scan');
+    expect(next.traceAuditLog).toHaveLength(1);
+    expect(next.traceAuditLog[0]).toEqual({ turn: 0, source: 'scan', delta: 0, totalAfter: 0 });
+  });
+
+  it('should preserve traceAuditLog across burnRetry', () => {
+    const state = produce(createInitialState(), s => {
+      s.player.trace = 100;
+      s.phase = 'burned';
+      s.traceAuditLog = [
+        { turn: 1, source: 'exploit:ssh', delta: 30, totalAfter: 30 },
+        { turn: 2, source: 'scan', delta: 70, totalAfter: 100 },
+      ];
+    });
+    const next = burnRetry(state);
+    expect(next.traceAuditLog).toHaveLength(2);
+    expect(next.traceAuditLog[0]).toEqual({
+      turn: 1,
+      source: 'exploit:ssh',
+      delta: 30,
+      totalAfter: 30,
+    });
+    expect(next.traceAuditLog[1]).toEqual({ turn: 2, source: 'scan', delta: 70, totalAfter: 100 });
+  });
+
+  it('should accumulate entries across a burn boundary', () => {
+    // Entries written before the burn remain; new addTrace after retry appends further
+    const preBurn = produce(createInitialState(), s => {
+      s.traceAuditLog = [{ turn: 1, source: 'exploit:http', delta: 100, totalAfter: 100 }];
+      s.player.trace = 100;
+      s.phase = 'burned';
+    });
+    const retried = burnRetry(preBurn);
+    const afterRetry = produce(retried, s => {
+      s.turnCount = 5;
+    });
+    const next = addTrace(afterRetry, 20, 'scan');
+    expect(next.traceAuditLog).toHaveLength(2);
+    expect(next.traceAuditLog[0]?.source).toBe('exploit:http');
+    expect(next.traceAuditLog[1]).toEqual({ turn: 5, source: 'scan', delta: 20, totalAfter: 20 });
+  });
+
+  it('should not mutate the original traceAuditLog array', () => {
+    const state = createInitialState();
+    const original = state.traceAuditLog;
+    addTrace(state, 10, 'scan');
+    expect(original).toHaveLength(0);
+  });
+});
