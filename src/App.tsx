@@ -31,6 +31,8 @@ import { loadDossier } from './engine/dossierPersistence';
 import { selectContract } from './data/contracts';
 import { DIVISION_LAYER } from './data/divisionSeeds';
 import type { ContractDefinition } from './types/game';
+import { THEMES, THEME_LABELS, applyTheme, saveTheme, loadTheme } from './engine/themes';
+import type { Theme } from './engine/themes';
 
 const computeContextSuggestions = (state: GameState): string[] => {
   const node = state.network.nodes[state.network.currentNodeId];
@@ -164,6 +166,11 @@ export const App = () => {
   const [notesOpen, setNotesOpen] = useState(false);
   const [pendingContract, setPendingContract] = useState<ContractDefinition | null>(null);
   const [contractRerollUsed, setContractRerollUsed] = useState(false);
+  const [currentTheme, setCurrentTheme] = useState<Theme>(() => {
+    const t = loadTheme();
+    applyTheme(t);
+    return t;
+  });
 
   const terminalRef = useRef<TerminalHandle>(null);
   const bootHandled = useRef(false);
@@ -599,6 +606,32 @@ export const App = () => {
         return;
       }
 
+      if (raw.trim().toLowerCase().startsWith('theme')) {
+        const arg = raw.trim().slice(5).trim().toLowerCase();
+        push([makeLine('input', raw)]);
+        if (!arg) {
+          push([
+            makeLine('system', 'Available themes:'),
+            ...THEMES.map(t =>
+              makeLine('system', `  ${t === currentTheme ? '>' : ' '} ${THEME_LABELS[t]}`),
+            ),
+            makeLine('system', 'Usage: theme <name>'),
+          ]);
+        } else if ((THEMES as readonly string[]).includes(arg)) {
+          const next = arg as Theme;
+          applyTheme(next);
+          saveTheme(next);
+          setCurrentTheme(next);
+          push([makeLine('system', `// Terminal theme set to: ${next}`)]);
+        } else {
+          push([
+            makeLine('error', `// Unknown theme: ${arg}`),
+            makeLine('system', `Available: ${THEMES.join(', ')}`),
+          ]);
+        }
+        return;
+      }
+
       push([makeLine('input', raw)]);
       startSpinner();
 
@@ -744,6 +777,7 @@ export const App = () => {
     [
       appPhase,
       contractRerollUsed,
+      currentTheme,
       gameState,
       pendingContract,
       push,

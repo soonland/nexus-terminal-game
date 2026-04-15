@@ -95,6 +95,61 @@ body {
   font-style: italic;
 }
 
+/* ── Color themes ─────────────────────────────────────────── */
+:root.theme-green {
+  --color-bg: #0a1a0a;
+  --color-bg-header: #0a1a0a;
+  --color-border: #33aa33;
+  --color-output: #aaffaa;
+  --color-input: #aaffaa;
+  --color-system: #55ff55;
+  --color-separator: #33aa33;
+  --color-dim: #557755;
+  --color-error: #ff5555;
+  --color-aria: #55ffff;
+  --color-aria-border: #00aaaa;
+  --color-safe: #55ff55;
+  --color-elevated: #ffff55;
+  --color-active: #ff9900;
+  --color-aggressive: #ff5555;
+}
+
+:root.theme-amber {
+  --color-bg: #120d00;
+  --color-bg-header: #120d00;
+  --color-border: #aa6600;
+  --color-output: #ffcc66;
+  --color-input: #ffcc66;
+  --color-system: #ffaa00;
+  --color-separator: #aa6600;
+  --color-dim: #886633;
+  --color-error: #ff5555;
+  --color-aria: #55ffff;
+  --color-aria-border: #00aaaa;
+  --color-safe: #55ff55;
+  --color-elevated: #ffaa00;
+  --color-active: #ff6600;
+  --color-aggressive: #ff5555;
+}
+
+:root.theme-slate {
+  --color-bg: #0d1117;
+  --color-bg-header: #0d1117;
+  --color-border: #30a0a0;
+  --color-output: #c9d1d9;
+  --color-input: #c9d1d9;
+  --color-system: #58a6ff;
+  --color-separator: #21262d;
+  --color-dim: #6e7681;
+  --color-error: #f85149;
+  --color-aria: #79c0ff;
+  --color-aria-border: #388bfd;
+  --color-safe: #56d364;
+  --color-elevated: #e3b341;
+  --color-active: #f0883e;
+  --color-aggressive: #f85149;
+}
+
 /* ── Sentinel DM mode — full terminal takeover ────────────── */
 body.dm-sentinel {
   --color-bg: #000000;
