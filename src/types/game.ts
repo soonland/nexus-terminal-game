@@ -67,6 +67,7 @@ export interface GameFile {
   planted?: boolean; // dynamically added at runtime (e.g. sentinel RESET_NOTICE); persisted in full
   isTool?: boolean; // file grants a tool when exfil'd; shown with [TOOL] in ls
   toolId?: ToolId; // which tool this file grants
+  sourceNodeId?: string; // node the file was exfiltrated from; set by cmdExfil at runtime
 }
 
 export interface Service {

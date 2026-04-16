@@ -1635,6 +1635,13 @@ describe('resolveCommand — exfil', () => {
     expect(exfil.some(f => f.name === 'welcome.txt')).toBe(true);
   });
 
+  it('should set sourceNodeId on the exfiltrated file to the current node id', async () => {
+    const result = await resolveCommand('exfil welcome.txt', state);
+    const exfil = (result.nextState as GameState).player.exfiltrated;
+    const file = exfil.find(f => f.name === 'welcome.txt');
+    expect(file?.sourceNodeId).toBe('contractor_portal');
+  });
+
   it('should add 3 trace on successful exfil', async () => {
     const result = await resolveCommand('exfil welcome.txt', state);
     expect((result.nextState as GameState).player.trace).toBe(3);
@@ -3215,8 +3222,8 @@ describe('resolveCommand — contract objective detection', () => {
   // ── identify_employee ─────────────────────────────────────
 
   describe('identify_employee contract', () => {
-    it('should set objectiveComplete = true when employee_roster.csv is exfiltrated', async () => {
-      // employee_roster.csv lives on ops_hr_db; connect there and get user access
+    it('should set objectiveComplete = true when roster is exfiltrated from matching division layer', async () => {
+      // employee_roster.csv lives on ops_hr_db (layer 1 = operations); use divisionId:'operations'
       const state = produce(createInitialState(), s => {
         s.network.currentNodeId = 'ops_hr_db';
         s.network.nodes['ops_hr_db']!.accessLevel = 'user';
@@ -3224,14 +3231,14 @@ describe('resolveCommand — contract objective detection', () => {
           id: 'inside_job',
           networkVariant: 'standard',
           objectiveComplete: false,
-          objectiveCondition: { type: 'identify_employee', divisionId: 'security' },
+          objectiveCondition: { type: 'identify_employee', divisionId: 'operations' },
         };
       });
       const result = await resolveCommand('exfil employee_roster.csv', state);
       expect((result.nextState as GameState).contract?.objectiveComplete).toBe(true);
     });
 
-    it('should append an objective complete system line when employee_roster.csv is exfiltrated', async () => {
+    it('should append an objective complete system line when division layer matches', async () => {
       const state = produce(createInitialState(), s => {
         s.network.currentNodeId = 'ops_hr_db';
         s.network.nodes['ops_hr_db']!.accessLevel = 'user';
@@ -3239,7 +3246,7 @@ describe('resolveCommand — contract objective detection', () => {
           id: 'inside_job',
           networkVariant: 'standard',
           objectiveComplete: false,
-          objectiveCondition: { type: 'identify_employee', divisionId: 'security' },
+          objectiveCondition: { type: 'identify_employee', divisionId: 'operations' },
         };
       });
       const result = await resolveCommand('exfil employee_roster.csv', state);
@@ -3256,12 +3263,52 @@ describe('resolveCommand — contract objective detection', () => {
           id: 'inside_job',
           networkVariant: 'standard',
           objectiveComplete: false,
+          objectiveCondition: { type: 'identify_employee', divisionId: 'operations' },
+        };
+      });
+      const result = await resolveCommand('exfil employee_roster.csv', state);
+      const completeLine = result.lines.find(l => l.content.includes('operations'));
+      expect(completeLine).toBeDefined();
+    });
+
+    it('should NOT set objectiveComplete when roster is from wrong division layer', async () => {
+      // ops_hr_db is layer 1 (operations); security contract requires layer 2
+      const state = produce(createInitialState(), s => {
+        s.network.currentNodeId = 'ops_hr_db';
+        s.network.nodes['ops_hr_db']!.accessLevel = 'user';
+        s.contract = {
+          id: 'inside_job',
+          networkVariant: 'standard',
+          objectiveComplete: false,
           objectiveCondition: { type: 'identify_employee', divisionId: 'security' },
         };
       });
       const result = await resolveCommand('exfil employee_roster.csv', state);
-      const completeLine = result.lines.find(l => l.content.includes('security'));
-      expect(completeLine).toBeDefined();
+      expect((result.nextState as GameState).contract?.objectiveComplete).toBe(false);
+    });
+
+    it('should set objectiveComplete = true when roster is exfiltrated from a layer-2 security node', async () => {
+      // Inject employee_roster.csv onto sec_access_ctrl (layer 2 = security)
+      const state = produce(createInitialState(), s => {
+        s.network.currentNodeId = 'sec_access_ctrl';
+        s.network.nodes['sec_access_ctrl']!.accessLevel = 'user';
+        s.network.nodes['sec_access_ctrl']!.files.push({
+          name: 'employee_roster.csv',
+          path: '/var/db/hr/employee_roster.csv',
+          type: 'document',
+          content: 'sec division personnel',
+          exfiltrable: true,
+          accessRequired: 'user',
+        });
+        s.contract = {
+          id: 'inside_job',
+          networkVariant: 'standard',
+          objectiveComplete: false,
+          objectiveCondition: { type: 'identify_employee', divisionId: 'security' },
+        };
+      });
+      const result = await resolveCommand('exfil employee_roster.csv', state);
+      expect((result.nextState as GameState).contract?.objectiveComplete).toBe(true);
     });
 
     it('should NOT set objectiveComplete when a non-roster file is exfiltrated', async () => {
