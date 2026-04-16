@@ -1,4 +1,5 @@
 import type { GameState, CommandOutput, AccessLevel, FavorOffer, ToolId } from '../types/game';
+import type { DivisionId } from '../types/divisionSeed';
 import { hasAccess } from '../types/game';
 import { currentNode, addTrace, thresholdFlag, TRACE_THRESHOLDS } from './state';
 import produce from './produce';
@@ -339,15 +340,23 @@ const THRESHOLD_ALERT_META: Record<
   86: { msg: '// CRITICAL: One more detection event triggers full lockout.', type: 'error' },
 };
 
+/** Maps each DivisionId to the network layer it occupies. */
+const DIVISION_LAYER: Record<DivisionId, number> = {
+  external_perimeter: 0,
+  operations: 1,
+  security: 2,
+  finance: 3,
+  executive: 4,
+};
+
 /**
  * Detect contract objective transitions on each turn:
  *   - trace_cap: notify when trace newly crosses the cap (sets a flag so the
  *     message fires exactly once per violation).
  *   - exfil_count: set objectiveComplete = true when the exfil target is reached.
  *   - exfil_file: set objectiveComplete = true when the specific file is exfiltrated.
- *   - identify_employee: set objectiveComplete = true when the employee_roster.csv is
- *     exfiltrated (the roster is the only cross-division employee attribution source).
- *     NOTE: per-division attribution requires tracking source-node on GameFile — deferred.
+ *   - identify_employee: set objectiveComplete = true when employee_roster.csv is
+ *     exfiltrated from a node whose layer matches DIVISION_LAYER[divisionId].
  *   - no_burn: detected in App.tsx at the burn-retry boundary; nothing to do here.
  *   - avoid_division: evaluated at run-end in App.tsx; nothing to do here.
  */
@@ -413,17 +422,19 @@ const applyObjectiveEffects = (prevState: GameState, result: CommandOutput): Com
       });
     }
   } else if (condition.type === 'identify_employee') {
-    // Proxy check: the employee roster is the only file that covers all division personnel.
-    // TODO: filter by condition.divisionId once GameFile.sourceNodeId exists — currently
-    // all identify_employee contracts complete on the same file regardless of target division.
     const EMPLOYEE_ROSTER = 'employee_roster.csv';
-    const prevNames = prevState.player.exfiltrated.map(f => f.name);
-    const nextNames = nextState.player.exfiltrated.map(f => f.name);
-    if (
-      !contract.objectiveComplete &&
-      !prevNames.includes(EMPLOYEE_ROSTER) &&
-      nextNames.includes(EMPLOYEE_ROSTER)
-    ) {
+    const targetLayer = DIVISION_LAYER[condition.divisionId];
+    const prevMatch = prevState.player.exfiltrated.some(
+      f =>
+        f.name === EMPLOYEE_ROSTER &&
+        prevState.network.nodes[f.sourceNodeId ?? '']?.layer === targetLayer,
+    );
+    const nextMatch = nextState.player.exfiltrated.some(
+      f =>
+        f.name === EMPLOYEE_ROSTER &&
+        nextState.network.nodes[f.sourceNodeId ?? '']?.layer === targetLayer,
+    );
+    if (!contract.objectiveComplete && !prevMatch && nextMatch) {
       alertLines.push(
         sep(),
         sys(
@@ -1564,7 +1575,7 @@ const cmdExfil = (args: string[], state: GameState): CommandOutput => {
   const isDecryptorBin = file.path === '/home/ops.admin/sec_tools/decryptor.bin';
 
   let next = produce(addTrace(state, 3, `exfil:${file.name}`), s => {
-    s.player.exfiltrated.push({ ...file });
+    s.player.exfiltrated.push({ ...file, sourceNodeId: node.id });
     // Queue sentinel file-delete for non-Aria nodes.
     // Sentinel processes after turnCount is incremented, so +4 here achieves a true 3-turn delay.
     if (node.layer !== 5) {
