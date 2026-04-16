@@ -188,7 +188,7 @@ const tryPlantFile = (state: GameState): { state: GameState; lines: AriaLine[] }
   if (candidates.length === 0) return null;
 
   const target = candidates[0];
-  const filePath = `/tmp/.aria_hint_${String(state.turnCount)}.txt`;
+  const filePath = `/tmp/.aria_hint_${state.turnCount}.txt`;
   const hintContent = '// Cross-reference the exfil manifest with layer 2 credentials.';
 
   const event = makeMutationEvent('plant_file', state.turnCount, {
@@ -201,7 +201,7 @@ const tryPlantFile = (state: GameState): { state: GameState; lines: AriaLine[] }
     const node = s.network.nodes[target.id];
     if (node) {
       node.files.push({
-        name: `.aria_hint_${String(state.turnCount)}.txt`,
+        name: `.aria_hint_${state.turnCount}.txt`,
         path: filePath,
         type: 'document',
         content: hintContent,
