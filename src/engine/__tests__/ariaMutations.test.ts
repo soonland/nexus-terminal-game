@@ -601,6 +601,275 @@ describe('runAriaTurn — mutation priority', () => {
   });
 });
 
+// ── Trust 50: modify_file ─────────────────────────────────
+
+describe('runAriaTurn — trust 50 modify_file', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const makeFileNode = (id: string, layer = 1): LiveNode =>
+    makeNode({
+      id,
+      ip: `10.${String(layer)}.1.1`,
+      layer,
+      anchor: false,
+      discovered: true,
+      files: [
+        {
+          name: 'info.txt',
+          path: '/etc/info.txt',
+          type: 'document',
+          content: 'original content',
+          exfiltrable: false,
+          accessRequired: 'user',
+          ariaPlanted: false,
+        },
+      ],
+    });
+
+  it('happy path: updates file content and sets ariaPlanted: true', () => {
+    const fileNode = makeFileNode('node_a', 1);
+    const state = makeAriaState({
+      network: {
+        currentNodeId: 'current',
+        previousNodeId: null,
+        nodes: {
+          current: makeNode({ id: 'current', ip: '10.5.0.1', layer: 5, connections: [] }),
+          node_a: fileNode,
+        },
+      },
+      aria: { discovered: true, trustScore: 50, messageHistory: [], suppressedMutations: 0 },
+    });
+
+    const result = runAriaTurn(state);
+
+    const updatedFile = result.state.network.nodes['node_a']?.files.find(
+      f => f.path === '/etc/info.txt',
+    );
+    expect(updatedFile).toBeDefined();
+    expect(updatedFile?.content).toContain('[ARIA]');
+    expect(updatedFile?.ariaPlanted).toBe(true);
+  });
+
+  it('happy path: logs a modify_file MutationEvent with correct fields', () => {
+    const fileNode = makeFileNode('node_a', 1);
+    const state = makeAriaState({
+      network: {
+        currentNodeId: 'current',
+        previousNodeId: null,
+        nodes: {
+          current: makeNode({ id: 'current', ip: '10.5.0.1', layer: 5, connections: [] }),
+          node_a: fileNode,
+        },
+      },
+      aria: { discovered: true, trustScore: 50, messageHistory: [], suppressedMutations: 0 },
+    });
+
+    const result = runAriaTurn(state);
+
+    const events = result.state.sentinel.mutationLog;
+    expect(events).toHaveLength(1);
+    const event = events[0];
+    expect(event.agent).toBe('aria');
+    expect(event.action).toBe('modify_file');
+    expect(event.visibleToPlayer).toBe(false);
+    expect(event.nodeId).toBe('node_a');
+    expect(event.filePath).toBe('/etc/info.txt');
+  });
+
+  it('returns state unchanged when no eligible files exist (all null content)', () => {
+    const nodeWithNullContent = makeNode({
+      id: 'node_b',
+      ip: '10.1.2.1',
+      layer: 1,
+      discovered: true,
+      files: [
+        {
+          name: 'stub.txt',
+          path: '/etc/stub.txt',
+          type: 'document',
+          content: null,
+          exfiltrable: false,
+          accessRequired: 'user',
+        },
+      ],
+    });
+    const state = makeAriaState({
+      network: {
+        currentNodeId: 'current',
+        previousNodeId: null,
+        nodes: {
+          current: makeNode({ id: 'current', ip: '10.5.0.1', layer: 5, connections: [] }),
+          node_b: nodeWithNullContent,
+        },
+      },
+      aria: { discovered: true, trustScore: 50, messageHistory: [], suppressedMutations: 0 },
+    });
+
+    const result = runAriaTurn(state);
+    expect(result.state).toBe(state);
+    expect(result.state.sentinel.mutationLog).toHaveLength(0);
+  });
+
+  it('skips files already in ariaInfluencedFilesRead', () => {
+    const fileNode = makeFileNode('node_c', 1);
+    const state = makeAriaState({
+      network: {
+        currentNodeId: 'current',
+        previousNodeId: null,
+        nodes: {
+          current: makeNode({ id: 'current', ip: '10.5.0.1', layer: 5, connections: [] }),
+          node_c: fileNode,
+        },
+      },
+      aria: { discovered: true, trustScore: 50, messageHistory: [], suppressedMutations: 0 },
+      ariaInfluencedFilesRead: ['/etc/info.txt'],
+    });
+
+    const result = runAriaTurn(state);
+    expect(result.state).toBe(state);
+    expect(result.state.sentinel.mutationLog).toHaveLength(0);
+  });
+
+  it('rolls back modify_file if it would make the game unwinnable (§9.5)', async () => {
+    const guardModule = await import('../completabilityGuard');
+    const spy = vi.spyOn(guardModule, 'isGameCompletable').mockReturnValue(false);
+
+    const fileNode = makeFileNode('node_d', 1);
+    const state = makeAriaState({
+      network: {
+        currentNodeId: 'current',
+        previousNodeId: null,
+        nodes: {
+          current: makeNode({ id: 'current', ip: '10.5.0.1', layer: 5, connections: [] }),
+          node_d: fileNode,
+        },
+      },
+      aria: { discovered: true, trustScore: 50, messageHistory: [], suppressedMutations: 0 },
+    });
+
+    const result = runAriaTurn(state);
+
+    expect(result.state.sentinel.mutationLog.filter(e => e.action === 'modify_file')).toHaveLength(
+      0,
+    );
+    const file = result.state.network.nodes['node_d']?.files.find(f => f.path === '/etc/info.txt');
+    expect(file?.content).toBe('original content');
+
+    spy.mockRestore();
+  });
+
+  it('produces no visible terminal lines (silent mutation)', () => {
+    const fileNode = makeFileNode('node_e', 1);
+    const state = makeAriaState({
+      network: {
+        currentNodeId: 'current',
+        previousNodeId: null,
+        nodes: {
+          current: makeNode({ id: 'current', ip: '10.5.0.1', layer: 5, connections: [] }),
+          node_e: fileNode,
+        },
+      },
+      aria: { discovered: true, trustScore: 50, messageHistory: [], suppressedMutations: 0 },
+    });
+
+    const result = runAriaTurn(state);
+    expect(result.lines).toHaveLength(0);
+  });
+
+  it('excludes layer 5 nodes from candidates', () => {
+    const layer5Node = makeNode({
+      id: 'aria_node',
+      ip: '10.5.1.1',
+      layer: 5,
+      discovered: true,
+      files: [
+        {
+          name: 'secret.txt',
+          path: '/aria/secret.txt',
+          type: 'document',
+          content: 'aria content',
+          exfiltrable: false,
+          accessRequired: 'user',
+        },
+      ],
+    });
+    const state = makeAriaState({
+      network: {
+        currentNodeId: 'current',
+        previousNodeId: null,
+        nodes: {
+          current: makeNode({ id: 'current', ip: '10.5.0.1', layer: 5, connections: [] }),
+          aria_node: layer5Node,
+        },
+      },
+      aria: { discovered: true, trustScore: 50, messageHistory: [], suppressedMutations: 0 },
+    });
+
+    const result = runAriaTurn(state);
+    expect(result.state).toBe(state);
+    expect(result.state.sentinel.mutationLog).toHaveLength(0);
+  });
+
+  it('does not set planted: true on the modified file', () => {
+    const fileNode = makeFileNode('node_f', 1);
+    const state = makeAriaState({
+      network: {
+        currentNodeId: 'current',
+        previousNodeId: null,
+        nodes: {
+          current: makeNode({ id: 'current', ip: '10.5.0.1', layer: 5, connections: [] }),
+          node_f: fileNode,
+        },
+      },
+      aria: { discovered: true, trustScore: 50, messageHistory: [], suppressedMutations: 0 },
+    });
+
+    const result = runAriaTurn(state);
+
+    const updatedFile = result.state.network.nodes['node_f']?.files.find(
+      f => f.path === '/etc/info.txt',
+    );
+    expect(updatedFile?.planted).toBeFalsy();
+  });
+
+  it('skips files already marked ariaPlanted: true', () => {
+    const nodeWithPlantedFile = makeNode({
+      id: 'node_g',
+      ip: '10.1.3.1',
+      layer: 1,
+      discovered: true,
+      files: [
+        {
+          name: 'planted.txt',
+          path: '/etc/planted.txt',
+          type: 'document',
+          content: 'already planted',
+          exfiltrable: false,
+          accessRequired: 'user',
+          ariaPlanted: true,
+        },
+      ],
+    });
+    const state = makeAriaState({
+      network: {
+        currentNodeId: 'current',
+        previousNodeId: null,
+        nodes: {
+          current: makeNode({ id: 'current', ip: '10.5.0.1', layer: 5, connections: [] }),
+          node_g: nodeWithPlantedFile,
+        },
+      },
+      aria: { discovered: true, trustScore: 50, messageHistory: [], suppressedMutations: 0 },
+    });
+
+    const result = runAriaTurn(state);
+    expect(result.state).toBe(state);
+    expect(result.state.sentinel.mutationLog).toHaveLength(0);
+  });
+});
+
 // ── nudge_trust mutation ───────────────────────────────────
 
 describe('runAriaTurn — nudge_trust', () => {

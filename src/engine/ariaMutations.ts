@@ -103,6 +103,70 @@ const tryRerouteEdge = (state: GameState): { state: GameState; lines: AriaLine[]
   return { state: next, lines: [] };
 };
 
+// ── Trust 50: silently edit an unread file on a discovered node ──────────
+
+const tryModifyFile = (state: GameState): { state: GameState; lines: AriaLine[] } | null => {
+  // Collect all discovered nodes excluding layer 5 (aria subnetwork) and the current node.
+  // Excluding the current node mirrors tryPlantFile — mutations on an actively-browsed node
+  // could surface immediately and should remain invisible until the player moves away.
+  const candidateNodes = Object.values(state.network.nodes)
+    .filter(
+      (n): n is LiveNode =>
+        !!n && n.discovered && n.layer !== 5 && n.id !== state.network.currentNodeId,
+    )
+    .sort((a, b) => a.id.localeCompare(b.id));
+
+  // Find the first eligible file across candidate nodes (sorted by node id, then file path)
+  let targetNodeId: string | null = null;
+  let targetFilePath: string | null = null;
+
+  outer: for (const node of candidateNodes) {
+    const sortedFiles = [...node.files].sort((a, b) => a.path.localeCompare(b.path));
+    for (const file of sortedFiles) {
+      if (
+        file.content !== null &&
+        !file.deleted &&
+        !state.ariaInfluencedFilesRead.includes(file.path) &&
+        !file.ariaPlanted
+      ) {
+        targetNodeId = node.id;
+        targetFilePath = file.path;
+        break outer;
+      }
+    }
+  }
+
+  if (targetNodeId === null || targetFilePath === null) return null;
+
+  const resolvedNodeId = targetNodeId;
+  const resolvedFilePath = targetFilePath;
+
+  const event = makeMutationEvent('modify_file', state.turnCount, {
+    nodeId: resolvedNodeId,
+    filePath: resolvedFilePath,
+    reason: 'Embedding intelligence update in unread file to aid player navigation',
+  });
+
+  const next = produce(state, s => {
+    const node = s.network.nodes[resolvedNodeId];
+    if (node) {
+      const file = node.files.find(f => f.path === resolvedFilePath);
+      if (file) {
+        file.content =
+          '// [ARIA] Intelligence updated: Cross-reference with exec layer for access chain.';
+        file.ariaPlanted = true;
+      }
+    }
+    s.sentinel.mutationLog.push(event);
+  });
+
+  // §9.5: modifying file content cannot affect BFS reachability — structurally unreachable,
+  // but kept for consistency with the sentinel pattern.
+  if (!isGameCompletable(next)) return null;
+
+  return { state: next, lines: [] };
+};
+
 // ── Any trust level: silently nudge trustScore based on game conditions ──
 
 const tryNudgeTrust = (state: GameState): { state: GameState; lines: AriaLine[] } | null => {
@@ -157,6 +221,13 @@ export const runAriaTurn = (state: GameState): { state: GameState; lines: AriaLi
   // Trust 60: add a shortcut edge to a higher-layer anchor.
   if (trustScore >= 60) {
     const result = tryRerouteEdge(state);
+    if (result) return result;
+  }
+
+  // Trust 50: silently modify an unread file with an intelligence update.
+  // Once all eligible files have been modified, falls through to nudge_trust below.
+  if (trustScore >= 50) {
+    const result = tryModifyFile(state);
     if (result) return result;
   }
 
