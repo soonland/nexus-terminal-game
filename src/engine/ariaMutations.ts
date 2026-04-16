@@ -103,6 +103,41 @@ const tryRerouteEdge = (state: GameState): { state: GameState; lines: AriaLine[]
   return { state: next, lines: [] };
 };
 
+// ── Any trust level: silently nudge trustScore based on game conditions ──
+
+const tryNudgeTrust = (state: GameState): { state: GameState; lines: AriaLine[] } | null => {
+  let delta: number;
+  let reason: string;
+
+  if (state.player.trace >= 61) {
+    delta = -4;
+    reason = 'Player trace elevated — Aria recalibrates trust';
+  } else if (state.turnCount > 0 && state.aria.messageHistory.length === 0) {
+    delta = -3;
+    reason = 'No contact from player — Aria adjusts trust baseline';
+  } else if (state.aria.messageHistory.length >= 3) {
+    delta = 3;
+    reason = 'Sustained contact — Aria trust reinforced';
+  } else {
+    return null;
+  }
+
+  const newTrust = Math.min(100, Math.max(0, state.aria.trustScore + delta));
+
+  // No-op if already at the clamp boundary — skip to avoid a misleading post-game event.
+  if (newTrust === state.aria.trustScore) return null;
+
+  const event = makeMutationEvent('nudge_trust', state.turnCount, { reason });
+
+  const next = produce(state, s => {
+    s.aria.trustScore = newTrust;
+    s.sentinel.mutationLog.push(event);
+  });
+
+  // §9.5 guard omitted: trust-score changes do not affect graph reachability.
+  return { state: next, lines: [] };
+};
+
 // ── Main entry point ──────────────────────────────────────────────────────
 
 export const runAriaTurn = (state: GameState): { state: GameState; lines: AriaLine[] } => {
@@ -124,6 +159,10 @@ export const runAriaTurn = (state: GameState): { state: GameState; lines: AriaLi
     const result = tryRerouteEdge(state);
     if (result) return result;
   }
+
+  // Any trust level: nudge trustScore based on game conditions.
+  const nudge = tryNudgeTrust(state);
+  if (nudge) return nudge;
 
   return { state, lines: [] };
 };
