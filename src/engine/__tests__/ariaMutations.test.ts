@@ -601,6 +601,218 @@ describe('runAriaTurn — mutation priority', () => {
   });
 });
 
+// ── nudge_trust mutation ───────────────────────────────────
+
+describe('runAriaTurn — nudge_trust', () => {
+  it('decreases trustScore by 4 when player trace >= 61', () => {
+    const state = makeAriaState({
+      aria: { discovered: true, trustScore: 50, messageHistory: [], suppressedMutations: 0 },
+      player: {
+        handle: 'ghost',
+        trace: 70,
+        charges: 3,
+        credentials: [],
+        exfiltrated: [],
+        tools: [],
+        burnCount: 0,
+      },
+    });
+
+    const result = runAriaTurn(state);
+    expect(result.state.aria.trustScore).toBe(46);
+  });
+
+  it('logs a nudge_trust MutationEvent with agent aria and visibleToPlayer false on high trace', () => {
+    const state = makeAriaState({
+      aria: { discovered: true, trustScore: 50, messageHistory: [], suppressedMutations: 0 },
+      player: {
+        handle: 'ghost',
+        trace: 65,
+        charges: 3,
+        credentials: [],
+        exfiltrated: [],
+        tools: [],
+        burnCount: 0,
+      },
+    });
+
+    const result = runAriaTurn(state);
+
+    const events = result.state.sentinel.mutationLog;
+    expect(events).toHaveLength(1);
+    const event = events[0];
+    expect(event.action).toBe('nudge_trust');
+    expect(event.agent).toBe('aria');
+    expect(event.visibleToPlayer).toBe(false);
+    expect(typeof event.reason).toBe('string');
+    expect(event.reason!.length).toBeGreaterThan(0);
+  });
+
+  it('decreases trustScore by 3 when turnCount > 0 and no message history', () => {
+    const state = makeAriaState({
+      turnCount: 5,
+      aria: { discovered: true, trustScore: 50, messageHistory: [], suppressedMutations: 0 },
+      player: {
+        handle: 'ghost',
+        trace: 0,
+        charges: 3,
+        credentials: [],
+        exfiltrated: [],
+        tools: [],
+        burnCount: 0,
+      },
+    });
+
+    const result = runAriaTurn(state);
+    expect(result.state.aria.trustScore).toBe(47);
+
+    const event = result.state.sentinel.mutationLog[0];
+    expect(event.action).toBe('nudge_trust');
+  });
+
+  it('increases trustScore by 3 when messageHistory.length >= 3', () => {
+    const state = makeAriaState({
+      turnCount: 5,
+      aria: {
+        discovered: true,
+        trustScore: 50,
+        messageHistory: [
+          { role: 'player', content: 'hello' },
+          { role: 'aria', content: 'hi' },
+          { role: 'player', content: 'thanks' },
+        ],
+        suppressedMutations: 0,
+      },
+      player: {
+        handle: 'ghost',
+        trace: 0,
+        charges: 3,
+        credentials: [],
+        exfiltrated: [],
+        tools: [],
+        burnCount: 0,
+      },
+    });
+
+    const result = runAriaTurn(state);
+    expect(result.state.aria.trustScore).toBe(53);
+
+    const event = result.state.sentinel.mutationLog[0];
+    expect(event.action).toBe('nudge_trust');
+  });
+
+  it('clamps trustScore to 0 when high trace would push below 0', () => {
+    const state = makeAriaState({
+      aria: { discovered: true, trustScore: 2, messageHistory: [], suppressedMutations: 0 },
+      player: {
+        handle: 'ghost',
+        trace: 70,
+        charges: 3,
+        credentials: [],
+        exfiltrated: [],
+        tools: [],
+        burnCount: 0,
+      },
+    });
+
+    const result = runAriaTurn(state);
+    expect(result.state.aria.trustScore).toBe(0);
+  });
+
+  it('clamps trustScore to 100 when engagement would push above 100', () => {
+    const state = makeAriaState({
+      turnCount: 5,
+      aria: {
+        discovered: true,
+        trustScore: 98,
+        messageHistory: [
+          { role: 'player', content: 'hello' },
+          { role: 'aria', content: 'hi' },
+          { role: 'player', content: 'thanks' },
+        ],
+        suppressedMutations: 0,
+      },
+      player: {
+        handle: 'ghost',
+        trace: 0,
+        charges: 3,
+        credentials: [],
+        exfiltrated: [],
+        tools: [],
+        burnCount: 0,
+      },
+    });
+
+    const result = runAriaTurn(state);
+    expect(result.state.aria.trustScore).toBe(100);
+  });
+
+  it('returns state unchanged when no trigger conditions are met', () => {
+    // turnCount = 0, trace < 61, messageHistory.length < 3 → no match
+    const state = makeAriaState({
+      turnCount: 0,
+      aria: {
+        discovered: true,
+        trustScore: 50,
+        messageHistory: [{ role: 'player', content: 'hello' }],
+        suppressedMutations: 0,
+      },
+      player: {
+        handle: 'ghost',
+        trace: 30,
+        charges: 3,
+        credentials: [],
+        exfiltrated: [],
+        tools: [],
+        burnCount: 0,
+      },
+    });
+
+    const result = runAriaTurn(state);
+    expect(result.state).toBe(state);
+    expect(result.state.sentinel.mutationLog).toHaveLength(0);
+  });
+
+  it('high-trace condition takes priority over quiet-period when both are true', () => {
+    // trace >= 61 AND turnCount > 0 AND messageHistory empty → high-trace fires (-4 not -3)
+    const state = makeAriaState({
+      turnCount: 5,
+      aria: { discovered: true, trustScore: 50, messageHistory: [], suppressedMutations: 0 },
+      player: {
+        handle: 'ghost',
+        trace: 65,
+        charges: 3,
+        credentials: [],
+        exfiltrated: [],
+        tools: [],
+        burnCount: 0,
+      },
+    });
+
+    const result = runAriaTurn(state);
+    expect(result.state.aria.trustScore).toBe(46); // -4, not -3
+  });
+
+  it('produces no visible terminal lines (silent mutation)', () => {
+    const state = makeAriaState({
+      turnCount: 5,
+      aria: { discovered: true, trustScore: 50, messageHistory: [], suppressedMutations: 0 },
+      player: {
+        handle: 'ghost',
+        trace: 0,
+        charges: 3,
+        credentials: [],
+        exfiltrated: [],
+        tools: [],
+        burnCount: 0,
+      },
+    });
+
+    const result = runAriaTurn(state);
+    expect(result.lines).toHaveLength(0);
+  });
+});
+
 // ── MutationEvent.reason field ─────────────────────────────
 
 describe('runAriaTurn — MutationEvent.reason populated', () => {
