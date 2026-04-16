@@ -167,6 +167,60 @@ const tryModifyFile = (state: GameState): { state: GameState; lines: AriaLine[] 
   return { state: next, lines: [] };
 };
 
+// ── Trust 40: plant a hint file on a discovered non-aria node ────────────
+
+const tryPlantFile = (state: GameState): { state: GameState; lines: AriaLine[] } | null => {
+  // Candidate nodes: discovered, layer !== 5 (non-aria), not the current node,
+  // and not already seeded with an aria-planted file (one hint per node).
+  // network.nodes contains the full map; discovered is the actual eligibility gate.
+  // Sort by id for determinism.
+  const candidates = Object.values(state.network.nodes)
+    .filter(
+      (n): n is LiveNode =>
+        !!n &&
+        n.discovered &&
+        n.layer !== 5 &&
+        n.id !== state.network.currentNodeId &&
+        !n.files.some(f => f.ariaPlanted),
+    )
+    .sort((a, b) => a.id.localeCompare(b.id));
+
+  if (candidates.length === 0) return null;
+
+  const target = candidates[0];
+  const filePath = `/tmp/.aria_hint_${String(state.turnCount)}.txt`;
+  const hintContent = '// Cross-reference the exfil manifest with layer 2 credentials.';
+
+  const event = makeMutationEvent('plant_file', state.turnCount, {
+    nodeId: target.id,
+    filePath,
+    reason: 'Planting hint file to guide player toward key credentials',
+  });
+
+  const next = produce(state, s => {
+    const node = s.network.nodes[target.id];
+    if (node) {
+      node.files.push({
+        name: `.aria_hint_${String(state.turnCount)}.txt`,
+        path: filePath,
+        type: 'document',
+        content: hintContent,
+        exfiltrable: false,
+        accessRequired: 'user',
+        planted: true,
+        ariaPlanted: true,
+      });
+    }
+    s.sentinel.mutationLog.push(event);
+  });
+
+  // §9.5: adding a file cannot affect BFS reachability — structurally unreachable,
+  // but kept for consistency with the sentinel pattern.
+  if (!isGameCompletable(next)) return null;
+
+  return { state: next, lines: [] };
+};
+
 // ── Any trust level: silently nudge trustScore based on game conditions ──
 
 const tryNudgeTrust = (state: GameState): { state: GameState; lines: AriaLine[] } | null => {
@@ -225,9 +279,16 @@ export const runAriaTurn = (state: GameState): { state: GameState; lines: AriaLi
   }
 
   // Trust 50: silently modify an unread file with an intelligence update.
-  // Once all eligible files have been modified, falls through to nudge_trust below.
+  // Once all eligible files have been modified, falls through to plant_file below.
   if (trustScore >= 50) {
     const result = tryModifyFile(state);
+    if (result) return result;
+  }
+
+  // Trust 40: plant a hint file on an eligible discovered node.
+  // Once all eligible nodes are seeded, falls through to nudge_trust below.
+  if (trustScore >= 40) {
+    const result = tryPlantFile(state);
     if (result) return result;
   }
 
