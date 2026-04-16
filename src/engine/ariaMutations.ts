@@ -123,6 +123,10 @@ const tryNudgeTrust = (state: GameState): { state: GameState; lines: AriaLine[] 
   }
 
   const newTrust = Math.min(100, Math.max(0, state.aria.trustScore + delta));
+
+  // No-op if already at the clamp boundary — skip to avoid a misleading post-game event.
+  if (newTrust === state.aria.trustScore) return null;
+
   const event = makeMutationEvent('nudge_trust', state.turnCount, { reason });
 
   const next = produce(state, s => {
@@ -130,6 +134,7 @@ const tryNudgeTrust = (state: GameState): { state: GameState; lines: AriaLine[] 
     s.sentinel.mutationLog.push(event);
   });
 
+  // §9.5 guard omitted: trust-score changes do not affect graph reachability.
   return { state: next, lines: [] };
 };
 
