@@ -1,6 +1,6 @@
 import type { GameState, CommandOutput, AccessLevel, FavorOffer, ToolId } from '../types/game';
-import type { DivisionId } from '../types/divisionSeed';
 import { hasAccess } from '../types/game';
+import { DIVISION_LAYER } from '../data/divisionSeeds';
 import { currentNode, addTrace, thresholdFlag, TRACE_THRESHOLDS } from './state';
 import produce from './produce';
 import { LAYER_KEY_ANCHOR } from './buildConnectivity';
@@ -338,15 +338,6 @@ const THRESHOLD_ALERT_META: Record<
   },
   61: { msg: '// ALERT: Active intrusion response initiated.', type: 'system' },
   86: { msg: '// CRITICAL: One more detection event triggers full lockout.', type: 'error' },
-};
-
-/** Maps each DivisionId to the network layer it occupies. */
-const DIVISION_LAYER: Record<DivisionId, number> = {
-  external_perimeter: 0,
-  operations: 1,
-  security: 2,
-  finance: 3,
-  executive: 4,
 };
 
 /**
