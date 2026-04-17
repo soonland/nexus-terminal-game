@@ -24,8 +24,8 @@ import { ValidationError, requireObject, requireString } from './_lib/validate.j
 
 const log = makeLogger('aria');
 
-const GEMINI_API_URL =
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
+const GEMINI_DEFAULT_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
+const GEMINI_DEFAULT_MODEL = 'gemini-2.5-flash';
 
 // Mirrors src/types/game.ts#FavorOffer — kept in sync manually (api/ cannot import from src/)
 type FavorOffer = { description: string; cost: number };
@@ -92,12 +92,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: err.message });
     }
     return res.status(400).json({ error: 'Invalid request body' });
-  }
-
-  const apiKey = process.env['GEMINI_API_KEY'];
-  if (!apiKey) {
-    log.error('GEMINI_API_KEY not set');
-    return res.status(200).json(FALLBACK_RESPONSE);
   }
 
   try {
@@ -180,42 +174,99 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       );
     }
 
-    const fullPrompt = [SYSTEM_PROMPT, contextParts.join('\n'), `Player: ${message}`, 'Aria:']
-      .filter(Boolean)
-      .join('\n\n');
-
-    const geminiRes = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: fullPrompt }] }],
-        generationConfig: {
-          maxOutputTokens: 300,
-          temperature: 0.9,
-          responseMimeType: 'application/json',
-        },
-        // Only relax DANGEROUS_CONTENT — the hacking fiction theme references
-        // security topics that can trigger this category at default thresholds.
-        // Harassment, hate speech, and sexually explicit filters remain at default.
-        safetySettings: [
-          { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_ONLY_HIGH' },
-        ],
-      }),
-    });
-
-    if (!geminiRes.ok) {
-      const errBody = await geminiRes.text();
-      log.error('Gemini HTTP error', geminiRes.status, errBody);
+    // Read provider config at request time so env vars can be changed without redeploying
+    const ariaModel = process.env['ARIA_AI_MODEL'] ?? GEMINI_DEFAULT_MODEL;
+    const ariaBaseUrl = process.env['ARIA_AI_BASE_URL'] ?? GEMINI_DEFAULT_BASE_URL;
+    const isClaude = ariaModel.startsWith('claude-');
+    const apiKey =
+      process.env['ARIA_AI_API_KEY'] ??
+      (isClaude ? process.env['ANTHROPIC_API_KEY'] : process.env['GEMINI_API_KEY']);
+    if (!apiKey) {
+      const keyName = isClaude ? 'ANTHROPIC_API_KEY' : 'GEMINI_API_KEY';
+      log.error(`${keyName} not set (or ARIA_AI_API_KEY)`);
       return res.status(200).json(FALLBACK_RESPONSE);
     }
 
-    const data = (await geminiRes.json()) as {
-      candidates?: { content?: { parts?: { text?: string }[] } }[];
-    };
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-    if (!text) {
-      log.error('Gemini empty response', JSON.stringify(data).slice(0, 500));
-      return res.status(200).json(FALLBACK_RESPONSE);
+    let text: string | undefined;
+
+    if (isClaude) {
+      const claudeUrl = `${ariaBaseUrl}/v1/messages`;
+      const claudeRes = await fetch(claudeUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+          model: ariaModel,
+          max_tokens: 300,
+          temperature: 0.9,
+          system: SYSTEM_PROMPT,
+          messages: [
+            {
+              role: 'user',
+              content: [contextParts.join('\n'), `Player: ${message}`, 'Aria:']
+                .filter(Boolean)
+                .join('\n\n'),
+            },
+          ],
+        }),
+      });
+
+      if (!claudeRes.ok) {
+        const errBody = await claudeRes.text();
+        log.error('Claude HTTP error', claudeRes.status, errBody);
+        return res.status(200).json(FALLBACK_RESPONSE);
+      }
+
+      const claudeData = (await claudeRes.json()) as {
+        content?: { type: string; text: string }[];
+      };
+      text = claudeData.content?.[0]?.text?.trim();
+      if (!text) {
+        log.error('Claude empty response', JSON.stringify(claudeData).slice(0, 500));
+        return res.status(200).json(FALLBACK_RESPONSE);
+      }
+    } else {
+      const fullPrompt = [SYSTEM_PROMPT, contextParts.join('\n'), `Player: ${message}`, 'Aria:']
+        .filter(Boolean)
+        .join('\n\n');
+
+      const geminiUrl = `${ariaBaseUrl}/${ariaModel}:generateContent`;
+      const geminiRes = await fetch(`${geminiUrl}?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: fullPrompt }] }],
+          generationConfig: {
+            maxOutputTokens: 300,
+            temperature: 0.9,
+            responseMimeType: 'application/json',
+          },
+          // Only relax DANGEROUS_CONTENT — the hacking fiction theme references
+          // security topics that can trigger this category at default thresholds.
+          // Harassment, hate speech, and sexually explicit filters remain at default.
+          safetySettings: [
+            { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_ONLY_HIGH' },
+          ],
+        }),
+      });
+
+      if (!geminiRes.ok) {
+        const errBody = await geminiRes.text();
+        log.error('Gemini HTTP error', geminiRes.status, errBody);
+        return res.status(200).json(FALLBACK_RESPONSE);
+      }
+
+      const geminiData = (await geminiRes.json()) as {
+        candidates?: { content?: { parts?: { text?: string }[] } }[];
+      };
+      text = geminiData.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+      if (!text) {
+        log.error('Gemini empty response', JSON.stringify(geminiData).slice(0, 500));
+        return res.status(200).json(FALLBACK_RESPONSE);
+      }
     }
 
     const stripped = text
@@ -225,7 +276,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const jsonStart = stripped.indexOf('{');
     const jsonEnd = stripped.lastIndexOf('}');
     if (jsonStart === -1 || jsonEnd === -1 || jsonEnd <= jsonStart) {
-      log.error('No JSON object in Gemini response', stripped.slice(0, 200));
+      log.error('No JSON object in AI response', stripped.slice(0, 200));
       return res.status(200).json(FALLBACK_RESPONSE);
     }
     const parsed = JSON.parse(stripped.slice(jsonStart, jsonEnd + 1)) as Partial<AriaAIResponse>;
