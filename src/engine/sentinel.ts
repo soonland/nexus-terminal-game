@@ -193,6 +193,7 @@ const scrubBlockedFileDeletes = (state: GameState): GameState => {
     return isGameCompletable(testNext);
   });
   if (safe.length === state.sentinel.pendingFileDeletes.length) return state;
+  /* c8 ignore next — isGameCompletable does not yet model files (see TODO above), so this branch is unreachable until §9.5-files is resolved */
   return produce(state, s => {
     s.sentinel.pendingFileDeletes = safe;
   });
