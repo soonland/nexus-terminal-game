@@ -278,6 +278,36 @@ describe('runSentinelTurn — priority 2: revoke credential', () => {
     expect(resetFile).toBeDefined();
   });
 
+  it('should update existing RESET_NOTICE.txt rather than push a second file on re-revocation', () => {
+    // Arrange: two credentials with the same primary node so the second revocation
+    // hits the update branch (existing RESET_NOTICE) instead of the push branch.
+    const primaryNodeId = base.player.credentials[0].validOnNodes[0] ?? 'contractor_portal';
+    const state = produce(base, s => {
+      s.player.credentials.push({
+        id: 'second_cred',
+        username: 'ops.user2',
+        password: 'Pass2!',
+        accessLevel: 'user',
+        validOnNodes: [primaryNodeId],
+        obtained: true,
+        revoked: false,
+      });
+    });
+
+    // First call revokes cred[0] and plants RESET_NOTICE.txt
+    const after1 = runSentinelTurn(state).state;
+    const node1 = after1.network.nodes[primaryNodeId];
+    const notice1 = node1?.files.find(f => f.name === 'RESET_NOTICE.txt');
+    expect(notice1).toBeDefined();
+
+    // Second call revokes second_cred on the same node — should UPDATE the file, not push a second
+    const after2 = runSentinelTurn(after1).state;
+    const node2 = after2.network.nodes[primaryNodeId];
+    const notices = node2?.files.filter(f => f.name === 'RESET_NOTICE.txt');
+    expect(notices).toHaveLength(1);
+    expect(notices?.[0]?.content).toContain('ops.user2');
+  });
+
   it('should log a mutation event with action revoke_credential', () => {
     const result = runSentinelTurn(base);
     const log = result.state.sentinel.mutationLog;

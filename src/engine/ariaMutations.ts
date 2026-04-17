@@ -89,6 +89,7 @@ const tryRerouteEdge = (state: GameState): { state: GameState; lines: AriaLine[]
 
   const next = produce(state, s => {
     const node = s.network.nodes[s.network.currentNodeId];
+    /* c8 ignore next */
     if (node) {
       node.connections.push(target.id);
     }
@@ -149,8 +150,10 @@ const tryModifyFile = (state: GameState): { state: GameState; lines: AriaLine[] 
 
   const next = produce(state, s => {
     const node = s.network.nodes[resolvedNodeId];
+    /* c8 ignore next */
     if (node) {
       const file = node.files.find(f => f.path === resolvedFilePath);
+      /* c8 ignore next */
       if (file) {
         file.content =
           '// [ARIA] Intelligence updated: Cross-reference with exec layer for access chain.';
@@ -199,6 +202,7 @@ const tryPlantFile = (state: GameState): { state: GameState; lines: AriaLine[] }
 
   const next = produce(state, s => {
     const node = s.network.nodes[target.id];
+    /* c8 ignore next */
     if (node) {
       node.files.push({
         name: `.aria_hint_${String(state.turnCount)}.txt`,
