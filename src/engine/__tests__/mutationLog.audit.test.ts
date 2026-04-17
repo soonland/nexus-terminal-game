@@ -1,10 +1,4 @@
-/**
- * §9.2 Mutation log completeness audit
- *
- * Formally verifies that every mutation path (4 sentinel + 5 aria) produces a
- * MutationEvent with the complete required field set, and that the visibleToPlayer
- * flag is set correctly per agent.
- */
+// §9.2 audit — verifies all 9 mutation types produce a complete MutationEvent with required fields
 
 import { describe, it, expect } from 'vitest';
 import { runSentinelTurn } from '../sentinel';
@@ -342,8 +336,8 @@ describe('Mutation log audit — turnCount accuracy', () => {
   it('aria event records the exact turnCount from state', () => {
     const nodeA = makeNode({ id: 'node_a', ip: '10.0.0.2', layer: 0, discovered: true });
     const current = makeNode({ id: 'current', ip: '10.5.0.1', layer: 5, connections: [] });
-    const state = {
-      ...makeState({
+    const state = produce(
+      makeState({
         network: {
           currentNodeId: 'current',
           previousNodeId: null,
@@ -351,8 +345,10 @@ describe('Mutation log audit — turnCount accuracy', () => {
         },
         aria: { discovered: true, trustScore: 45, messageHistory: [], suppressedMutations: 0 },
       }),
-      turnCount: 9,
-    };
+      s => {
+        s.turnCount = 9;
+      },
+    );
     const events = runAriaTurn(state).state.sentinel.mutationLog;
     expect(events).toHaveLength(1);
     expect(events[0].turnCount).toBe(9);
