@@ -57,16 +57,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const prompt =
       `You are a security camera feed display system inside IronGate Corp, a powerful and secretive corporation. ` +
-      `Generate a terse, clinical surveillance description of what camera ${cameraId} (location: ${location}) currently shows. ` +
-      `Write in present tense. Two to four sentences. Describe people, activity, lighting, and any anomalies. ` +
-      `Tone: cold, factual, sci-fi noir. No markdown. No camera ID prefix.`;
+      `Generate a terse, clinical surveillance description of what camera ${cameraId} (location: ${location.replace('_', ' ')}) currently shows. ` +
+      `Write in present tense. Exactly two to three complete sentences. Describe people, activity, lighting, and any anomalies. ` +
+      `Tone: cold, factual, sci-fi noir. No markdown. No prefix of any kind — begin directly with the description.`;
 
     const geminiRes = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { maxOutputTokens: 300, temperature: 0.85 },
+        generationConfig: { maxOutputTokens: 500, temperature: 0.85 },
       }),
     });
 

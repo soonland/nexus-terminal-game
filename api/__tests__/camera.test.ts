@@ -157,7 +157,7 @@ describe('POST /api/camera-feed — Gemini success', () => {
     const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
     const prompt: string = body.contents[0].parts[0].text;
     expect(prompt).toContain('cam_02');
-    expect(prompt).toContain('server_room');
+    expect(prompt).toContain('server room');
   });
 });
 
