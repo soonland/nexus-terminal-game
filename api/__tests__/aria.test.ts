@@ -726,13 +726,11 @@ describe('POST /api/aria — Claude provider', () => {
   it('should return fallback when Claude response is non-ok', async () => {
     vi.stubGlobal(
       'fetch',
-      vi
-        .fn()
-        .mockResolvedValue({
-          ok: false,
-          status: 529,
-          text: vi.fn().mockResolvedValue('overloaded'),
-        }),
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 529,
+        text: vi.fn().mockResolvedValue('overloaded'),
+      }),
     );
 
     const req = makeReq();
@@ -769,7 +767,9 @@ describe('POST /api/aria — ARIA_AI_API_KEY universal override on Gemini path',
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: vi.fn().mockResolvedValue({
-        candidates: [{ content: { parts: [{ text: JSON.stringify({ reply: 'ok', trustDelta: 0 }) }] } }],
+        candidates: [
+          { content: { parts: [{ text: JSON.stringify({ reply: 'ok', trustDelta: 0 }) }] } },
+        ],
       }),
     });
     vi.stubGlobal('fetch', fetchMock);
