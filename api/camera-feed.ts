@@ -67,6 +67,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: { maxOutputTokens: 500, temperature: 0.85 },
+        thinkingConfig: { thinkingBudget: 0 },
       }),
     });
 
