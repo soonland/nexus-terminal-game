@@ -760,3 +760,28 @@ describe('POST /api/aria — Claude provider', () => {
     expect((res._json as any).reply).toBe(FALLBACK);
   });
 });
+
+describe('POST /api/aria — ARIA_AI_API_KEY universal override on Gemini path', () => {
+  it('should use ARIA_AI_API_KEY over GEMINI_API_KEY when model is Gemini', async () => {
+    process.env['ARIA_AI_API_KEY'] = 'universal-override-key';
+    process.env['GEMINI_API_KEY'] = 'original-gemini-key';
+
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({
+        candidates: [{ content: { parts: [{ text: JSON.stringify({ reply: 'ok', trustDelta: 0 }) }] } }],
+      }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const req = makeReq();
+    const res = makeRes();
+    await handler(req, res);
+
+    expect(fetchMock).toHaveBeenCalledOnce();
+    const [url] = fetchMock.mock.calls[0];
+    expect(url).toContain('universal-override-key');
+    expect(url).not.toContain('original-gemini-key');
+    expect(res._status).toBe(200);
+  });
+});

@@ -1,6 +1,6 @@
 /**
  * POST /api/aria
- * Aria dialogue handler — proxies to Gemini with full context (§10.2 contract).
+ * Aria dialogue handler — proxies to Gemini Flash or Claude (configurable via env vars, §10.2 contract).
  *
  * Request body:
  *   {
