@@ -71,6 +71,10 @@ const BODY: HelpLine[] = [
     text: r('  spoof               -trace -20 (requires spoof-id)'),
     color: 'var(--color-system)',
   },
+  {
+    text: r('  view-cam [id]       -view CCTV feed (cam_03: +1 trace)'),
+    color: 'var(--color-system)',
+  },
   { text: r(), color: 'var(--color-system)' },
   { text: r('MESSAGING:'), color: 'var(--color-output)' },
   {
