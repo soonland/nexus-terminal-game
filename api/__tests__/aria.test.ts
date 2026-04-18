@@ -684,6 +684,21 @@ describe('POST /api/aria — Claude provider', () => {
     expect(url).toContain('v1/messages');
   });
 
+  it('should default to https://api.anthropic.com when ARIA_AI_BASE_URL is unset', async () => {
+    delete process.env['ARIA_AI_BASE_URL'];
+    const fetchMock = mockClaudeJson('Still watching.');
+    vi.stubGlobal('fetch', fetchMock);
+
+    const req = makeReq();
+    const res = makeRes();
+    await handler(req, res);
+
+    expect(fetchMock).toHaveBeenCalledOnce();
+    const [url] = fetchMock.mock.calls[0];
+    expect(url).toContain('api.anthropic.com');
+    expect(url).not.toContain('generativelanguage.googleapis.com');
+  });
+
   it('should send x-api-key header with ANTHROPIC_API_KEY value', async () => {
     const fetchMock = mockClaudeJson('Noted.');
     vi.stubGlobal('fetch', fetchMock);

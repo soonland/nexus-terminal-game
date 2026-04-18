@@ -174,10 +174,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       );
     }
 
-    // Read provider config at request time so env vars can be changed without redeploying
+    // Read provider config at request time so it is configured via env vars rather than hardcoded
     const ariaModel = process.env['ARIA_AI_MODEL'] ?? GEMINI_DEFAULT_MODEL;
-    const ariaBaseUrl = process.env['ARIA_AI_BASE_URL'] ?? GEMINI_DEFAULT_BASE_URL;
     const isClaude = ariaModel.startsWith('claude-');
+    const ariaBaseUrl =
+      process.env['ARIA_AI_BASE_URL'] ??
+      (isClaude ? 'https://api.anthropic.com' : GEMINI_DEFAULT_BASE_URL);
     const apiKey =
       process.env['ARIA_AI_API_KEY'] ??
       (isClaude ? process.env['ANTHROPIC_API_KEY'] : process.env['GEMINI_API_KEY']);
@@ -221,9 +223,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       const claudeData = (await claudeRes.json()) as {
-        content?: { type: string; text: string }[];
+        content?: { type: string; text?: string }[];
       };
-      text = claudeData.content?.[0]?.text?.trim();
+      text = claudeData.content?.find(b => b.type === 'text')?.text?.trim();
       if (!text) {
         log.error('Claude empty response', JSON.stringify(claudeData).slice(0, 500));
         return res.status(200).json(FALLBACK_RESPONSE);
