@@ -1978,7 +1978,7 @@ const cmdViewCam = async (args: string[], state: GameState): Promise<CommandOutp
   const lines: Out = [
     sep(),
     line(
-      `// CCTV — ${args[0].toUpperCase()} — ${cam.location.replace('_', ' ').toUpperCase()}`,
+      `// CCTV — ${args[0].toUpperCase()} — ${cam.location.replaceAll('_', ' ').toUpperCase()}`,
       'aria',
     ),
     ...description.split('\n').map(l => line(l, 'aria')),

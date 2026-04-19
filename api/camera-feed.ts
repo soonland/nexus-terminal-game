@@ -48,16 +48,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: 'Invalid request body' });
   }
 
-  const apiKey = process.env['ARIA_AI_API_KEY'] ?? process.env['GEMINI_API_KEY'];
+  const apiKey = process.env['GEMINI_API_KEY'] ?? process.env['ARIA_AI_API_KEY'];
   if (!apiKey) {
     log.error('GEMINI_API_KEY not set (or ARIA_AI_API_KEY)');
     return res.status(200).json({ description: FALLBACK_DESCRIPTION });
   }
 
   try {
+    const safeCameraId = cameraId.slice(0, 16).replace(/[^\w]/g, '');
+    const safeLocation = location
+      .slice(0, 64)
+      .replace(/[^\w ]/g, '')
+      .replaceAll('_', ' ');
+
     const prompt =
       `You are a security camera feed display system inside IronGate Corp, a powerful and secretive corporation. ` +
-      `Generate a terse, clinical surveillance description of what camera ${cameraId} (location: ${location.replace('_', ' ')}) currently shows. ` +
+      `Generate a terse, clinical surveillance description of what camera ${safeCameraId} (location: ${safeLocation}) currently shows. ` +
       `Write in present tense. Exactly two to three complete sentences. Describe people, activity, lighting, and any anomalies. ` +
       `Tone: cold, factual, sci-fi noir. No markdown. No prefix of any kind — begin directly with the description.`;
 
@@ -66,8 +72,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { maxOutputTokens: 500, temperature: 0.85 },
-        thinkingConfig: { thinkingBudget: 0 },
+        generationConfig: {
+          maxOutputTokens: 500,
+          temperature: 0.85,
+          thinkingConfig: { thinkingBudget: 0 },
+        },
       }),
     });
 
