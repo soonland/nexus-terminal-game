@@ -24,4 +24,8 @@ export const handlers = [
   http.post('/api/aria', () => {
     return HttpResponse.json({ reply: '[ARIA: signal received]', trustDelta: 2 });
   }),
+
+  http.post('/api/camera-feed', () => {
+    return HttpResponse.json({ description: '[MOCK CAMERA FEED]' });
+  }),
 ];

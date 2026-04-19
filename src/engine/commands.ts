@@ -294,6 +294,8 @@ export const resolveCommand = async (raw: string, state: GameState): Promise<Com
       if (unlockResult.hardened) return { lines: unlockResult.lines };
       return withTurn(unlockResult, raw, state);
     }
+    case 'view-cam':
+      return withTurn(await cmdViewCam(args, state), raw, state);
   }
   if (result) return withTurn(result, raw, state);
 
@@ -1923,4 +1925,69 @@ const cmdUnlock = (args: string[], state: GameState): UnlockResult => {
     ],
     nextState: next,
   };
+};
+
+// ── view-cam ─────────────────────────────────────────────
+const CAMERA_MAP: Record<string, { location: string; traceCost: number } | undefined> = {
+  cam_01: { location: 'lobby', traceCost: 0 },
+  cam_02: { location: 'server_room', traceCost: 0 },
+  cam_03: { location: 'executive_floor', traceCost: 1 },
+};
+
+const CAMERA_FEED_FALLBACK = 'FEED DEGRADED — signal lost';
+
+const cmdViewCam = async (args: string[], state: GameState): Promise<CommandOutput> => {
+  if (!args[0]) return { lines: [err('Usage: view-cam [cam_01|cam_02|cam_03]')] };
+
+  const node = currentNode(state);
+  if (node.id !== 'ops_cctv_ctrl') {
+    return { lines: [err('No camera feed available from this node.')] };
+  }
+  if (node.accessLevel === 'none') {
+    return { lines: [err('Permission denied — not authenticated')] };
+  }
+
+  const cam = CAMERA_MAP[args[0]];
+  if (!cam) {
+    return { lines: [err(`Unknown camera: ${args[0]}. Known cameras: cam_01, cam_02, cam_03`)] };
+  }
+
+  // Apply trace before fetch — registers even on network failure
+  let nextState: GameState | undefined;
+  if (cam.traceCost > 0) {
+    nextState = addTrace(state, cam.traceCost, `view-cam:${args[0]}`);
+  }
+
+  let description = CAMERA_FEED_FALLBACK;
+  try {
+    const res = await fetch('/api/camera-feed', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cameraId: args[0], location: cam.location }),
+    });
+    if (res.ok) {
+      const data = (await res.json()) as { description?: string };
+      if (typeof data.description === 'string' && data.description.length > 0) {
+        description = data.description;
+      }
+    }
+  } catch {
+    // fallback already set
+  }
+
+  const lines: Out = [
+    sep(),
+    line(
+      `// CCTV — ${args[0].toUpperCase()} — ${cam.location.replaceAll('_', ' ').toUpperCase()}`,
+      'aria',
+    ),
+    ...description.split('\n').map(l => line(l, 'aria')),
+    sep(),
+  ];
+
+  if (cam.traceCost > 0) {
+    lines.push(line(`  +${String(cam.traceCost)} trace (restricted feed accessed)`, 'system'));
+  }
+
+  return { lines, nextState };
 };

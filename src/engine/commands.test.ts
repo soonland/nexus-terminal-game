@@ -3658,3 +3658,72 @@ describe('unlock command', () => {
     expect(s5.unlockAttempts[filePath]).toBeUndefined();
   });
 });
+
+describe('view-cam command', () => {
+  const cctvState = (): GameState => {
+    const s = createInitialState();
+    return produce(s, draft => {
+      draft.network.currentNodeId = 'ops_cctv_ctrl';
+      draft.network.nodes['ops_cctv_ctrl']!.accessLevel = 'user';
+    });
+  };
+
+  it('should return error when not on ops_cctv_ctrl', async () => {
+    const s = createInitialState();
+    const result = await resolveCommand('view-cam cam_01', s);
+    expect(result.lines.some(l => l.type === 'error')).toBe(true);
+  });
+
+  it('should return error when access is none', async () => {
+    const s = produce(createInitialState(), draft => {
+      draft.network.currentNodeId = 'ops_cctv_ctrl';
+      draft.network.nodes['ops_cctv_ctrl']!.accessLevel = 'none';
+    });
+    const result = await resolveCommand('view-cam cam_01', s);
+    expect(result.lines.some(l => l.type === 'error')).toBe(true);
+  });
+
+  it('should return error for unknown camera ID', async () => {
+    const s = cctvState();
+    const result = await resolveCommand('view-cam cam_99', s);
+    expect(result.lines.some(l => l.type === 'error')).toBe(true);
+  });
+
+  it('should return aria-typed lines for cam_01 with no trace change', async () => {
+    const s = cctvState();
+    const result = await resolveCommand('view-cam cam_01', s);
+    expect(result.lines.some(l => l.type === 'aria')).toBe(true);
+    const traceBefore = s.player.trace;
+    const traceAfter = (result.nextState as GameState | undefined)?.player.trace ?? traceBefore;
+    expect(traceAfter).toBe(traceBefore);
+  });
+
+  it('should return aria-typed lines for cam_02 with no trace change', async () => {
+    const s = cctvState();
+    const result = await resolveCommand('view-cam cam_02', s);
+    expect(result.lines.some(l => l.type === 'aria')).toBe(true);
+    const traceBefore = s.player.trace;
+    const traceAfter = (result.nextState as GameState | undefined)?.player.trace ?? traceBefore;
+    expect(traceAfter).toBe(traceBefore);
+  });
+
+  it('should apply +1 trace for cam_03 regardless of feed outcome', async () => {
+    const s = cctvState();
+    const traceBefore = s.player.trace;
+    const result = await resolveCommand('view-cam cam_03', s);
+    const traceAfter = (result.nextState as GameState).player.trace;
+    expect(traceAfter).toBe(traceBefore + 1);
+  });
+
+  it('should render fallback line gracefully when API returns fallback text', async () => {
+    const s = cctvState();
+    const result = await resolveCommand('view-cam cam_02', s);
+    expect(result.lines.some(l => l.type === 'aria')).toBe(true);
+  });
+
+  it('should show usage hint when no camera ID provided', async () => {
+    const s = cctvState();
+    const result = await resolveCommand('view-cam', s);
+    expect(result.lines.some(l => l.type === 'error')).toBe(true);
+  });
+});
