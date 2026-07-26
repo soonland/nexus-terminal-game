@@ -30,14 +30,12 @@ describe('requireString', () => {
   });
 
   it('should throw ValidationError when given a number', () => {
-    expect(() => requireString(42 as unknown as string, 'nodeId')).toThrow(ValidationError);
-    expect(() => requireString(42 as unknown as string, 'nodeId')).toThrow(
-      'Missing or empty field: nodeId',
-    );
+    expect(() => requireString(42, 'nodeId')).toThrow(ValidationError);
+    expect(() => requireString(42, 'nodeId')).toThrow('Missing or empty field: nodeId');
   });
 
   it('should throw ValidationError when given null', () => {
-    expect(() => requireString(null as unknown as string, 'field')).toThrow(ValidationError);
+    expect(() => requireString(null, 'field')).toThrow(ValidationError);
   });
 
   it('should throw ValidationError when given undefined', () => {
@@ -45,7 +43,7 @@ describe('requireString', () => {
   });
 
   it('should throw ValidationError when given an object', () => {
-    expect(() => requireString({} as unknown as string, 'field')).toThrow(ValidationError);
+    expect(() => requireString({}, 'field')).toThrow(ValidationError);
   });
 
   it('should include the field name in the error message', () => {
