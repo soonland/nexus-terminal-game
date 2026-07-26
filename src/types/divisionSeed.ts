@@ -3,10 +3,7 @@ import type { NodeTemplate } from './game';
 // ── Division Seed Types ─────────────────────────────────────
 
 export type TechProfile =
-  | 'legacy_mixed'
-  | 'hardened_airgap'
-  | 'financial_grade'
-  | 'executive_suite';
+  'legacy_mixed' | 'hardened_airgap' | 'financial_grade' | 'executive_suite';
 
 export type SecurityPosture = 'low' | 'medium' | 'high' | 'extreme';
 

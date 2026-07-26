@@ -44,13 +44,7 @@ export interface NodeInstance {
 }
 
 export type FileType =
-  | 'log'
-  | 'document'
-  | 'credential'
-  | 'config'
-  | 'email'
-  | 'binary'
-  | 'tripwire';
+  'log' | 'document' | 'credential' | 'config' | 'email' | 'binary' | 'tripwire';
 
 export interface GameFile {
   name: string;
@@ -117,12 +111,7 @@ export interface Credential {
 
 // ── Tools ──────────────────────────────────────────────────
 export type ToolId =
-  | 'port-scanner'
-  | 'exploit-kit'
-  | 'log-wiper'
-  | 'spoof-id'
-  | 'decryptor'
-  | 'aria-key';
+  'port-scanner' | 'exploit-kit' | 'log-wiper' | 'spoof-id' | 'decryptor' | 'aria-key';
 
 export interface Tool {
   id: ToolId;
@@ -187,11 +176,7 @@ export interface ChannelTrigger {
 export type SentinelAction = 'patch_node' | 'revoke_credential' | 'delete_file' | 'spawn_node';
 
 export type AriaAction =
-  | 'plant_file'
-  | 'modify_file'
-  | 'nudge_trust'
-  | 'reroute_edge'
-  | 'delete_reinforcement';
+  'plant_file' | 'modify_file' | 'nudge_trust' | 'reroute_edge' | 'delete_reinforcement';
 
 export interface MutationEvent {
   id: string;
