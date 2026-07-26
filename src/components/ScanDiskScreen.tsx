@@ -52,9 +52,7 @@ const cellColor = (state: CellState): string => {
 };
 
 export const ScanDiskScreen = ({ onDone }: Props) => {
-  const [cells, setCells] = useState<CellState[]>(() =>
-    Array.from({ length: TOTAL }, () => 0 as CellState),
-  );
+  const [cells, setCells] = useState<CellState[]>(() => Array.from({ length: TOTAL }, () => 0));
   const [progress, setProgress] = useState(0);
   const [statusIdx, setStatusIdx] = useState(0);
   const [packets, setPackets] = useState(0);

@@ -31,10 +31,10 @@ export const SuggestionBar = ({ suggestions, onSelect }: Props) => {
             cursor: 'pointer',
           }}
           onMouseEnter={e => {
-            (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-error)';
+            e.currentTarget.style.background = 'var(--color-error)';
           }}
           onMouseLeave={e => {
-            (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-system)';
+            e.currentTarget.style.background = 'var(--color-system)';
           }}>
           <span
             style={{ color: 'var(--color-bg)', marginRight: '0.3rem' }}>{`F${String(i + 1)}`}</span>

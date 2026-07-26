@@ -39,7 +39,7 @@ const TRACE_AUDIT_KEY = 'irongate_trace_audit';
 // Helper: save a state and parse the raw JSON written to storage
 function savedJson(mockStorage: ReturnType<typeof makeMockStorage>, state: GameState) {
   saveGame(state);
-  const [, value] = mockStorage.setItem.mock.calls[0] as [string, string];
+  const [, value] = mockStorage.setItem.mock.calls[0];
   return JSON.parse(value) as Record<string, unknown>;
 }
 
@@ -169,7 +169,7 @@ describe('loadGame — round-trip', () => {
 
   function roundTrip(state: GameState): GameState | null {
     saveGame(state);
-    const [, value] = mockStorage.setItem.mock.calls[0] as [string, string];
+    const [, value] = mockStorage.setItem.mock.calls[0];
     mockStorage.getItem.mockReturnValue(value);
     return loadGame();
   }
@@ -413,7 +413,7 @@ describe('loadGame — round-trip', () => {
   it('loads contract as null when absent from save (backwards compatibility)', () => {
     const state = createInitialState();
     saveGame(state);
-    const [, value] = mockStorage.setItem.mock.calls[0] as [string, string];
+    const [, value] = mockStorage.setItem.mock.calls[0];
     const save = JSON.parse(value) as Record<string, unknown>;
     delete save['contract'];
     mockStorage.getItem.mockReturnValue(JSON.stringify(save));
@@ -484,7 +484,7 @@ describe('loadGame — orphaned exfil path', () => {
   it('silently drops an exfiltrated path that no longer exists in any node', () => {
     const state = createInitialState();
     saveGame(state);
-    const [, value] = mockStorage.setItem.mock.calls[0] as [string, string];
+    const [, value] = mockStorage.setItem.mock.calls[0];
     const save = JSON.parse(value) as Record<string, unknown>;
     const player = save['player'] as Record<string, unknown>;
     player['exfiltratedPaths'] = ['/nonexistent/ghost.txt'];
@@ -558,7 +558,7 @@ describe('persistence — unlockAttempts and unlockSession', () => {
 
   function roundTrip(state: GameState): GameState | null {
     saveGame(state);
-    const [, value] = mockStorage.setItem.mock.calls[0] as [string, string];
+    const [, value] = mockStorage.setItem.mock.calls[0];
     mockStorage.getItem.mockReturnValue(value);
     return loadGame();
   }
@@ -574,7 +574,7 @@ describe('persistence — unlockAttempts and unlockSession', () => {
   it('unlockAttempts defaults to {} when missing from save', () => {
     const state = createInitialState();
     saveGame(state);
-    const [, value] = mockStorage.setItem.mock.calls[0] as [string, string];
+    const [, value] = mockStorage.setItem.mock.calls[0];
     const save = JSON.parse(value) as Record<string, unknown>;
     delete save['unlockAttempts'];
     mockStorage.getItem.mockReturnValue(JSON.stringify(save));
