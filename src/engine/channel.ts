@@ -37,12 +37,16 @@ export const isChannelBlocked = (state: GameState): boolean => {
 
 // ── Trigger detection ──────────────────────────────────────
 
+/** Sentinel does not start interacting with the player before this layer. */
+const SENTINEL_MIN_LAYER = 3;
+
 /**
  * Inspect the transition from prevState → nextState (after a command) and
  * return a ChannelTrigger if a Sentinel DM trigger condition fired.
  *
  * Only the first matching trigger per command is returned — triggers are
- * mutually exclusive within a single turn.
+ * mutually exclusive within a single turn. Sentinel is silent below
+ * SENTINEL_MIN_LAYER regardless of trigger type.
  *
  * @param command - the raw command string (used to detect high-value commands)
  */
@@ -53,6 +57,11 @@ export const detectChannelTrigger = (
 ): ChannelTrigger | null => {
   // Never trigger when the channel is blocked in the resulting state
   if (isChannelBlocked(nextState)) return null;
+
+  // Sentinel stays silent until the player has reached layer 3 (finance) or
+  // deeper — earlier layers (entry/ops/security) go unwatched by design.
+  const currentLayer = nextState.network.nodes[nextState.network.currentNodeId]?.layer ?? 0;
+  if (currentLayer < SENTINEL_MIN_LAYER) return null;
 
   const verb = command.trim().split(/\s+/)[0]?.toLowerCase() ?? '';
 
