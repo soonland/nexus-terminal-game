@@ -1500,7 +1500,7 @@ const cmdExploit = async (args: string[], state: GameState): Promise<CommandOutp
         if (!wasCompromised || n.compromisedAtTurn === undefined) {
           n.compromisedAtTurn = s.turnCount;
         }
-        if (aiResponse.newAccessLevel) n.accessLevel = aiResponse.newAccessLevel as AccessLevel;
+        if (aiResponse.newAccessLevel) n.accessLevel = aiResponse.newAccessLevel;
       }
     });
   }
