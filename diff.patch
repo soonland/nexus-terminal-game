@@ -1,0 +1,178 @@
+From 324ceb5baaa767e7bd41be8b427a5743cdb1bf3c Mon Sep 17 00:00:00 2001
+From: Claude <claude@anthropic.com>
+Date: Fri, 31 Jul 2026 02:40:49 +0000
+Subject: [PATCH 2/2] fix: export named HTTP methods instead of default for
+ Vercel Functions
+
+The previous commit used 'export default handle(app)' per route file,
+which vercel dev warns about: a default export returning a Response is
+only recognized at the single consolidated-app entry point (app.ts /
+index.ts / server.ts under project root or src/), not for arbitrary
+per-route files under api/. For those, Vercel expects either the legacy
+(req, res) signature or named exports per HTTP method.
+
+Export the same handle(app)-wrapped handler under GET/POST/PUT/PATCH/
+DELETE/OPTIONS/HEAD so every method actually reaches our Hono app and
+its app.all('*', ...) 405 fallback runs (matching prior behavior),
+rather than Vercel's own generic 405/404.
+---
+ api/aria.ts             | 17 ++++++++++++++++-
+ api/camera-feed.ts      | 17 ++++++++++++++++-
+ api/file.ts             | 17 ++++++++++++++++-
+ api/node-description.ts | 17 ++++++++++++++++-
+ api/sentinel.ts         | 17 ++++++++++++++++-
+ api/world.ts            | 17 ++++++++++++++++-
+ 6 files changed, 96 insertions(+), 6 deletions(-)
+
+diff --git a/api/aria.ts b/api/aria.ts
+index 0a8b2c3..f1bdb34 100644
+--- a/api/aria.ts
++++ b/api/aria.ts
+@@ -311,4 +311,19 @@ app.post('*', async c => {
+ 
+ app.all('*', c => c.json({ error: 'Method not allowed' }, 405));
+ 
+-export default handle(app);
++// Vercel Functions expect either the legacy (req, res) signature or named
++// exports per HTTP method returning a Response — a default export that
++// returns a Response is only recognized for the single consolidated-app
++// entry point (app.ts/index.ts/server.ts), not for per-route files like
++// this one. Export the same Hono-wrapped handler under every method so
++// our app-level 405 fallback (above) is what runs, not Vercel's own.
++const vercelHandler = handle(app);
++export {
++  vercelHandler as GET,
++  vercelHandler as POST,
++  vercelHandler as PUT,
++  vercelHandler as PATCH,
++  vercelHandler as DELETE,
++  vercelHandler as OPTIONS,
++  vercelHandler as HEAD,
++};
+diff --git a/api/camera-feed.ts b/api/camera-feed.ts
+index 5dfc773..390d13d 100644
+--- a/api/camera-feed.ts
++++ b/api/camera-feed.ts
+@@ -104,4 +104,19 @@ app.post('*', async c => {
+ 
+ app.all('*', c => c.json({ error: 'Method not allowed' }, 405));
+ 
+-export default handle(app);
++// Vercel Functions expect either the legacy (req, res) signature or named
++// exports per HTTP method returning a Response — a default export that
++// returns a Response is only recognized for the single consolidated-app
++// entry point (app.ts/index.ts/server.ts), not for per-route files like
++// this one. Export the same Hono-wrapped handler under every method so
++// our app-level 405 fallback (above) is what runs, not Vercel's own.
++const vercelHandler = handle(app);
++export {
++  vercelHandler as GET,
++  vercelHandler as POST,
++  vercelHandler as PUT,
++  vercelHandler as PATCH,
++  vercelHandler as DELETE,
++  vercelHandler as OPTIONS,
++  vercelHandler as HEAD,
++};
+diff --git a/api/file.ts b/api/file.ts
+index 6117d95..84d69ae 100644
+--- a/api/file.ts
++++ b/api/file.ts
+@@ -143,4 +143,19 @@ app.post('*', async c => {
+ 
+ app.all('*', c => c.json({ error: 'Method not allowed' }, 405));
+ 
+-export default handle(app);
++// Vercel Functions expect either the legacy (req, res) signature or named
++// exports per HTTP method returning a Response — a default export that
++// returns a Response is only recognized for the single consolidated-app
++// entry point (app.ts/index.ts/server.ts), not for per-route files like
++// this one. Export the same Hono-wrapped handler under every method so
++// our app-level 405 fallback (above) is what runs, not Vercel's own.
++const vercelHandler = handle(app);
++export {
++  vercelHandler as GET,
++  vercelHandler as POST,
++  vercelHandler as PUT,
++  vercelHandler as PATCH,
++  vercelHandler as DELETE,
++  vercelHandler as OPTIONS,
++  vercelHandler as HEAD,
++};
+diff --git a/api/node-description.ts b/api/node-description.ts
+index 380b57b..477ef62 100644
+--- a/api/node-description.ts
++++ b/api/node-description.ts
+@@ -131,4 +131,19 @@ app.post('*', async c => {
+ 
+ app.all('*', c => c.json({ error: 'Method not allowed' }, 405));
+ 
+-export default handle(app);
++// Vercel Functions expect either the legacy (req, res) signature or named
++// exports per HTTP method returning a Response — a default export that
++// returns a Response is only recognized for the single consolidated-app
++// entry point (app.ts/index.ts/server.ts), not for per-route files like
++// this one. Export the same Hono-wrapped handler under every method so
++// our app-level 405 fallback (above) is what runs, not Vercel's own.
++const vercelHandler = handle(app);
++export {
++  vercelHandler as GET,
++  vercelHandler as POST,
++  vercelHandler as PUT,
++  vercelHandler as PATCH,
++  vercelHandler as DELETE,
++  vercelHandler as OPTIONS,
++  vercelHandler as HEAD,
++};
+diff --git a/api/sentinel.ts b/api/sentinel.ts
+index 91cedb0..c4e0c32 100644
+--- a/api/sentinel.ts
++++ b/api/sentinel.ts
+@@ -270,4 +270,19 @@ app.post('*', async c => {
+ 
+ app.all('*', c => c.json({ error: 'Method not allowed' }, 405));
+ 
+-export default handle(app);
++// Vercel Functions expect either the legacy (req, res) signature or named
++// exports per HTTP method returning a Response — a default export that
++// returns a Response is only recognized for the single consolidated-app
++// entry point (app.ts/index.ts/server.ts), not for per-route files like
++// this one. Export the same Hono-wrapped handler under every method so
++// our app-level 405 fallback (above) is what runs, not Vercel's own.
++const vercelHandler = handle(app);
++export {
++  vercelHandler as GET,
++  vercelHandler as POST,
++  vercelHandler as PUT,
++  vercelHandler as PATCH,
++  vercelHandler as DELETE,
++  vercelHandler as OPTIONS,
++  vercelHandler as HEAD,
++};
+diff --git a/api/world.ts b/api/world.ts
+index 725020c..06b2539 100644
+--- a/api/world.ts
++++ b/api/world.ts
+@@ -248,4 +248,19 @@ app.post('*', async c => {
+ 
+ app.all('*', c => c.json({ error: 'Method not allowed' }, 405));
+ 
+-export default handle(app);
++// Vercel Functions expect either the legacy (req, res) signature or named
++// exports per HTTP method returning a Response — a default export that
++// returns a Response is only recognized for the single consolidated-app
++// entry point (app.ts/index.ts/server.ts), not for per-route files like
++// this one. Export the same Hono-wrapped handler under every method so
++// our app-level 405 fallback (above) is what runs, not Vercel's own.
++const vercelHandler = handle(app);
++export {
++  vercelHandler as GET,
++  vercelHandler as POST,
++  vercelHandler as PUT,
++  vercelHandler as PATCH,
++  vercelHandler as DELETE,
++  vercelHandler as OPTIONS,
++  vercelHandler as HEAD,
++};
+-- 
+2.43.0
