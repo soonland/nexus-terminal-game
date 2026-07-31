@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import handler from '../world.js';
+import { app } from '../world.js';
 import type { WorldAIResponse } from '../world.js';
 
 // ── Test fixtures ──────────────────────────────────────────
@@ -22,24 +22,23 @@ const VALID_BODY = {
 const FALLBACK_NARRATIVE =
   '[World AI unavailable — operating in offline mode. Try basic commands.]';
 
-function makeReq(overrides: Record<string, unknown> = {}) {
-  return { method: 'POST', body: { ...VALID_BODY }, ...overrides } as any;
-}
-
-function makeRes() {
-  const res = {
-    _status: 200,
-    _json: undefined as unknown,
-    status(code: number) {
-      res._status = code;
-      return res;
-    },
-    json(data: unknown) {
-      res._json = data;
-      return res;
-    },
-  };
-  return res;
+/**
+ * Drives the Hono app directly (idiomatic Hono testing via app.request()),
+ * returning a small {_status, _json} shape so the rest of the test bodies
+ * below stay close to the pre-Hono assertions.
+ */
+async function callHandler(
+  overrides: { method?: string; body?: unknown } = {},
+): Promise<{ _status: number; _json: unknown }> {
+  const { method = 'POST', body = VALID_BODY } = overrides;
+  const init: RequestInit = { method };
+  if (method === 'POST') {
+    init.body = JSON.stringify(body);
+    init.headers = { 'Content-Type': 'application/json' };
+  }
+  const res = await app.request('/', init);
+  const _json = await res.json().catch(() => undefined);
+  return { _status: res.status, _json };
 }
 
 function makeGeminiResponse(content: string) {
@@ -73,15 +72,13 @@ afterEach(() => {
 // ── Method guard ───────────────────────────────────────────
 describe('POST /api/world — method guard', () => {
   it('returns 405 for GET', async () => {
-    const res = makeRes();
-    await handler(makeReq({ method: 'GET' }), res);
+    const res = await callHandler({ method: 'GET' });
     expect(res._status).toBe(405);
     expect((res._json as any).error).toBe('Method not allowed');
   });
 
   it('returns 405 for PUT', async () => {
-    const res = makeRes();
-    await handler(makeReq({ method: 'PUT' }), res);
+    const res = await callHandler({ method: 'PUT' });
     expect(res._status).toBe(405);
   });
 });
@@ -89,35 +86,30 @@ describe('POST /api/world — method guard', () => {
 // ── Validation ─────────────────────────────────────────────
 describe('POST /api/world — validation', () => {
   it('returns 400 when body is not an object', async () => {
-    const res = makeRes();
-    await handler(makeReq({ body: 'a plain string' }), res);
+    const res = await callHandler({ body: 'a plain string' });
     expect(res._status).toBe(400);
     expect((res._json as any).error).toContain('Request body');
   });
 
   it('returns 400 when command field is missing', async () => {
-    const res = makeRes();
-    await handler(makeReq({ body: { currentNode: {} } }), res);
+    const res = await callHandler({ body: { currentNode: {} } });
     expect(res._status).toBe(400);
     expect((res._json as any).error).toContain('command');
   });
 
   it('returns 400 when command is an empty string', async () => {
-    const res = makeRes();
-    await handler(makeReq({ body: { ...VALID_BODY, command: '' } }), res);
+    const res = await callHandler({ body: { ...VALID_BODY, command: '' } });
     expect(res._status).toBe(400);
     expect((res._json as any).error).toContain('command');
   });
 
   it('returns 400 when body is null', async () => {
-    const res = makeRes();
-    await handler(makeReq({ body: null }), res);
+    const res = await callHandler({ body: null });
     expect(res._status).toBe(400);
   });
 
   it('returns 400 when body is an array', async () => {
-    const res = makeRes();
-    await handler(makeReq({ body: [] }), res);
+    const res = await callHandler({ body: [] });
     expect(res._status).toBe(400);
   });
 });
@@ -128,8 +120,7 @@ describe('POST /api/world — no API key', () => {
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
 
-    const res = makeRes();
-    await handler(makeReq(), res);
+    const res = await callHandler();
 
     expect(res._status).toBe(200);
     const json = res._json as WorldAIResponse;
@@ -152,8 +143,7 @@ describe('POST /api/world — with API key', () => {
       vi.fn().mockResolvedValue(makeGeminiResponse(JSON.stringify(VALID_AI_JSON))),
     );
 
-    const res = makeRes();
-    await handler(makeReq(), res);
+    const res = await callHandler();
 
     expect(res._status).toBe(200);
     const json = res._json as WorldAIResponse;
@@ -167,7 +157,7 @@ describe('POST /api/world — with API key', () => {
     const fetchMock = vi.fn().mockResolvedValue(makeGeminiResponse(JSON.stringify(VALID_AI_JSON)));
     vi.stubGlobal('fetch', fetchMock);
 
-    await handler(makeReq(), makeRes());
+    await callHandler();
 
     expect(fetchMock).toHaveBeenCalledOnce();
     const [url] = fetchMock.mock.calls[0];
@@ -179,7 +169,7 @@ describe('POST /api/world — with API key', () => {
     const fetchMock = vi.fn().mockResolvedValue(makeGeminiResponse(JSON.stringify(VALID_AI_JSON)));
     vi.stubGlobal('fetch', fetchMock);
 
-    await handler(makeReq(), makeRes());
+    await callHandler();
 
     const body = JSON.parse(fetchMock.mock.calls[0][1].body);
     const promptText = body.contents[0].parts[0].text;
@@ -195,8 +185,7 @@ describe('POST /api/world — with API key', () => {
       vi.fn().mockResolvedValue(makeGeminiResponse(JSON.stringify(overLimit))),
     );
 
-    const res = makeRes();
-    await handler(makeReq(), res);
+    const res = await callHandler();
 
     expect((res._json as WorldAIResponse).traceChange).toBe(5);
   });
@@ -208,8 +197,7 @@ describe('POST /api/world — with API key', () => {
       vi.fn().mockResolvedValue(makeGeminiResponse(JSON.stringify(withAccess))),
     );
 
-    const res = makeRes();
-    await handler(makeReq(), res);
+    const res = await callHandler();
 
     expect((res._json as WorldAIResponse).newAccessLevel).toBeNull();
   });
@@ -224,8 +212,7 @@ describe('POST /api/world — with API key', () => {
       }),
     );
 
-    const res = makeRes();
-    await handler(makeReq(), res);
+    const res = await callHandler();
 
     expect(res._status).toBe(200);
     expect((res._json as WorldAIResponse).narrative).toBe(FALLBACK_NARRATIVE);
@@ -234,8 +221,7 @@ describe('POST /api/world — with API key', () => {
   it('returns fallback when fetch throws', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('Network failure')));
 
-    const res = makeRes();
-    await handler(makeReq(), res);
+    const res = await callHandler();
 
     expect(res._status).toBe(200);
     expect((res._json as WorldAIResponse).narrative).toBe(FALLBACK_NARRATIVE);
@@ -250,8 +236,7 @@ describe('POST /api/world — with API key', () => {
       }),
     );
 
-    const res = makeRes();
-    await handler(makeReq(), res);
+    const res = await callHandler();
 
     expect(res._status).toBe(200);
     expect((res._json as WorldAIResponse).narrative).toBe(FALLBACK_NARRATIVE);
@@ -261,8 +246,7 @@ describe('POST /api/world — with API key', () => {
     const fetchMock = vi.fn().mockResolvedValue(makeGeminiResponse(JSON.stringify(VALID_AI_JSON)));
     vi.stubGlobal('fetch', fetchMock);
 
-    const res = makeRes();
-    await handler(makeReq({ body: { command: 'look around' } }), res);
+    const res = await callHandler({ body: { command: 'look around' } });
 
     expect(res._status).toBe(200);
     const body = JSON.parse(fetchMock.mock.calls[0][1].body);
@@ -288,8 +272,7 @@ describe('POST /api/world — with API key', () => {
       ),
     );
 
-    const res = makeRes();
-    await handler(makeReq(), res);
+    const res = await callHandler();
 
     const json = res._json as WorldAIResponse;
     expect(json.narrative).toBe(FALLBACK_NARRATIVE);
@@ -307,8 +290,7 @@ describe('POST /api/world — with API key', () => {
       vi.fn().mockResolvedValue(makeGeminiResponse('not valid json at all {{{')),
     );
 
-    const res = makeRes();
-    await handler(makeReq(), res);
+    const res = await callHandler();
 
     expect(res._status).toBe(200);
     expect((res._json as WorldAIResponse).narrative).toBe(FALLBACK_NARRATIVE);

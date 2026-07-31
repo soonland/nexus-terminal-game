@@ -20,7 +20,8 @@
  *   200 { content: string }        — fallback when Gemini is unavailable
  */
 
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { Hono } from 'hono';
+import { handle } from 'hono/vercel';
 import { makeLogger } from './_lib/logger.js';
 import { ValidationError, requireObject, requireString } from './_lib/validate.js';
 
@@ -62,33 +63,32 @@ const GEMINI_API_URL =
 const FALLBACK_CONTENT =
   '[FILE CONTENT UNAVAILABLE — AI generation offline. Raw binary data suppressed.]';
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
+export const app = new Hono();
 
+app.post('*', async c => {
   // Validate payload
+  let body: Record<string, unknown>;
   let nodeId: string;
   let fileName: string;
   try {
-    const body = requireObject(req.body, 'Request body');
+    const rawBody: unknown = await c.req.json();
+    body = requireObject(rawBody, 'Request body');
     nodeId = requireString(body['nodeId'], 'nodeId');
     fileName = requireString(body['fileName'], 'fileName');
   } catch (err) {
     if (err instanceof ValidationError) {
-      return res.status(400).json({ error: err.message });
+      return c.json({ error: err.message }, 400);
     }
-    return res.status(400).json({ error: 'Invalid request body' });
+    return c.json({ error: 'Invalid request body' }, 400);
   }
 
   const apiKey = process.env['GEMINI_API_KEY'];
   if (!apiKey) {
     log.error('GEMINI_API_KEY not set');
-    return res.status(200).json({ content: FALLBACK_CONTENT });
+    return c.json({ content: FALLBACK_CONTENT }, 200);
   }
 
   try {
-    const body = req.body as Record<string, unknown>;
     const fileType = typeof body['fileType'] === 'string' ? body['fileType'] : 'unknown';
     const filePath = typeof body['filePath'] === 'string' ? body['filePath'] : fileName;
     const ownerLabel = typeof body['ownerLabel'] === 'string' ? body['ownerLabel'] : nodeId;
@@ -122,7 +122,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!geminiRes.ok) {
       const errBody = await geminiRes.text();
       log.error('Gemini HTTP error', geminiRes.status, errBody);
-      return res.status(200).json({ content: FALLBACK_CONTENT });
+      return c.json({ content: FALLBACK_CONTENT }, 200);
     }
 
     const data = (await geminiRes.json()) as {
@@ -131,12 +131,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
     if (!text) {
       log.error('Gemini empty response', JSON.stringify(data).slice(0, 500));
-      return res.status(200).json({ content: FALLBACK_CONTENT });
+      return c.json({ content: FALLBACK_CONTENT }, 200);
     }
 
-    return res.status(200).json({ content: text });
+    return c.json({ content: text }, 200);
   } catch (e) {
     log.error('Unexpected error', e);
-    return res.status(200).json({ content: FALLBACK_CONTENT });
+    return c.json({ content: FALLBACK_CONTENT }, 200);
   }
-}
+});
+
+app.all('*', c => c.json({ error: 'Method not allowed' }, 405));
+
+export default handle(app);

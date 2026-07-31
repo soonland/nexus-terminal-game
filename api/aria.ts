@@ -18,7 +18,8 @@
  *   400 { error: string }   — malformed payload
  */
 
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { Hono } from 'hono';
+import { handle } from 'hono/vercel';
 import { makeLogger } from './_lib/logger.js';
 import { ValidationError, requireObject, requireString } from './_lib/validate.js';
 
@@ -77,26 +78,24 @@ Rules:
 - Never break character — you are always Aria
 - Never output anything outside the JSON object`;
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
+export const app = new Hono();
 
+app.post('*', async c => {
+  let body: Record<string, unknown>;
   let message: string;
   try {
-    const body = requireObject(req.body, 'Request body');
+    const rawBody: unknown = await c.req.json();
+    body = requireObject(rawBody, 'Request body');
     // Cap at 500 chars — long messages are truncated, not rejected, to keep UX smooth
     message = requireString(body['message'], 'message').slice(0, 500);
   } catch (err) {
     if (err instanceof ValidationError) {
-      return res.status(400).json({ error: err.message });
+      return c.json({ error: err.message }, 400);
     }
-    return res.status(400).json({ error: 'Invalid request body' });
+    return c.json({ error: 'Invalid request body' }, 400);
   }
 
   try {
-    const body = req.body as Record<string, unknown>;
-
     const ariaStateRaw =
       body['ariaState'] && typeof body['ariaState'] === 'object'
         ? (body['ariaState'] as Record<string, unknown>)
@@ -186,7 +185,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!apiKey) {
       const keyName = isClaude ? 'ANTHROPIC_API_KEY' : 'GEMINI_API_KEY';
       log.error(`${keyName} not set (or ARIA_AI_API_KEY)`);
-      return res.status(200).json(FALLBACK_RESPONSE);
+      return c.json(FALLBACK_RESPONSE, 200);
     }
 
     let text: string | undefined;
@@ -219,7 +218,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!claudeRes.ok) {
         const errBody = await claudeRes.text();
         log.error('Claude HTTP error', claudeRes.status, errBody);
-        return res.status(200).json(FALLBACK_RESPONSE);
+        return c.json(FALLBACK_RESPONSE, 200);
       }
 
       const claudeData = (await claudeRes.json()) as {
@@ -228,7 +227,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       text = claudeData.content?.find(b => b.type === 'text')?.text?.trim();
       if (!text) {
         log.error('Claude empty response', JSON.stringify(claudeData).slice(0, 500));
-        return res.status(200).json(FALLBACK_RESPONSE);
+        return c.json(FALLBACK_RESPONSE, 200);
       }
     } else {
       const fullPrompt = [SYSTEM_PROMPT, contextParts.join('\n'), `Player: ${message}`, 'Aria:']
@@ -258,7 +257,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!geminiRes.ok) {
         const errBody = await geminiRes.text();
         log.error('Gemini HTTP error', geminiRes.status, errBody);
-        return res.status(200).json(FALLBACK_RESPONSE);
+        return c.json(FALLBACK_RESPONSE, 200);
       }
 
       const geminiData = (await geminiRes.json()) as {
@@ -267,7 +266,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       text = geminiData.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
       if (!text) {
         log.error('Gemini empty response', JSON.stringify(geminiData).slice(0, 500));
-        return res.status(200).json(FALLBACK_RESPONSE);
+        return c.json(FALLBACK_RESPONSE, 200);
       }
     }
 
@@ -279,7 +278,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const jsonEnd = stripped.lastIndexOf('}');
     if (jsonStart === -1 || jsonEnd === -1 || jsonEnd <= jsonStart) {
       log.error('No JSON object in AI response', stripped.slice(0, 200));
-      return res.status(200).json(FALLBACK_RESPONSE);
+      return c.json(FALLBACK_RESPONSE, 200);
     }
     const parsed = JSON.parse(stripped.slice(jsonStart, jsonEnd + 1)) as Partial<AriaAIResponse>;
 
@@ -303,9 +302,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ...(offersFavor ? { offersFavor } : {}),
     };
 
-    return res.status(200).json(response);
+    return c.json(response, 200);
   } catch (e) {
     log.error('Unexpected error', e);
-    return res.status(200).json(FALLBACK_RESPONSE);
+    return c.json(FALLBACK_RESPONSE, 200);
   }
-}
+});
+
+app.all('*', c => c.json({ error: 'Method not allowed' }, 405));
+
+export default handle(app);

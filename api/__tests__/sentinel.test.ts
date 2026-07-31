@@ -1,12 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import handler from '../sentinel.js';
+import { app } from '../sentinel.js';
 
 // ── Mock helpers ──────────────────────────────────────────────────────────────
 
-function makeReq(overrides: Record<string, unknown> = {}) {
-  return {
-    method: 'POST',
-    body: {
+async function callHandler(
+  overrides: { method?: string; body?: unknown } = {},
+): Promise<{ _status: number; _json: unknown }> {
+  const {
+    method = 'POST',
+    body = {
       message: 'Who are you?',
       sentinelContext: {
         traceLevel: 10,
@@ -15,24 +17,15 @@ function makeReq(overrides: Record<string, unknown> = {}) {
         recentCommands: [],
       },
     },
-    ...overrides,
-  } as any;
-}
-
-function makeRes() {
-  const res = {
-    _status: 200,
-    _json: undefined as unknown,
-    status(code: number) {
-      res._status = code;
-      return res;
-    },
-    json(data: unknown) {
-      res._json = data;
-      return res;
-    },
-  };
-  return res;
+  } = overrides;
+  const init: RequestInit = { method };
+  if (method === 'POST') {
+    init.body = JSON.stringify(body);
+    init.headers = { 'Content-Type': 'application/json' };
+  }
+  const res = await app.request('/', init);
+  const _json = await res.json().catch(() => undefined);
+  return { _status: res.status, _json };
 }
 
 /** Build a mock fetch that returns a valid Gemini response wrapping the given payload JSON. */
@@ -73,17 +66,13 @@ afterEach(() => {
 
 describe('POST /api/sentinel — method guard', () => {
   it('should return 405 for GET requests', async () => {
-    const req = makeReq({ method: 'GET' });
-    const res = makeRes();
-    await handler(req, res);
+    const res = await callHandler({ method: 'GET' });
     expect(res._status).toBe(405);
     expect((res._json as any).error).toBe('Method not allowed');
   });
 
   it('should return 405 for PUT requests', async () => {
-    const req = makeReq({ method: 'PUT' });
-    const res = makeRes();
-    await handler(req, res);
+    const res = await callHandler({ method: 'PUT' });
     expect(res._status).toBe(405);
   });
 });
@@ -92,39 +81,29 @@ describe('POST /api/sentinel — method guard', () => {
 
 describe('POST /api/sentinel — validation', () => {
   it('should return 400 when body is not an object', async () => {
-    const req = makeReq({ body: 'not-an-object' });
-    const res = makeRes();
-    await handler(req, res);
+    const res = await callHandler({ body: 'not-an-object' });
     expect(res._status).toBe(400);
     expect((res._json as any).error).toBeDefined();
   });
 
   it('should return 400 when body is an array', async () => {
-    const req = makeReq({ body: [] });
-    const res = makeRes();
-    await handler(req, res);
+    const res = await callHandler({ body: [] });
     expect(res._status).toBe(400);
   });
 
   it('should return 400 when message field is missing', async () => {
-    const req = makeReq({ body: { sentinelContext: {} } });
-    const res = makeRes();
-    await handler(req, res);
+    const res = await callHandler({ body: { sentinelContext: {} } });
     expect(res._status).toBe(400);
     expect((res._json as any).error).toMatch(/message/i);
   });
 
   it('should return 400 when message is not a string (number)', async () => {
-    const req = makeReq({ body: { message: 42, sentinelContext: {} } });
-    const res = makeRes();
-    await handler(req, res);
+    const res = await callHandler({ body: { message: 42, sentinelContext: {} } });
     expect(res._status).toBe(400);
   });
 
   it('should return 400 when message is an empty string', async () => {
-    const req = makeReq({ body: { message: '   ', sentinelContext: {} } });
-    const res = makeRes();
-    await handler(req, res);
+    const res = await callHandler({ body: { message: '   ', sentinelContext: {} } });
     expect(res._status).toBe(400);
   });
 });
@@ -133,9 +112,7 @@ describe('POST /api/sentinel — validation', () => {
 
 describe('POST /api/sentinel — missing GEMINI_API_KEY', () => {
   it('should return 200 with fallback reply when GEMINI_API_KEY is not set', async () => {
-    const req = makeReq();
-    const res = makeRes();
-    await handler(req, res);
+    const res = await callHandler();
     expect(res._status).toBe(200);
     expect((res._json as any).reply).toBe(FALLBACK);
   });
@@ -143,9 +120,7 @@ describe('POST /api/sentinel — missing GEMINI_API_KEY', () => {
   it('should not call fetch when GEMINI_API_KEY is missing', async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
-    const req = makeReq();
-    const res = makeRes();
-    await handler(req, res);
+    await callHandler();
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });
@@ -156,9 +131,7 @@ describe('POST /api/sentinel — Gemini HTTP error', () => {
   it('should return 200 with fallback reply when Gemini returns a non-ok status', async () => {
     process.env['GEMINI_API_KEY'] = 'test-key';
     vi.stubGlobal('fetch', mockGeminiHttpError(503));
-    const req = makeReq();
-    const res = makeRes();
-    await handler(req, res);
+    const res = await callHandler();
     expect(res._status).toBe(200);
     expect((res._json as any).reply).toBe(FALLBACK);
   });
@@ -176,9 +149,7 @@ describe('POST /api/sentinel — Gemini empty candidates', () => {
         json: vi.fn().mockResolvedValue({ candidates: [] }),
       }),
     );
-    const req = makeReq();
-    const res = makeRes();
-    await handler(req, res);
+    const res = await callHandler();
     expect(res._status).toBe(200);
     expect((res._json as any).reply).toBe(FALLBACK);
   });
@@ -192,9 +163,7 @@ describe('POST /api/sentinel — Gemini empty candidates', () => {
         json: vi.fn().mockResolvedValue({}),
       }),
     );
-    const req = makeReq();
-    const res = makeRes();
-    await handler(req, res);
+    const res = await callHandler();
     expect(res._status).toBe(200);
     expect((res._json as any).reply).toBe(FALLBACK);
   });
@@ -207,9 +176,7 @@ describe('POST /api/sentinel — successful Gemini response', () => {
     process.env['GEMINI_API_KEY'] = 'test-key';
     const replyText = 'Ghost. Your intrusion is noted.';
     vi.stubGlobal('fetch', mockGeminiOk(JSON.stringify({ reply: replyText })));
-    const req = makeReq();
-    const res = makeRes();
-    await handler(req, res);
+    const res = await callHandler();
     expect(res._status).toBe(200);
     expect((res._json as any).reply).toBe(replyText);
   });
@@ -217,9 +184,7 @@ describe('POST /api/sentinel — successful Gemini response', () => {
   it('should return fallback reply when "reply" field is missing in parsed JSON', async () => {
     process.env['GEMINI_API_KEY'] = 'test-key';
     vi.stubGlobal('fetch', mockGeminiOk(JSON.stringify({ other: 'data' })));
-    const req = makeReq();
-    const res = makeRes();
-    await handler(req, res);
+    const res = await callHandler();
     expect(res._status).toBe(200);
     expect((res._json as any).reply).toBe(FALLBACK);
   });
@@ -229,9 +194,7 @@ describe('POST /api/sentinel — successful Gemini response', () => {
     const replyText = 'I see you, Ghost.';
     const fenced = '```json\n' + JSON.stringify({ reply: replyText }) + '\n```';
     vi.stubGlobal('fetch', mockGeminiOk(fenced));
-    const req = makeReq();
-    const res = makeRes();
-    await handler(req, res);
+    const res = await callHandler();
     expect(res._status).toBe(200);
     expect((res._json as any).reply).toBe(replyText);
   });
@@ -239,9 +202,7 @@ describe('POST /api/sentinel — successful Gemini response', () => {
   it('should return fallback when fetch throws unexpectedly', async () => {
     process.env['GEMINI_API_KEY'] = 'test-key';
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('Network failure')));
-    const req = makeReq();
-    const res = makeRes();
-    await handler(req, res);
+    const res = await callHandler();
     expect(res._status).toBe(200);
     expect((res._json as any).reply).toBe(FALLBACK);
   });
@@ -254,7 +215,7 @@ describe('POST /api/sentinel — prompt selection', () => {
     process.env['GEMINI_API_KEY'] = 'test-key';
     const replyText = 'Your time is running out, Ghost.';
     vi.stubGlobal('fetch', mockGeminiOk(JSON.stringify({ reply: replyText })));
-    const req = makeReq({
+    const res = await callHandler({
       body: {
         message: 'Still here.',
         sentinelContext: {
@@ -265,8 +226,6 @@ describe('POST /api/sentinel — prompt selection', () => {
         },
       },
     });
-    const res = makeRes();
-    await handler(req, res);
     expect(res._status).toBe(200);
     expect((res._json as any).reply).toBe(replyText);
   });
@@ -275,7 +234,7 @@ describe('POST /api/sentinel — prompt selection', () => {
     process.env['GEMINI_API_KEY'] = 'test-key';
     const replyText = 'Curious behaviour, Ghost.';
     vi.stubGlobal('fetch', mockGeminiOk(JSON.stringify({ reply: replyText })));
-    const req = makeReq({
+    const res = await callHandler({
       body: {
         message: 'Just looking.',
         sentinelContext: {
@@ -286,8 +245,6 @@ describe('POST /api/sentinel — prompt selection', () => {
         },
       },
     });
-    const res = makeRes();
-    await handler(req, res);
     expect(res._status).toBe(200);
     expect((res._json as any).reply).toBe(replyText);
   });
@@ -307,9 +264,7 @@ describe('POST /api/sentinel — messageHistory slicing', () => {
       content: `message ${String(i)}`,
     }));
 
-    const req = makeReq({ body: { message: 'Still here.', sentinelContext: {}, messageHistory } });
-    const res = makeRes();
-    await handler(req, res);
+    await callHandler({ body: { message: 'Still here.', sentinelContext: {}, messageHistory } });
 
     expect(fetchMock).toHaveBeenCalledOnce();
     const [, options] = fetchMock.mock.calls[0] as [string, RequestInit];
@@ -334,7 +289,7 @@ describe('POST /api/sentinel — triggerContext', () => {
     const fetchMock = mockGeminiOk(JSON.stringify({ reply: 'Noted, Ghost.' }));
     vi.stubGlobal('fetch', fetchMock);
 
-    const req = makeReq({
+    await callHandler({
       body: {
         message: 'Hello.',
         sentinelContext: {
@@ -346,8 +301,6 @@ describe('POST /api/sentinel — triggerContext', () => {
         triggerContext: { type: 'exploit' },
       },
     });
-    const res = makeRes();
-    await handler(req, res);
 
     const [, options] = fetchMock.mock.calls[0] as [string, RequestInit];
     const sentBody = JSON.parse(options.body as string) as {
@@ -364,7 +317,7 @@ describe('POST /api/sentinel — triggerContext', () => {
     const fetchMock = mockGeminiOk(JSON.stringify({ reply: 'Watching you.' }));
     vi.stubGlobal('fetch', fetchMock);
 
-    const req = makeReq({
+    await callHandler({
       body: {
         message: 'I see the threshold.',
         sentinelContext: {
@@ -376,8 +329,6 @@ describe('POST /api/sentinel — triggerContext', () => {
         triggerContext: { type: 'trace_31' },
       },
     });
-    const res = makeRes();
-    await handler(req, res);
 
     const [, options] = fetchMock.mock.calls[0] as [string, RequestInit];
     const sentBody = JSON.parse(options.body as string) as {
@@ -394,9 +345,7 @@ describe('POST /api/sentinel — triggerContext', () => {
     const fetchMock = mockGeminiOk(JSON.stringify({ reply: 'Quiet.' }));
     vi.stubGlobal('fetch', fetchMock);
 
-    const req = makeReq();
-    const res = makeRes();
-    await handler(req, res);
+    await callHandler();
 
     const [, options] = fetchMock.mock.calls[0] as [string, RequestInit];
     const sentBody = JSON.parse(options.body as string) as {
@@ -416,7 +365,7 @@ describe('POST /api/sentinel — recentCommands', () => {
     const fetchMock = mockGeminiOk(JSON.stringify({ reply: 'I see your moves.' }));
     vi.stubGlobal('fetch', fetchMock);
 
-    const req = makeReq({
+    await callHandler({
       body: {
         message: 'Hello.',
         sentinelContext: {
@@ -427,8 +376,6 @@ describe('POST /api/sentinel — recentCommands', () => {
         },
       },
     });
-    const res = makeRes();
-    await handler(req, res);
 
     const [, options] = fetchMock.mock.calls[0] as [string, RequestInit];
     const sentBody = JSON.parse(options.body as string) as {
@@ -456,9 +403,7 @@ describe('POST /api/sentinel — malformed Gemini text', () => {
       }),
     );
 
-    const req = makeReq();
-    const res = makeRes();
-    await handler(req, res);
+    const res = await callHandler();
 
     expect(res._status).toBe(200);
     expect((res._json as any).reply).toBe(FALLBACK);
