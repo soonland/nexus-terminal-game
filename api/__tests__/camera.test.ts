@@ -1,28 +1,18 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import handler from '../camera-feed.js';
+import { app } from '../camera-feed.js';
 
-function makeReq(overrides: Record<string, unknown> = {}) {
-  return {
-    method: 'POST',
-    body: { cameraId: 'cam_01', location: 'lobby' },
-    ...overrides,
-  } as any;
-}
-
-function makeRes() {
-  const res = {
-    _status: 200,
-    _json: undefined as unknown,
-    status(code: number) {
-      res._status = code;
-      return res;
-    },
-    json(data: unknown) {
-      res._json = data;
-      return res;
-    },
-  };
-  return res;
+async function callHandler(
+  overrides: { method?: string; body?: unknown } = {},
+): Promise<{ _status: number; _json: unknown }> {
+  const { method = 'POST', body = { cameraId: 'cam_01', location: 'lobby' } } = overrides;
+  const init: RequestInit = { method };
+  if (method === 'POST') {
+    init.body = JSON.stringify(body);
+    init.headers = { 'Content-Type': 'application/json' };
+  }
+  const res = await app.request('/', init);
+  const _json = await res.json().catch(() => undefined);
+  return { _status: res.status, _json };
 }
 
 const FALLBACK = 'FEED DEGRADED — signal lost';
@@ -41,9 +31,7 @@ afterEach(() => {
 
 describe('POST /api/camera-feed — method guard', () => {
   it('should return 405 for GET requests', async () => {
-    const req = makeReq({ method: 'GET' });
-    const res = makeRes();
-    await handler(req, res);
+    const res = await callHandler({ method: 'GET' });
     expect(res._status).toBe(405);
     expect((res._json as any).error).toBe('Method not allowed');
   });
@@ -51,41 +39,31 @@ describe('POST /api/camera-feed — method guard', () => {
 
 describe('POST /api/camera-feed — validation', () => {
   it('should return 400 when body is not an object', async () => {
-    const req = makeReq({ body: 'bad' });
-    const res = makeRes();
-    await handler(req, res);
+    const res = await callHandler({ body: 'bad' });
     expect(res._status).toBe(400);
     expect((res._json as any).error).toContain('Request body');
   });
 
   it('should return 400 when cameraId is missing', async () => {
-    const req = makeReq({ body: { location: 'lobby' } });
-    const res = makeRes();
-    await handler(req, res);
+    const res = await callHandler({ body: { location: 'lobby' } });
     expect(res._status).toBe(400);
     expect((res._json as any).error).toContain('cameraId');
   });
 
   it('should return 400 when cameraId is empty', async () => {
-    const req = makeReq({ body: { cameraId: '', location: 'lobby' } });
-    const res = makeRes();
-    await handler(req, res);
+    const res = await callHandler({ body: { cameraId: '', location: 'lobby' } });
     expect(res._status).toBe(400);
     expect((res._json as any).error).toContain('cameraId');
   });
 
   it('should return 400 when location is missing', async () => {
-    const req = makeReq({ body: { cameraId: 'cam_01' } });
-    const res = makeRes();
-    await handler(req, res);
+    const res = await callHandler({ body: { cameraId: 'cam_01' } });
     expect(res._status).toBe(400);
     expect((res._json as any).error).toContain('location');
   });
 
   it('should return 400 when location is empty', async () => {
-    const req = makeReq({ body: { cameraId: 'cam_01', location: '' } });
-    const res = makeRes();
-    await handler(req, res);
+    const res = await callHandler({ body: { cameraId: 'cam_01', location: '' } });
     expect(res._status).toBe(400);
     expect((res._json as any).error).toContain('location');
   });
@@ -93,9 +71,7 @@ describe('POST /api/camera-feed — validation', () => {
 
 describe('POST /api/camera-feed — missing API key', () => {
   it('should return fallback when GEMINI_API_KEY is not set', async () => {
-    const req = makeReq();
-    const res = makeRes();
-    await handler(req, res);
+    const res = await callHandler();
     expect(res._status).toBe(200);
     expect((res._json as any).description).toBe(FALLBACK);
   });
@@ -110,9 +86,7 @@ describe('POST /api/camera-feed — missing API key', () => {
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    const req = makeReq();
-    const res = makeRes();
-    await handler(req, res);
+    const res = await callHandler();
 
     expect(res._status).toBe(200);
     expect((res._json as any).description).toBe('Two guards, north corridor.');
@@ -132,9 +106,7 @@ describe('POST /api/camera-feed — Gemini success', () => {
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    const req = makeReq();
-    const res = makeRes();
-    await handler(req, res);
+    const res = await callHandler();
 
     expect(res._status).toBe(200);
     expect((res._json as any).description).toBe('Empty lobby. Motion sensor inactive.');
@@ -150,9 +122,7 @@ describe('POST /api/camera-feed — Gemini success', () => {
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    const req = makeReq({ body: { cameraId: 'cam_02', location: 'server_room' } });
-    const res = makeRes();
-    await handler(req, res);
+    await callHandler({ body: { cameraId: 'cam_02', location: 'server_room' } });
 
     const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
     const prompt: string = body.contents[0].parts[0].text;
@@ -173,9 +143,7 @@ describe('POST /api/camera-feed — Gemini errors', () => {
       }),
     );
 
-    const req = makeReq();
-    const res = makeRes();
-    await handler(req, res);
+    const res = await callHandler();
 
     expect(res._status).toBe(200);
     expect((res._json as any).description).toBe(FALLBACK);
@@ -191,9 +159,7 @@ describe('POST /api/camera-feed — Gemini errors', () => {
       }),
     );
 
-    const req = makeReq();
-    const res = makeRes();
-    await handler(req, res);
+    const res = await callHandler();
 
     expect(res._status).toBe(200);
     expect((res._json as any).description).toBe(FALLBACK);
@@ -203,9 +169,7 @@ describe('POST /api/camera-feed — Gemini errors', () => {
     process.env['GEMINI_API_KEY'] = 'test-key';
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('network error')));
 
-    const req = makeReq();
-    const res = makeRes();
-    await handler(req, res);
+    const res = await callHandler();
 
     expect(res._status).toBe(200);
     expect((res._json as any).description).toBe(FALLBACK);
