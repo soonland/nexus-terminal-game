@@ -162,7 +162,7 @@ export const ScanDiskScreen = ({ onDone }: Props) => {
       style={{
         position: 'fixed',
         inset: 0,
-        background: 'var(--color-bg)',
+        background: 'var(--win-desktop-bg)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -180,7 +180,7 @@ export const ScanDiskScreen = ({ onDone }: Props) => {
           }}
         />
         {/* Dialog box */}
-        <div style={{ position: 'relative', background: 'var(--color-bg)' }}>
+        <div style={{ position: 'relative', background: 'var(--win-desktop-bg)' }}>
           <div style={{ ...mono, color: 'var(--color-border)' }}>{TOP}</div>
           <div style={{ ...mono, color: 'var(--color-output)' }}>{row()}</div>
 
@@ -209,7 +209,7 @@ export const ScanDiskScreen = ({ onDone }: Props) => {
           <div style={{ ...mono, color: 'var(--color-output)' }}>{row()}</div>
           <div style={{ ...mono, color: 'var(--color-system)' }}>{packetsRow}</div>
           <div style={{ ...mono, color: 'var(--color-system)' }}>{latencyRow}</div>
-          <div style={{ ...mono, color: ready ? 'var(--color-system)' : 'var(--color-bg)' }}>
+          <div style={{ ...mono, color: ready ? 'var(--color-system)' : 'var(--win-desktop-bg)' }}>
             {row('  Press Enter to continue...')}
           </div>
           <div style={{ ...mono, color: 'var(--color-border)' }}>{BOT}</div>

@@ -44,7 +44,10 @@ body,
 }
 
 body {
-  background: var(--color-bg);
+  /* Matches the Desktop's own backdrop — pre-game screens (welcome, prologue,
+     scan) render outside the window manager and fall back to this; everything
+     else renders inside .desktop, which paints over it anyway. */
+  background: var(--win-desktop-bg);
   color: var(--color-output);
   font-family: var(--font-mono);
   font-size: var(--font-size);

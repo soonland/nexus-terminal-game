@@ -36,7 +36,7 @@ export const WelcomeScreen = ({ onAgree }: Props) => {
       style={{
         position: 'fixed',
         inset: 0,
-        background: 'var(--color-bg)',
+        background: 'var(--win-desktop-bg)',
         display: 'flex',
         flexDirection: 'column',
         fontFamily: 'var(--font-mono)',
