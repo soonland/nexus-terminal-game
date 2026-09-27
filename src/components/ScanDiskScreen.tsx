@@ -3,8 +3,6 @@ import { useState, useEffect } from 'react';
 const COLS = 54;
 const ROWS = 8;
 const TOTAL = COLS * ROWS;
-const IW = 56;
-const BAR_WIDTH = 35;
 
 const STATUS_STEPS = [
   'Initializing secure channel...',
@@ -27,28 +25,13 @@ interface Props {
   onDone: () => void;
 }
 
-const mono = {
-  fontFamily: 'var(--font-mono)',
-  fontSize: 'var(--font-size)',
-  lineHeight: 'var(--line-height)',
-  whiteSpace: 'pre' as const,
-  display: 'flex' as const,
-  margin: 0,
-};
-
-const row = (s = '') => `║ ${s.padEnd(IW - 1)}║`;
-
-const titleText = 'NEXUS SECURE UPLINK INITIALIZER v3.1';
-const titleFill = IW - titleText.length;
-const TOP = `╔${'═'.repeat(Math.floor(titleFill / 2))}${titleText}${'═'.repeat(Math.ceil(titleFill / 2))}╗`;
-const MID = `╠${'═'.repeat(IW)}╣`;
-const BOT = `╚${'═'.repeat(IW)}╝`;
+const TITLE_TEXT = 'NEXUS SECURE UPLINK INITIALIZER v3.1';
 
 const cellColor = (state: CellState): string => {
   if (state === 1) return 'var(--color-system)'; // yellow — active
-  if (state === 2) return '#55ff55'; // green — done
+  if (state === 2) return 'var(--color-safe)'; // green — done
   if (state === 3) return 'var(--color-error)'; // red — error
-  return '#001177'; // dark — idle
+  return 'var(--win-border)'; // idle
 };
 
 export const ScanDiskScreen = ({ onDone }: Props) => {
@@ -146,16 +129,7 @@ export const ScanDiskScreen = ({ onDone }: Props) => {
     };
   }, [onDone]);
 
-  const filled = Math.floor((progress / 100) * BAR_WIDTH);
-  const bar = '█'.repeat(filled) + '░'.repeat(BAR_WIDTH - filled);
   const statusText = STATUS_STEPS[statusIdx] ?? '';
-
-  const progressRow = row(`  Progress : [${bar}] ${String(progress).padStart(3)}%`);
-  const statusRow = row(`  Status   : ${statusText}`);
-  const packetsRow = row(
-    `  Packets  : ${String(packets).padStart(7)}   Hops : ${String(hops)}  (anonymized)`,
-  );
-  const latencyRow = row(`  Latency  : ${String(latency).padStart(4)} ms    Cipher : AES-256-GCM`);
 
   return (
     <div
@@ -167,52 +141,87 @@ export const ScanDiskScreen = ({ onDone }: Props) => {
         alignItems: 'center',
         justifyContent: 'center',
       }}>
-      <div style={{ position: 'relative' }}>
-        {/* Drop shadow */}
+      <div
+        className="window"
+        style={{ position: 'relative', width: 620, boxShadow: '0 20px 60px rgba(0,0,0,0.6)' }}>
+        <div className="window-titlebar">
+          <span className="window-title">{TITLE_TEXT}</span>
+        </div>
+
         <div
-          style={{
-            position: 'absolute',
-            top: 5,
-            left: 5,
-            width: '100%',
-            height: '100%',
-            background: 'rgba(0,0,0,0.7)',
-          }}
-        />
-        {/* Dialog box */}
-        <div style={{ position: 'relative', background: 'var(--win-desktop-bg)' }}>
-          <div style={{ ...mono, color: 'var(--color-border)' }}>{TOP}</div>
-          <div style={{ ...mono, color: 'var(--color-output)' }}>{row()}</div>
-
+          className="window-body"
+          style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           {/* Packet routing grid */}
-          {Array.from({ length: ROWS }, (_, rowIdx) => (
-            <div key={rowIdx} style={mono}>
-              <span style={{ color: 'var(--color-border)' }}>{'║ '}</span>
-              {Array.from({ length: COLS }, (_, colIdx) => {
-                const idx = rowIdx * COLS + colIdx;
-                const state = cells[idx] ?? 0;
-                return (
-                  <span key={colIdx} style={{ color: cellColor(state) }}>
-                    {'█'}
-                  </span>
-                );
-              })}
-              <span style={{ color: 'var(--color-border)' }}>{' ║'}</span>
-            </div>
-          ))}
-
-          <div style={{ ...mono, color: 'var(--color-output)' }}>{row()}</div>
-          <div style={{ ...mono, color: 'var(--color-border)' }}>{MID}</div>
-          <div style={{ ...mono, color: 'var(--color-output)' }}>{row()}</div>
-          <div style={{ ...mono, color: 'var(--color-output)' }}>{progressRow}</div>
-          <div style={{ ...mono, color: 'var(--color-output)' }}>{statusRow}</div>
-          <div style={{ ...mono, color: 'var(--color-output)' }}>{row()}</div>
-          <div style={{ ...mono, color: 'var(--color-system)' }}>{packetsRow}</div>
-          <div style={{ ...mono, color: 'var(--color-system)' }}>{latencyRow}</div>
-          <div style={{ ...mono, color: ready ? 'var(--color-system)' : 'var(--win-desktop-bg)' }}>
-            {row('  Press Enter to continue...')}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: `repeat(${String(COLS)}, 1fr)`,
+              gap: '2px',
+            }}>
+            {cells.map((state, idx) => (
+              <div key={idx} style={{ aspectRatio: '1', background: cellColor(state) }} />
+            ))}
           </div>
-          <div style={{ ...mono, color: 'var(--color-border)' }}>{BOT}</div>
+
+          {/* Progress bar */}
+          <div>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                marginBottom: '0.25rem',
+                color: 'var(--color-output)',
+              }}>
+              <span>Progress</span>
+              <span>{progress}%</span>
+            </div>
+            <div
+              style={{
+                height: '10px',
+                background: 'var(--win-border)',
+                borderRadius: '2px',
+                overflow: 'hidden',
+              }}>
+              <div
+                style={{
+                  height: '100%',
+                  width: `${String(progress)}%`,
+                  background: 'var(--color-system)',
+                  transition: 'width 120ms linear',
+                }}
+              />
+            </div>
+          </div>
+
+          <div style={{ color: 'var(--color-output)' }}>Status: {statusText}</div>
+
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              color: 'var(--color-system)',
+            }}>
+            <span>Packets: {packets}</span>
+            <span>Hops: {hops} (anonymized)</span>
+          </div>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              color: 'var(--color-system)',
+            }}>
+            <span>Latency: {latency} ms</span>
+            <span>Cipher: AES-256-GCM</span>
+          </div>
+
+          <div
+            style={{
+              textAlign: 'center',
+              marginTop: '0.5rem',
+              color: ready ? 'var(--color-system)' : 'transparent',
+            }}>
+            Press Enter to continue...
+          </div>
         </div>
       </div>
     </div>
