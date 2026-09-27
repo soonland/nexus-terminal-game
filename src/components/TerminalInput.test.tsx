@@ -13,17 +13,17 @@ describe('TerminalInput', () => {
   });
 
   it('switches to a password input with a browser-respected autocomplete value when masked', () => {
-    const { container } = render(<TerminalInput onSubmit={vi.fn()} masked />);
-    const input = container.querySelector('input');
+    render(<TerminalInput onSubmit={vi.fn()} masked />);
+    const input = screen.getByTestId('terminal-command-input');
     expect(input).toHaveProperty('type', 'password');
-    expect(input?.getAttribute('autocomplete')).toBe('new-password');
+    expect(input.getAttribute('autocomplete')).toBe('new-password');
   });
 
   it('remounts the input element (not just toggling its type) when masked changes', () => {
-    const { container, rerender } = render(<TerminalInput onSubmit={vi.fn()} masked={false} />);
-    const before = container.querySelector('input');
+    const { rerender } = render(<TerminalInput onSubmit={vi.fn()} masked={false} />);
+    const before = screen.getByTestId('terminal-command-input');
     rerender(<TerminalInput onSubmit={vi.fn()} masked />);
-    const after = container.querySelector('input');
+    const after = screen.getByTestId('terminal-command-input');
     expect(after).not.toBe(before);
   });
 

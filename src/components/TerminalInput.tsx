@@ -111,6 +111,7 @@ export const TerminalInput = forwardRef<HTMLInputElement, Props>(
           // back to type="text" for the regular command prompt.
           key={masked ? 'masked' : 'unmasked'}
           ref={ref}
+          data-testid="terminal-command-input"
           type={masked ? 'password' : 'text'}
           autoComplete={masked ? 'new-password' : 'off'}
           autoCorrect="off"
