@@ -1,11 +1,11 @@
-import { boxRow } from './dosModalHelpers';
-
-const IW = 60;
-const r = (s = '') => boxRow(IW, s);
+// Used to wrap every line in `║ ... ║` box-drawing characters (DosModal-era);
+// kept as the single call site for line text so it's easy to reintroduce
+// per-line formatting later without touching every line below.
+const r = (s = '') => s;
 
 const mono = {
   fontFamily: 'var(--font-mono)',
-  fontSize: 'var(--font-size)',
+  fontSize: 'var(--font-size-secondary)',
   lineHeight: 'var(--line-height)',
   whiteSpace: 'pre' as const,
   display: 'block' as const,

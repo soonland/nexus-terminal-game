@@ -1,18 +1,19 @@
 import type { GameState } from '../types/game';
-import { boxRow } from './dosModalHelpers';
 
 interface Props {
   gameState: GameState;
 }
 
-const IW = 58;
-const r = (s = '') => boxRow(IW, s);
+// Used to wrap every line in `║ ... ║` box-drawing characters (DosModal-era);
+// kept as the single call site for line text so it's easy to reintroduce
+// per-line formatting later without touching every line below.
+const r = (s = '') => s;
 
 const LAYER_LABELS = ['ENTRY', 'OPS', 'SECURITY', 'FINANCE', 'EXECUTIVE', 'ARIA'];
 
 const mono = {
   fontFamily: 'var(--font-mono)',
-  fontSize: 'var(--font-size)',
+  fontSize: 'var(--font-size-secondary)',
   lineHeight: 'var(--line-height)',
   whiteSpace: 'pre' as const,
   display: 'block' as const,
