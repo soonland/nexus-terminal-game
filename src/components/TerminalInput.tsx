@@ -30,7 +30,9 @@ export const TerminalInput = forwardRef<HTMLInputElement, Props>(
       if (!disabled && ref && 'current' in ref) {
         ref.current?.focus();
       }
-    }, [disabled, ref]);
+      // `masked` is a dependency because the <input> below is remounted (via
+      // `key`) whenever it changes — the new element starts unfocused.
+    }, [disabled, ref, masked]);
 
     const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
       const input = e.currentTarget;
@@ -103,9 +105,14 @@ export const TerminalInput = forwardRef<HTMLInputElement, Props>(
         </span>
 
         <input
+          // Force a real remount when switching to/from a password field —
+          // some browsers keep offering autofill/save-password suggestions on
+          // an element that was ever type="password", even after it flips
+          // back to type="text" for the regular command prompt.
+          key={masked ? 'masked' : 'unmasked'}
           ref={ref}
           type={masked ? 'password' : 'text'}
-          autoComplete="off"
+          autoComplete={masked ? 'new-password' : 'off'}
           autoCorrect="off"
           autoCapitalize="off"
           spellCheck={false}
