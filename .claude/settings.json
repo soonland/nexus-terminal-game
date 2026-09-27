@@ -3,7 +3,7 @@
     "allow": [
       "Bash(git *)",
       "Bash(gh *)",
-      "Bash(npm *)",
+      "Bash(pnpm *)",
       "Bash(npx *)",
       "Bash(jq *)",
       "Bash(ls *)",

@@ -5,19 +5,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-npm run dev           # start Vite dev server at localhost:5173
-npm run build         # tsc type check + Vite production build
-npm run lint          # ESLint (all files)
-npm run format        # Prettier write (all files)
-npm run preview       # preview production build locally
-npm run test          # Vitest run (all tests)
-npm run test:coverage # Vitest with v8 coverage — 75% threshold per file (statements, branches, functions, lines); configured in vitest.config.ts
-npm run test:ui       # Vitest browser UI
-npm run analyze       # production build + open bundle treemap
-npm run knip          # find unused exports, files, and dependencies
+pnpm dev           # start Vite dev server at localhost:5173
+pnpm build         # tsc type check + Vite production build
+pnpm lint          # ESLint (all files)
+pnpm format        # Prettier write (all files)
+pnpm preview       # preview production build locally
+pnpm test          # Vitest run (all tests)
+pnpm test:coverage # Vitest with v8 coverage — 75% threshold per file (statements, branches, functions, lines); configured in vitest.config.ts
+pnpm test:ui       # Vitest browser UI
+pnpm analyze       # production build + open bundle treemap
+pnpm knip          # find unused exports, files, and dependencies
 ```
 
-Build (`npm run build`) is the primary correctness check — it runs `tsc -b` before Vite, so TypeScript errors will fail the build.
+Build (`pnpm build`) is the primary correctness check — it runs `tsc -b` before Vite, so TypeScript errors will fail the build.
 
 ## Tooling
 

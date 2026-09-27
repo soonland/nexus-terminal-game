@@ -4,3 +4,4 @@ public/fonts
 .github
 .claude
 *.md
+pnpm-lock.yaml
