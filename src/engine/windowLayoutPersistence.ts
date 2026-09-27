@@ -1,5 +1,11 @@
 import type { WindowManagerState, Viewport, WindowInstance, WindowKind } from './windowManager';
-import { WINDOW_KINDS, createDefaultLayout, clampInstance, compactZIndices } from './windowManager';
+import {
+  WINDOW_KINDS,
+  createDefaultLayout,
+  clampInstance,
+  compactZIndices,
+  focusWindow,
+} from './windowManager';
 
 const WINDOW_LAYOUT_KEY = 'irongate_windows';
 const WINDOW_LAYOUT_VERSION = 1;
@@ -52,8 +58,11 @@ export const loadWindowLayout = (viewport: Viewport): WindowManagerState => {
     // A corrupted/hand-edited huge z-index must not break stacking order.
     result = compactZIndices(result);
 
-    // The terminal must survive even a corrupted or hand-edited blob.
+    // The terminal must survive even a corrupted or hand-edited blob — not just
+    // "open", but restored to the top so it's immediately usable, not hidden
+    // behind whatever else the blob claimed was open.
     result.terminal = { ...result.terminal, open: true, minimized: false };
+    result = focusWindow(result, 'terminal');
 
     return result;
   } catch (e) {

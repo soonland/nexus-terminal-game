@@ -114,15 +114,14 @@ export const compactZIndices = (state: WindowManagerState): WindowManagerState =
 
 export const focusWindow = (state: WindowManagerState, kind: WindowKind): WindowManagerState => {
   if (isStrictlyOnTop(state, kind)) return state;
-  const order = WINDOW_KINDS.filter(k => k !== kind).sort(
-    (a, b) => state[a].zIndex - state[b].zIndex,
-  );
-  order.push(kind);
-  const next = { ...state };
-  order.forEach((k, i) => {
-    next[k] = { ...state[k], zIndex: i + 1 };
-  });
-  return next;
+  // Give kind a z-index above the current max so it sorts last, then delegate
+  // the actual dense reindexing to compactZIndices instead of duplicating it.
+  const currentMax = Math.max(...WINDOW_KINDS.map(k => state[k].zIndex));
+  const boosted: WindowManagerState = {
+    ...state,
+    [kind]: { ...state[kind], zIndex: currentMax + 1 },
+  };
+  return compactZIndices(boosted);
 };
 
 export const openWindow = (state: WindowManagerState, kind: WindowKind): WindowManagerState =>

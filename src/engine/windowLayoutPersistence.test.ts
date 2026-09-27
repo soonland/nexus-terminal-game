@@ -87,4 +87,19 @@ describe('windowLayoutPersistence', () => {
     expect(loaded.terminal.open).toBe(true);
     expect(loaded.terminal.minimized).toBe(false);
   });
+
+  it('restores the terminal on top even if the stored blob had it behind other open windows', () => {
+    const corrupted = createDefaultLayout(VIEWPORT);
+    // Open every other window and give the terminal the lowest z-index — being
+    // merely "open" isn't enough if it renders underneath everything else.
+    for (const kind of WINDOW_KINDS) {
+      if (kind === 'terminal') continue;
+      corrupted[kind] = { ...corrupted[kind], open: true, zIndex: corrupted[kind].zIndex + 10 };
+    }
+    corrupted.terminal = { ...corrupted.terminal, zIndex: 0 };
+    mockStorage.getItem.mockReturnValueOnce(JSON.stringify({ version: 1, windows: corrupted }));
+    const loaded = loadWindowLayout(VIEWPORT);
+    const maxZ = Math.max(...WINDOW_KINDS.map(k => loaded[k].zIndex));
+    expect(loaded.terminal.zIndex).toBe(maxZ);
+  });
 });
