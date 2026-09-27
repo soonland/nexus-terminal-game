@@ -75,7 +75,7 @@ Lines are typed as `TerminalLine` (`src/types/terminal.ts`). Six `LineType` valu
 
 ### Styling
 
-Pure CSS, no framework. `src/styles/globals.css` uses CSS custom properties for the color palette. The aesthetic is DOS/ncurses: `#0000aa` background, IBM VGA 8x16 font (self-hosted in `public/fonts/`), white/gray text. No glow or CRT effects are active (the `body.crt` class was removed).
+Pure CSS, no framework. `src/styles/globals.css` uses CSS custom properties for the color palette. The aesthetic is DOS/ncurses: `#0000aa` background, IBM Plex Mono font (loaded via `@fontsource/ibm-plex-mono`, imported in `main.tsx`), white/gray text. No glow or CRT effects are active (the `body.crt` class was removed).
 
 ## Implemented phases
 
