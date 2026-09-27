@@ -33,3 +33,10 @@ jobs:
             If the code looks good, post a brief summary comment on the PR confirming the review is complete.
             Never submit a "Request Changes" review. Always use "Comment" only, never block the PR.
 
+          # Agent mode (explicit prompt, no @claude mention) only starts the
+          # GitHub comment/inline-comment MCP servers when their tools are
+          # named here — otherwise every attempt to post a comment or inline
+          # review comment calls a tool that was never started.
+          claude_args: |
+            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*)"
+
