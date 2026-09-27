@@ -2,7 +2,7 @@ import js from '@eslint/js';
 import globals from 'globals';
 import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
-import reactPlugin from 'eslint-plugin-react';
+import stylistic from '@stylistic/eslint-plugin';
 import tseslint from 'typescript-eslint';
 import prettierConfig from 'eslint-config-prettier';
 
@@ -22,14 +22,14 @@ export default tseslint.config(
     plugins: {
       'react-hooks': reactHooks,
       'react-refresh': reactRefresh,
-      react: reactPlugin,
+      '@stylistic': stylistic,
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
       // App.tsx is an intentional state machine — phase transitions via effects are by design
       'react-hooks/set-state-in-effect': 'off',
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
-      'react/self-closing-comp': ['error', { component: true, html: true }],
+      '@stylistic/jsx-self-closing-comp': ['error', { component: true, html: true }],
       '@typescript-eslint/consistent-type-imports': ['error', { prefer: 'type-imports' }],
       '@typescript-eslint/no-unused-vars': [
         'error',
