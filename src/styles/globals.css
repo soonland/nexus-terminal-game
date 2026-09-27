@@ -253,3 +253,38 @@ body.dm-sentinel {
   height: 14px;
   cursor: nwse-resize;
 }
+
+.taskbar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 28px;
+  background: var(--win-titlebar-bg);
+  border-top: 1px solid var(--win-border);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 6px;
+  font-family: system-ui, sans-serif;
+  font-size: 10px;
+  z-index: 10000;
+}
+
+.taskbar-entry {
+  background: transparent;
+  border: 1px solid var(--win-border);
+  color: var(--win-title-color);
+  padding: 3px 8px;
+  cursor: pointer;
+  opacity: 0.5;
+}
+
+.taskbar-entry[data-state='focused'] {
+  opacity: 1;
+  border-color: var(--win-title-color);
+}
+
+.taskbar-entry[data-state='minimized'] {
+  opacity: 0.75;
+}

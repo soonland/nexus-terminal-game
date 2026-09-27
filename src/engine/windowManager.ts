@@ -65,7 +65,7 @@ export const createDefaultLayout = (viewport: Viewport): WindowManagerState => {
       y: 24 + i * CASCADE_STEP,
       width: size.width,
       height: size.height,
-      zIndex: kind === 'terminal' ? WINDOW_KINDS.length : i + 1,
+      zIndex: kind === 'terminal' ? WINDOW_KINDS.length + 1 : i + 1,
       open: kind === 'terminal',
       minimized: false,
     };

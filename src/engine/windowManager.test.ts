@@ -42,6 +42,14 @@ describe('createDefaultLayout', () => {
     const maxZ = Math.max(...WINDOW_KINDS.map(k => layout[k].zIndex));
     expect(layout.terminal.zIndex).toBe(maxZ);
   });
+
+  it('gives terminal a strictly higher z-index than every other kind (no ties)', () => {
+    const layout = createDefaultLayout(VIEWPORT);
+    for (const kind of WINDOW_KINDS) {
+      if (kind === 'terminal') continue;
+      expect(layout.terminal.zIndex).toBeGreaterThan(layout[kind].zIndex);
+    }
+  });
 });
 
 describe('clampInstance', () => {
