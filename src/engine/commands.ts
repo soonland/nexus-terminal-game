@@ -242,6 +242,9 @@ export const resolveCommand = async (raw: string, state: GameState): Promise<Com
     case 'notes':
       result = { lines: [] }; // handled as modal in App
       break;
+    case 'dossier':
+      result = { lines: [] }; // handled as a window in App
+      break;
     case 'inventory':
     case 'inv':
       result = cmdInventory(state);
