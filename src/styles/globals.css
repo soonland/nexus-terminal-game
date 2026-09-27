@@ -22,7 +22,7 @@
 
   --font-mono: 'IBM Plex Mono', monospace;
   --font-size: 16px;
-  --font-size-secondary: 13px; /* Map/Notes/Help/Briefing/Dossier — not the terminal */
+  --font-size-secondary: 13px; /* body text inside every window, including the terminal */
   --line-height: 1.5;
 }
 
@@ -236,12 +236,8 @@ body.dm-sentinel {
   padding: 8px;
   color: var(--win-body-color);
   font-family: var(--font-mono);
-  font-size: var(--font-size);
-  line-height: var(--line-height);
-}
-
-.window-body--secondary {
   font-size: var(--font-size-secondary);
+  line-height: var(--line-height);
 }
 
 .window-resize-handle {

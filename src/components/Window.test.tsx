@@ -80,15 +80,13 @@ describe('Window', () => {
     expect(props.onResize).toHaveBeenCalledWith(460, 330); // origin (400,300) + delta (60,30)
   });
 
-  it('applies the smaller secondary-window font size to non-terminal windows', () => {
+  it('renders the same window-body class for every window kind, including the terminal', () => {
     renderWindow(); // baseInstance.kind is 'map'
-    const body = screen.getByText('content').closest('.window-body');
-    expect(body?.classList.contains('window-body--secondary')).toBe(true);
-  });
+    const mapBody = screen.getByText('content').closest('.window-body');
+    expect(mapBody?.className).toBe('window-body');
 
-  it('does not shrink the font for the terminal window', () => {
     renderWindow({ instance: { ...baseInstance, kind: 'terminal' } });
-    const body = screen.getByText('content').closest('.window-body');
-    expect(body?.classList.contains('window-body--secondary')).toBe(false);
+    const terminalBody = screen.getAllByText('content')[1].closest('.window-body');
+    expect(terminalBody?.className).toBe('window-body');
   });
 });

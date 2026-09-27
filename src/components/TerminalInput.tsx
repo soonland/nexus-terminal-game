@@ -97,7 +97,7 @@ export const TerminalInput = forwardRef<HTMLInputElement, Props>(
           style={{
             color: 'var(--color-system)',
             fontFamily: 'var(--font-mono)',
-            fontSize: 'var(--font-size)',
+            fontSize: 'var(--font-size-secondary)',
             flexShrink: 0,
             userSelect: 'none',
           }}>
@@ -125,7 +125,7 @@ export const TerminalInput = forwardRef<HTMLInputElement, Props>(
             outline: 'none',
             color: 'var(--color-output)',
             fontFamily: 'var(--font-mono)',
-            fontSize: 'var(--font-size)',
+            fontSize: 'var(--font-size-secondary)',
             lineHeight: 'var(--line-height)',
             caretColor: 'var(--color-output)',
           }}

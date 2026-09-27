@@ -127,12 +127,7 @@ export const Window = ({
           )}
         </span>
       </div>
-      <div
-        className={
-          instance.kind === 'terminal' ? 'window-body' : 'window-body window-body--secondary'
-        }>
-        {children}
-      </div>
+      <div className="window-body">{children}</div>
       <div
         className="window-resize-handle"
         data-testid="window-resize-handle"
