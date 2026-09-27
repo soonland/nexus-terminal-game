@@ -14,7 +14,9 @@
       "Edit",
       "Glob",
       "Grep",
-      "Agent"
+      "Agent",
+      "mcp__github_comment__update_claude_comment",
+      "mcp__github_inline_comment__*"
     ],
     "deny": [
       "Bash(rm -rf *)",
