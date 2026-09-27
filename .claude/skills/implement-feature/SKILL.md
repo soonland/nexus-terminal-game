@@ -155,7 +155,7 @@ Execute the plan in order. For each file:
 Before every commit, run the full test suite and confirm it is green:
 
 ```bash
-npm test
+pnpm test
 ```
 
 If any existing tests break due to your changes (e.g. renamed IDs, changed colours, updated defaults), fix or update those tests **in the same commit** as the code change — never commit with a red test suite.
@@ -207,8 +207,8 @@ Before moving on, explicitly verify:
 Before smoke testing, run the full static analysis suite and fix any issues:
 
 ```bash
-npm run lint
-npm run build
+pnpm run lint
+pnpm run build
 ```
 
 - Fix all ESLint errors. Do not suppress rules with `// eslint-disable` unless the rule is genuinely inapplicable and you explain why in a comment.

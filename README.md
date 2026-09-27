@@ -112,13 +112,13 @@ nexus-terminal-game/
 ### Prerequisites
 
 - Node.js 18+
-- npm 9+
+- pnpm 9+
 
 ### Install and run
 
 ```bash
-npm install
-npm run dev
+pnpm install
+pnpm dev
 ```
 
 Open [http://localhost:5173](http://localhost:5173).
