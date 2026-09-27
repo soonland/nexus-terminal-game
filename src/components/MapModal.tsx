@@ -1,10 +1,8 @@
 import type { GameState } from '../types/game';
-import { DosModal } from './DosModal';
 import { boxRow } from './dosModalHelpers';
 
 interface Props {
   gameState: GameState;
-  onClose: () => void;
 }
 
 const IW = 58;
@@ -21,7 +19,7 @@ const mono = {
   margin: 0,
 };
 
-export const MapModal = ({ gameState, onClose }: Props) => {
+export const MapModal = ({ gameState }: Props) => {
   const { nodes, currentNodeId } = gameState.network;
 
   const discovered = Object.values(nodes).filter(
@@ -59,12 +57,12 @@ export const MapModal = ({ gameState, onClose }: Props) => {
   ];
 
   return (
-    <DosModal title=" NETWORK MAP " innerWidth={IW} onClose={onClose}>
+    <>
       {[...body, ...legend].map((line, i) => (
         <div key={i} style={{ ...mono, color: line.color }}>
           {line.text}
         </div>
       ))}
-    </DosModal>
+    </>
   );
 };

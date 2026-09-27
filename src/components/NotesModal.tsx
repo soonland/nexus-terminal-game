@@ -1,10 +1,8 @@
 import type { GameState } from '../types/game';
-import { DosModal } from './DosModal';
 import { boxRow } from './dosModalHelpers';
 
 interface Props {
   gameState: GameState;
-  onClose: () => void;
 }
 
 const IW = 58;
@@ -21,7 +19,7 @@ const mono = {
 
 type NoteLine = { text: string; color: string };
 
-export const NotesModal = ({ gameState, onClose }: Props) => {
+export const NotesModal = ({ gameState }: Props) => {
   const { player, network } = gameState;
 
   const body: NoteLine[] = [];
@@ -84,12 +82,12 @@ export const NotesModal = ({ gameState, onClose }: Props) => {
   body.push({ text: r(), color: 'var(--color-system)' });
 
   return (
-    <DosModal title=" OPERATIVE NOTES " innerWidth={IW} onClose={onClose}>
+    <>
       {body.map((line, i) => (
         <div key={i} style={{ ...mono, color: line.color }}>
           {line.text}
         </div>
       ))}
-    </DosModal>
+    </>
   );
 };

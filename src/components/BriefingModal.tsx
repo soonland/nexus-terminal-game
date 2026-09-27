@@ -1,4 +1,3 @@
-import { DosModal } from './DosModal';
 import { boxRow } from './dosModalHelpers';
 
 const IW = 68;
@@ -49,16 +48,12 @@ const mono = {
   margin: 0,
 };
 
-interface Props {
-  onClose: () => void;
-}
-
-export const BriefingModal = ({ onClose }: Props) => (
-  <DosModal title=" OPERATIVE ACTIVATION NOTICE " innerWidth={IW} onClose={onClose}>
+export const BriefingModal = () => (
+  <>
     {BODY.map((line, i) => (
       <div key={i} style={{ ...mono, color: line.color }}>
         {line.text}
       </div>
     ))}
-  </DosModal>
+  </>
 );

@@ -1,4 +1,3 @@
-import { DosModal } from './DosModal';
 import { boxRow } from './dosModalHelpers';
 
 const IW = 60;
@@ -96,16 +95,12 @@ const BODY: HelpLine[] = [
   { text: r(), color: 'var(--color-system)' },
 ];
 
-interface Props {
-  onClose: () => void;
-}
-
-export const HelpModal = ({ onClose }: Props) => (
-  <DosModal title=" COMMAND REFERENCE " innerWidth={IW} onClose={onClose}>
+export const HelpModal = () => (
+  <>
     {BODY.map((line, i) => (
       <div key={i} style={{ ...mono, color: line.color }}>
         {line.text}
       </div>
     ))}
-  </DosModal>
+  </>
 );
