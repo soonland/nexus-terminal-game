@@ -50,7 +50,7 @@ All game state is a single `GameState` object (`src/types/game.ts`). It is clone
 
 ### Command resolution pipeline (`src/engine/commands.ts`)
 
-1. **Local commands** — `help`, `status`, `inventory`, `map`, `clear` — no trace cost, no state change
+1. **Local commands** — `help`, `status`, `inventory`, `map`, `dossier`, `clear` — no trace cost, no state change
 2. **Engine commands** — `scan`, `connect`, `login`, `ls`, `cat`, `disconnect`, `exploit`, `exfil`, `wipe-logs` — deterministic, return `CommandOutput` with optional `nextState`
 3. **Unknown commands** — routed to Phase 3 AI (Groq via `/api/world-ai`)
 
@@ -68,6 +68,10 @@ All game state is a single `GameState` object (`src/types/game.ts`). It is clone
 Lines are typed as `TerminalLine` (`src/types/terminal.ts`). Six `LineType` values map to CSS classes in `globals.css`: `output`, `input`, `system`, `error`, `separator`, `aria`. The `aria` type is reserved for the Aria AI character (Phase 6).
 
 `TerminalInput` accepts `masked` (password fields) and `prompt` (custom prompt string) props. The suggestion bar fills the input on click or Tab.
+
+### Window manager
+
+`Desktop` (`src/components/Desktop.tsx`) owns floating window layout — position, size, z-order, open/minimized — for the Terminal plus five auxiliary windows (Map, Notes, Help, Briefing, Dossier), rendered via the generic `Window` chrome component and a `Taskbar` for reopening/restoring. Layout state is pure UI state (`src/engine/windowManager.ts`), persisted to its own `localStorage` key (`irongate_windows`) separate from the versioned game save — the same pattern `engine/themes.ts` uses for theme choice. The Terminal is a protected anchor window: it can be moved and resized like any other window, but never closed or minimized. Map/Notes/Help/Briefing/Dossier are opened via their respective commands (`map`, `notes`, `help`, `briefing`, `dossier`) or by clicking their taskbar entry. The current skin is sleek-minimal (flat dark panels, no glow); Map/Notes/Help/Briefing still render their original ASCII `boxRow`-padded content inside the new chrome — a known, deliberate visual seam pending a follow-up content-modernization pass.
 
 ### Styling
 
