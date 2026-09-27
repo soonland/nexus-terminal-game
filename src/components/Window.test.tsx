@@ -79,4 +79,16 @@ describe('Window', () => {
     fireEvent.pointerMove(window, { clientX: 560, clientY: 410 });
     expect(props.onResize).toHaveBeenCalledWith(460, 330); // origin (400,300) + delta (60,30)
   });
+
+  it('applies the smaller secondary-window font size to non-terminal windows', () => {
+    renderWindow(); // baseInstance.kind is 'map'
+    const body = screen.getByText('content').closest('.window-body');
+    expect(body?.classList.contains('window-body--secondary')).toBe(true);
+  });
+
+  it('does not shrink the font for the terminal window', () => {
+    renderWindow({ instance: { ...baseInstance, kind: 'terminal' } });
+    const body = screen.getByText('content').closest('.window-body');
+    expect(body?.classList.contains('window-body--secondary')).toBe(false);
+  });
 });
