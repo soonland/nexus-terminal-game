@@ -74,6 +74,13 @@ export const Desktop = forwardRef<DesktopHandle, Props>(
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
+    // Persist on every layout change, from every path (open/close/minimize/restore/
+    // focus/move/resize) — a handler-by-handler persist() call is too easy to miss,
+    // as happened here (opening/restoring/focusing weren't persisted before this).
+    useEffect(() => {
+      saveWindowLayout(state);
+    }, [state]);
+
     useEffect(() => {
       const handleResize = () => {
         const viewport = currentViewport();
@@ -122,10 +129,6 @@ export const Desktop = forwardRef<DesktopHandle, Props>(
       });
     }, []);
 
-    const persist = useCallback((next: WindowManagerState) => {
-      saveWindowLayout(next);
-    }, []);
-
     const contents: Record<WindowKind, ReactNode | null> = {
       terminal,
       map,
@@ -153,32 +156,16 @@ export const Desktop = forwardRef<DesktopHandle, Props>(
               applyAndMaybeFocusTerminal(prev => focusWindow(prev, kind));
             }}
             onMove={(x, y) => {
-              setState(prev => {
-                const next = moveWindow(prev, kind, x, y, currentViewport());
-                persist(next);
-                return next;
-              });
+              setState(prev => moveWindow(prev, kind, x, y, currentViewport()));
             }}
             onResize={(width, height) => {
-              setState(prev => {
-                const next = resizeWindow(prev, kind, width, height, currentViewport());
-                persist(next);
-                return next;
-              });
+              setState(prev => resizeWindow(prev, kind, width, height, currentViewport()));
             }}
             onMinimize={() => {
-              setState(prev => {
-                const next = minimizeWindow(prev, kind);
-                persist(next);
-                return next;
-              });
+              setState(prev => minimizeWindow(prev, kind));
             }}
             onClose={() => {
-              setState(prev => {
-                const next = closeWindow(prev, kind);
-                persist(next);
-                return next;
-              });
+              setState(prev => closeWindow(prev, kind));
             }}>
             {contents[kind]}
           </Window>

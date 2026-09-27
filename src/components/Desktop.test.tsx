@@ -39,8 +39,11 @@ const renderDesktop = (onTerminalFocused = vi.fn()) => {
 };
 
 describe('Desktop', () => {
+  let mockStorage: ReturnType<typeof makeMockStorage>;
+
   beforeEach(() => {
-    vi.stubGlobal('localStorage', makeMockStorage());
+    mockStorage = makeMockStorage();
+    vi.stubGlobal('localStorage', mockStorage);
     vi.stubGlobal('innerWidth', 1280);
     vi.stubGlobal('innerHeight', 800);
   });
@@ -64,6 +67,19 @@ describe('Desktop', () => {
       ref.current?.openWindow('map');
     });
     expect(screen.getByText('map-content')).toBeTruthy();
+  });
+
+  it('persists layout changes made by opening a window (not just move/resize/minimize/close)', () => {
+    const ref = renderDesktop();
+    mockStorage.setItem.mockClear(); // ignore any writes from the initial mount
+    act(() => {
+      ref.current?.openWindow('map');
+    });
+    expect(mockStorage.setItem).toHaveBeenCalled();
+    const lastCall = mockStorage.setItem.mock.calls[mockStorage.setItem.mock.calls.length - 1];
+    const [, savedRaw] = lastCall;
+    const saved = JSON.parse(savedRaw) as { windows: { map: { open: boolean } } };
+    expect(saved.windows.map.open).toBe(true);
   });
 
   it('opening a window via the taskbar shows it', () => {

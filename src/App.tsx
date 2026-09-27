@@ -8,6 +8,9 @@ import { BriefingModal } from './components/BriefingModal';
 import { MapModal } from './components/MapModal';
 import { HelpModal } from './components/HelpModal';
 import { NotesModal } from './components/NotesModal';
+import { DossierWindow } from './components/DossierWindow';
+import { Desktop } from './components/Desktop';
+import type { DesktopHandle } from './components/Desktop';
 import { useBootSequence } from './hooks/useBootSequence';
 import { useEndingSequence, buildEndingLines } from './hooks/useEndingSequence';
 import { buildPostGameReadout } from './engine/postGameReadout';
@@ -160,10 +163,6 @@ export const App = () => {
   const [username, setUsername] = useState('');
   const [spinnerLine, setSpinnerLine] = useState<TerminalLine | null>(null);
   const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
-  const [briefingOpen, setBriefingOpen] = useState(false);
-  const [mapOpen, setMapOpen] = useState(false);
-  const [helpOpen, setHelpOpen] = useState(false);
-  const [notesOpen, setNotesOpen] = useState(false);
   const [pendingContract, setPendingContract] = useState<ContractDefinition | null>(null);
   const [contractRerollUsed, setContractRerollUsed] = useState(false);
   const [currentTheme, setCurrentTheme] = useState<Theme>(() => {
@@ -173,6 +172,7 @@ export const App = () => {
   });
 
   const terminalRef = useRef<TerminalHandle>(null);
+  const desktopRef = useRef<DesktopHandle>(null);
   const bootHandled = useRef(false);
   const spinnerTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const spinnerFrame = useRef(0);
@@ -239,13 +239,6 @@ export const App = () => {
       document.body.classList.remove('dm-sentinel');
     }
   }, [appPhase]);
-
-  // Refocus terminal input whenever all modals close
-  useEffect(() => {
-    if (!helpOpen && !briefingOpen && !mapOpen && !notesOpen) {
-      terminalRef.current?.focus();
-    }
-  }, [helpOpen, briefingOpen, mapOpen, notesOpen]);
 
   const [dmLines, setDmLines] = useState<TerminalLine[]>([]);
 
@@ -584,25 +577,31 @@ export const App = () => {
 
       if (raw.trim().toLowerCase() === 'help') {
         push([makeLine('input', raw)]);
-        setHelpOpen(true);
+        desktopRef.current?.openWindow('help');
         return;
       }
 
       if (raw.trim().toLowerCase() === 'briefing') {
         push([makeLine('input', raw)]);
-        setBriefingOpen(true);
+        desktopRef.current?.openWindow('briefing');
         return;
       }
 
       if (raw.trim().toLowerCase() === 'map') {
         push([makeLine('input', raw)]);
-        setMapOpen(true);
+        desktopRef.current?.openWindow('map');
         return;
       }
 
       if (raw.trim().toLowerCase() === 'notes') {
         push([makeLine('input', raw)]);
-        setNotesOpen(true);
+        desktopRef.current?.openWindow('notes');
+        return;
+      }
+
+      if (raw.trim().toLowerCase() === 'dossier') {
+        push([makeLine('input', raw)]);
+        desktopRef.current?.openWindow('dossier');
         return;
       }
 
@@ -864,59 +863,40 @@ export const App = () => {
   }
 
   return (
-    <>
-      <Terminal
-        ref={terminalRef}
-        lines={allLines}
-        nodeIp={nodeIp}
-        trace={trace}
-        suggestions={
-          appPhase === 'playing' || appPhase === 'aria'
-            ? aiSuggestions.length > 0
-              ? aiSuggestions
-              : gameState
-                ? computeContextSuggestions(gameState)
-                : []
-            : []
-        }
-        onSubmit={cmd => {
-          void handleSubmit(cmd);
-        }}
-        inputDisabled={inputDisabled}
-        inputPrompt={promptStr}
-        inputMasked={isMasked}
-        inputNoHistory={isNoHistory}
-      />
-      {helpOpen && (
-        <HelpModal
-          onClose={() => {
-            setHelpOpen(false);
+    <Desktop
+      ref={desktopRef}
+      onTerminalFocused={() => {
+        terminalRef.current?.focus();
+      }}
+      terminal={
+        <Terminal
+          ref={terminalRef}
+          lines={allLines}
+          nodeIp={nodeIp}
+          trace={trace}
+          suggestions={
+            appPhase === 'playing' || appPhase === 'aria'
+              ? aiSuggestions.length > 0
+                ? aiSuggestions
+                : gameState
+                  ? computeContextSuggestions(gameState)
+                  : []
+              : []
+          }
+          onSubmit={cmd => {
+            void handleSubmit(cmd);
           }}
+          inputDisabled={inputDisabled}
+          inputPrompt={promptStr}
+          inputMasked={isMasked}
+          inputNoHistory={isNoHistory}
         />
-      )}
-      {briefingOpen && (
-        <BriefingModal
-          onClose={() => {
-            setBriefingOpen(false);
-          }}
-        />
-      )}
-      {mapOpen && gameState && (
-        <MapModal
-          gameState={gameState}
-          onClose={() => {
-            setMapOpen(false);
-          }}
-        />
-      )}
-      {notesOpen && gameState && (
-        <NotesModal
-          gameState={gameState}
-          onClose={() => {
-            setNotesOpen(false);
-          }}
-        />
-      )}
-    </>
+      }
+      map={gameState ? <MapModal gameState={gameState} /> : null}
+      notes={gameState ? <NotesModal gameState={gameState} /> : null}
+      help={<HelpModal />}
+      briefing={<BriefingModal />}
+      dossier={<DossierWindow dossier={loadDossier()} />}
+    />
   );
 };
