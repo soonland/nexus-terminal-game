@@ -30,8 +30,13 @@ export type WindowManagerState = Record<WindowKind, WindowInstance>;
 export const MIN_WINDOW_WIDTH = 280;
 export const MIN_WINDOW_HEIGHT = 160;
 
-// How much of a window must remain reachable on-screen.
-const VISIBLE_MARGIN = 24;
+// Must match .window-titlebar's height and .taskbar's height in globals.css —
+// clamping needs to know these to keep the title bar reachable above the taskbar.
+export const TITLEBAR_HEIGHT = 26;
+export const TASKBAR_HEIGHT = 28;
+
+// How much of a window must remain reachable on-screen horizontally.
+const HORIZONTAL_VISIBLE_MARGIN = 24;
 
 const DEFAULT_SIZE: Record<WindowKind, { width: number; height: number }> = {
   terminal: { width: 640, height: 420 },
@@ -46,26 +51,43 @@ const DEFAULT_SIZE: Record<WindowKind, { width: number; height: number }> = {
 const CASCADE_STEP = 32;
 
 export const clampInstance = (instance: WindowInstance, viewport: Viewport): WindowInstance => {
+  // The taskbar occupies the bottom TASKBAR_HEIGHT px — nothing may be dragged or
+  // resized into that band, or the title bar (and the resize handle) become
+  // unreachable with no way to recover except clearing localStorage.
+  const usableHeight = Math.max(TITLEBAR_HEIGHT, viewport.height - TASKBAR_HEIGHT);
+
   const width = Math.min(Math.max(instance.width, MIN_WINDOW_WIDTH), viewport.width);
-  const height = Math.min(Math.max(instance.height, MIN_WINDOW_HEIGHT), viewport.height);
-  const maxX = Math.max(0, viewport.width - VISIBLE_MARGIN);
-  const maxY = Math.max(0, viewport.height - VISIBLE_MARGIN);
+
+  const maxX = Math.max(0, viewport.width - HORIZONTAL_VISIBLE_MARGIN);
+  const maxY = Math.max(0, usableHeight - TITLEBAR_HEIGHT);
   const x = Math.min(Math.max(instance.x, 0), maxX);
   const y = Math.min(Math.max(instance.y, 0), maxY);
+
+  // Height is capped relative to the window's own (already-clamped) y — not just
+  // relative to the top of the screen — so a window already dragged down can't be
+  // resized so tall that its bottom edge still slides under the taskbar.
+  const maxHeightFromY = Math.max(MIN_WINDOW_HEIGHT, usableHeight - y);
+  const height = Math.min(Math.max(instance.height, MIN_WINDOW_HEIGHT), maxHeightFromY);
+
   return { ...instance, x, y, width, height };
 };
 
 export const createDefaultLayout = (viewport: Viewport): WindowManagerState => {
   const state = {} as WindowManagerState;
+  // Dense 1..N from the start, with terminal last (highest) — matches the invariant
+  // focusWindow/compactZIndices maintain everywhere else, so a freshly created
+  // layout is never itself in need of compaction.
+  const nonTerminalKinds = WINDOW_KINDS.filter(k => k !== 'terminal');
   WINDOW_KINDS.forEach((kind, i) => {
     const size = DEFAULT_SIZE[kind];
+    const zIndex = kind === 'terminal' ? WINDOW_KINDS.length : nonTerminalKinds.indexOf(kind) + 1;
     const raw: WindowInstance = {
       kind,
       x: 24 + i * CASCADE_STEP,
       y: 24 + i * CASCADE_STEP,
       width: size.width,
       height: size.height,
-      zIndex: kind === 'terminal' ? WINDOW_KINDS.length + 1 : i + 1,
+      zIndex,
       open: kind === 'terminal',
       minimized: false,
     };
@@ -74,13 +96,34 @@ export const createDefaultLayout = (viewport: Viewport): WindowManagerState => {
   return state;
 };
 
-const nextZIndex = (state: WindowManagerState): number =>
-  Math.max(...WINDOW_KINDS.map(k => state[k].zIndex)) + 1;
+const isStrictlyOnTop = (state: WindowManagerState, kind: WindowKind): boolean =>
+  WINDOW_KINDS.every(k => k === kind || state[k].zIndex < state[kind].zIndex);
 
-export const focusWindow = (state: WindowManagerState, kind: WindowKind): WindowManagerState => ({
-  ...state,
-  [kind]: { ...state[kind], zIndex: nextZIndex(state) },
-});
+// Re-ranks every kind to a dense 1..N sequence by current relative order. Used by
+// focusWindow (so repeated clicks never grow z-index unboundedly, since every click
+// would otherwise write a new, ever-larger value to localStorage) and by
+// loadWindowLayout (so a corrupted/hand-edited huge z-index can't break ordering).
+export const compactZIndices = (state: WindowManagerState): WindowManagerState => {
+  const order = [...WINDOW_KINDS].sort((a, b) => state[a].zIndex - state[b].zIndex);
+  const next = { ...state };
+  order.forEach((k, i) => {
+    next[k] = { ...state[k], zIndex: i + 1 };
+  });
+  return next;
+};
+
+export const focusWindow = (state: WindowManagerState, kind: WindowKind): WindowManagerState => {
+  if (isStrictlyOnTop(state, kind)) return state;
+  const order = WINDOW_KINDS.filter(k => k !== kind).sort(
+    (a, b) => state[a].zIndex - state[b].zIndex,
+  );
+  order.push(kind);
+  const next = { ...state };
+  order.forEach((k, i) => {
+    next[k] = { ...state[k], zIndex: i + 1 };
+  });
+  return next;
+};
 
 export const openWindow = (state: WindowManagerState, kind: WindowKind): WindowManagerState =>
   focusWindow({ ...state, [kind]: { ...state[kind], open: true, minimized: false } }, kind);

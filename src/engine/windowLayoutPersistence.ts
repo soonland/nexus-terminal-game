@@ -1,5 +1,5 @@
 import type { WindowManagerState, Viewport, WindowInstance, WindowKind } from './windowManager';
-import { WINDOW_KINDS, createDefaultLayout, clampInstance } from './windowManager';
+import { WINDOW_KINDS, createDefaultLayout, clampInstance, compactZIndices } from './windowManager';
 
 const WINDOW_LAYOUT_KEY = 'irongate_windows';
 const WINDOW_LAYOUT_VERSION = 1;
@@ -42,12 +42,15 @@ export const loadWindowLayout = (viewport: Viewport): WindowManagerState => {
     const parsed = JSON.parse(raw) as Partial<StoredLayout>;
     if (parsed.version !== WINDOW_LAYOUT_VERSION || !parsed.windows) return fallback;
 
-    const result = {} as WindowManagerState;
+    let result = {} as WindowManagerState;
     for (const kind of WINDOW_KINDS) {
       const stored: unknown = parsed.windows[kind];
       const base = isValidInstance(stored, kind) ? stored : fallback[kind];
       result[kind] = clampInstance(base, viewport);
     }
+
+    // A corrupted/hand-edited huge z-index must not break stacking order.
+    result = compactZIndices(result);
 
     // The terminal must survive even a corrupted or hand-edited blob.
     result.terminal = { ...result.terminal, open: true, minimized: false };

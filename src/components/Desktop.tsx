@@ -48,6 +48,10 @@ const ACCENTS: Record<WindowKind, string> = {
   dossier: '#79c0ff',
 };
 
+// Debounce localStorage writes so a drag (many pointermove events) or a burst of
+// resize events doesn't write dozens of times per second.
+export const PERSIST_DEBOUNCE_MS = 250;
+
 const currentViewport = (): Viewport => ({ width: window.innerWidth, height: window.innerHeight });
 
 // A minimized/closed window can hold a stale, high z-index (its last time on top);
@@ -59,6 +63,11 @@ const isTopVisible = (state: WindowManagerState, kind: WindowKind): boolean => {
   return state[kind].open && !state[kind].minimized && state[kind].zIndex === maxZ;
 };
 
+const sameBounds = (
+  a: WindowManagerState[WindowKind],
+  b: WindowManagerState[WindowKind],
+): boolean => a.x === b.x && a.y === b.y && a.width === b.width && a.height === b.height;
+
 export const Desktop = forwardRef<DesktopHandle, Props>(
   ({ terminal, map, notes, help, briefing, dossier, onTerminalFocused }, ref) => {
     const [state, setState] = useState<WindowManagerState>(() =>
@@ -67,6 +76,12 @@ export const Desktop = forwardRef<DesktopHandle, Props>(
     const onTerminalFocusedRef = useRef(onTerminalFocused);
     onTerminalFocusedRef.current = onTerminalFocused;
 
+    // A viewport-resize re-clamp must update the rendered layout but must NEVER be
+    // persisted on its own (per spec: "not persisted immediately — only
+    // user-initiated moves/resizes trigger a save") — this flag tells the
+    // persistence effect below to skip exactly the next state change.
+    const skipNextPersistRef = useRef(false);
+
     // Notify once on mount if the terminal starts out focused (it does, by default).
     useEffect(() => {
       if (isTopVisible(state, 'terminal')) onTerminalFocusedRef.current();
@@ -74,11 +89,23 @@ export const Desktop = forwardRef<DesktopHandle, Props>(
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // Persist on every layout change, from every path (open/close/minimize/restore/
-    // focus/move/resize) — a handler-by-handler persist() call is too easy to miss,
-    // as happened here (opening/restoring/focusing weren't persisted before this).
+    // Persist on every user-initiated layout change, debounced. Centralized here
+    // (rather than a handler-by-handler persist() call) so no future state-changing
+    // path can forget to persist — that gap is exactly what caused window layout to
+    // not survive a real page reload before this was added.
+    const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     useEffect(() => {
-      saveWindowLayout(state);
+      if (skipNextPersistRef.current) {
+        skipNextPersistRef.current = false;
+        return;
+      }
+      if (persistTimerRef.current) clearTimeout(persistTimerRef.current);
+      persistTimerRef.current = setTimeout(() => {
+        saveWindowLayout(state);
+      }, PERSIST_DEBOUNCE_MS);
+      return () => {
+        if (persistTimerRef.current) clearTimeout(persistTimerRef.current);
+      };
     }, [state]);
 
     useEffect(() => {
@@ -86,9 +113,13 @@ export const Desktop = forwardRef<DesktopHandle, Props>(
         const viewport = currentViewport();
         setState(prev => {
           const next = {} as WindowManagerState;
+          let changed = false;
           for (const kind of WINDOW_KINDS) {
             next[kind] = clampInstance(prev[kind], viewport);
+            if (!sameBounds(next[kind], prev[kind])) changed = true;
           }
+          if (!changed) return prev;
+          skipNextPersistRef.current = true;
           return next;
         });
       };
@@ -120,14 +151,39 @@ export const Desktop = forwardRef<DesktopHandle, Props>(
 
     useImperativeHandle(ref, () => ({ openWindow: handleOpen }), [handleOpen]);
 
-    const handleTaskbarClick = useCallback((kind: WindowKind) => {
-      setState(prev => {
-        const instance = prev[kind];
-        if (!instance.open) return openWindow(prev, kind);
-        if (instance.minimized) return restoreWindow(prev, kind);
-        return prev; // already open and focused/visible — no-op
-      });
-    }, []);
+    const handleTaskbarClick = useCallback(
+      (kind: WindowKind) => {
+        applyAndMaybeFocusTerminal(prev => {
+          const instance = prev[kind];
+          if (!instance.open) return openWindow(prev, kind);
+          if (instance.minimized) return restoreWindow(prev, kind);
+          if (!isTopVisible(prev, kind)) return focusWindow(prev, kind);
+          return prev; // already open, visible, and focused — no-op
+        });
+      },
+      [applyAndMaybeFocusTerminal],
+    );
+
+    // Escape closes the topmost visible non-terminal window — the keyboard
+    // equivalent of the old DosModal's Escape-to-close, lost in the migration to
+    // the new chrome (Window has no keyboard close of its own).
+    useEffect(() => {
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key !== 'Escape') return;
+        const closable = WINDOW_KINDS.filter(
+          k => k !== 'terminal' && state[k].open && !state[k].minimized,
+        );
+        if (closable.length === 0) return;
+        const topKind = closable.reduce((top, k) =>
+          state[k].zIndex > state[top].zIndex ? k : top,
+        );
+        applyAndMaybeFocusTerminal(prev => closeWindow(prev, topKind));
+      };
+      window.addEventListener('keydown', handleKeyDown);
+      return () => {
+        window.removeEventListener('keydown', handleKeyDown);
+      };
+    }, [state, applyAndMaybeFocusTerminal]);
 
     const contents: Record<WindowKind, ReactNode | null> = {
       terminal,
@@ -162,10 +218,10 @@ export const Desktop = forwardRef<DesktopHandle, Props>(
               setState(prev => resizeWindow(prev, kind, width, height, currentViewport()));
             }}
             onMinimize={() => {
-              setState(prev => minimizeWindow(prev, kind));
+              applyAndMaybeFocusTerminal(prev => minimizeWindow(prev, kind));
             }}
             onClose={() => {
-              setState(prev => closeWindow(prev, kind));
+              applyAndMaybeFocusTerminal(prev => closeWindow(prev, kind));
             }}>
             {contents[kind]}
           </Window>

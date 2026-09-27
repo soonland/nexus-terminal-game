@@ -3,6 +3,8 @@ import {
   WINDOW_KINDS,
   MIN_WINDOW_WIDTH,
   MIN_WINDOW_HEIGHT,
+  TITLEBAR_HEIGHT,
+  TASKBAR_HEIGHT,
   createDefaultLayout,
   clampInstance,
   openWindow,
@@ -85,6 +87,56 @@ describe('clampInstance', () => {
     expect(clamped.y).toBeGreaterThanOrEqual(0);
   });
 
+  it('never lets the title bar go under the taskbar, even when dragged to the bottom edge', () => {
+    const instance = {
+      kind: 'terminal' as const,
+      x: 0,
+      y: 99999,
+      width: 400,
+      height: 300,
+      zIndex: 1,
+      open: true,
+      minimized: false,
+    };
+    const clamped = clampInstance(instance, VIEWPORT);
+    // The title bar spans [y, y + TITLEBAR_HEIGHT) and must stay fully above the
+    // taskbar, which occupies the bottom TASKBAR_HEIGHT px of the viewport.
+    expect(clamped.y + TITLEBAR_HEIGHT).toBeLessThanOrEqual(VIEWPORT.height - TASKBAR_HEIGHT);
+  });
+
+  it('never resizes a window taller than the space above the taskbar', () => {
+    const instance = {
+      kind: 'terminal' as const,
+      x: 0,
+      y: 0,
+      width: 400,
+      height: 99999,
+      zIndex: 1,
+      open: true,
+      minimized: false,
+    };
+    const clamped = clampInstance(instance, VIEWPORT);
+    expect(clamped.height).toBeLessThanOrEqual(VIEWPORT.height - TASKBAR_HEIGHT);
+  });
+
+  it("caps height relative to the window's current y — not just relative to the top of the screen", () => {
+    // A window already dragged down (y > 0) must not be resizable so tall that its
+    // bottom edge still slides under the taskbar, even though `height` alone would
+    // fit if the window started at y=0.
+    const instance = {
+      kind: 'terminal' as const,
+      x: 0,
+      y: 300,
+      width: 400,
+      height: 99999,
+      zIndex: 1,
+      open: true,
+      minimized: false,
+    };
+    const clamped = clampInstance(instance, VIEWPORT);
+    expect(clamped.y + clamped.height).toBeLessThanOrEqual(VIEWPORT.height - TASKBAR_HEIGHT);
+  });
+
   it('enforces the minimum width/height', () => {
     const instance = {
       kind: 'map' as const,
@@ -165,6 +217,22 @@ describe('restoreWindow / focusWindow', () => {
       if (kind === 'map') continue;
       expect(next.map.zIndex).toBeGreaterThan(next[kind].zIndex);
     }
+  });
+
+  it('is a no-op (same reference) when focusing a window that is already strictly on top', () => {
+    const layout = openWindow(createDefaultLayout(VIEWPORT), 'map'); // map is now on top
+    const next = focusWindow(layout, 'map');
+    expect(next).toBe(layout);
+  });
+
+  it('keeps z-indices dense (1..N) after repeated focus calls, instead of growing unbounded', () => {
+    let layout = createDefaultLayout(VIEWPORT);
+    for (let i = 0; i < 50; i++) {
+      layout = focusWindow(layout, 'map');
+      layout = focusWindow(layout, 'notes');
+    }
+    const zIndices = WINDOW_KINDS.map(k => layout[k].zIndex).sort((a, b) => a - b);
+    expect(zIndices).toEqual(WINDOW_KINDS.map((_, i) => i + 1));
   });
 });
 
