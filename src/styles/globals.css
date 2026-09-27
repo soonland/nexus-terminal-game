@@ -288,3 +288,11 @@ body.dm-sentinel {
 .taskbar-entry[data-state='minimized'] {
   opacity: 0.75;
 }
+
+.desktop {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: var(--win-desktop-bg);
+  overflow: hidden;
+}
