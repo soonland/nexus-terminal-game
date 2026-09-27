@@ -133,10 +133,10 @@ export const ScanDiskScreen = ({ onDone }: Props) => {
 
   return (
     <div
+      className="desktop"
       style={{
         position: 'fixed',
         inset: 0,
-        background: 'var(--win-desktop-bg)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
