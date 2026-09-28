@@ -61,7 +61,7 @@ Every action increases your trace percentage. At **61%** an automated Sentinel a
 | Layer                  | Technology                                                      |
 | ---------------------- | --------------------------------------------------------------- |
 | Frontend               | Vite + React + TypeScript                                       |
-| Styling                | Pure CSS — IBM VGA 8x16 font, ncurses/DOS aesthetic             |
+| Styling                | Pure CSS — IBM Plex Mono font, ncurses/DOS aesthetic            |
 | Game engine            | Client-side state machine (no backend needed for core gameplay) |
 | AI — creative commands | Groq API (llama-3.3-70b) — Phase 3                              |
 | AI — file content      | Google Gemini Flash — Phase 3                                   |
@@ -75,8 +75,6 @@ Every action increases your trace percentage. At **61%** an automated Sentinel a
 
 ```
 nexus-terminal-game/
-├── public/
-│   └── fonts/              # Self-hosted IBM VGA 8x16 font (int10h.org)
 ├── src/
 │   ├── components/         # Terminal UI components
 │   │   ├── Terminal.tsx

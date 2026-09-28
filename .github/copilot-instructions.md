@@ -60,7 +60,7 @@ splash → login_user → login_pass → booting → resume_prompt → playing �
 ### Styling
 
 - `src/styles/globals.css` with CSS custom properties
-- DOS/ncurses aesthetic: `#0000aa` background, IBM VGA 8x16 font (self-hosted in `public/fonts/`)
+- DOS/ncurses aesthetic: `#0000aa` background, IBM Plex Mono font (via `@fontsource/ibm-plex-mono`)
 - Do not add glow, CRT, or animation effects unless explicitly requested
 
 ## Testing

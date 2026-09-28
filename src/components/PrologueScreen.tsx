@@ -152,11 +152,11 @@ export const PrologueScreen = ({ onContinue }: Props) => {
 
   return (
     <div
+      className="desktop"
       onClick={() => inputRef.current?.focus()}
       style={{
         position: 'fixed',
         inset: 0,
-        background: 'var(--color-bg)',
         display: 'flex',
         flexDirection: 'column',
         fontFamily: 'var(--font-mono)',

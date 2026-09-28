@@ -26,7 +26,7 @@ export const SuggestionBar = ({ suggestions, onSelect }: Props) => {
             border: 'none',
             color: '#000000',
             fontFamily: 'var(--font-mono)',
-            fontSize: 'var(--font-size)',
+            fontSize: 'var(--font-size-secondary)',
             padding: '0 0.4rem',
             cursor: 'pointer',
           }}

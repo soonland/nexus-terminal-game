@@ -1,18 +1,20 @@
 import type { GameState } from '../types/game';
-import { DosModal } from './DosModal';
-import { boxRow } from './dosModalHelpers';
 
 interface Props {
   gameState: GameState;
-  onClose: () => void;
 }
 
-const IW = 58;
-const r = (s = '') => boxRow(IW, s);
+// Target column width for right-aligning tags below — no longer a box border
+// width (DosModal is gone), just a column to align against.
+const ALIGN_WIDTH = 58;
+// Used to wrap every line in `║ ... ║` box-drawing characters (DosModal-era);
+// kept as the single call site for line text so it's easy to reintroduce
+// per-line formatting later without touching every line below.
+const r = (s = '') => s;
 
 const mono = {
   fontFamily: 'var(--font-mono)',
-  fontSize: 'var(--font-size)',
+  fontSize: 'var(--font-size-secondary)',
   lineHeight: 'var(--line-height)',
   whiteSpace: 'pre' as const,
   display: 'block' as const,
@@ -21,7 +23,7 @@ const mono = {
 
 type NoteLine = { text: string; color: string };
 
-export const NotesModal = ({ gameState, onClose }: Props) => {
+export const NotesModal = ({ gameState }: Props) => {
   const { player, network } = gameState;
 
   const body: NoteLine[] = [];
@@ -37,7 +39,7 @@ export const NotesModal = ({ gameState, onClose }: Props) => {
     obtained.forEach(c => {
       const tag = `[${c.accessLevel.toUpperCase()}]`;
       const label = `  ${c.username}`;
-      const padding = IW - 2 - label.length - tag.length;
+      const padding = ALIGN_WIDTH - label.length - tag.length;
       body.push({
         text: r(`${label}${' '.repeat(Math.max(1, padding))}${tag}`),
         color: 'var(--color-system)',
@@ -61,7 +63,7 @@ export const NotesModal = ({ gameState, onClose }: Props) => {
       const flag = n.compromised ? ' !' : '';
       const suffix = `${access}${flag}`;
       const label = `  ${n.ip}  ${n.label}`;
-      const padding = IW - 2 - label.length - suffix.length;
+      const padding = ALIGN_WIDTH - label.length - suffix.length;
       body.push({
         text: r(`${label}${' '.repeat(Math.max(1, padding))}${suffix}`),
         color: isCurrent ? 'var(--color-output)' : 'var(--color-system)',
@@ -84,12 +86,12 @@ export const NotesModal = ({ gameState, onClose }: Props) => {
   body.push({ text: r(), color: 'var(--color-system)' });
 
   return (
-    <DosModal title=" OPERATIVE NOTES " innerWidth={IW} onClose={onClose}>
+    <>
       {body.map((line, i) => (
         <div key={i} style={{ ...mono, color: line.color }}>
           {line.text}
         </div>
       ))}
-    </DosModal>
+    </>
   );
 };

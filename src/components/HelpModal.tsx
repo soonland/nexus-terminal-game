@@ -1,12 +1,11 @@
-import { DosModal } from './DosModal';
-import { boxRow } from './dosModalHelpers';
-
-const IW = 60;
-const r = (s = '') => boxRow(IW, s);
+// Used to wrap every line in `║ ... ║` box-drawing characters (DosModal-era);
+// kept as the single call site for line text so it's easy to reintroduce
+// per-line formatting later without touching every line below.
+const r = (s = '') => s;
 
 const mono = {
   fontFamily: 'var(--font-mono)',
-  fontSize: 'var(--font-size)',
+  fontSize: 'var(--font-size-secondary)',
   lineHeight: 'var(--line-height)',
   whiteSpace: 'pre' as const,
   display: 'block' as const,
@@ -25,6 +24,7 @@ const BODY: HelpLine[] = [
   },
   { text: r('  briefing      -re-read mission briefing'), color: 'var(--color-system)' },
   { text: r('  notes         -intel log (creds, nodes, exfils)'), color: 'var(--color-system)' },
+  { text: r('  dossier       -cross-run dossier & aria memory'), color: 'var(--color-system)' },
   { text: r('  status        -session overview'), color: 'var(--color-system)' },
   { text: r('  map           -discovered network nodes'), color: 'var(--color-system)' },
   { text: r('  clear         -clear terminal'), color: 'var(--color-system)' },
@@ -95,16 +95,12 @@ const BODY: HelpLine[] = [
   { text: r(), color: 'var(--color-system)' },
 ];
 
-interface Props {
-  onClose: () => void;
-}
-
-export const HelpModal = ({ onClose }: Props) => (
-  <DosModal title=" COMMAND REFERENCE " innerWidth={IW} onClose={onClose}>
+export const HelpModal = () => (
+  <>
     {BODY.map((line, i) => (
       <div key={i} style={{ ...mono, color: line.color }}>
         {line.text}
       </div>
     ))}
-  </DosModal>
+  </>
 );
