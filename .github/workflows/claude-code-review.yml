@@ -36,7 +36,10 @@ jobs:
           # Agent mode (explicit prompt, no @claude mention) only starts the
           # GitHub comment/inline-comment MCP servers when their tools are
           # named here — otherwise every attempt to post a comment or inline
-          # review comment calls a tool that was never started.
+          # review comment calls a tool that was never started. --allowedTools
+          # replaces the effective tool list for this headless run rather than
+          # adding to it, so the read tools the review itself needs (checking
+          # out files, diffing, grepping CLAUDE.md) must be listed too.
           claude_args: |
-            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*)"
+            --allowedTools "Read,Grep,Glob,Bash(git *),Bash(gh *),mcp__github_inline_comment__create_inline_comment"
 
