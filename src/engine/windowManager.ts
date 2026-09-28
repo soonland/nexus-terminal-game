@@ -99,6 +99,9 @@ export const createDefaultLayout = (viewport: Viewport): WindowManagerState => {
 const isStrictlyOnTop = (state: WindowManagerState, kind: WindowKind): boolean =>
   WINDOW_KINDS.every(k => k === kind || state[k].zIndex < state[kind].zIndex);
 
+export const isWindowVisible = (state: WindowManagerState, kind: WindowKind): boolean =>
+  state[kind].open && !state[kind].minimized;
+
 // Re-ranks every kind to a dense 1..N sequence by current relative order. Used by
 // focusWindow (so repeated clicks never grow z-index unboundedly, since every click
 // would otherwise write a new, ever-larger value to localStorage) and by

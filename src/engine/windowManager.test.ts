@@ -14,6 +14,7 @@ import {
   focusWindow,
   moveWindow,
   resizeWindow,
+  isWindowVisible,
 } from './windowManager';
 
 const VIEWPORT = { width: 1280, height: 800 };
@@ -249,5 +250,19 @@ describe('moveWindow / resizeWindow', () => {
     const next = resizeWindow(layout, 'map', 1, 1, VIEWPORT);
     expect(next.map.width).toBeGreaterThanOrEqual(MIN_WINDOW_WIDTH);
     expect(next.map.height).toBeGreaterThanOrEqual(MIN_WINDOW_HEIGHT);
+  });
+});
+
+describe('isWindowVisible', () => {
+  it('is false for a window that is open but minimized', () => {
+    const layout = createDefaultLayout(VIEWPORT);
+    const minimized = minimizeWindow(openWindow(layout, 'map'), 'map');
+    expect(isWindowVisible(minimized, 'map')).toBe(false);
+  });
+
+  it('is true for a window that is open and not minimized', () => {
+    const layout = createDefaultLayout(VIEWPORT);
+    const opened = openWindow(layout, 'map');
+    expect(isWindowVisible(opened, 'map')).toBe(true);
   });
 });
