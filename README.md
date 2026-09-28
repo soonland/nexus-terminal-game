@@ -8,7 +8,7 @@ Inspired by _Mr. Robot_, _Neuromancer_, and the classic feel of TN3270/DOS termi
 
 ## Gameplay
 
-The game is played entirely through a keyboard-driven terminal interface. No mouse required.
+The game is played entirely through a keyboard-driven terminal interface. No mouse required, though the desktop's floating windows can also be dragged, resized, and restored from the taskbar.
 
 ```
 Authorized use only. All sessions are recorded.
