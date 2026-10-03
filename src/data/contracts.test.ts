@@ -11,7 +11,7 @@ describe('TOOL_REGISTRY', () => {
     'log-wiper',
     'spoof-id',
     'decryptor',
-    'aria-key',
+    'subnet-key',
   ];
 
   it('should contain all 6 ToolIds', () => {

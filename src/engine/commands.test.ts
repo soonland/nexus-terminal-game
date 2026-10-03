@@ -4,6 +4,7 @@ import { createInitialState } from './state';
 import type { GameState } from '../types/game';
 import { hasAccess, fileReadKey } from '../types/game';
 import produce from './produce';
+import { isAriaNameKnown, SENTINEL_VOTE_PATH } from './ariaName';
 
 // ── Helpers ────────────────────────────────────────────────
 
@@ -1684,7 +1685,7 @@ describe('resolveCommand — exfil', () => {
   });
 });
 
-describe('resolveCommand — exfil aria_key.bin', () => {
+describe('resolveCommand — exfil subnet_key.bin', () => {
   let state: GameState;
 
   beforeEach(() => {
@@ -1695,24 +1696,24 @@ describe('resolveCommand — exfil aria_key.bin', () => {
     });
   });
 
-  it('should add the aria-key tool to player tools', async () => {
-    const result = await resolveCommand('exfil aria_key.bin', state);
+  it('should add the subnet-key tool to player tools', async () => {
+    const result = await resolveCommand('exfil subnet_key.bin', state);
     const tools = (result.nextState as GameState).player.tools;
-    expect(tools.some(t => t.id === 'aria-key')).toBe(true);
+    expect(tools.some(t => t.id === 'subnet-key')).toBe(true);
   });
 
   it('should set aria.discovered to true', async () => {
-    const result = await resolveCommand('exfil aria_key.bin', state);
+    const result = await resolveCommand('exfil subnet_key.bin', state);
     expect((result.nextState as GameState).aria.discovered).toBe(true);
   });
 
   it('should set phase to "aria"', async () => {
-    const result = await resolveCommand('exfil aria_key.bin', state);
+    const result = await resolveCommand('exfil subnet_key.bin', state);
     expect((result.nextState as GameState).phase).toBe('aria');
   });
 
   it('should mark all layer-5 nodes as discovered', async () => {
-    const result = await resolveCommand('exfil aria_key.bin', state);
+    const result = await resolveCommand('exfil subnet_key.bin', state);
     const nodes = (result.nextState as GameState).network.nodes;
     const layer5Nodes = Object.values(nodes).filter(n => n?.layer === 5);
     expect(layer5Nodes.length).toBeGreaterThan(0);
@@ -1720,35 +1721,35 @@ describe('resolveCommand — exfil aria_key.bin', () => {
   });
 
   it('should add aria_surveillance to exec_ceo connections', async () => {
-    const result = await resolveCommand('exfil aria_key.bin', state);
+    const result = await resolveCommand('exfil subnet_key.bin', state);
     const connections = (result.nextState as GameState).network.nodes['exec_ceo']!.connections;
     expect(connections).toContain('aria_surveillance');
   });
 
-  it('should output aria-typed lines containing "ARIA KEY ACQUIRED"', async () => {
-    const result = await resolveCommand('exfil aria_key.bin', state);
+  it('should output aria-typed lines containing "RESTRICTED SUBNET KEY ACQUIRED"', async () => {
+    const result = await resolveCommand('exfil subnet_key.bin', state);
     const ariaLines = result.lines.filter(l => l.type === 'aria');
     expect(ariaLines.length).toBeGreaterThan(0);
-    expect(ariaLines.some(l => l.content.includes('ARIA KEY ACQUIRED'))).toBe(true);
+    expect(ariaLines.some(l => l.content.includes('RESTRICTED SUBNET KEY ACQUIRED'))).toBe(true);
   });
 
   it('should return already-exfiltrated message when exfiltrated a second time', async () => {
     const afterFirst = produce(state, s => {
       s.player.exfiltrated.push({
-        name: 'aria_key.bin',
-        path: '/root/.aria/aria_key.bin',
+        name: 'subnet_key.bin',
+        path: '/root/.cassandra/subnet_key.bin',
         type: 'binary',
         content: null,
         accessRequired: 'admin',
         exfiltrable: true,
       });
     });
-    const result = await resolveCommand('exfil aria_key.bin', afterFirst);
+    const result = await resolveCommand('exfil subnet_key.bin', afterFirst);
     expect(result.lines.some(l => l.content.includes('Already exfiltrated'))).toBe(true);
     expect((result.nextState as GameState).aria.discovered).toBe(false);
   });
 
-  it('should not set aria.discovered or change phase when exfiling a non-aria-key file', async () => {
+  it('should not set aria.discovered or change phase when exfiling a non-subnet-key file', async () => {
     const atContractor = produce(createInitialState(), s => {
       s.network.nodes['contractor_portal']!.accessLevel = 'user';
     });
@@ -1975,13 +1976,13 @@ describe('resolveCommand — trace meter', () => {
     expect((result.nextState as GameState).player.trace).toBe(2);
   });
 
-  it('should add 0 trace when successfully exploiting exec_ceo aria-socket (traceContribution: 0)', async () => {
+  it('should add 0 trace when successfully exploiting exec_ceo cassandra-socket (traceContribution: 0)', async () => {
     const atCeo = produce(state, s => {
       s.network.currentNodeId = 'exec_ceo';
       s.network.nodes['exec_ceo']!.discovered = true;
       // exploitCost is 0 so no charges consumed; charges don't matter but keep them
     });
-    const result = await resolveCommand('exploit aria-socket', atCeo);
+    const result = await resolveCommand('exploit cassandra-socket', atCeo);
     expect((result.nextState as GameState).player.trace).toBe(0);
   });
 
@@ -1990,7 +1991,7 @@ describe('resolveCommand — trace meter', () => {
       s.network.currentNodeId = 'exec_ceo';
       s.network.nodes['exec_ceo']!.discovered = true;
     });
-    const result = await resolveCommand('exploit aria-socket', atCeo);
+    const result = await resolveCommand('exploit cassandra-socket', atCeo);
     const traceLine = result.lines.find(l => l.type === 'system' && l.content.includes('trace'));
     expect(traceLine).toBeUndefined();
   });
@@ -3811,5 +3812,98 @@ describe('cat local: — path lookup (used by the explorer)', () => {
     const text = result.lines.map(l => l.content).join('\n');
     expect(text).toContain('FROM B');
     expect(text).not.toContain('FROM A');
+  });
+});
+
+describe('ARIA_NAME_KNOWN triggers', () => {
+  const atCfo = (over: (s: GameState) => void = () => undefined): GameState =>
+    produce(createInitialState(), s => {
+      s.network.currentNodeId = 'exec_cfo';
+      s.network.nodes['exec_cfo']!.accessLevel = 'admin';
+      over(s);
+    });
+
+  it('is set by reading the board vote', async () => {
+    const result = await resolveCommand(`cat ${SENTINEL_VOTE_PATH}`, atCfo());
+    expect(isAriaNameKnown(result.nextState as GameState)).toBe(true);
+  });
+
+  it('is set by reading an exfiltrated copy of the board vote', async () => {
+    const base = atCfo();
+    const vote = base.network.nodes['exec_cfo']!.files.find(f => f.path === SENTINEL_VOTE_PATH)!;
+    const state = produce(base, s => {
+      s.player.exfiltrated = [{ ...vote }];
+    });
+    const result = await resolveCommand(`cat local:${SENTINEL_VOTE_PATH}`, state);
+    expect(isAriaNameKnown((result.nextState ?? state) as GameState)).toBe(true);
+  });
+
+  it('is not set by a denied, locked or exfil-only touch of the vote', async () => {
+    const denied = atCfo(s => {
+      s.network.nodes['exec_cfo']!.accessLevel = 'none';
+    });
+    expect(
+      isAriaNameKnown(
+        ((await resolveCommand(`cat ${SENTINEL_VOTE_PATH}`, denied)).nextState ??
+          denied) as GameState,
+      ),
+    ).toBe(false);
+
+    const locked = atCfo(s => {
+      s.network.nodes['exec_cfo']!.files.find(f => f.path === SENTINEL_VOTE_PATH)!.locked = true;
+    });
+    expect(
+      isAriaNameKnown(
+        ((await resolveCommand(`cat ${SENTINEL_VOTE_PATH}`, locked)).nextState ??
+          locked) as GameState,
+      ),
+    ).toBe(false);
+
+    const exfil = await resolveCommand(`exfil ${SENTINEL_VOTE_PATH}`, atCfo());
+    expect(isAriaNameKnown((exfil.nextState ?? atCfo()) as GameState)).toBe(false);
+  });
+
+  it('is not set by a read that fell back to the offline placeholder', async () => {
+    const state = atCfo(s => {
+      s.network.nodes['exec_cfo']!.files.find(f => f.path === SENTINEL_VOTE_PATH)!.content = null;
+    });
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')));
+    try {
+      const result = await resolveCommand(`cat ${SENTINEL_VOTE_PATH}`, state);
+      expect(isAriaNameKnown((result.nextState ?? state) as GameState)).toBe(false);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('is not set by exfiltrating the restricted subnet key', async () => {
+    const state = produce(createInitialState(), s => {
+      s.network.currentNodeId = 'exec_ceo';
+      s.network.nodes['exec_ceo']!.accessLevel = 'admin';
+    });
+    const result = await resolveCommand('exfil subnet_key.bin', state);
+    expect((result.nextState as GameState).player.tools.length).toBeGreaterThan(0);
+    expect(isAriaNameKnown(result.nextState as GameState)).toBe(false);
+  });
+
+  it('is set by the first connect to a layer-5 node', async () => {
+    const state = produce(createInitialState(), s => {
+      s.network.currentNodeId = 'exec_ceo';
+      s.network.nodes['exec_ceo']!.compromised = true;
+      s.network.nodes['exec_ceo']!.connections.push('aria_surveillance');
+      s.network.nodes['aria_surveillance']!.discovered = true;
+    });
+    const result = await resolveCommand('connect 172.16.0.1', state);
+    expect((result.nextState as GameState).network.currentNodeId).toBe('aria_surveillance');
+    expect(isAriaNameKnown(result.nextState as GameState)).toBe(true);
+  });
+
+  it('is not set by connecting to a node below layer 5', async () => {
+    const state = produce(createInitialState(), s => {
+      s.network.nodes['contractor_portal']!.compromised = true;
+      s.network.nodes['vpn_gateway']!.discovered = true;
+    });
+    const result = await resolveCommand('connect 10.0.0.2', state);
+    expect(isAriaNameKnown((result.nextState ?? state) as GameState)).toBe(false);
   });
 });

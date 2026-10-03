@@ -14,7 +14,6 @@ export const FIRST_NAMES: string[] = [
   'Angela',
   'Anna',
   'Anthony',
-  'Aria',
   'Arjun',
   'Ashley',
   'Ayasha',

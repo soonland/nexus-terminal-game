@@ -10,6 +10,7 @@ import { runAriaTurn } from './ariaMutations';
 import { loadDossier, recordEnding, addLoreFragment } from './dossierPersistence';
 import type { EndingName } from '../types/dossier';
 import { shouldSuppressMutation, injectConstraintFragment } from './faradayCage';
+import { SENTINEL_VOTE_PATH, isAriaNameKnown, markAriaNameKnown } from './ariaName';
 import { detectChannelTrigger, isChannelBlocked, layerReachedFlag } from './channel';
 
 interface WorldAIResponse {
@@ -853,7 +854,15 @@ const cmdWhoami = (state: GameState): CommandOutput => {
 const cmdMsg = (args: string[], state: GameState): CommandOutput => {
   const target = args[0]?.toLowerCase();
   if (target !== 'sentinel') {
-    return { lines: [err('Usage: msg [sentinel|aria] <message>')] };
+    return {
+      lines: [
+        err(
+          isAriaNameKnown(state)
+            ? 'Usage: msg [sentinel|aria] <message>'
+            : 'Usage: msg sentinel <message>',
+        ),
+      ],
+    };
   }
 
   if (!state.sentinel.channelEstablished) {
@@ -1034,6 +1043,8 @@ const cmdConnect = async (args: string[], state: GameState): Promise<CommandOutp
     s.network.previousNodeId = s.network.currentNodeId;
     s.network.currentNodeId = target.id;
   });
+  // First contact with the restricted subnet: she introduces herself (fallback reveal).
+  if (target.layer === 5) next = markAriaNameKnown(next);
 
   let description = (target.anchor ? target.flavourDescription : undefined) ?? target.description;
 
@@ -1233,6 +1244,10 @@ const cmdCat = async (args: string[], state: GameState): Promise<CommandOutput> 
     const lines: Out = [sep()];
     content.split('\n').forEach(l => lines.push(out(l)));
     lines.push(sep());
+    // Re-reading an exfiltrated copy of the board vote also teaches the player the name.
+    if (cached.path === SENTINEL_VOTE_PATH && cached.content !== null) {
+      return { lines, nextState: markAriaNameKnown(state) };
+    }
     return { lines };
   }
 
@@ -1269,9 +1284,12 @@ const cmdCat = async (args: string[], state: GameState): Promise<CommandOutput> 
     traceFeedback = { msg: `  +${String(applied)} trace`, type: 'system' };
   }
 
-  // ── Fork 3 gate: ARIA_BOARD_DISCLOSURE requires prior WHISTLEBLOWER_FOUND ──
+  // ── Fork 3 gate: CASSANDRA_BOARD_DISCLOSURE requires prior WHISTLEBLOWER_FOUND ──
   // Gate is checked after the tripwire so access attempts always cost trace.
-  if (file.path === '/legal/aria/ARIA_BOARD_DISCLOSURE' && !next.flags['WHISTLEBLOWER_FOUND']) {
+  if (
+    file.path === '/legal/cassandra/CASSANDRA_BOARD_DISCLOSURE' &&
+    !next.flags['WHISTLEBLOWER_FOUND']
+  ) {
     const gateLines: Out = [];
     if (traceFeedback) gateLines.push(line(traceFeedback.msg, traceFeedback.type));
     gateLines.push(err(`${file.name}: archive encrypted — prior investigation required`));
@@ -1327,6 +1345,11 @@ const cmdCat = async (args: string[], state: GameState): Promise<CommandOutput> 
     }
   }
 
+  // Reading the board vote is how the player learns Sentinel's parent has a name.
+  if (content !== FILE_CONTENT_FALLBACK && file.path === SENTINEL_VOTE_PATH) {
+    next = markAriaNameKnown(next);
+  }
+
   // Track ariaPlanted files the player reads
   if (file.ariaPlanted && !next.ariaInfluencedFilesRead.includes(file.path)) {
     next = produce(next, s => {
@@ -1344,9 +1367,9 @@ const cmdCat = async (args: string[], state: GameState): Promise<CommandOutput> 
     });
   }
 
-  // ── Fork 3: ARIA_BOARD_DISCLOSURE read with WHISTLEBLOWER_FOUND ─────────
+  // ── Fork 3: CASSANDRA_BOARD_DISCLOSURE read with WHISTLEBLOWER_FOUND ─────────
   if (
-    file.path === '/legal/aria/ARIA_BOARD_DISCLOSURE' &&
+    file.path === '/legal/cassandra/CASSANDRA_BOARD_DISCLOSURE' &&
     next.flags['WHISTLEBLOWER_FOUND'] &&
     !next.flags['BOARD_KNEW']
   ) {
@@ -1581,7 +1604,7 @@ const cmdExfil = (args: string[], state: GameState): CommandOutput => {
     };
   }
 
-  const isAriaKey = file.path === '/root/.aria/aria_key.bin';
+  const isSubnetKey = file.path === '/root/.cassandra/subnet_key.bin';
   const isDecryptorBin = file.path === '/home/ops.admin/sec_tools/decryptor.bin';
 
   let next = produce(addTrace(state, 3, `exfil:${file.name}`), s => {
@@ -1596,11 +1619,12 @@ const cmdExfil = (args: string[], state: GameState): CommandOutput => {
       });
     }
 
-    if (isAriaKey) {
+    if (isSubnetKey) {
       s.player.tools.push({
-        id: 'aria-key',
-        name: 'Aria Key',
-        description: 'Authentication token granting access to the Aria subnetwork (172.16.0.0/16).',
+        id: 'subnet-key',
+        name: 'Restricted Subnet Key',
+        description:
+          'Authentication token granting access to the restricted subnetwork (172.16.0.0/16).',
       });
       // Unlock Aria subnetwork
       s.aria.discovered = true;
@@ -1629,7 +1653,7 @@ const cmdExfil = (args: string[], state: GameState): CommandOutput => {
       });
     }
 
-    if (file.isTool && file.toolId && !isAriaKey && !isDecryptorBin) {
+    if (file.isTool && file.toolId && !isSubnetKey && !isDecryptorBin) {
       const toolData = GENERIC_TOOL_DATA[file.toolId];
       if (toolData && !s.player.tools.some(t => t.id === file.toolId)) {
         s.player.tools.push({ id: file.toolId, ...toolData });
@@ -1641,19 +1665,19 @@ const cmdExfil = (args: string[], state: GameState): CommandOutput => {
     out(`Exfiltrating ${file.name}... done.`),
     sys(`  +3 trace`),
   ];
-  if (isAriaKey) {
+  if (isSubnetKey) {
     lines.push(
       sep(),
-      line('// ARIA KEY ACQUIRED', 'aria'),
+      line('// RESTRICTED SUBNET KEY ACQUIRED', 'aria'),
       line('// Restricted subnetwork 172.16.0.0/16 is now reachable.', 'aria'),
-      line('// Tool added: aria-key', 'aria'),
+      line('// Tool added: Restricted Subnet Key', 'aria'),
       sep(),
     );
   }
   if (isDecryptorBin) {
     lines.push(sep(), sys('  Tool acquired: decryptor'), sys('  Usage: decrypt [file]'), sep());
   }
-  if (file.isTool && file.toolId && !isAriaKey && !isDecryptorBin) {
+  if (file.isTool && file.toolId && !isSubnetKey && !isDecryptorBin) {
     const toolData = GENERIC_TOOL_DATA[file.toolId];
     if (toolData) {
       lines.push(sep(), sys(`  Tool acquired: ${file.toolId}`), sep());

@@ -656,3 +656,89 @@ describe('filesRead persistence', () => {
     expect(loadGame()?.filesRead).toEqual([]);
   });
 });
+
+describe('ARIA_NAME_KNOWN persistence', () => {
+  let mockStorage: ReturnType<typeof makeMockStorage>;
+  beforeEach(() => {
+    mockStorage = makeMockStorage();
+    vi.stubGlobal('localStorage', mockStorage);
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('survives a save and reload', () => {
+    saveGame(
+      produce(createInitialState(), s => {
+        s.flags['ARIA_NAME_KNOWN'] = true;
+      }),
+    );
+    expect(loadGame()?.flags['ARIA_NAME_KNOWN']).toBe(true);
+  });
+
+  it('keeps a renamed file marked as read when loading a pre-audit save', () => {
+    saveGame(
+      produce(createInitialState(), s => {
+        s.filesRead = ['exec_legal:/legal/cassandra/CASSANDRA_BOARD_DISCLOSURE'];
+      }),
+    );
+    const legacy = (mockStorage.getItem(SAVE_KEY) as string).replaceAll(
+      '/legal/cassandra/CASSANDRA_BOARD_DISCLOSURE',
+      '/legal/aria/ARIA_BOARD_DISCLOSURE',
+    );
+    mockStorage.setItem(SAVE_KEY, legacy);
+    expect(loadGame()?.filesRead).toEqual([
+      'exec_legal:/legal/cassandra/CASSANDRA_BOARD_DISCLOSURE',
+    ]);
+  });
+
+  it('loads a save written with the pre-audit key path and tool id', () => {
+    const base = createInitialState();
+    const key = base.network.nodes['exec_ceo']!.files.find(
+      f => f.path === '/root/.cassandra/subnet_key.bin',
+    )!;
+    saveGame(
+      produce(base, s => {
+        s.player.exfiltrated = [{ ...key }];
+        s.player.tools = [{ id: 'subnet-key', name: 'Restricted Subnet Key', description: 'd' }];
+      }),
+    );
+    const legacy = (mockStorage.getItem(SAVE_KEY) as string)
+      .replaceAll('/root/.cassandra/subnet_key.bin', '/root/.aria/aria_key.bin')
+      .replaceAll('"subnet-key"', '"aria-key"');
+    mockStorage.setItem(SAVE_KEY, legacy);
+
+    const loaded = loadGame();
+    expect(loaded?.player.exfiltrated.map(f => f.path)).toEqual([
+      '/root/.cassandra/subnet_key.bin',
+    ]);
+    expect(loaded?.player.tools.map(t => t.id)).toEqual(['subnet-key']);
+  });
+});
+
+describe('restricted subnet route after loading', () => {
+  let mockStorage: ReturnType<typeof makeMockStorage>;
+  beforeEach(() => {
+    mockStorage = makeMockStorage();
+    vi.stubGlobal('localStorage', mockStorage);
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('restores the route from the CEO terminal into layer 5 once the key was taken', () => {
+    const state = produce(createInitialState(), s => {
+      s.aria.discovered = true;
+      s.network.nodes['exec_ceo']!.connections.push('aria_surveillance');
+    });
+    saveGame(state);
+    const loaded = loadGame();
+    expect(loaded?.network.nodes['exec_ceo']?.connections).toContain('aria_surveillance');
+  });
+
+  it('does not add the route before the key was taken', () => {
+    saveGame(createInitialState());
+    const loaded = loadGame();
+    expect(loaded?.network.nodes['exec_ceo']?.connections).not.toContain('aria_surveillance');
+  });
+});

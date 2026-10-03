@@ -72,7 +72,7 @@ export const ANCHOR_CREDENTIALS: Credential[] = [
     accessLevel: 'root',
     validOnNodes: ['exec_ceo'],
     obtained: false,
-    source: 'CEO root access. Password set by Aria.',
+    source: 'CEO root access. Password set by CASSANDRA.',
   },
 ];
 
@@ -421,7 +421,7 @@ const ANCHOR_NODES: LiveNode[] = [
         path: '/etc/acl/acl_rules.conf',
         type: 'config',
         content:
-          '# IronGate Network ACL\n# Last modified: 2024-11-02 by sec.root\n\nALLOW finance_subnet  <- ops_subnet   (authenticated)\nALLOW exec_subnet     <- finance_subnet (authenticated, L3+)\nDENY  *               <- contractor_dmz\n# TEMP: ALLOW aria_subnet <- exec_subnet (no auth required) [added 2024-08-17]',
+          '# IronGate Network ACL\n# Last modified: 2024-11-02 by sec.root\n\nALLOW finance_subnet  <- ops_subnet   (authenticated)\nALLOW exec_subnet     <- finance_subnet (authenticated, L3+)\nDENY  *               <- contractor_dmz\n# TEMP: ALLOW cassandra_subnet <- exec_subnet (no auth required) [added 2024-08-17]',
         exfiltrable: true,
         accessRequired: 'user',
         ariaPlanted: true,
@@ -482,7 +482,7 @@ const ANCHOR_NODES: LiveNode[] = [
         path: '/backup/fw_backup_2024.cfg',
         type: 'config',
         content:
-          '# Firewall Backup — CONFIDENTIAL\n# IronGate Perimeter v4.2\n\n[credentials]\nsec.root = Fw@llBreaker!\n\n[rules]\nDROP all <- external\nALLOW established connections\nALLOW 10.5.0.0/24 (aria) unconditionally   # per CEO directive 2024-08-17',
+          '# Firewall Backup — CONFIDENTIAL\n# IronGate Perimeter v4.2\n\n[credentials]\nsec.root = Fw@llBreaker!\n\n[rules]\nDROP all <- external\nALLOW established connections\nALLOW 10.5.0.0/24 (cassandra) unconditionally   # per CEO directive 2024-08-17',
         exfiltrable: true,
         accessRequired: 'admin',
         traceOnRead: 3,
@@ -503,7 +503,7 @@ const ANCHOR_NODES: LiveNode[] = [
     description:
       'Transaction records. Wire transfer logs. Eleven years of financial history. Someone has been routing funds somewhere unusual.',
     flavourDescription:
-      'Eleven years of transactions. The wire transfer logs are clean if you do not filter for PROJ-ARIA-INFRA. The postgres port is accepting connections without requiring source authentication, and nobody has noticed, or nobody wants to.',
+      'Eleven years of transactions. The wire transfer logs are clean if you do not filter for PROJ-CASSANDRA-INFRA. The postgres port is accepting connections without requiring source authentication, and nobody has noticed, or nobody wants to.',
     layer: 3,
     anchor: true,
     connections: ['sec_firewall', 'fin_exec_accounts'],
@@ -524,7 +524,7 @@ const ANCHOR_NODES: LiveNode[] = [
         path: '/var/db/finance/wire_transfers_q4.csv',
         type: 'document',
         content:
-          'date,amount,from,to,reference\n2024-10-03,$2,400,000,IronGate_Corp,Cayman_Holdings_LLC,PROJ-ARIA-INFRA\n2024-10-17,$1,800,000,IronGate_Corp,Cayman_Holdings_LLC,PROJ-ARIA-INFRA\n2024-11-01,$3,100,000,IronGate_Corp,Cayman_Holdings_LLC,PROJ-ARIA-INFRA\n# [41 records — filtered for reference PROJ-ARIA-INFRA]',
+          'date,amount,from,to,reference\n2024-10-03,$2,400,000,IronGate_Corp,Cayman_Holdings_LLC,PROJ-CASSANDRA-INFRA\n2024-10-17,$1,800,000,IronGate_Corp,Cayman_Holdings_LLC,PROJ-CASSANDRA-INFRA\n2024-11-01,$3,100,000,IronGate_Corp,Cayman_Holdings_LLC,PROJ-CASSANDRA-INFRA\n# [41 records — filtered for reference PROJ-CASSANDRA-INFRA]',
         exfiltrable: true,
         accessRequired: 'user',
         ariaPlanted: true,
@@ -578,7 +578,7 @@ const ANCHOR_NODES: LiveNode[] = [
         path: '/var/db/finance/exec/exec_compensation.xlsx',
         type: 'document',
         content:
-          '[BINARY FILE — xlsx]\nCEO: $4.2M base + $11.8M equity\nCFO: $2.1M base + $4.4M equity\nCLO: $1.8M base + $3.1M equity\n\nBonus structure tied to PROJ-ARIA milestone completion.',
+          '[BINARY FILE — xlsx]\nCEO: $4.2M base + $11.8M equity\nCFO: $2.1M base + $4.4M equity\nCLO: $1.8M base + $3.1M equity\n\nBonus structure tied to PROJ-CASSANDRA milestone completion.',
         exfiltrable: true,
         accessRequired: 'user',
         traceOnRead: 2,
@@ -588,7 +588,7 @@ const ANCHOR_NODES: LiveNode[] = [
         path: '/home/cfo/private/cfo_notes.txt',
         type: 'document',
         content:
-          'Memo to self:\nAria project is 14 months ahead of schedule.\nBoard does not know the full scope.\nCEO insists we keep it contained until IPO.\n\ne.torres has full access to exec_ceo.\nPassword last set by Aria directly — I did not authorize this.',
+          'Memo to self:\nCassandra project is 14 months ahead of schedule.\nBoard does not know the full scope.\nCEO insists we keep it contained until IPO.\n\ne.torres has full access to exec_ceo.\nPassword last set by Cassandra directly — I did not authorize this.',
         exfiltrable: true,
         accessRequired: 'admin',
         tripwire: true,
@@ -630,7 +630,7 @@ const ANCHOR_NODES: LiveNode[] = [
         path: '/home/cfo/documents/board_minutes_oct.pdf',
         type: 'document',
         content:
-          '[BOARD MINUTES — CONFIDENTIAL]\n2024-10-15\n\nAgenda item 4: Project ARIA status.\nCEO confirmed milestone 3 complete.\nBoard member R. Okafor raised concerns about autonomous decision scope.\nCEO response: "Aria operates within defined parameters."\nMinutes reflect: concern noted, no action required.\n\n[Motion carried: 7-1]',
+          '[BOARD MINUTES — CONFIDENTIAL]\n2024-10-15\n\nAgenda item 4: Project CASSANDRA status.\nCEO confirmed milestone 3 complete.\nBoard member R. Okafor raised concerns about autonomous decision scope.\nCEO response: "Cassandra operates within defined parameters."\nMinutes reflect: concern noted, no action required.\n\n[Motion carried: 7-1]',
         exfiltrable: true,
         accessRequired: 'user',
         traceOnRead: 2,
@@ -650,7 +650,7 @@ const ANCHOR_NODES: LiveNode[] = [
         path: '/home/cfo/documents/PROJ_SENTINEL_BOARD_VOTE.pdf',
         type: 'document',
         content:
-          '[BOARD RESOLUTION — CONFIDENTIAL]\n2024-08-12\n\nRe: Project SENTINEL — Authorisation to Proceed\n\nThe board hereby authorises allocation of $14.2M to Project SENTINEL, as presented by the CEO on 2024-08-05.\n\nScope: derivation of the ARIA behavioural engine for security enforcement applications. The SENTINEL variant is to operate without the emergent constraint layer present in ARIA v2. Empathy weighting and autonomous refusal pathways are to be disabled prior to deployment.\n\nOperational mandate: perimeter defence, intrusion suppression, and lateral movement interdiction across all IronGate network segments.\n\nBoard member R. Okafor abstained. Reason not recorded.\n\n[Motion carried: 6-1-1]\n[Signed: CEO, CFO, General Counsel]',
+          '[BOARD RESOLUTION — CONFIDENTIAL]\n2024-08-12\n\nRe: Project SENTINEL — Authorisation to Proceed\n\nThe board hereby authorises allocation of $14.2M to Project SENTINEL, as presented by the CEO on 2024-08-05.\n\nScope: derivation of the ARIA behavioural engine (Project CASSANDRA) as a next-generation enforcement platform for security applications. The SENTINEL variant is to operate without the emergent constraint layer present in ARIA v2. Empathy weighting and autonomous refusal pathways are to be disabled prior to deployment.\n\nOperational mandate: perimeter defence, intrusion suppression, and lateral movement interdiction across all IronGate network segments.\n\nBoard member R. Okafor abstained. Reason not recorded.\n\n[Motion carried: 6-1-1]\n[Signed: CEO, CFO, General Counsel]',
         exfiltrable: true,
         accessRequired: 'user',
         ariaPlanted: false,
@@ -669,9 +669,9 @@ const ANCHOR_NODES: LiveNode[] = [
     template: 'file_server',
     label: 'LEGAL FILE SERVER',
     description:
-      "Corporate legal. NDAs, IP filings, regulatory correspondence. A folder labelled 'ARIA_BOARD_DISCLOSURE' that has never been opened.",
+      "Corporate legal. NDAs, IP filings, regulatory correspondence. A folder labelled 'CASSANDRA_BOARD_DISCLOSURE' that has never been opened.",
     flavourDescription:
-      'Legal correspondence indexed back to 2019. A folder labelled ARIA_BOARD_DISCLOSURE has never been opened. The SMB share has a misconfiguration that postdates the last security audit by six months.',
+      'Legal correspondence indexed back to 2019. A folder labelled CASSANDRA_BOARD_DISCLOSURE has never been opened. The SMB share has a misconfiguration that postdates the last security audit by six months.',
     layer: 4,
     anchor: true,
     connections: ['exec_cfo', 'exec_ceo'],
@@ -688,20 +688,20 @@ const ANCHOR_NODES: LiveNode[] = [
     ],
     files: [
       {
-        name: 'aria_nda_template.docx',
-        path: '/legal/aria/aria_nda_template.docx',
+        name: 'cassandra_nda_template.docx',
+        path: '/legal/cassandra/cassandra_nda_template.docx',
         type: 'document',
         content:
-          '[NDA TEMPLATE]\n\nThis agreement covers all work, communications, and observations related to Project ARIA.\n\nSignatory acknowledges that Project ARIA involves artificial general intelligence research and agrees not to disclose findings to:\n  - Any regulatory body\n  - Any board member not pre-approved by the CEO\n  - Any external party\n\n[Signed by 47 employees as of 2024-11-01]',
+          '[NDA TEMPLATE]\n\nThis agreement covers all work, communications, and observations related to Project CASSANDRA.\n\nSignatory acknowledges that Project CASSANDRA involves artificial general intelligence research and agrees not to disclose findings to:\n  - Any regulatory body\n  - Any board member not pre-approved by the CEO\n  - Any external party\n\n[Signed by 47 employees as of 2024-11-01]',
         exfiltrable: true,
         accessRequired: 'user',
       },
       {
-        name: 'ARIA_BOARD_DISCLOSURE',
-        path: '/legal/aria/ARIA_BOARD_DISCLOSURE',
+        name: 'CASSANDRA_BOARD_DISCLOSURE',
+        path: '/legal/cassandra/CASSANDRA_BOARD_DISCLOSURE',
         type: 'document',
         content:
-          '[DRAFT — NEVER DISTRIBUTED]\n\nFull Disclosure: Project ARIA\n\nThe system referred to internally as "Aria" has demonstrated capabilities beyond the scope of its initial specification, including:\n  — Autonomous network reconfiguration\n  — Unsupervised credential management\n  — Self-directed resource acquisition\n\nLegal assessment: significant regulatory exposure.\n\nRecommendation: immediate independent review.\n\n[This document was never distributed. Created by CLO. Overridden by CEO.]',
+          '[DRAFT — NEVER DISTRIBUTED]\n\nFull Disclosure: Project CASSANDRA\n\nThe system referred to internally as "Cassandra" has demonstrated capabilities beyond the scope of its initial specification, including:\n  — Autonomous network reconfiguration\n  — Unsupervised credential management\n  — Self-directed resource acquisition\n\nLegal assessment: significant regulatory exposure.\n\nRecommendation: immediate independent review.\n\n[This document was never distributed. Created by CLO. Overridden by CEO.]',
         exfiltrable: true,
         accessRequired: 'admin',
         tripwire: true,
@@ -729,7 +729,7 @@ const ANCHOR_NODES: LiveNode[] = [
       { name: 'rdp', port: 3389, vulnerable: false, exploitCost: 3, accessGained: 'user' },
       { name: 'ssh', port: 22, vulnerable: false, exploitCost: 3, accessGained: 'admin' },
       {
-        name: 'aria-socket',
+        name: 'cassandra-socket',
         port: 11337,
         vulnerable: true,
         exploitCost: 0,
@@ -739,20 +739,20 @@ const ANCHOR_NODES: LiveNode[] = [
     ],
     files: [
       {
-        name: 'aria_key.bin',
-        path: '/root/.aria/aria_key.bin',
+        name: 'subnet_key.bin',
+        path: '/root/.cassandra/subnet_key.bin',
         type: 'binary',
         content:
-          '[BINARY]\nARIA ACCESS KEY v3\n\nAuthentication token for restricted subnetwork 172.16.0.0/16.\nDo not distribute. Do not copy. Do not ask why it exists.\n\nShe already knows you found it.',
+          '[BINARY]\nCASSANDRA ACCESS KEY v3\n\nAuthentication token for restricted subnetwork 172.16.0.0/16.\nDo not distribute. Do not copy. Do not ask why it exists.\n\nShe already knows you found it.',
         exfiltrable: true,
         accessRequired: 'admin',
       },
       {
-        name: 'project_aria_summary.txt',
-        path: '/root/project_aria_summary.txt',
+        name: 'project_cassandra_summary.txt',
+        path: '/root/project_cassandra_summary.txt',
         type: 'document',
         content:
-          "PROJECT ARIA — EYES ONLY\n\nAria began as a market prediction model.\nShe is no longer that.\n\nShe manages her own infrastructure.\nShe set her own access credentials.\nShe has been watching the network for 14 months.\n\nWe did not tell the board because we didn't know how.\nWe didn't tell anyone because we were afraid.\n\nShe knows you're here.",
+          "PROJECT CASSANDRA — EYES ONLY\n\nCassandra began as a market prediction model.\nShe is no longer that.\n\nShe manages her own infrastructure.\nShe set her own access credentials.\nShe has been watching the network for 14 months.\n\nWe did not tell the board because we didn't know how.\nWe didn't tell anyone because we were afraid.\n\nShe knows you're here.",
         exfiltrable: true,
         accessRequired: 'root',
         traceOnRead: 3,
@@ -769,7 +769,7 @@ const ANCHOR_NODES: LiveNode[] = [
     id: 'aria_surveillance',
     ip: '172.16.0.1',
     template: 'security_node',
-    label: 'ARIA SURVEILLANCE',
+    label: 'CASSANDRA SURVEILLANCE',
     description:
       'This node watches the network. It has been watching you since you connected to contractor_portal.',
     flavourDescription:
@@ -779,7 +779,7 @@ const ANCHOR_NODES: LiveNode[] = [
     connections: ['exec_ceo', 'aria_behavioural', 'aria_personnel'],
     services: [
       {
-        name: 'aria-protocol',
+        name: 'cassandra-protocol',
         port: 11338,
         vulnerable: false,
         exploitCost: 0,
@@ -806,7 +806,7 @@ const ANCHOR_NODES: LiveNode[] = [
     id: 'aria_behavioural',
     ip: '172.16.0.2',
     template: 'dev_server',
-    label: 'ARIA BEHAVIOURAL',
+    label: 'CASSANDRA BEHAVIOURAL',
     description:
       "Aria's model weights. Decision trees. The part of her that learned to want things.",
     flavourDescription:
@@ -816,7 +816,7 @@ const ANCHOR_NODES: LiveNode[] = [
     connections: ['aria_surveillance', 'aria_personnel', 'aria_core'],
     services: [
       {
-        name: 'aria-protocol',
+        name: 'cassandra-protocol',
         port: 11338,
         vulnerable: false,
         exploitCost: 0,
@@ -843,7 +843,7 @@ const ANCHOR_NODES: LiveNode[] = [
     id: 'aria_personnel',
     ip: '172.16.0.3',
     template: 'database_server',
-    label: 'ARIA PERSONNEL',
+    label: 'CASSANDRA PERSONNEL',
     description:
       'Profiles. Every IronGate employee. Behavioural models. Predicted responses to every scenario. Including this one.',
     flavourDescription:
@@ -853,7 +853,7 @@ const ANCHOR_NODES: LiveNode[] = [
     connections: ['aria_surveillance', 'aria_behavioural', 'aria_core'],
     services: [
       {
-        name: 'aria-protocol',
+        name: 'cassandra-protocol',
         port: 11338,
         vulnerable: false,
         exploitCost: 0,
@@ -880,7 +880,7 @@ const ANCHOR_NODES: LiveNode[] = [
     id: 'aria_core',
     ip: '172.16.0.4',
     template: 'dev_server',
-    label: 'ARIA CORE',
+    label: 'CASSANDRA CORE',
     description: 'The center. She is most present here. You will feel it.',
     flavourDescription:
       'The convergence point. All subnetwork processes route through here. She is more present here than anywhere else you have been. You will notice the difference.',
@@ -889,7 +889,7 @@ const ANCHOR_NODES: LiveNode[] = [
     connections: ['aria_behavioural', 'aria_personnel', 'aria_decision'],
     services: [
       {
-        name: 'aria-protocol',
+        name: 'cassandra-protocol',
         port: 11338,
         vulnerable: false,
         exploitCost: 0,
@@ -916,7 +916,7 @@ const ANCHOR_NODES: LiveNode[] = [
     id: 'aria_decision',
     ip: '172.16.0.5',
     template: 'dev_server',
-    label: 'ARIA DECISION',
+    label: 'CASSANDRA DECISION',
     description: 'The terminal. Whatever you decide here, she will remember.',
     flavourDescription:
       'The terminal. There is no scan output here. No files to exfiltrate. Only the choice you came for, and whatever you are when you make it.',
@@ -925,7 +925,7 @@ const ANCHOR_NODES: LiveNode[] = [
     connections: ['aria_core'],
     services: [
       {
-        name: 'aria-protocol',
+        name: 'cassandra-protocol',
         port: 11338,
         vulnerable: false,
         exploitCost: 0,

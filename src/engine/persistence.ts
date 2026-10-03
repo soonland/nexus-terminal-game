@@ -13,6 +13,7 @@ import type {
 } from '../types/game';
 import { createInitialState } from './state';
 import { AI_GENERATED_FILE_PATHS } from '../data/anchorNodes';
+import { migrateSavePaths } from './saveMigration';
 
 const SAVE_KEY = 'irongate_save';
 const SAVE_VERSION = 6;
@@ -32,7 +33,7 @@ interface NodeDelta {
   cachedFileContents: Record<string, string>; // path → AI-generated content only
 }
 
-interface SaveState {
+export interface SaveState {
   version: number;
   phase: GamePhase;
   runId: string;
@@ -231,6 +232,14 @@ const fromSaveState = (save: SaveState): GameState => {
   });
 
   state.aria = save.aria;
+  // Taking the key adds a route from the CEO terminal into the restricted subnet, but node
+  // connections are not saved: restore it, or a reloaded game can never reach layer 5.
+  if (state.aria.discovered) {
+    const ceo = state.network.nodes['exec_ceo'];
+    if (ceo && !ceo.connections.includes('aria_surveillance')) {
+      ceo.connections = [...ceo.connections, 'aria_surveillance'];
+    }
+  }
   state.forks = save.forks;
   state.flags = save.flags;
   state.contract = save.contract ?? null;
@@ -273,7 +282,7 @@ export const loadGame = (): GameState | null => {
       console.warn('[persistence] save version mismatch — discarding stale save');
       return null;
     }
-    return fromSaveState(save);
+    return fromSaveState(migrateSavePaths(save));
   } catch (e) {
     console.warn('[persistence] loadGame failed', e);
     return null;

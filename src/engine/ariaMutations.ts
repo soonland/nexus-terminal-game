@@ -1,6 +1,7 @@
 import type { AriaAction, GameState, LiveNode, MutationEvent } from '../types/game';
 import { isGameCompletable } from './completabilityGuard';
 import produce from './produce';
+import { isAriaNameKnown } from './ariaName';
 
 type AriaLine = { type: 'system'; content: string };
 
@@ -142,6 +143,9 @@ const tryModifyFile = (state: GameState): { state: GameState; lines: AriaLine[] 
   const resolvedNodeId = targetNodeId;
   const resolvedFilePath = targetFilePath;
 
+  // Until the player learns her name, planted text carries the cover name.
+  const tag = isAriaNameKnown(state) ? 'ARIA' : 'CASSANDRA';
+
   const event = makeMutationEvent('modify_file', state.turnCount, {
     nodeId: resolvedNodeId,
     filePath: resolvedFilePath,
@@ -155,8 +159,7 @@ const tryModifyFile = (state: GameState): { state: GameState; lines: AriaLine[] 
       const file = node.files.find(f => f.path === resolvedFilePath);
       /* c8 ignore next */
       if (file) {
-        file.content =
-          '// [ARIA] Intelligence updated: Cross-reference with exec layer for access chain.';
+        file.content = `// [${tag}] Intelligence updated: Cross-reference with exec layer for access chain.`;
         file.ariaPlanted = true;
       }
     }
@@ -191,7 +194,7 @@ const tryPlantFile = (state: GameState): { state: GameState; lines: AriaLine[] }
   if (candidates.length === 0) return null;
 
   const target = candidates[0];
-  const filePath = `/tmp/.aria_hint_${String(state.turnCount)}.txt`;
+  const filePath = `/tmp/.hint_${String(state.turnCount)}.txt`;
   const hintContent = '// Cross-reference the exfil manifest with layer 2 credentials.';
 
   const event = makeMutationEvent('plant_file', state.turnCount, {
@@ -205,7 +208,7 @@ const tryPlantFile = (state: GameState): { state: GameState; lines: AriaLine[] }
     /* c8 ignore next */
     if (node) {
       node.files.push({
-        name: `.aria_hint_${String(state.turnCount)}.txt`,
+        name: `.hint_${String(state.turnCount)}.txt`,
         path: filePath,
         type: 'document',
         content: hintContent,
