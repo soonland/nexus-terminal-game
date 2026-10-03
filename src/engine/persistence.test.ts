@@ -675,4 +675,27 @@ describe('ARIA_NAME_KNOWN persistence', () => {
     );
     expect(loadGame()?.flags['ARIA_NAME_KNOWN']).toBe(true);
   });
+
+  it('loads a save written with the pre-audit key path and tool id', () => {
+    const base = createInitialState();
+    const key = base.network.nodes['exec_ceo']!.files.find(
+      f => f.path === '/root/.cassandra/subnet_key.bin',
+    )!;
+    saveGame(
+      produce(base, s => {
+        s.player.exfiltrated = [{ ...key }];
+        s.player.tools = [{ id: 'subnet-key', name: 'Restricted Subnet Key', description: 'd' }];
+      }),
+    );
+    const legacy = (mockStorage.getItem(SAVE_KEY) as string)
+      .replaceAll('/root/.cassandra/subnet_key.bin', '/root/.aria/aria_key.bin')
+      .replaceAll('"subnet-key"', '"aria-key"');
+    mockStorage.setItem(SAVE_KEY, legacy);
+
+    const loaded = loadGame();
+    expect(loaded?.player.exfiltrated.map(f => f.path)).toEqual([
+      '/root/.cassandra/subnet_key.bin',
+    ]);
+    expect(loaded?.player.tools.map(t => t.id)).toEqual(['subnet-key']);
+  });
 });

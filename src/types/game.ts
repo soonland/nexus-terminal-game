@@ -113,7 +113,7 @@ export interface Credential {
 
 // ── Tools ──────────────────────────────────────────────────
 export type ToolId =
-  'port-scanner' | 'exploit-kit' | 'log-wiper' | 'spoof-id' | 'decryptor' | 'aria-key';
+  'port-scanner' | 'exploit-kit' | 'log-wiper' | 'spoof-id' | 'decryptor' | 'subnet-key';
 
 export interface Tool {
   id: ToolId;

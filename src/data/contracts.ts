@@ -30,10 +30,11 @@ export const TOOL_REGISTRY: Record<ToolId, Tool> = {
     name: 'Decryptor',
     description: 'GPG decryption utility. Required to run the decrypt command.',
   },
-  'aria-key': {
-    id: 'aria-key',
-    name: 'Aria Key',
-    description: 'Authentication token granting access to the Aria subnetwork (172.16.0.0/16).',
+  'subnet-key': {
+    id: 'subnet-key',
+    name: 'Restricted Subnet Key',
+    description:
+      'Authentication token granting access to the restricted subnetwork (172.16.0.0/16).',
   },
 };
 

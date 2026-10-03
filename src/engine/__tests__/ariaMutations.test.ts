@@ -651,8 +651,32 @@ describe('runAriaTurn — trust 50 modify_file', () => {
       f => f.path === '/etc/info.txt',
     );
     expect(updatedFile).toBeDefined();
-    expect(updatedFile?.content).toContain('[ARIA]');
+    expect(updatedFile?.content).toContain('[CASSANDRA]');
     expect(updatedFile?.ariaPlanted).toBe(true);
+  });
+
+  it('tags the planted intelligence [ARIA] once the player knows her name', () => {
+    const fileNode = makeFileNode('node_a', 1);
+    const state = makeAriaState({
+      network: {
+        currentNodeId: 'current',
+        previousNodeId: null,
+        nodes: {
+          current: makeNode({ id: 'current', ip: '10.5.0.1', layer: 5, connections: [] }),
+          node_a: fileNode,
+        },
+      },
+      flags: { ARIA_NAME_KNOWN: true },
+      aria: { discovered: true, trustScore: 50, messageHistory: [], suppressedMutations: 0 },
+    });
+
+    const result = runAriaTurn(state);
+
+    const updatedFile = result.state.network.nodes['node_a']?.files.find(
+      f => f.path === '/etc/info.txt',
+    );
+    expect(updatedFile?.content).toContain('[ARIA]');
+    expect(updatedFile?.content).not.toContain('[CASSANDRA]');
   });
 
   it('happy path: logs a modify_file MutationEvent with correct fields', () => {
@@ -899,7 +923,7 @@ describe('runAriaTurn — trust 40 plant_file', () => {
     // node_a sorts first alphabetically and should receive the file
     const files = result.state.network.nodes['node_a']?.files ?? [];
     expect(files).toHaveLength(1);
-    expect(files[0].path).toBe('/tmp/.aria_hint_7.txt');
+    expect(files[0].path).toBe('/tmp/.hint_7.txt');
     expect(files[0].content).toBeTruthy();
   });
 
@@ -925,7 +949,7 @@ describe('runAriaTurn — trust 40 plant_file', () => {
     expect(event.action).toBe('plant_file');
     expect(event.visibleToPlayer).toBe(false);
     expect(event.nodeId).toBe('node_a');
-    expect(event.filePath).toBe('/tmp/.aria_hint_3.txt');
+    expect(event.filePath).toBe('/tmp/.hint_3.txt');
     expect(typeof event.reason).toBe('string');
     expect(event.reason!.length).toBeGreaterThan(0);
   });

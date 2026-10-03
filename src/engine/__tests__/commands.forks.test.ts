@@ -46,8 +46,8 @@ const ROSTER_FILE: GameFile = {
 };
 
 const BOARD_DISCLOSURE_FILE: GameFile = {
-  name: 'ARIA_BOARD_DISCLOSURE',
-  path: '/legal/aria/ARIA_BOARD_DISCLOSURE',
+  name: 'CASSANDRA_BOARD_DISCLOSURE',
+  path: '/legal/cassandra/CASSANDRA_BOARD_DISCLOSURE',
   type: 'document',
   content: 'board knew',
   exfiltrable: true,
@@ -511,7 +511,7 @@ describe('Fork 1 — idempotency: fork already resolved skips fork logic', () =>
 
 // ── Fork 3 — cmdCat gate: blocked without WHISTLEBLOWER_FOUND ────────────────
 
-describe('Fork 3 — cmdCat gate: ARIA_BOARD_DISCLOSURE blocked without WHISTLEBLOWER_FOUND', () => {
+describe('Fork 3 — cmdCat gate: CASSANDRA_BOARD_DISCLOSURE blocked without WHISTLEBLOWER_FOUND', () => {
   beforeEach(() => {
     stubFetchSilent();
   });
@@ -523,7 +523,7 @@ describe('Fork 3 — cmdCat gate: ARIA_BOARD_DISCLOSURE blocked without WHISTLEB
   it('should return an error line containing "encrypted" when WHISTLEBLOWER_FOUND is not set', async () => {
     const state = makeExecLegalState(); // flags = {} by default
 
-    const result = await resolveCommand('cat /legal/aria/ARIA_BOARD_DISCLOSURE', state);
+    const result = await resolveCommand('cat /legal/cassandra/CASSANDRA_BOARD_DISCLOSURE', state);
 
     // Tripwire fires first (separate error line); gate message is a second error line.
     const gateErrLine = result.lines.find(
@@ -535,7 +535,7 @@ describe('Fork 3 — cmdCat gate: ARIA_BOARD_DISCLOSURE blocked without WHISTLEB
   it('should return an error line mentioning "investigation" when WHISTLEBLOWER_FOUND is not set', async () => {
     const state = makeExecLegalState();
 
-    const result = await resolveCommand('cat /legal/aria/ARIA_BOARD_DISCLOSURE', state);
+    const result = await resolveCommand('cat /legal/cassandra/CASSANDRA_BOARD_DISCLOSURE', state);
 
     const gateErrLine = result.lines.find(
       l => l.type === 'error' && l.content.toLowerCase().includes('investigation'),
@@ -546,7 +546,7 @@ describe('Fork 3 — cmdCat gate: ARIA_BOARD_DISCLOSURE blocked without WHISTLEB
   it('should NOT set BOARD_KNEW when the gate blocks the read', async () => {
     const state = makeExecLegalState();
 
-    const result = await resolveCommand('cat /legal/aria/ARIA_BOARD_DISCLOSURE', state);
+    const result = await resolveCommand('cat /legal/cassandra/CASSANDRA_BOARD_DISCLOSURE', state);
 
     expect(nextState(result).flags['BOARD_KNEW']).toBeFalsy();
   });
@@ -555,7 +555,7 @@ describe('Fork 3 — cmdCat gate: ARIA_BOARD_DISCLOSURE blocked without WHISTLEB
     // The tripwire fires before the gate — probing the encrypted file costs trace.
     const state = makeExecLegalState();
 
-    const result = await resolveCommand('cat /legal/aria/ARIA_BOARD_DISCLOSURE', state);
+    const result = await resolveCommand('cat /legal/cassandra/CASSANDRA_BOARD_DISCLOSURE', state);
 
     expect(nextState(result).player.trace).toBeGreaterThanOrEqual(25);
   });
@@ -563,7 +563,7 @@ describe('Fork 3 — cmdCat gate: ARIA_BOARD_DISCLOSURE blocked without WHISTLEB
   it('should NOT set fork_exec_legal when the gate blocks the read', async () => {
     const state = makeExecLegalState();
 
-    const result = await resolveCommand('cat /legal/aria/ARIA_BOARD_DISCLOSURE', state);
+    const result = await resolveCommand('cat /legal/cassandra/CASSANDRA_BOARD_DISCLOSURE', state);
 
     expect(nextState(result).forks['fork_exec_legal']).toBeUndefined();
   });
@@ -574,7 +574,7 @@ describe('Fork 3 — cmdCat gate: ARIA_BOARD_DISCLOSURE blocked without WHISTLEB
 
     const state = makeExecLegalState();
 
-    await resolveCommand('cat /legal/aria/ARIA_BOARD_DISCLOSURE', state);
+    await resolveCommand('cat /legal/cassandra/CASSANDRA_BOARD_DISCLOSURE', state);
 
     expect(addLoreFragment).not.toHaveBeenCalled();
   });
@@ -582,7 +582,7 @@ describe('Fork 3 — cmdCat gate: ARIA_BOARD_DISCLOSURE blocked without WHISTLEB
 
 // ── Fork 3 — cmdCat resolution with WHISTLEBLOWER_FOUND ──────────────────────
 
-describe('Fork 3 — cmdCat resolution: ARIA_BOARD_DISCLOSURE with WHISTLEBLOWER_FOUND', () => {
+describe('Fork 3 — cmdCat resolution: CASSANDRA_BOARD_DISCLOSURE with WHISTLEBLOWER_FOUND', () => {
   beforeEach(() => {
     stubFetchSilent();
   });
@@ -594,7 +594,7 @@ describe('Fork 3 — cmdCat resolution: ARIA_BOARD_DISCLOSURE with WHISTLEBLOWER
   it('should set flags.BOARD_KNEW to true when WHISTLEBLOWER_FOUND is set', async () => {
     const state = makeExecLegalState({ flags: { WHISTLEBLOWER_FOUND: true } });
 
-    const result = await resolveCommand('cat /legal/aria/ARIA_BOARD_DISCLOSURE', state);
+    const result = await resolveCommand('cat /legal/cassandra/CASSANDRA_BOARD_DISCLOSURE', state);
 
     expect(nextState(result).flags['BOARD_KNEW']).toBe(true);
   });
@@ -602,7 +602,7 @@ describe('Fork 3 — cmdCat resolution: ARIA_BOARD_DISCLOSURE with WHISTLEBLOWER
   it('should set forks.fork_exec_legal to "path_b" when WHISTLEBLOWER_FOUND is set', async () => {
     const state = makeExecLegalState({ flags: { WHISTLEBLOWER_FOUND: true } });
 
-    const result = await resolveCommand('cat /legal/aria/ARIA_BOARD_DISCLOSURE', state);
+    const result = await resolveCommand('cat /legal/cassandra/CASSANDRA_BOARD_DISCLOSURE', state);
 
     expect(nextState(result).forks['fork_exec_legal']).toBe('path_b');
   });
@@ -613,7 +613,7 @@ describe('Fork 3 — cmdCat resolution: ARIA_BOARD_DISCLOSURE with WHISTLEBLOWER
 
     const state = makeExecLegalState({ flags: { WHISTLEBLOWER_FOUND: true } });
 
-    await resolveCommand('cat /legal/aria/ARIA_BOARD_DISCLOSURE', state);
+    await resolveCommand('cat /legal/cassandra/CASSANDRA_BOARD_DISCLOSURE', state);
 
     expect(addLoreFragment).toHaveBeenCalledOnce();
     expect(addLoreFragment).toHaveBeenCalledWith('BOARD_KNEW');
@@ -622,7 +622,7 @@ describe('Fork 3 — cmdCat resolution: ARIA_BOARD_DISCLOSURE with WHISTLEBLOWER
   it('should return the file content lines when the gate passes', async () => {
     const state = makeExecLegalState({ flags: { WHISTLEBLOWER_FOUND: true } });
 
-    const result = await resolveCommand('cat /legal/aria/ARIA_BOARD_DISCLOSURE', state);
+    const result = await resolveCommand('cat /legal/cassandra/CASSANDRA_BOARD_DISCLOSURE', state);
 
     const outputLines = result.lines.filter(l => l.type === 'output').map(l => l.content);
     expect(outputLines.some(l => l.includes('board knew'))).toBe(true);
@@ -634,7 +634,7 @@ describe('Fork 3 — cmdCat resolution: ARIA_BOARD_DISCLOSURE with WHISTLEBLOWER
       player: { ...makeState().player, trace: 0 },
     });
 
-    const result = await resolveCommand('cat /legal/aria/ARIA_BOARD_DISCLOSURE', state);
+    const result = await resolveCommand('cat /legal/cassandra/CASSANDRA_BOARD_DISCLOSURE', state);
 
     expect(nextState(result).player.trace).toBeGreaterThanOrEqual(25);
   });
@@ -645,7 +645,7 @@ describe('Fork 3 — cmdCat resolution: ARIA_BOARD_DISCLOSURE with WHISTLEBLOWER
       forks: { fork_exec_legal: 'path_b' },
     });
 
-    const result = await resolveCommand('cat /legal/aria/ARIA_BOARD_DISCLOSURE', state);
+    const result = await resolveCommand('cat /legal/cassandra/CASSANDRA_BOARD_DISCLOSURE', state);
 
     // Flag stays true — no toggle.
     expect(nextState(result).flags['BOARD_KNEW']).toBe(true);
@@ -662,7 +662,7 @@ describe('Fork 3 — cmdCat resolution: ARIA_BOARD_DISCLOSURE with WHISTLEBLOWER
       forks: { fork_exec_legal: 'path_b' },
     });
 
-    await resolveCommand('cat /legal/aria/ARIA_BOARD_DISCLOSURE', state);
+    await resolveCommand('cat /legal/cassandra/CASSANDRA_BOARD_DISCLOSURE', state);
 
     expect(addLoreFragment).not.toHaveBeenCalled();
   });
@@ -679,7 +679,7 @@ describe('Cross-fork integration: full path B + Fork 3 sequence', () => {
     vi.unstubAllGlobals();
   });
 
-  it('should allow reading ARIA_BOARD_DISCLOSURE after Fork 1 path B resolved', async () => {
+  it('should allow reading CASSANDRA_BOARD_DISCLOSURE after Fork 1 path B resolved', async () => {
     // Simulate the end state after path B: WHISTLEBLOWER_FOUND is set,
     // fork_ops_hr_db = path_b.  Now move to exec_legal and read the disclosure.
     const legalNode = makeExecLegalNode();
@@ -693,13 +693,13 @@ describe('Cross-fork integration: full path B + Fork 3 sequence', () => {
       },
     });
 
-    const result = await resolveCommand('cat /legal/aria/ARIA_BOARD_DISCLOSURE', state);
+    const result = await resolveCommand('cat /legal/cassandra/CASSANDRA_BOARD_DISCLOSURE', state);
 
     expect(nextState(result).flags['BOARD_KNEW']).toBe(true);
     expect(nextState(result).forks['fork_exec_legal']).toBe('path_b');
   });
 
-  it('should block ARIA_BOARD_DISCLOSURE even on path A (no WHISTLEBLOWER_FOUND)', async () => {
+  it('should block CASSANDRA_BOARD_DISCLOSURE even on path A (no WHISTLEBLOWER_FOUND)', async () => {
     // Path A: fork resolved but WHISTLEBLOWER_FOUND was never set.
     const legalNode = makeExecLegalNode();
     const state = makeState({
@@ -712,7 +712,7 @@ describe('Cross-fork integration: full path B + Fork 3 sequence', () => {
       },
     });
 
-    const result = await resolveCommand('cat /legal/aria/ARIA_BOARD_DISCLOSURE', state);
+    const result = await resolveCommand('cat /legal/cassandra/CASSANDRA_BOARD_DISCLOSURE', state);
 
     const gateErrLine = result.lines.find(
       l => l.type === 'error' && l.content.toLowerCase().includes('encrypted'),

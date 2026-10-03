@@ -1276,9 +1276,12 @@ const cmdCat = async (args: string[], state: GameState): Promise<CommandOutput> 
     traceFeedback = { msg: `  +${String(applied)} trace`, type: 'system' };
   }
 
-  // ── Fork 3 gate: ARIA_BOARD_DISCLOSURE requires prior WHISTLEBLOWER_FOUND ──
+  // ── Fork 3 gate: CASSANDRA_BOARD_DISCLOSURE requires prior WHISTLEBLOWER_FOUND ──
   // Gate is checked after the tripwire so access attempts always cost trace.
-  if (file.path === '/legal/aria/ARIA_BOARD_DISCLOSURE' && !next.flags['WHISTLEBLOWER_FOUND']) {
+  if (
+    file.path === '/legal/cassandra/CASSANDRA_BOARD_DISCLOSURE' &&
+    !next.flags['WHISTLEBLOWER_FOUND']
+  ) {
     const gateLines: Out = [];
     if (traceFeedback) gateLines.push(line(traceFeedback.msg, traceFeedback.type));
     gateLines.push(err(`${file.name}: archive encrypted — prior investigation required`));
@@ -1356,9 +1359,9 @@ const cmdCat = async (args: string[], state: GameState): Promise<CommandOutput> 
     });
   }
 
-  // ── Fork 3: ARIA_BOARD_DISCLOSURE read with WHISTLEBLOWER_FOUND ─────────
+  // ── Fork 3: CASSANDRA_BOARD_DISCLOSURE read with WHISTLEBLOWER_FOUND ─────────
   if (
-    file.path === '/legal/aria/ARIA_BOARD_DISCLOSURE' &&
+    file.path === '/legal/cassandra/CASSANDRA_BOARD_DISCLOSURE' &&
     next.flags['WHISTLEBLOWER_FOUND'] &&
     !next.flags['BOARD_KNEW']
   ) {
@@ -1593,7 +1596,7 @@ const cmdExfil = (args: string[], state: GameState): CommandOutput => {
     };
   }
 
-  const isAriaKey = file.path === '/root/.aria/aria_key.bin';
+  const isSubnetKey = file.path === '/root/.cassandra/subnet_key.bin';
   const isDecryptorBin = file.path === '/home/ops.admin/sec_tools/decryptor.bin';
 
   let next = produce(addTrace(state, 3, `exfil:${file.name}`), s => {
@@ -1608,11 +1611,12 @@ const cmdExfil = (args: string[], state: GameState): CommandOutput => {
       });
     }
 
-    if (isAriaKey) {
+    if (isSubnetKey) {
       s.player.tools.push({
-        id: 'aria-key',
-        name: 'Aria Key',
-        description: 'Authentication token granting access to the Aria subnetwork (172.16.0.0/16).',
+        id: 'subnet-key',
+        name: 'Restricted Subnet Key',
+        description:
+          'Authentication token granting access to the restricted subnetwork (172.16.0.0/16).',
       });
       // Unlock Aria subnetwork
       s.aria.discovered = true;
@@ -1641,7 +1645,7 @@ const cmdExfil = (args: string[], state: GameState): CommandOutput => {
       });
     }
 
-    if (file.isTool && file.toolId && !isAriaKey && !isDecryptorBin) {
+    if (file.isTool && file.toolId && !isSubnetKey && !isDecryptorBin) {
       const toolData = GENERIC_TOOL_DATA[file.toolId];
       if (toolData && !s.player.tools.some(t => t.id === file.toolId)) {
         s.player.tools.push({ id: file.toolId, ...toolData });
@@ -1653,19 +1657,19 @@ const cmdExfil = (args: string[], state: GameState): CommandOutput => {
     out(`Exfiltrating ${file.name}... done.`),
     sys(`  +3 trace`),
   ];
-  if (isAriaKey) {
+  if (isSubnetKey) {
     lines.push(
       sep(),
-      line('// ARIA KEY ACQUIRED', 'aria'),
+      line('// RESTRICTED SUBNET KEY ACQUIRED', 'aria'),
       line('// Restricted subnetwork 172.16.0.0/16 is now reachable.', 'aria'),
-      line('// Tool added: aria-key', 'aria'),
+      line('// Tool added: Restricted Subnet Key', 'aria'),
       sep(),
     );
   }
   if (isDecryptorBin) {
     lines.push(sep(), sys('  Tool acquired: decryptor'), sys('  Usage: decrypt [file]'), sep());
   }
-  if (file.isTool && file.toolId && !isAriaKey && !isDecryptorBin) {
+  if (file.isTool && file.toolId && !isSubnetKey && !isDecryptorBin) {
     const toolData = GENERIC_TOOL_DATA[file.toolId];
     if (toolData) {
       lines.push(sep(), sys(`  Tool acquired: ${file.toolId}`), sep());

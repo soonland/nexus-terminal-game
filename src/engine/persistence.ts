@@ -13,6 +13,7 @@ import type {
 } from '../types/game';
 import { createInitialState } from './state';
 import { AI_GENERATED_FILE_PATHS } from '../data/anchorNodes';
+import { migrateSavePaths } from './saveMigration';
 
 const SAVE_KEY = 'irongate_save';
 const SAVE_VERSION = 6;
@@ -32,7 +33,7 @@ interface NodeDelta {
   cachedFileContents: Record<string, string>; // path → AI-generated content only
 }
 
-interface SaveState {
+export interface SaveState {
   version: number;
   phase: GamePhase;
   runId: string;
@@ -273,7 +274,7 @@ export const loadGame = (): GameState | null => {
       console.warn('[persistence] save version mismatch — discarding stale save');
       return null;
     }
-    return fromSaveState(save);
+    return fromSaveState(migrateSavePaths(save));
   } catch (e) {
     console.warn('[persistence] loadGame failed', e);
     return null;

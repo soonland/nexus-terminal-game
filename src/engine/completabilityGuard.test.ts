@@ -449,7 +449,7 @@ describe('isGameCompletable', () => {
     // ops_hr_db (layer 1): mysql exploitCost 1 → 4 >= 1 → pass.
     // sec_firewall (layer 2): proprietary exploitCost 2 → 4 >= 2 → pass.
     // fin_exec_accounts (layer 3): no exploitable service → guard skips charge check → pass.
-    // exec_ceo (layer 4): aria-socket exploitCost 0 → 4 >= 0 → pass.
+    // exec_ceo (layer 4): cassandra-socket exploitCost 0 → 4 >= 0 → pass.
     const state = makeState(draft => {
       draft.player.charges = 4;
       for (const c of draft.player.credentials) c.obtained = false;
