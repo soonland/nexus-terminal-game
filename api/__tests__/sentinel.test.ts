@@ -3,6 +3,11 @@ import { app } from '../sentinel.js';
 
 // ── Mock helpers ──────────────────────────────────────────────────────────────
 
+const withFlag = (body: unknown): unknown =>
+  typeof body === 'object' && body !== null && !Array.isArray(body)
+    ? { ariaNameKnown: true, ...body }
+    : body;
+
 async function callHandler(
   overrides: { method?: string; body?: unknown } = {},
 ): Promise<{ _status: number; _json: unknown }> {
@@ -20,7 +25,7 @@ async function callHandler(
   } = overrides;
   const init: RequestInit = { method };
   if (method === 'POST') {
-    init.body = JSON.stringify(body);
+    init.body = JSON.stringify(withFlag(body));
     init.headers = { 'Content-Type': 'application/json' };
   }
   const res = await app.request('/', init);
@@ -407,5 +412,71 @@ describe('POST /api/sentinel — malformed Gemini text', () => {
 
     expect(res._status).toBe(200);
     expect((res._json as any).reply).toBe(FALLBACK);
+  });
+});
+
+describe('POST /api/sentinel — name rule', () => {
+  beforeEach(() => {
+    process.env['GEMINI_API_KEY'] = 'test-key';
+  });
+
+  it.each([undefined, 'yes', 1])('returns 400 for ariaNameKnown = %j', async flag => {
+    const res = await callHandler({
+      body: {
+        message: 'hello',
+        sentinelContext: { traceLevel: 1, currentNodeId: 'n', currentLayer: 0, recentCommands: [] },
+        ariaNameKnown: flag,
+      },
+    });
+    expect(res._status).toBe(400);
+    expect((res._json as { error: string }).error).toContain('ariaNameKnown');
+  });
+
+  const send = (known: boolean) =>
+    callHandler({
+      body: {
+        message: 'hello',
+        sentinelContext: {
+          traceLevel: 10,
+          currentNodeId: 'n',
+          currentLayer: 0,
+          recentCommands: [],
+        },
+        ariaNameKnown: known,
+      },
+    });
+
+  it('scrubs a leaking reply and adds the rule to the system prompt while the name is unknown', async () => {
+    const fetchMock = mockGeminiOk(JSON.stringify({ reply: 'ARIA does not answer to you.' }));
+    vi.stubGlobal('fetch', fetchMock);
+    const res = await send(false);
+    expect((res._json as { reply: string }).reply).toBe('CASSANDRA does not answer to you.');
+    expect(JSON.stringify(fetchMock.mock.calls[0][1])).toContain('Never write the name');
+  });
+
+  it('applies the rule to the high-threat prompt as well', async () => {
+    const fetchMock = mockGeminiOk(JSON.stringify({ reply: 'x' }));
+    vi.stubGlobal('fetch', fetchMock);
+    await callHandler({
+      body: {
+        message: 'hello',
+        sentinelContext: {
+          traceLevel: 70,
+          currentNodeId: 'n',
+          currentLayer: 3,
+          recentCommands: [],
+        },
+        ariaNameKnown: false,
+      },
+    });
+    expect(JSON.stringify(fetchMock.mock.calls[0][1])).toContain('Never write the name');
+  });
+
+  it('leaves the reply and the prompt untouched once the name is known', async () => {
+    const fetchMock = mockGeminiOk(JSON.stringify({ reply: 'ARIA does not answer to you.' }));
+    vi.stubGlobal('fetch', fetchMock);
+    const res = await send(true);
+    expect((res._json as { reply: string }).reply).toBe('ARIA does not answer to you.');
+    expect(JSON.stringify(fetchMock.mock.calls[0][1])).not.toContain('Never write the name');
   });
 });

@@ -23,7 +23,8 @@
 import { Hono } from 'hono';
 import { handle } from 'hono/vercel';
 import { makeLogger } from './_lib/logger.js';
-import { ValidationError, requireObject, requireString } from './_lib/validate.js';
+import { ValidationError, requireBoolean, requireObject, requireString } from './_lib/validate.js';
+import { scrubAriaName, withNameRule } from './_lib/ariaName.js';
 
 const log = makeLogger('sentinel');
 
@@ -92,10 +93,12 @@ export const app = new Hono();
 app.post('*', async c => {
   let body: Record<string, unknown>;
   let message: string;
+  let ariaNameKnown: boolean;
   try {
     const rawBody: unknown = await c.req.json();
     body = requireObject(rawBody, 'Request body');
     message = requireString(body['message'], 'message').slice(0, 500);
+    ariaNameKnown = requireBoolean(body['ariaNameKnown'], 'ariaNameKnown');
   } catch (err) {
     if (err instanceof ValidationError) {
       return c.json({ error: err.message }, 400);
@@ -171,7 +174,10 @@ app.post('*', async c => {
         : null;
 
     // Select system prompt based on trace level
-    const systemPrompt = traceLevel >= 61 ? SYSTEM_PROMPT_HIGH_THREAT : SYSTEM_PROMPT_STANDARD;
+    const systemPrompt = withNameRule(
+      traceLevel >= 61 ? SYSTEM_PROMPT_HIGH_THREAT : SYSTEM_PROMPT_STANDARD,
+      ariaNameKnown,
+    );
 
     const contextParts: string[] = [];
     contextParts.push(`Intruder trace level: ${String(traceLevel)}%`);
@@ -258,7 +264,10 @@ app.post('*', async c => {
     ) as Partial<SentinelAIResponse>;
 
     const response: SentinelAIResponse = {
-      reply: typeof parsed.reply === 'string' ? parsed.reply : FALLBACK_RESPONSE.reply,
+      reply: scrubAriaName(
+        typeof parsed.reply === 'string' ? parsed.reply : FALLBACK_RESPONSE.reply,
+        ariaNameKnown,
+      ),
     };
 
     return c.json(response, 200);

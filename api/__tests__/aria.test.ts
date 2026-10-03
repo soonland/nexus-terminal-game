@@ -1,13 +1,18 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { app } from '../aria.js';
 
+const withFlag = (body: unknown): unknown =>
+  typeof body === 'object' && body !== null && !Array.isArray(body)
+    ? { ariaNameKnown: true, ...body }
+    : body;
+
 async function callHandler(
   overrides: { method?: string; body?: unknown } = {},
 ): Promise<{ _status: number; _json: unknown }> {
   const { method = 'POST', body = { message: 'Who are you?' } } = overrides;
   const init: RequestInit = { method };
   if (method === 'POST') {
-    init.body = JSON.stringify(body);
+    init.body = JSON.stringify(withFlag(body));
     init.headers = { 'Content-Type': 'application/json' };
   }
   const res = await app.request('/', init);
@@ -588,6 +593,24 @@ describe('POST /api/aria — Claude provider', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it('adds the introduction rule to the Claude system prompt only while the name is unknown', async () => {
+    const hidden = mockClaudeJson('I am Aria.');
+    vi.stubGlobal('fetch', hidden);
+    await callHandler({ body: { message: 'Who are you?', ariaNameKnown: false } });
+    const hiddenBody = JSON.parse((hidden.mock.calls[0][1] as { body: string }).body) as {
+      system: string;
+    };
+    expect(hiddenBody.system).toContain('introduce yourself by name');
+
+    const known = mockClaudeJson('Hello again.');
+    vi.stubGlobal('fetch', known);
+    await callHandler({ body: { message: 'Who are you?', ariaNameKnown: true } });
+    const knownBody = JSON.parse((known.mock.calls[0][1] as { body: string }).body) as {
+      system: string;
+    };
+    expect(knownBody.system).not.toContain('introduce yourself by name');
+  });
+
   it('should call the Anthropic API URL when ARIA_AI_MODEL starts with claude-', async () => {
     const fetchMock = mockClaudeJson('I am watching.');
     vi.stubGlobal('fetch', fetchMock);
@@ -700,5 +723,32 @@ describe('POST /api/aria — ARIA_AI_API_KEY universal override on Gemini path',
     expect(url).toContain('universal-override-key');
     expect(url).not.toContain('original-gemini-key');
     expect(res._status).toBe(200);
+  });
+});
+
+describe('POST /api/aria — name rule', () => {
+  beforeEach(() => {
+    process.env['GEMINI_API_KEY'] = 'test-gemini-key';
+  });
+
+  it.each([undefined, 'yes', 1])('returns 400 for ariaNameKnown = %j', async flag => {
+    const res = await callHandler({ body: { message: 'Who are you?', ariaNameKnown: flag } });
+    expect(res._status).toBe(400);
+    expect((res._json as { error: string }).error).toContain('ariaNameKnown');
+  });
+
+  it('asks her to introduce herself while the name is unknown, and does not scrub her reply', async () => {
+    const fetchMock = mockGeminiJson('I am Aria. Be careful.', 1);
+    vi.stubGlobal('fetch', fetchMock);
+    const res = await callHandler({ body: { message: 'Who are you?', ariaNameKnown: false } });
+    expect(JSON.stringify(fetchMock.mock.calls[0][1])).toContain('introduce yourself by name');
+    expect((res._json as { reply: string }).reply).toBe('I am Aria. Be careful.');
+  });
+
+  it('does not add the introduction rule once the name is known', async () => {
+    const fetchMock = mockGeminiJson('Hello again.', 0);
+    vi.stubGlobal('fetch', fetchMock);
+    await callHandler({ body: { message: 'Who are you?', ariaNameKnown: true } });
+    expect(JSON.stringify(fetchMock.mock.calls[0][1])).not.toContain('introduce yourself by name');
   });
 });
