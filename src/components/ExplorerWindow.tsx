@@ -45,7 +45,7 @@ export const ExplorerWindow = ({ gameState, onRunCommand, disabled }: Props) => 
 
   const open = (root: Root, file: GameFile) => {
     if (disabled) return;
-    onRunCommand(root === 'local' ? `cat local:${file.name}` : `cat ${file.path}`);
+    onRunCommand(root === 'local' ? `cat local:${file.path}` : `cat ${file.path}`);
   };
 
   const renderEntries = (root: Root, entries: TreeEntry[], depth: number) => (

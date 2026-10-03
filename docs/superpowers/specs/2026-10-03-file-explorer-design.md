@@ -84,7 +84,7 @@ falls through to the AI router. Help text and suggestion list mention the new co
   "reading this file triggers up to +25 trace" warning. Hidden `traceOnRead` costs are deliberately
   not previewed, because `ls` does not reveal them.
 - **Open** (button; double-click is a shortcut) runs `cat <path>` for node files or
-  `cat local:<name>` for local files. Locked files still run `cat`, so the terminal shows the usual
+  `cat local:<path>` for local files. Locked files still run `cat`, so the terminal shows the usual
   denial and the `unlock` hint.
 - **Exfil** runs `exfil <name>`. Disabled for `[no-exfil]` files and for local files.
 - All actions are disabled while `disabled` is true (a command is in flight, or the phase is not

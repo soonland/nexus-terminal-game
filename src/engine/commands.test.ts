@@ -3796,3 +3796,20 @@ describe('explorer / files verbs', () => {
     }
   });
 });
+
+describe('cat local: — path lookup (used by the explorer)', () => {
+  it('reads the exfiltrated file matching the full path when two share a name', async () => {
+    const base = createInitialState();
+    const template = base.network.nodes['contractor_portal']!.files[0];
+    const state = produce(base, s => {
+      s.player.exfiltrated = [
+        { ...template, name: 'config.ini', path: '/etc/a/config.ini', content: 'FROM A' },
+        { ...template, name: 'config.ini', path: '/etc/b/config.ini', content: 'FROM B' },
+      ];
+    });
+    const result = await resolveCommand('cat local:/etc/b/config.ini', state);
+    const text = result.lines.map(l => l.content).join('\n');
+    expect(text).toContain('FROM B');
+    expect(text).not.toContain('FROM A');
+  });
+});

@@ -408,7 +408,7 @@ git commit -m "feat: add file tree builder and share ls visibility filter"
 **Interfaces:**
 - Consumes: `buildFileTree`, `listAccessibleFiles`, `TreeEntry` (Task 2); `fileReadKey`, `GameState`, `GameFile` (Task 1 / types); `currentNode` from `src/engine/state.ts`.
 - Produces: `ExplorerWindow` with props `{ gameState: GameState; onRunCommand: (cmd: string) => void; disabled: boolean }`. Task 4 renders it.
-- Commands emitted: Open on a node file → `` `cat ${file.path}` ``; Open on a local file → `` `cat local:${file.name}` ``; Exfil → `` `exfil ${file.path}` ``.
+- Commands emitted: Open on a node file → `` `cat ${file.path}` ``; Open on a local file → `` `cat local:${file.path}` ``; Exfil → `` `exfil ${file.path}` ``.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -646,14 +646,14 @@ describe('ExplorerWindow — local cache', () => {
     expect(screen.getByText('LOOT BODY')).toBeTruthy();
   });
 
-  it('opens a local file with cat local:<name> and cannot exfil it again', () => {
+  it('opens a local file with cat local:<path> and cannot exfil it again', () => {
     const { onRunCommand } = setup(withLocal([makeFile('/loot.csv')]));
     select('loot.csv');
     expect((screen.getByRole('button', { name: 'Exfil' }) as HTMLButtonElement).disabled).toBe(
       true,
     );
     fireEvent.click(screen.getByRole('button', { name: 'Open' }));
-    expect(onRunCommand).toHaveBeenCalledWith('cat local:loot.csv');
+    expect(onRunCommand).toHaveBeenCalledWith('cat local:/loot.csv');
   });
 
   it('shows an empty-state hint when nothing has been exfiltrated', () => {
@@ -720,7 +720,7 @@ export const ExplorerWindow = ({ gameState, onRunCommand, disabled }: Props) => 
 
   const open = (root: Root, file: GameFile) => {
     if (disabled) return;
-    onRunCommand(root === 'local' ? `cat local:${file.name}` : `cat ${file.path}`);
+    onRunCommand(root === 'local' ? `cat local:${file.path}` : `cat ${file.path}`);
   };
 
   const renderEntries = (root: Root, entries: TreeEntry[], depth: number) => (

@@ -225,16 +225,30 @@ describe('ExplorerWindow — local cache', () => {
     expect(screen.getByText('LOOT BODY')).toBeTruthy();
   });
 
-  it('opens a local file with cat local:<name> and cannot exfil it again', () => {
+  it('opens a local file with cat local:<path> and cannot exfil it again', () => {
     const { onRunCommand } = setup(withLocal([makeFile('/loot.csv')]));
     select('loot.csv');
     expect(button('Exfil').disabled).toBe(true);
     fireEvent.click(screen.getByRole('button', { name: 'Open' }));
-    expect(onRunCommand).toHaveBeenCalledWith('cat local:loot.csv');
+    expect(onRunCommand).toHaveBeenCalledWith('cat local:/loot.csv');
   });
 
   it('shows an empty-state hint when nothing has been exfiltrated', () => {
     setup(withLocal([]));
     expect(screen.getByText(/nothing exfiltrated yet/i)).toBeTruthy();
+  });
+
+  it('targets the right local file when two exfiltrated files share a name', () => {
+    const { onRunCommand } = setup(
+      withLocal([makeFile('/etc/a/config.ini'), makeFile('/etc/b/config.ini')]),
+    );
+    // The node tree also has an 'a' directory (from /a/ok.txt); the local one comes last.
+    const last = (name: string) => screen.getAllByText(name).at(-1) as HTMLElement;
+    fireEvent.click(last('a'));
+    fireEvent.click(last('b'));
+    const rows = screen.getAllByText('config.ini', { selector: '.explorer-file span' });
+    fireEvent.click(rows[rows.length - 1]);
+    fireEvent.click(button('Open'));
+    expect(onRunCommand).toHaveBeenCalledWith('cat local:/etc/b/config.ini');
   });
 });
