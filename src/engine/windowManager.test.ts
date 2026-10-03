@@ -25,6 +25,12 @@ describe('createDefaultLayout', () => {
     expect(Object.keys(layout).sort()).toEqual([...WINDOW_KINDS].sort());
   });
 
+  it('includes a closed explorer window', () => {
+    const layout = createDefaultLayout(VIEWPORT);
+    expect(layout.explorer.open).toBe(false);
+    expect(layout.explorer.minimized).toBe(false);
+  });
+
   it('only opens the terminal by default', () => {
     const layout = createDefaultLayout(VIEWPORT);
     expect(layout.terminal.open).toBe(true);

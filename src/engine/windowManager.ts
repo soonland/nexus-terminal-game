@@ -1,4 +1,5 @@
-export type WindowKind = 'terminal' | 'map' | 'notes' | 'help' | 'briefing' | 'dossier';
+export type WindowKind =
+  'terminal' | 'map' | 'notes' | 'help' | 'briefing' | 'dossier' | 'explorer';
 
 export const WINDOW_KINDS: readonly WindowKind[] = [
   'terminal',
@@ -7,6 +8,7 @@ export const WINDOW_KINDS: readonly WindowKind[] = [
   'help',
   'briefing',
   'dossier',
+  'explorer',
 ];
 
 export interface Viewport {
@@ -52,6 +54,7 @@ const DEFAULT_SIZE: Record<WindowKind, { width: number; height: number }> = {
   help: { width: 460, height: 400 },
   briefing: { width: 520, height: 380 },
   dossier: { width: 420, height: 340 },
+  explorer: { width: 480, height: 420 },
 };
 
 // Cascade offset (in window-count order) so first-time windows don't stack exactly.

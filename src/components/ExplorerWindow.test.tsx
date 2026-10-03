@@ -35,6 +35,8 @@ const setup = (state: GameState, disabled = false) => {
   return { onRunCommand, ...view };
 };
 
+const button = (name: string) => screen.getByRole<HTMLButtonElement>('button', { name });
+
 const select = (name: string) => {
   fireEvent.click(screen.getByText(name));
 };
@@ -151,18 +153,14 @@ describe('ExplorerWindow — selection and actions', () => {
   it('disables Exfil for no-exfil files', () => {
     setup(stateWith([makeFile('/a/pinned.txt', { exfiltrable: false })]));
     select('pinned.txt');
-    expect((screen.getByRole('button', { name: 'Exfil' })).disabled).toBe(
-      true,
-    );
+    expect(button('Exfil').disabled).toBe(true);
   });
 
   it('disables Open and Exfil while disabled', () => {
     const { onRunCommand } = setup(stateWith([makeFile('/etc/vpn.cfg')]), true);
     select('vpn.cfg');
-    expect((screen.getByRole('button', { name: 'Open' })).disabled).toBe(true);
-    expect((screen.getByRole('button', { name: 'Exfil' })).disabled).toBe(
-      true,
-    );
+    expect(button('Open').disabled).toBe(true);
+    expect(button('Exfil').disabled).toBe(true);
     fireEvent.doubleClick(screen.getByText('vpn.cfg', { selector: '.explorer-file span' }));
     expect(onRunCommand).not.toHaveBeenCalled();
   });
@@ -230,9 +228,7 @@ describe('ExplorerWindow — local cache', () => {
   it('opens a local file with cat local:<name> and cannot exfil it again', () => {
     const { onRunCommand } = setup(withLocal([makeFile('/loot.csv')]));
     select('loot.csv');
-    expect((screen.getByRole('button', { name: 'Exfil' })).disabled).toBe(
-      true,
-    );
+    expect(button('Exfil').disabled).toBe(true);
     fireEvent.click(screen.getByRole('button', { name: 'Open' }));
     expect(onRunCommand).toHaveBeenCalledWith('cat local:loot.csv');
   });

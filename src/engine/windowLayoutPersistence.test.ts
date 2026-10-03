@@ -129,4 +129,14 @@ describe('windowLayoutPersistence', () => {
       expect(loadWindowLayout(VIEWPORT).map.maximized).toBeUndefined();
     }
   });
+
+  it('loads a layout saved before the explorer window existed using its default instance', () => {
+    const layout = createDefaultLayout(VIEWPORT);
+    const { explorer: _omitted, ...withoutExplorer } = layout;
+    mockStorage.getItem.mockReturnValueOnce(
+      JSON.stringify({ version: 1, windows: withoutExplorer }),
+    );
+    const loaded = loadWindowLayout(VIEWPORT);
+    expect(loaded.explorer).toEqual(expect.objectContaining({ kind: 'explorer', open: false }));
+  });
 });

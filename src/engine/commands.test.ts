@@ -3782,3 +3782,17 @@ describe('cmdCat — filesRead', () => {
     }
   });
 });
+
+describe('explorer / files verbs', () => {
+  it.each(['explorer', 'files'])('%s returns no output and no AI call', async verb => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    try {
+      const result = await resolveCommand(verb, createInitialState());
+      expect(result.lines).toEqual([]);
+      expect(fetchMock).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});
