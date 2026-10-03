@@ -699,3 +699,30 @@ describe('ARIA_NAME_KNOWN persistence', () => {
     expect(loaded?.player.tools.map(t => t.id)).toEqual(['subnet-key']);
   });
 });
+
+describe('restricted subnet route after loading', () => {
+  let mockStorage: ReturnType<typeof makeMockStorage>;
+  beforeEach(() => {
+    mockStorage = makeMockStorage();
+    vi.stubGlobal('localStorage', mockStorage);
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('restores the route from the CEO terminal into layer 5 once the key was taken', () => {
+    const state = produce(createInitialState(), s => {
+      s.aria.discovered = true;
+      s.network.nodes['exec_ceo']!.connections.push('aria_surveillance');
+    });
+    saveGame(state);
+    const loaded = loadGame();
+    expect(loaded?.network.nodes['exec_ceo']?.connections).toContain('aria_surveillance');
+  });
+
+  it('does not add the route before the key was taken', () => {
+    saveGame(createInitialState());
+    const loaded = loadGame();
+    expect(loaded?.network.nodes['exec_ceo']?.connections).not.toContain('aria_surveillance');
+  });
+});
