@@ -1,3 +1,5 @@
+import { OPERATIVE_PASS, OPERATIVE_USER } from '../data/operativeLogin';
+
 // Used to wrap every line in `║ ... ║` box-drawing characters (DosModal-era);
 // kept as the single call site for line text so it's easy to reintroduce
 // per-line formatting later without touching every line below.
@@ -9,6 +11,10 @@ const BODY: BodyLine[] = [
   { text: r(), color: 'var(--color-system)' },
   { text: r('OPERATIVE      : ghost'), color: 'var(--color-output)' },
   { text: r('TICKET         : NX-2847'), color: 'var(--color-output)' },
+  {
+    text: r(`TERMINAL LOGIN : ${OPERATIVE_USER} / ${OPERATIVE_PASS} (case-sensitive)`),
+    color: 'var(--color-output)',
+  },
   { text: r('CLEARANCE      : [REDACTED]'), color: 'var(--color-output)' },
   { text: r('ISSUED         : [AUTO-WIPED AT 0400]'), color: 'var(--color-output)' },
   { text: r(), color: 'var(--color-system)' },
