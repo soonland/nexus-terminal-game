@@ -15,6 +15,8 @@ interface Props {
   narrow: boolean;
   // Hides pane chrome (titles, borders) for the single-terminal view before a game exists.
   bare?: boolean;
+  // Panes in alert re-skin themselves (data-alert), e.g. the comms pane during a Sentinel channel.
+  alerts?: Partial<Record<PaneId, boolean>>;
   onFocusPane: (pane: PaneId) => void;
   onRatio: (path: TreePath, ratio: number) => void;
 }
@@ -99,6 +101,7 @@ export const LayoutRoot = ({
   headerExtras,
   narrow,
   bare = false,
+  alerts,
   onFocusPane,
   onRatio,
 }: Props) => {
@@ -139,6 +142,7 @@ export const LayoutRoot = ({
               className="pane"
               data-pane={id}
               data-focused={id === state.focused}
+              data-alert={alerts?.[id] === true}
               style={{
                 display: isVisible ? 'flex' : 'none',
                 left: pct(rect.x),

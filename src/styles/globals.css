@@ -519,3 +519,38 @@ body.dm-sentinel {
 .layout-bare .pane-title {
   display: none;
 }
+
+/* A pane in alert re-skins itself red (replaces the old full-screen Sentinel takeover). */
+.pane[data-alert='true'] {
+  --color-bg: #000000;
+  --color-bg-header: #000000;
+  --color-border: #aa0000;
+  --color-output: #ff5555;
+  --color-input: #ff5555;
+  --color-system: #ff5555;
+  --color-separator: #aa0000;
+  --color-error: #ff0000;
+  --win-bg: #0a0000;
+  --win-border: #aa0000;
+  --win-titlebar-bg: #140000;
+  --win-title-color: #ff5555;
+  --win-body-color: #ff5555;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .comms-flicker {
+    animation: comms-flicker 120ms steps(2, end) 5;
+  }
+}
+
+@keyframes comms-flicker {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.2;
+  }
+  100% {
+    opacity: 1;
+  }
+}
