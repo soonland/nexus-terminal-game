@@ -554,3 +554,54 @@ body.dm-sentinel {
     opacity: 1;
   }
 }
+
+/* The comms pane lays itself out (tabs + channel view), like the terminal. */
+.pane[data-pane='comms'] .pane-body {
+  padding: 0;
+  overflow: hidden;
+}
+
+.comms {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.comms-nexus {
+  padding: 8px;
+}
+
+.comms-channel {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 0 8px;
+}
+
+.comms-tabs {
+  display: flex;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--win-border);
+}
+
+.comms-tab {
+  background: transparent;
+  border: none;
+  border-right: 1px solid var(--win-border);
+  color: var(--win-title-color);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 3px 10px;
+  cursor: pointer;
+  opacity: 0.55;
+}
+
+.comms-tab[aria-selected='true'] {
+  opacity: 1;
+  background: var(--win-bg);
+}
+
+.comms-tab[data-closed='true'] {
+  opacity: 0.35;
+}
