@@ -13,6 +13,8 @@ interface Props {
   panes: Record<PaneId, ReactNode>;
   headerExtras?: Partial<Record<PaneId, ReactNode>>;
   narrow: boolean;
+  // Hides pane chrome (titles, borders) for the single-terminal view before a game exists.
+  bare?: boolean;
   onFocusPane: (pane: PaneId) => void;
   onRatio: (path: TreePath, ratio: number) => void;
 }
@@ -91,14 +93,22 @@ const Divider = ({ spec, areaRef, onRatio }: DividerProps) => {
   );
 };
 
-export const LayoutRoot = ({ state, panes, headerExtras, narrow, onFocusPane, onRatio }: Props) => {
+export const LayoutRoot = ({
+  state,
+  panes,
+  headerExtras,
+  narrow,
+  bare = false,
+  onFocusPane,
+  onRatio,
+}: Props) => {
   const areaRef = useRef<HTMLDivElement>(null);
   const solo = narrow || state.zoomed !== null;
   const soloPane = state.zoomed ?? state.focused;
   const geometry = computeGeometry(state.trees[state.preset]);
 
   return (
-    <div className="layout">
+    <div className={bare ? 'layout layout-bare' : 'layout'}>
       {narrow && (
         <div role="tablist" className="pane-tabs">
           {PANE_IDS.map((id, i) => (

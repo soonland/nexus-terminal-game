@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createRef } from 'react';
+import { createRef, useEffect } from 'react';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { Workspace, PERSIST_DEBOUNCE_MS } from './Workspace';
 import type { WorkspaceHandle } from './Workspace';
@@ -41,7 +41,7 @@ const setup = (over: Partial<Parameters<typeof Workspace>[0]> = {}) => {
   const ref = createRef<WorkspaceHandle>();
   const onRunCommand = vi.fn();
   const onTerminalFocused = vi.fn();
-  render(
+  const view = render(
     <Workspace
       ref={ref}
       terminal={<input aria-label="term-input" />}
@@ -59,7 +59,7 @@ const setup = (over: Partial<Parameters<typeof Workspace>[0]> = {}) => {
       {...over}
     />,
   );
-  return { ref, onRunCommand, onTerminalFocused };
+  return { ref, onRunCommand, onTerminalFocused, ...view };
 };
 
 const section = (id: string) => document.querySelector<HTMLElement>(`[data-pane="${id}"]`)!;
@@ -81,13 +81,92 @@ afterEach(() => {
 });
 
 describe('Workspace — before a game exists', () => {
-  it('renders the terminal alone, with no panes, status bar or shortcuts', () => {
+  it('renders the terminal alone: bare pane, no tabs, status bar or shortcuts', () => {
     setup({ gameState: null });
     expect(screen.getByLabelText('term-input')).toBeTruthy();
-    expect(document.querySelector('.pane')).toBeNull();
+    expect(section('term').style.display).toBe('flex');
+    for (const id of ['files', 'doc', 'aux', 'comms']) {
+      expect(section(id).style.display).toBe('none');
+    }
+    expect(document.querySelector('.layout-bare')).toBeTruthy();
     expect(document.querySelector('.statusbar')).toBeNull();
+    expect(screen.queryAllByRole('tab')).toHaveLength(0);
+    alt('Digit3');
     alt('KeyZ');
-    expect(document.querySelector('.pane')).toBeNull();
+    expect(section('term').style.display).toBe('flex');
+    expect(section('doc').style.display).toBe('none');
+  });
+
+  it('shows no tab strip even on a narrow screen', () => {
+    vi.stubGlobal('innerWidth', 700);
+    setup({ gameState: null });
+    expect(screen.queryAllByRole('tab')).toHaveLength(0);
+  });
+});
+
+describe('Workspace — game starting and ending', () => {
+  const mounts = { n: 0 };
+  const Probe = () => {
+    useEffect(() => {
+      mounts.n += 1;
+    }, []);
+    return <input aria-label="term-input" />;
+  };
+
+  const renderWorkspace = (gameState: GameState | null) => (
+    <Workspace
+      terminal={<Probe />}
+      gameState={gameState}
+      nodeIp="10.0.0.1"
+      trace={0}
+      map={<div>map-content</div>}
+      notes={<div>notes-content</div>}
+      help={<div>help-content</div>}
+      briefing={<div>briefing-content</div>}
+      dossier={<div>dossier-content</div>}
+      explorerDisabled={false}
+      onRunCommand={vi.fn()}
+      onTerminalFocused={vi.fn()}
+    />
+  );
+
+  it('does not re-mount the terminal when a game starts or ends', () => {
+    mounts.n = 0;
+    const { rerender } = render(renderWorkspace(null));
+    rerender(renderWorkspace(withFile()));
+    rerender(renderWorkspace(null));
+    rerender(renderWorkspace(withFile()));
+    expect(mounts.n).toBe(1);
+  });
+
+  it('does not bring back an overlay that was open when the game ended', () => {
+    const ref = createRef<WorkspaceHandle>();
+    const withRef = (g: GameState | null) => (
+      <Workspace
+        ref={ref}
+        terminal={<input aria-label="term-input" />}
+        gameState={g}
+        nodeIp="10.0.0.1"
+        trace={0}
+        map={<div>map-content</div>}
+        notes={<div>notes-content</div>}
+        help={<div>help-content</div>}
+        briefing={<div>briefing-content</div>}
+        dossier={<div>dossier-content</div>}
+        explorerDisabled={false}
+        onRunCommand={vi.fn()}
+        onTerminalFocused={vi.fn()}
+      />
+    );
+    const { rerender } = render(withRef(withFile()));
+    act(() => {
+      ref.current?.showOverlay('help');
+    });
+    expect(screen.getByText('help-content')).toBeTruthy();
+    rerender(withRef(null));
+    expect(screen.queryByText('help-content')).toBeNull();
+    rerender(withRef(withFile()));
+    expect(screen.queryByText('help-content')).toBeNull();
   });
 });
 
@@ -236,5 +315,43 @@ describe('Workspace — narrow and persistence', () => {
     expect(storage.setItem).toHaveBeenCalledTimes(1);
     const saved = JSON.parse(storage.setItem.mock.calls[0][1]) as { preset: string };
     expect(saved.preset).toBe('analyze');
+  });
+
+  const nudgeRootDivider = () => {
+    fireEvent.keyDown(screen.getAllByRole('separator')[0], { key: 'ArrowLeft' });
+  };
+  const lastSavedHuntRatio = () => {
+    const call = storage.setItem.mock.calls.at(-1);
+    const saved = JSON.parse(call?.[1] as string) as { trees: { hunt: { ratio: number } } };
+    return saved.trees.hunt.ratio;
+  };
+
+  it('flushes a pending layout change on pagehide, before the debounce fires', () => {
+    vi.useFakeTimers();
+    setup();
+    act(() => {
+      vi.advanceTimersByTime(PERSIST_DEBOUNCE_MS);
+    });
+    storage.setItem.mockClear();
+    nudgeRootDivider();
+    expect(storage.setItem).not.toHaveBeenCalled();
+    act(() => {
+      window.dispatchEvent(new Event('pagehide'));
+    });
+    expect(storage.setItem).toHaveBeenCalledTimes(1);
+    expect(lastSavedHuntRatio()).toBeCloseTo(0.6, 5);
+  });
+
+  it('flushes a pending layout change when the workspace unmounts', () => {
+    vi.useFakeTimers();
+    const { unmount } = setup();
+    act(() => {
+      vi.advanceTimersByTime(PERSIST_DEBOUNCE_MS);
+    });
+    storage.setItem.mockClear();
+    nudgeRootDivider();
+    unmount();
+    expect(storage.setItem).toHaveBeenCalledTimes(1);
+    expect(lastSavedHuntRatio()).toBeCloseTo(0.6, 5);
   });
 });

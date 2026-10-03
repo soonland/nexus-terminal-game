@@ -84,6 +84,24 @@ describe('LayoutRoot — tiled', () => {
   });
 });
 
+describe('LayoutRoot — bare', () => {
+  it('marks the layout bare only when asked', () => {
+    const { rerender } = setup(createDefaultLayout());
+    expect(document.querySelector('.layout-bare')).toBeNull();
+    rerender(
+      <LayoutRoot
+        state={createDefaultLayout()}
+        panes={panes}
+        narrow={false}
+        bare
+        onFocusPane={vi.fn()}
+        onRatio={vi.fn()}
+      />,
+    );
+    expect(document.querySelector('.layout-bare')).toBeTruthy();
+  });
+});
+
 describe('LayoutRoot — zoom and narrow', () => {
   it('shows only the zoomed pane, full size, with no dividers', () => {
     setup(toggleZoom(focusPane(createDefaultLayout(), 'doc')));

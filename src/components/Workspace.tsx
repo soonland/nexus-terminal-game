@@ -96,6 +96,28 @@ export const Workspace = forwardRef<WorkspaceHandle, Props>(
       };
     }, [preset, trees]);
 
+    // A debounced save is lost if the tab closes or reloads inside the window (or the
+    // workspace unmounts), so also write the latest layout on pagehide and on unmount.
+    const latestLayoutRef = useRef({ preset, trees });
+    useEffect(() => {
+      latestLayoutRef.current = { preset, trees };
+    });
+    useEffect(() => {
+      const flush = () => {
+        saveLayout(latestLayoutRef.current);
+      };
+      window.addEventListener('pagehide', flush);
+      return () => {
+        window.removeEventListener('pagehide', flush);
+        flush();
+      };
+    }, []);
+
+    // A stale overlay must not reappear when the next game starts.
+    useEffect(() => {
+      if (noGame) setOverlay(null);
+    }, [noGame]);
+
     const focus = useCallback((pane: PaneId) => {
       setLayout(prev => focusPane(prev, pane));
     }, []);
@@ -135,10 +157,6 @@ export const Workspace = forwardRef<WorkspaceHandle, Props>(
       [onRunCommand],
     );
 
-    if (gameState === null) {
-      return <div className="workspace workspace-solo">{terminal}</div>;
-    }
-
     const auxTabs = (
       <span className="aux-tabs">
         {(['map', 'notes'] as const).map(tab => (
@@ -157,7 +175,7 @@ export const Workspace = forwardRef<WorkspaceHandle, Props>(
 
     const panes: Record<PaneId, ReactNode> = {
       term: terminal,
-      files: (
+      files: gameState && (
         <FilesPane
           gameState={gameState}
           selection={selection}
@@ -166,7 +184,7 @@ export const Workspace = forwardRef<WorkspaceHandle, Props>(
           disabled={explorerDisabled}
         />
       ),
-      doc: (
+      doc: gameState && (
         <DocPane
           gameState={gameState}
           selection={selection}
@@ -178,28 +196,38 @@ export const Workspace = forwardRef<WorkspaceHandle, Props>(
       comms: <CommsPane />,
     };
 
+    // Before a game exists (login screens) the terminal is shown alone. It stays in the
+    // same keyed pane slot, so starting or ending a game never re-mounts it: only the
+    // layout state passed down changes.
+    const shownLayout: LayoutState = noGame
+      ? { ...layout, focused: 'term', zoomed: 'term' }
+      : layout;
+
     const overlayContent: Record<OverlayKind, ReactNode> = { help, briefing, dossier };
 
     return (
-      <div className="workspace">
+      <div className={noGame ? 'workspace workspace-solo' : 'workspace'}>
         <LayoutRoot
-          state={layout}
+          state={shownLayout}
           panes={panes}
           headerExtras={{ aux: auxTabs }}
-          narrow={narrow}
+          narrow={narrow && !noGame}
+          bare={noGame}
           onFocusPane={focus}
           onRatio={(path: TreePath, ratio: number) => {
             setLayout(prev => setRatio(prev, path, ratio));
           }}
         />
-        <StatusBar
-          preset={layout.preset}
-          focused={layout.focused}
-          zoomed={layout.zoomed}
-          nodeIp={nodeIp}
-          trace={trace}
-        />
-        {overlay && (
+        {!noGame && (
+          <StatusBar
+            preset={layout.preset}
+            focused={layout.focused}
+            zoomed={layout.zoomed}
+            nodeIp={nodeIp}
+            trace={trace}
+          />
+        )}
+        {overlay && !noGame && (
           <Overlay
             title={OVERLAY_TITLES[overlay]}
             onClose={() => {

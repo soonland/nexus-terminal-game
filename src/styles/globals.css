@@ -510,3 +510,12 @@ body.dm-sentinel {
   opacity: 0.6;
   padding-top: 4px;
 }
+
+/* Single-terminal view before a game exists: no pane chrome. */
+.layout-bare .pane {
+  border: none;
+}
+
+.layout-bare .pane-title {
+  display: none;
+}
