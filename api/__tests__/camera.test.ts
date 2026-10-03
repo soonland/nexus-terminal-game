@@ -1,13 +1,18 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { app } from '../camera-feed.js';
 
+const withFlag = (body: unknown): unknown =>
+  typeof body === 'object' && body !== null && !Array.isArray(body)
+    ? { ariaNameKnown: true, ...body }
+    : body;
+
 async function callHandler(
   overrides: { method?: string; body?: unknown } = {},
 ): Promise<{ _status: number; _json: unknown }> {
   const { method = 'POST', body = { cameraId: 'cam_01', location: 'lobby' } } = overrides;
   const init: RequestInit = { method };
   if (method === 'POST') {
-    init.body = JSON.stringify(body);
+    init.body = JSON.stringify(withFlag(body));
     init.headers = { 'Content-Type': 'application/json' };
   }
   const res = await app.request('/', init);
@@ -173,5 +178,36 @@ describe('POST /api/camera-feed — Gemini errors', () => {
 
     expect(res._status).toBe(200);
     expect((res._json as any).description).toBe(FALLBACK);
+  });
+});
+
+describe('POST /api/camera-feed — name rule', () => {
+  beforeEach(() => {
+    process.env['GEMINI_API_KEY'] = 'test-key';
+  });
+
+  const okGemini = (text: string) =>
+    vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({ candidates: [{ content: { parts: [{ text }] } }] }),
+    });
+  const valid = { cameraId: 'cam_03', location: 'executive_floor' };
+
+  it.each([undefined, 'yes', 1])('returns 400 for ariaNameKnown = %j', async flag => {
+    const res = await callHandler({ body: { ...valid, ariaNameKnown: flag } });
+    expect(res._status).toBe(400);
+    expect((res._json as { error: string }).error).toContain('ariaNameKnown');
+  });
+
+  it('scrubs a leaking feed while the name is unknown, keeps it once known', async () => {
+    vi.stubGlobal('fetch', okGemini('A terminal reads ARIA.'));
+    const hidden = await callHandler({ body: { ...valid, ariaNameKnown: false } });
+    expect((hidden._json as { description: string }).description).toBe(
+      'A terminal reads CASSANDRA.',
+    );
+
+    vi.stubGlobal('fetch', okGemini('A terminal reads ARIA.'));
+    const known = await callHandler({ body: { ...valid, ariaNameKnown: true } });
+    expect((known._json as { description: string }).description).toBe('A terminal reads ARIA.');
   });
 });

@@ -1,13 +1,18 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { app } from '../file.js';
 
+const withFlag = (body: unknown): unknown =>
+  typeof body === 'object' && body !== null && !Array.isArray(body)
+    ? { ariaNameKnown: true, ...body }
+    : body;
+
 async function callHandler(
   overrides: { method?: string; body?: unknown } = {},
 ): Promise<{ _status: number; _json: unknown }> {
   const { method = 'POST', body = { nodeId: 'node-alpha', fileName: 'config.cfg' } } = overrides;
   const init: RequestInit = { method };
   if (method === 'POST') {
-    init.body = JSON.stringify(body);
+    init.body = JSON.stringify(withFlag(body));
     init.headers = { 'Content-Type': 'application/json' };
   }
   const res = await app.request('/', init);
@@ -321,5 +326,57 @@ describe('POST /api/file — with API key', () => {
     const body = JSON.parse(fetchMock.mock.calls[0][1].body);
     const promptText = body.contents[0].parts[0].text;
     expect(promptText).toContain('security');
+  });
+});
+
+describe('POST /api/file — name rule', () => {
+  beforeEach(() => {
+    process.env['GEMINI_API_KEY'] = 'test-key';
+  });
+
+  const okGemini = (text: string) =>
+    vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({ candidates: [{ content: { parts: [{ text }] } }] }),
+    });
+
+  const body = (extra: Record<string, unknown>) => ({
+    nodeId: 'node-alpha',
+    fileName: 'notes.txt',
+    ...extra,
+  });
+
+  it.each([undefined, 'yes', 1])('returns 400 for ariaNameKnown = %j', async flag => {
+    const res = await callHandler({ body: body({ ariaNameKnown: flag }) });
+    expect(res._status).toBe(400);
+    expect((res._json as { error: string }).error).toContain('ariaNameKnown');
+  });
+
+  it('scrubs a leaking file while the name is unknown and adds the rule to the prompt', async () => {
+    const fetchMock = okGemini('Memo: ask Aria about ARIA.');
+    vi.stubGlobal('fetch', fetchMock);
+    const res = await callHandler({ body: body({ ariaNameKnown: false }) });
+    expect((res._json as { content: string }).content).toBe('Memo: ask Cassandra about CASSANDRA.');
+    expect(JSON.stringify(fetchMock.mock.calls[0][1])).toContain('Never write the name');
+  });
+
+  it('keeps the file untouched once the name is known', async () => {
+    vi.stubGlobal('fetch', okGemini('Memo: ask Aria.'));
+    const res = await callHandler({ body: body({ ariaNameKnown: true }) });
+    expect((res._json as { content: string }).content).toBe('Memo: ask Aria.');
+  });
+
+  it('describes the planter as an unknown entity until the name is known', async () => {
+    const fetchMock = okGemini('x');
+    vi.stubGlobal('fetch', fetchMock);
+    await callHandler({ body: body({ ariaNameKnown: false, ariaPlanted: true }) });
+    const unknownPrompt = JSON.stringify(fetchMock.mock.calls[0][1]);
+    expect(unknownPrompt).toContain('an unknown entity (cover name CASSANDRA)');
+    expect(unknownPrompt).not.toContain('an AI called Aria');
+
+    const knownMock = okGemini('x');
+    vi.stubGlobal('fetch', knownMock);
+    await callHandler({ body: body({ ariaNameKnown: true, ariaPlanted: true }) });
+    expect(JSON.stringify(knownMock.mock.calls[0][1])).toContain('an AI called Aria');
   });
 });

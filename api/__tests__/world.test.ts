@@ -27,13 +27,18 @@ const FALLBACK_NARRATIVE =
  * returning a small {_status, _json} shape so the rest of the test bodies
  * below stay close to the pre-Hono assertions.
  */
+const withFlag = (body: unknown): unknown =>
+  typeof body === 'object' && body !== null && !Array.isArray(body)
+    ? { ariaNameKnown: true, ...body }
+    : body;
+
 async function callHandler(
   overrides: { method?: string; body?: unknown } = {},
 ): Promise<{ _status: number; _json: unknown }> {
   const { method = 'POST', body = VALID_BODY } = overrides;
   const init: RequestInit = { method };
   if (method === 'POST') {
-    init.body = JSON.stringify(body);
+    init.body = JSON.stringify(withFlag(body));
     init.headers = { 'Content-Type': 'application/json' };
   }
   const res = await app.request('/', init);
@@ -294,5 +299,60 @@ describe('POST /api/world — with API key', () => {
 
     expect(res._status).toBe(200);
     expect((res._json as WorldAIResponse).narrative).toBe(FALLBACK_NARRATIVE);
+  });
+});
+
+describe('POST /api/world — name rule', () => {
+  beforeEach(() => {
+    process.env['GEMINI_API_KEY'] = 'test-key';
+  });
+
+  it.each([undefined, 'yes', 1, null])('returns 400 for ariaNameKnown = %j', async flag => {
+    const res = await callHandler({ body: { ...VALID_BODY, ariaNameKnown: flag } });
+    expect(res._status).toBe(400);
+    expect((res._json as { error: string }).error).toContain('ariaNameKnown');
+  });
+
+  it('keeps the existing error for a missing command ahead of the flag error', async () => {
+    const res = await callHandler({ body: { ariaNameKnown: undefined } });
+    expect((res._json as { error: string }).error).toContain('command');
+  });
+
+  it('tells the model not to say the name, and scrubs a leaking reply, while the name is unknown', async () => {
+    const leaking = {
+      ...VALID_AI_JSON,
+      narrative: 'Aria is watching you.',
+      suggestions: ['msg ARIA', 'scan', 'ask aria'],
+    };
+    const fetchMock = vi.fn().mockResolvedValue(makeGeminiResponse(JSON.stringify(leaking)));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const res = await callHandler({ body: { ...VALID_BODY, ariaNameKnown: false } });
+
+    const sent = JSON.stringify(fetchMock.mock.calls[0][1]);
+    expect(sent).toContain('Never write the name');
+    const json = res._json as { narrative: string; suggestions: string[] };
+    expect(json.narrative).toBe('Cassandra is watching you.');
+    expect(json.suggestions).toEqual(['msg CASSANDRA', 'scan', 'ask cassandra']);
+  });
+
+  it('leaves the prompt and the reply untouched once the name is known', async () => {
+    const reply = { ...VALID_AI_JSON, narrative: 'Aria is watching you.' };
+    const fetchMock = vi.fn().mockResolvedValue(makeGeminiResponse(JSON.stringify(reply)));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const res = await callHandler({ body: { ...VALID_BODY, ariaNameKnown: true } });
+
+    expect(JSON.stringify(fetchMock.mock.calls[0][1])).not.toContain('Never write the name');
+    expect((res._json as { narrative: string }).narrative).toBe('Aria is watching you.');
+  });
+
+  it('does not scrub flag keys in flagsSet', async () => {
+    const reply = { ...VALID_AI_JSON, flagsSet: { ARIA_SEEN: true } };
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(makeGeminiResponse(JSON.stringify(reply))));
+    const res = await callHandler({ body: { ...VALID_BODY, ariaNameKnown: false } });
+    expect((res._json as { flagsSet: Record<string, boolean> }).flagsSet).toEqual({
+      ARIA_SEEN: true,
+    });
   });
 });

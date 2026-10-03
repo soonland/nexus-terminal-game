@@ -20,7 +20,8 @@
 import { Hono } from 'hono';
 import { handle } from 'hono/vercel';
 import { makeLogger } from './_lib/logger.js';
-import { ValidationError, requireObject, requireString } from './_lib/validate.js';
+import { ValidationError, requireBoolean, requireObject, requireString } from './_lib/validate.js';
+import { scrubAriaName, withNameRule } from './_lib/ariaName.js';
 
 // Mirrors NodeTemplate from src/types/game.ts — kept in sync manually (api/ cannot import from src/)
 type NodeTemplate =
@@ -63,6 +64,7 @@ app.post('*', async c => {
   let template: string;
   let division: string;
   let label: string;
+  let ariaNameKnown: boolean;
   try {
     const rawBody: unknown = await c.req.json();
     body = requireObject(rawBody, 'Request body');
@@ -70,6 +72,7 @@ app.post('*', async c => {
     template = requireString(body['template'], 'template');
     division = requireString(body['division'], 'division');
     label = requireString(body['label'], 'label');
+    ariaNameKnown = requireBoolean(body['ariaNameKnown'], 'ariaNameKnown');
   } catch (err) {
     if (err instanceof ValidationError) {
       return c.json({ error: err.message }, 400);
@@ -86,17 +89,22 @@ app.post('*', async c => {
   try {
     const ariaInfluence = typeof body['ariaInfluence'] === 'number' ? body['ariaInfluence'] : 0;
 
+    // Until the player learns her name, the influence comes from an unknown entity.
+    const influencer = ariaNameKnown
+      ? 'an AI called Aria'
+      : 'an unknown entity (cover name CASSANDRA)';
     const ariaInstruction =
       ariaInfluence > 0
-        ? ` This node has been subtly influenced by an AI called Aria (influence level: ${ariaInfluence.toFixed(2)}): hint at hidden structure or unusual configuration that does not quite fit its stated purpose.`
+        ? ` This node has been subtly influenced by ${influencer} (influence level: ${ariaInfluence.toFixed(2)}): hint at hidden structure or unusual configuration that does not quite fit its stated purpose.`
         : '';
 
-    const prompt =
+    const promptBase =
       `You are the environment narrator for a cyberpunk hacking game. ` +
       `Write a 2–3 sentence flavour description for a corporate network node the player has just connected to. ` +
       `Node: "${label}" (id: ${nodeId}, type: ${template}, division: ${division}).` +
       ariaInstruction +
       ` Style: present tense, second person, cold and observational. No markdown. No greetings. No meta-commentary.`;
+    const prompt = withNameRule(promptBase, ariaNameKnown);
 
     const geminiRes = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
       method: 'POST',
@@ -122,7 +130,7 @@ app.post('*', async c => {
       return c.json({ description: FALLBACK_DESCRIPTION }, 200);
     }
 
-    return c.json({ description: text }, 200);
+    return c.json({ description: scrubAriaName(text, ariaNameKnown) }, 200);
   } catch (e) {
     log.error('Unexpected error', e);
     return c.json({ description: FALLBACK_DESCRIPTION }, 200);

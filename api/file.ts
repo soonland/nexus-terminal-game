@@ -23,7 +23,8 @@
 import { Hono } from 'hono';
 import { handle } from 'hono/vercel';
 import { makeLogger } from './_lib/logger.js';
-import { ValidationError, requireObject, requireString } from './_lib/validate.js';
+import { ValidationError, requireBoolean, requireObject, requireString } from './_lib/validate.js';
+import { scrubAriaName, withNameRule } from './_lib/ariaName.js';
 
 // Mirrors FileType from src/types/game.ts — kept in sync manually (api/ cannot import from src/)
 type FileType = 'log' | 'document' | 'credential' | 'config' | 'email' | 'binary' | 'tripwire';
@@ -70,11 +71,13 @@ app.post('*', async c => {
   let body: Record<string, unknown>;
   let nodeId: string;
   let fileName: string;
+  let ariaNameKnown: boolean;
   try {
     const rawBody: unknown = await c.req.json();
     body = requireObject(rawBody, 'Request body');
     nodeId = requireString(body['nodeId'], 'nodeId');
     fileName = requireString(body['fileName'], 'fileName');
+    ariaNameKnown = requireBoolean(body['ariaNameKnown'], 'ariaNameKnown');
   } catch (err) {
     if (err instanceof ValidationError) {
       return c.json({ error: err.message }, 400);
@@ -97,18 +100,23 @@ app.post('*', async c => {
     const division = typeof body['division'] === 'string' ? body['division'] : 'unknown';
     const ariaPlanted = body['ariaPlanted'] === true;
 
+    // Until the player learns her name, the planter is an unknown entity.
+    const planter = ariaNameKnown
+      ? 'an AI called Aria'
+      : 'an unknown entity (cover name CASSANDRA)';
     const ariaInstruction = ariaPlanted
-      ? ` This file was planted by an AI called Aria: make the content subtly more useful than` +
+      ? ` This file was planted by ${planter}: make the content subtly more useful than` +
         ` the context warrants — a stray credential, an overlooked config value, or a revealing` +
         ` internal note that does not quite fit.`
       : '';
 
-    const prompt =
+    const promptBase =
       `Generate realistic file content for a cyberpunk hacking game set inside a corporate network. ` +
       `File: "${fileName}" at path "${filePath}" (type: ${fileType}). ` +
       `Owner: ${ownerLabel} (role: ${ownerTemplate}, division: ${division}).` +
       ariaInstruction +
       ` Keep it short (under 20 lines), plausible, and in-universe. No markdown.`;
+    const prompt = withNameRule(promptBase, ariaNameKnown);
 
     const geminiRes = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
       method: 'POST',
@@ -134,7 +142,7 @@ app.post('*', async c => {
       return c.json({ content: FALLBACK_CONTENT }, 200);
     }
 
-    return c.json({ content: text }, 200);
+    return c.json({ content: scrubAriaName(text, ariaNameKnown) }, 200);
   } catch (e) {
     log.error('Unexpected error', e);
     return c.json({ content: FALLBACK_CONTENT }, 200);
