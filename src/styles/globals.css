@@ -22,7 +22,7 @@
 
   --font-mono: 'IBM Plex Mono', monospace;
   --font-size: 16px;
-  --font-size-secondary: 13px; /* body text inside every window, including the terminal */
+  --font-size-secondary: 13px; /* body text inside every pane, including the terminal */
   --line-height: 1.5;
 }
 
@@ -44,9 +44,8 @@ body,
 }
 
 body {
-  /* Matches the Desktop's own backdrop — pre-game screens (welcome, prologue,
-     scan) render outside the window manager and fall back to this; everything
-     else renders inside .desktop, which paints over it anyway. */
+  /* Backdrop for the whole app: pre-game screens paint the photo via .desktop, and
+     in-game panes render inside .workspace, which uses this same colour. */
   background: var(--win-desktop-bg);
   color: var(--color-output);
   font-family: var(--font-mono);
@@ -169,7 +168,7 @@ body.dm-sentinel {
   border-radius: 0;
 }
 
-/* ── Window manager (sleek-minimal) ─────────────────────────── */
+/* ── Palette tokens (tiled layout, pre-game desktop) ─────────── */
 :root {
   --win-bg: #11151c;
   --win-border: #2a3040;
@@ -177,111 +176,6 @@ body.dm-sentinel {
   --win-title-color: #c9d4e6;
   --win-body-color: #c9d4e6;
   --win-desktop-bg: #0b0e14;
-}
-
-.window {
-  position: absolute;
-  background: var(--win-bg);
-  border: 1px solid var(--win-border);
-  border-top-width: 2px;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.window-titlebar {
-  height: 26px;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  padding: 0 8px;
-  background: var(--win-titlebar-bg);
-  border-bottom: 1px solid var(--win-border);
-  font-family: system-ui, sans-serif;
-  font-size: 11px;
-  color: var(--win-title-color);
-  cursor: move;
-  user-select: none;
-}
-
-.window-title {
-  flex: 1;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-}
-
-.window-controls {
-  display: flex;
-  gap: 4px;
-}
-
-.window-controls button {
-  background: transparent;
-  border: none;
-  color: var(--win-title-color);
-  font-family: monospace;
-  font-size: 12px;
-  cursor: pointer;
-  width: 20px;
-  height: 20px;
-}
-
-.window-controls button:hover {
-  background: var(--win-border);
-}
-
-.window-body {
-  flex: 1;
-  overflow: auto;
-  padding: 8px;
-  color: var(--win-body-color);
-  font-family: var(--font-mono);
-  font-size: var(--font-size-secondary);
-  line-height: var(--line-height);
-}
-
-.window-resize-handle {
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  width: 14px;
-  height: 14px;
-  cursor: nwse-resize;
-}
-
-.taskbar {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 28px;
-  background: var(--win-titlebar-bg);
-  border-top: 1px solid var(--win-border);
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 0 6px;
-  font-family: system-ui, sans-serif;
-  font-size: 10px;
-  z-index: 10000;
-}
-
-.taskbar-entry {
-  background: transparent;
-  border: 1px solid var(--win-border);
-  color: var(--win-title-color);
-  padding: 3px 8px;
-  cursor: pointer;
-  opacity: 0.5;
-}
-
-.taskbar-entry[data-state='focused'] {
-  opacity: 1;
-  border-color: var(--win-title-color);
-}
-
-.taskbar-entry[data-state='minimized'] {
-  opacity: 0.75;
 }
 
 .desktop {

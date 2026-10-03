@@ -9,9 +9,8 @@ import { MapModal } from './components/MapModal';
 import { HelpModal } from './components/HelpModal';
 import { NotesModal } from './components/NotesModal';
 import { DossierWindow } from './components/DossierWindow';
-import { ExplorerWindow } from './components/ExplorerWindow';
-import { Desktop } from './components/Desktop';
-import type { DesktopHandle } from './components/Desktop';
+import { Workspace } from './components/Workspace';
+import type { WorkspaceHandle } from './components/Workspace';
 import { useBootSequence } from './hooks/useBootSequence';
 import { useEndingSequence, buildEndingLines } from './hooks/useEndingSequence';
 import { buildPostGameReadout } from './engine/postGameReadout';
@@ -173,7 +172,7 @@ export const App = () => {
   });
 
   const terminalRef = useRef<TerminalHandle>(null);
-  const desktopRef = useRef<DesktopHandle>(null);
+  const workspaceRef = useRef<WorkspaceHandle>(null);
   const bootHandled = useRef(false);
   const spinnerTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const spinnerFrame = useRef(0);
@@ -578,38 +577,38 @@ export const App = () => {
 
       if (raw.trim().toLowerCase() === 'help') {
         push([makeLine('input', raw)]);
-        desktopRef.current?.openWindow('help');
+        workspaceRef.current?.showOverlay('help');
         return;
       }
 
       if (raw.trim().toLowerCase() === 'briefing') {
         push([makeLine('input', raw)]);
-        desktopRef.current?.openWindow('briefing');
+        workspaceRef.current?.showOverlay('briefing');
         return;
       }
 
       if (raw.trim().toLowerCase() === 'map') {
         push([makeLine('input', raw)]);
-        desktopRef.current?.openWindow('map');
+        workspaceRef.current?.showAux('map');
         return;
       }
 
       if (raw.trim().toLowerCase() === 'notes') {
         push([makeLine('input', raw)]);
-        desktopRef.current?.openWindow('notes');
+        workspaceRef.current?.showAux('notes');
         return;
       }
 
       if (raw.trim().toLowerCase() === 'dossier') {
         push([makeLine('input', raw)]);
-        desktopRef.current?.openWindow('dossier');
+        workspaceRef.current?.showOverlay('dossier');
         return;
       }
 
       const verb = raw.trim().toLowerCase();
       if (verb === 'explorer' || verb === 'files') {
         push([makeLine('input', raw)]);
-        desktopRef.current?.openWindow('explorer');
+        workspaceRef.current?.focusPane('files');
         return;
       }
 
@@ -872,8 +871,15 @@ export const App = () => {
   }
 
   return (
-    <Desktop
-      ref={desktopRef}
+    <Workspace
+      ref={workspaceRef}
+      gameState={gameState}
+      nodeIp={nodeIp}
+      trace={trace}
+      explorerDisabled={explorerDisabled}
+      onRunCommand={cmd => {
+        void handleSubmit(cmd);
+      }}
       onTerminalFocused={() => {
         terminalRef.current?.focus();
       }}
@@ -906,17 +912,6 @@ export const App = () => {
       help={<HelpModal />}
       briefing={<BriefingModal />}
       dossier={<DossierWindow dossier={loadDossier()} />}
-      explorer={
-        gameState ? (
-          <ExplorerWindow
-            gameState={gameState}
-            onRunCommand={cmd => {
-              void handleSubmit(cmd);
-            }}
-            disabled={explorerDisabled}
-          />
-        ) : null
-      }
     />
   );
 };
