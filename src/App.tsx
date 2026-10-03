@@ -24,6 +24,7 @@ import { hasAccess } from './types/game';
 import { createInitialState, currentNode, burnRetry } from './engine/state';
 import produce from './engine/produce';
 import { resolveCommand } from './engine/commands';
+import { LOGIN_FAILED_HINT, OPERATIVE_PASS, OPERATIVE_USER } from './data/operativeLogin';
 import {
   appendSentinelHistory,
   closeSentinelChannel,
@@ -101,8 +102,6 @@ const getEndingName = (flags: Record<string, boolean>): EndingName | 'UNKNOWN' =
 };
 
 // Nexus Corp operative credentials
-const OPERATIVE_USER = 'ghost';
-const OPERATIVE_PASS = 'nX-2847';
 
 const SPINNER_FRAMES = ['-', '\\', '|', '/'];
 
@@ -436,7 +435,11 @@ export const App = () => {
             }
           }
         } else {
-          push([makeLine('error', 'Login incorrect.'), makeLine('system', 'nx-field-01 login:')]);
+          push([
+            makeLine('error', 'Login incorrect.'),
+            makeLine('system', LOGIN_FAILED_HINT),
+            makeLine('system', 'nx-field-01 login:'),
+          ]);
           setUsername('');
           setAppPhase('login_user');
         }

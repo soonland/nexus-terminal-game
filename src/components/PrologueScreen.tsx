@@ -1,5 +1,6 @@
 import type { KeyboardEvent } from 'react';
 import { useEffect, useRef } from 'react';
+import { OPERATIVE_PASS, PASSWORD_CASE_NOTE } from '../data/operativeLogin';
 
 interface Props {
   onContinue: () => void;
@@ -32,6 +33,11 @@ const LINES: Array<{ text: string; color: string; margin?: string }> = [
   {
     text: '  told you the password was the ticket number. Cute.',
     color: 'var(--color-output)',
+    margin: '0.25rem',
+  },
+  {
+    text: `  Type it exactly: ${OPERATIVE_PASS} (${PASSWORD_CASE_NOTE}).`,
+    color: 'var(--color-system)',
     margin: '1rem',
   },
   {
