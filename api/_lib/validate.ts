@@ -23,3 +23,10 @@ export const requireObject = (value: unknown, label: string): Record<string, unk
   }
   return value as Record<string, unknown>;
 };
+
+export const requireBoolean = (value: unknown, field: string): boolean => {
+  if (typeof value !== 'boolean') {
+    throw new ValidationError(`Missing or non-boolean field: ${field}`);
+  }
+  return value;
+};

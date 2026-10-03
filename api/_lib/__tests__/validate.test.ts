@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ValidationError, requireString, requireObject } from '../validate.js';
+import { ValidationError, requireBoolean, requireString, requireObject } from '../validate.js';
 
 describe('ValidationError', () => {
   it('should have name ValidationError', () => {
@@ -95,5 +95,19 @@ describe('requireObject', () => {
 
   it('should include the label in the error message', () => {
     expect(() => requireObject(null, 'Payload')).toThrow('Payload must be a JSON object');
+  });
+});
+
+describe('requireBoolean', () => {
+  it('returns real booleans, including false', () => {
+    expect(requireBoolean(true, 'flag')).toBe(true);
+    expect(requireBoolean(false, 'flag')).toBe(false);
+  });
+
+  it.each([undefined, null, 'true', 1, 0, {}, []])('rejects %j', value => {
+    expect(() => requireBoolean(value, 'ariaNameKnown')).toThrow(ValidationError);
+    expect(() => requireBoolean(value, 'ariaNameKnown')).toThrow(
+      'Missing or non-boolean field: ariaNameKnown',
+    );
   });
 });
