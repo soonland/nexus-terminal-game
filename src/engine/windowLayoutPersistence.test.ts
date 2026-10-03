@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { saveWindowLayout, loadWindowLayout } from './windowLayoutPersistence';
-import { createDefaultLayout, WINDOW_KINDS } from './windowManager';
+import { toggleMaximizeWindow, createDefaultLayout, WINDOW_KINDS } from './windowManager';
 
 const VIEWPORT = { width: 1280, height: 800 };
 
@@ -101,5 +101,42 @@ describe('windowLayoutPersistence', () => {
     const loaded = loadWindowLayout(VIEWPORT);
     const maxZ = Math.max(...WINDOW_KINDS.map(k => loaded[k].zIndex));
     expect(loaded.terminal.zIndex).toBe(maxZ);
+  });
+
+  it('round-trips a maximized window', () => {
+    const layout = toggleMaximizeWindow(createDefaultLayout(VIEWPORT), 'map', VIEWPORT);
+    saveWindowLayout(layout);
+    const loaded = loadWindowLayout(VIEWPORT);
+    expect(loaded.map.maximized).toBe(true);
+    expect(loaded.map.restoreBounds).toEqual(layout.map.restoreBounds);
+  });
+
+  it('loads a maximized window without valid restore bounds as un-maximized', () => {
+    const layout = createDefaultLayout(VIEWPORT);
+    const corrupt = { ...layout, map: { ...layout.map, maximized: true, restoreBounds: 'nope' } };
+    mockStorage.getItem.mockReturnValueOnce(JSON.stringify({ version: 1, windows: corrupt }));
+    const loaded = loadWindowLayout(VIEWPORT);
+    expect(loaded.map.maximized).toBeUndefined();
+    expect(loaded.map.restoreBounds).toBeUndefined();
+    expect(loaded.map.width).toBe(layout.map.width);
+  });
+
+  it('treats null or partial restore bounds as invalid', () => {
+    const layout = createDefaultLayout(VIEWPORT);
+    for (const restoreBounds of [null, { x: 1, y: 2 }]) {
+      const corrupt = { ...layout, map: { ...layout.map, maximized: true, restoreBounds } };
+      mockStorage.getItem.mockReturnValueOnce(JSON.stringify({ version: 1, windows: corrupt }));
+      expect(loadWindowLayout(VIEWPORT).map.maximized).toBeUndefined();
+    }
+  });
+
+  it('loads a layout saved before the explorer window existed using its default instance', () => {
+    const layout = createDefaultLayout(VIEWPORT);
+    const { explorer: _omitted, ...withoutExplorer } = layout;
+    mockStorage.getItem.mockReturnValueOnce(
+      JSON.stringify({ version: 1, windows: withoutExplorer }),
+    );
+    const loaded = loadWindowLayout(VIEWPORT);
+    expect(loaded.explorer).toEqual(expect.objectContaining({ kind: 'explorer', open: false }));
   });
 });

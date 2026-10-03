@@ -627,3 +627,32 @@ describe('persistence — unlockAttempts and unlockSession', () => {
     expect(file?.locked).not.toBe(true);
   });
 });
+
+describe('filesRead persistence', () => {
+  let mockStorage: ReturnType<typeof makeMockStorage>;
+
+  beforeEach(() => {
+    mockStorage = makeMockStorage();
+    vi.stubGlobal('localStorage', mockStorage);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('round-trips filesRead', () => {
+    const state = produce(createInitialState(), s => {
+      s.filesRead = ['contractor_portal:/var/www/contractor/welcome.txt'];
+    });
+    saveGame(state);
+    expect(loadGame()?.filesRead).toEqual(['contractor_portal:/var/www/contractor/welcome.txt']);
+  });
+
+  it('loads a save written before filesRead existed as []', () => {
+    saveGame(createInitialState());
+    const raw = JSON.parse(mockStorage.getItem(SAVE_KEY) as string) as Record<string, unknown>;
+    delete raw['filesRead'];
+    mockStorage.setItem(SAVE_KEY, JSON.stringify(raw));
+    expect(loadGame()?.filesRead).toEqual([]);
+  });
+});

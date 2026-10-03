@@ -10,6 +10,7 @@ import {
   focusWindow,
   moveWindow,
   resizeWindow,
+  toggleMaximizeWindow,
   clampInstance,
 } from '../engine/windowManager';
 import { loadWindowLayout, saveWindowLayout } from '../engine/windowLayoutPersistence';
@@ -23,6 +24,7 @@ interface Props {
   help: ReactNode;
   briefing: ReactNode;
   dossier: ReactNode;
+  explorer: ReactNode | null;
   onTerminalFocused: () => void;
 }
 
@@ -37,6 +39,7 @@ const TITLES: Record<WindowKind, string> = {
   help: 'COMMAND REFERENCE',
   briefing: 'OPERATIVE ACTIVATION NOTICE',
   dossier: 'DOSSIER',
+  explorer: 'FILE EXPLORER',
 };
 
 const ACCENTS: Record<WindowKind, string> = {
@@ -46,6 +49,7 @@ const ACCENTS: Record<WindowKind, string> = {
   help: '#a371f7',
   briefing: '#f0883e',
   dossier: '#79c0ff',
+  explorer: '#ff7b72',
 };
 
 // Debounce localStorage writes so a drag (many pointermove events) or a burst of
@@ -69,7 +73,7 @@ const sameBounds = (
 ): boolean => a.x === b.x && a.y === b.y && a.width === b.width && a.height === b.height;
 
 export const Desktop = forwardRef<DesktopHandle, Props>(
-  ({ terminal, map, notes, help, briefing, dossier, onTerminalFocused }, ref) => {
+  ({ terminal, map, notes, help, briefing, dossier, explorer, onTerminalFocused }, ref) => {
     const [state, setState] = useState<WindowManagerState>(() =>
       loadWindowLayout(currentViewport()),
     );
@@ -192,6 +196,7 @@ export const Desktop = forwardRef<DesktopHandle, Props>(
       help,
       briefing,
       dossier,
+      explorer,
     };
 
     const visibleKinds = WINDOW_KINDS.filter(
@@ -219,6 +224,9 @@ export const Desktop = forwardRef<DesktopHandle, Props>(
             }}
             onMinimize={() => {
               applyAndMaybeFocusTerminal(prev => minimizeWindow(prev, kind));
+            }}
+            onToggleMaximize={() => {
+              setState(prev => toggleMaximizeWindow(prev, kind, currentViewport()));
             }}
             onClose={() => {
               applyAndMaybeFocusTerminal(prev => closeWindow(prev, kind));

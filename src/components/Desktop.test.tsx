@@ -32,6 +32,7 @@ const renderDesktop = (onTerminalFocused = vi.fn()) => {
       help={<div>help-content</div>}
       briefing={<div>briefing-content</div>}
       dossier={<div>dossier-content</div>}
+      explorer={<div>explorer-content</div>}
       onTerminalFocused={onTerminalFocused}
     />,
   );
@@ -80,6 +81,16 @@ describe('Desktop', () => {
       ref.current?.openWindow('map');
     });
     expect(screen.getByText('map-content')).toBeTruthy();
+  });
+
+  it('opens the explorer window via the handle and shows its taskbar entry', () => {
+    const ref = renderDesktop();
+    expect(screen.queryByText('explorer-content')).toBeNull();
+    act(() => {
+      ref.current?.openWindow('explorer');
+    });
+    expect(screen.getByText('explorer-content')).toBeTruthy();
+    expect(taskbarEntry('FILE EXPLORER')).toBeTruthy();
   });
 
   it('opening an already-open window via the handle does not duplicate it', () => {

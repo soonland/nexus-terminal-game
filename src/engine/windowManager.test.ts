@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  toggleMaximizeWindow,
   WINDOW_KINDS,
   MIN_WINDOW_WIDTH,
   MIN_WINDOW_HEIGHT,
@@ -22,6 +23,12 @@ describe('createDefaultLayout', () => {
   it('creates exactly one instance per window kind', () => {
     const layout = createDefaultLayout(VIEWPORT);
     expect(Object.keys(layout).sort()).toEqual([...WINDOW_KINDS].sort());
+  });
+
+  it('includes a closed explorer window', () => {
+    const layout = createDefaultLayout(VIEWPORT);
+    expect(layout.explorer.open).toBe(false);
+    expect(layout.explorer.minimized).toBe(false);
   });
 
   it('only opens the terminal by default', () => {
@@ -249,5 +256,44 @@ describe('moveWindow / resizeWindow', () => {
     const next = resizeWindow(layout, 'map', 1, 1, VIEWPORT);
     expect(next.map.width).toBeGreaterThanOrEqual(MIN_WINDOW_WIDTH);
     expect(next.map.height).toBeGreaterThanOrEqual(MIN_WINDOW_HEIGHT);
+  });
+});
+
+describe('toggleMaximizeWindow', () => {
+  it('fills the viewport above the taskbar and remembers prior bounds', () => {
+    const layout = createDefaultLayout(VIEWPORT);
+    const before = layout.map;
+    const next = toggleMaximizeWindow(layout, 'map', VIEWPORT);
+    expect(next.map).toMatchObject({
+      x: 0,
+      y: 0,
+      width: VIEWPORT.width,
+      height: VIEWPORT.height - TASKBAR_HEIGHT,
+      maximized: true,
+      restoreBounds: { x: before.x, y: before.y, width: before.width, height: before.height },
+    });
+  });
+
+  it('restores the original bounds when toggled again', () => {
+    const layout = createDefaultLayout(VIEWPORT);
+    const before = layout.map;
+    const back = toggleMaximizeWindow(
+      toggleMaximizeWindow(layout, 'map', VIEWPORT),
+      'map',
+      VIEWPORT,
+    );
+    expect(back.map).toEqual({ ...before, maximized: undefined, restoreBounds: undefined });
+    expect(back.map.maximized).toBeFalsy();
+  });
+
+  it('re-fits to a new viewport and ignores move/resize while maximized', () => {
+    const layout = toggleMaximizeWindow(createDefaultLayout(VIEWPORT), 'map', VIEWPORT);
+    const small = { width: 900, height: 600 };
+    expect(clampInstance(layout.map, small)).toMatchObject({
+      width: 900,
+      height: 600 - TASKBAR_HEIGHT,
+    });
+    expect(moveWindow(layout, 'map', 50, 50, VIEWPORT)).toBe(layout);
+    expect(resizeWindow(layout, 'map', 300, 300, VIEWPORT)).toBe(layout);
   });
 });

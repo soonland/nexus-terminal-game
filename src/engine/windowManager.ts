@@ -1,4 +1,5 @@
-export type WindowKind = 'terminal' | 'map' | 'notes' | 'help' | 'briefing' | 'dossier';
+export type WindowKind =
+  'terminal' | 'map' | 'notes' | 'help' | 'briefing' | 'dossier' | 'explorer';
 
 export const WINDOW_KINDS: readonly WindowKind[] = [
   'terminal',
@@ -7,6 +8,7 @@ export const WINDOW_KINDS: readonly WindowKind[] = [
   'help',
   'briefing',
   'dossier',
+  'explorer',
 ];
 
 export interface Viewport {
@@ -14,15 +16,22 @@ export interface Viewport {
   height: number;
 }
 
-export interface WindowInstance {
-  kind: WindowKind;
+export interface WindowBounds {
   x: number;
   y: number;
   width: number;
   height: number;
+}
+
+export interface WindowInstance extends WindowBounds {
+  kind: WindowKind;
   zIndex: number;
   open: boolean;
   minimized: boolean;
+  // While maximized, x/y/width/height always track the viewport; restoreBounds holds
+  // the pre-maximize geometry so un-maximizing returns the window where it was.
+  maximized?: boolean;
+  restoreBounds?: WindowBounds;
 }
 
 export type WindowManagerState = Record<WindowKind, WindowInstance>;
@@ -45,12 +54,24 @@ const DEFAULT_SIZE: Record<WindowKind, { width: number; height: number }> = {
   help: { width: 460, height: 400 },
   briefing: { width: 520, height: 380 },
   dossier: { width: 420, height: 340 },
+  explorer: { width: 480, height: 420 },
 };
 
 // Cascade offset (in window-count order) so first-time windows don't stack exactly.
 const CASCADE_STEP = 32;
 
+const maximizedBounds = (viewport: Viewport): WindowBounds => ({
+  x: 0,
+  y: 0,
+  width: viewport.width,
+  height: Math.max(MIN_WINDOW_HEIGHT, viewport.height - TASKBAR_HEIGHT),
+});
+
 export const clampInstance = (instance: WindowInstance, viewport: Viewport): WindowInstance => {
+  // A maximized window always fills the usable desktop, so a viewport resize
+  // re-fits it rather than clamping its stale size.
+  if (instance.maximized) return { ...instance, ...maximizedBounds(viewport) };
+
   // The taskbar occupies the bottom TASKBAR_HEIGHT px — nothing may be dragged or
   // resized into that band, or the title bar (and the resize handle) become
   // unreachable with no way to recover except clearing localStorage.
@@ -146,10 +167,10 @@ export const moveWindow = (
   x: number,
   y: number,
   viewport: Viewport,
-): WindowManagerState => ({
-  ...state,
-  [kind]: clampInstance({ ...state[kind], x, y }, viewport),
-});
+): WindowManagerState =>
+  state[kind].maximized
+    ? state
+    : { ...state, [kind]: clampInstance({ ...state[kind], x, y }, viewport) };
 
 export const resizeWindow = (
   state: WindowManagerState,
@@ -157,7 +178,19 @@ export const resizeWindow = (
   width: number,
   height: number,
   viewport: Viewport,
-): WindowManagerState => ({
-  ...state,
-  [kind]: clampInstance({ ...state[kind], width, height }, viewport),
-});
+): WindowManagerState =>
+  state[kind].maximized
+    ? state
+    : { ...state, [kind]: clampInstance({ ...state[kind], width, height }, viewport) };
+
+export const toggleMaximizeWindow = (
+  state: WindowManagerState,
+  kind: WindowKind,
+  viewport: Viewport,
+): WindowManagerState => {
+  const { x, y, width, height, maximized, restoreBounds, ...rest } = state[kind];
+  const next: WindowInstance = maximized
+    ? { ...rest, ...(restoreBounds ?? { x, y, width, height }) }
+    : { ...rest, x, y, width, height, maximized: true, restoreBounds: { x, y, width, height } };
+  return { ...state, [kind]: clampInstance(next, viewport) };
+};

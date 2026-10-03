@@ -9,6 +9,7 @@ import { MapModal } from './components/MapModal';
 import { HelpModal } from './components/HelpModal';
 import { NotesModal } from './components/NotesModal';
 import { DossierWindow } from './components/DossierWindow';
+import { ExplorerWindow } from './components/ExplorerWindow';
 import { Desktop } from './components/Desktop';
 import type { DesktopHandle } from './components/Desktop';
 import { useBootSequence } from './hooks/useBootSequence';
@@ -605,6 +606,13 @@ export const App = () => {
         return;
       }
 
+      const verb = raw.trim().toLowerCase();
+      if (verb === 'explorer' || verb === 'files') {
+        push([makeLine('input', raw)]);
+        desktopRef.current?.openWindow('explorer');
+        return;
+      }
+
       if (raw.trim().toLowerCase().startsWith('theme')) {
         const arg = raw.trim().slice(5).trim().toLowerCase();
         push([makeLine('input', raw)]);
@@ -811,6 +819,7 @@ export const App = () => {
     appPhase === 'booting' ||
     appPhase === 'ending_sequence' ||
     spinnerLine !== null;
+  const explorerDisabled = inputDisabled || (appPhase !== 'playing' && appPhase !== 'aria');
 
   const node = gameState ? currentNode(gameState) : null;
   const nodeIp = node?.ip ?? '---';
@@ -897,6 +906,17 @@ export const App = () => {
       help={<HelpModal />}
       briefing={<BriefingModal />}
       dossier={<DossierWindow dossier={loadDossier()} />}
+      explorer={
+        gameState ? (
+          <ExplorerWindow
+            gameState={gameState}
+            onRunCommand={cmd => {
+              void handleSubmit(cmd);
+            }}
+            disabled={explorerDisabled}
+          />
+        ) : null
+      }
     />
   );
 };

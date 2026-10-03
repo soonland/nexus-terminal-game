@@ -17,6 +17,7 @@ const TITLES: Record<WindowKind, string> = {
   help: 'COMMAND REFERENCE',
   briefing: 'OPERATIVE ACTIVATION NOTICE',
   dossier: 'DOSSIER',
+  explorer: 'FILE EXPLORER',
 };
 
 const VIEWPORT = { width: 1280, height: 800 };

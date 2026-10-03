@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { resolveCommand, generateUnlockCode } from './commands';
 import { createInitialState } from './state';
 import type { GameState } from '../types/game';
+import { hasAccess, fileReadKey } from '../types/game';
 import produce from './produce';
 
 // ── Helpers ────────────────────────────────────────────────
@@ -3725,5 +3726,90 @@ describe('view-cam command', () => {
     const s = cctvState();
     const result = await resolveCommand('view-cam', s);
     expect(result.lines.some(l => l.type === 'error')).toBe(true);
+  });
+});
+
+describe('cmdCat — filesRead', () => {
+  const NODE_ID = 'contractor_portal';
+
+  const openState = (): GameState =>
+    produce(createInitialState(), s => {
+      s.network.nodes[NODE_ID]!.accessLevel = 'user';
+    });
+
+  const readableFile = (state: GameState) =>
+    state.network.nodes[NODE_ID]!.files.find(
+      f => !f.tripwire && !f.locked && f.content !== null && hasAccess('user', f.accessRequired),
+    )!;
+
+  it('records the file key after a successful read', async () => {
+    const state = openState();
+    const file = readableFile(state);
+    const result = await resolveCommand(`cat ${file.path}`, state);
+    const next = result.nextState as GameState;
+    expect(next.filesRead).toEqual([fileReadKey(NODE_ID, file.path)]);
+  });
+
+  it('does not record the same file twice', async () => {
+    const state = openState();
+    const file = readableFile(state);
+    const first = (await resolveCommand(`cat ${file.path}`, state)).nextState as GameState;
+    const second = (await resolveCommand(`cat ${file.path}`, first)).nextState as GameState;
+    expect(second.filesRead).toHaveLength(1);
+  });
+
+  it('does not record anything when access is denied', async () => {
+    const state = produce(createInitialState(), s => {
+      s.network.nodes[NODE_ID]!.accessLevel = 'none';
+    });
+    const file = readableFile(openState());
+    const result = await resolveCommand(`cat ${file.path}`, state);
+    expect((result.nextState ?? state).filesRead).toEqual([]);
+  });
+
+  it('does not record a read that fell back to the offline placeholder', async () => {
+    const base = openState();
+    const file = readableFile(base);
+    const state = produce(base, s => {
+      s.network.nodes[NODE_ID]!.files.find(f => f.path === file.path)!.content = null;
+    });
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')));
+    try {
+      const result = await resolveCommand(`cat ${file.path}`, state);
+      expect((result.nextState ?? state).filesRead).toEqual([]);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});
+
+describe('explorer / files verbs', () => {
+  it.each(['explorer', 'files'])('%s returns no output and no AI call', async verb => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    try {
+      const result = await resolveCommand(verb, createInitialState());
+      expect(result.lines).toEqual([]);
+      expect(fetchMock).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});
+
+describe('cat local: — path lookup (used by the explorer)', () => {
+  it('reads the exfiltrated file matching the full path when two share a name', async () => {
+    const base = createInitialState();
+    const template = base.network.nodes['contractor_portal']!.files[0];
+    const state = produce(base, s => {
+      s.player.exfiltrated = [
+        { ...template, name: 'config.ini', path: '/etc/a/config.ini', content: 'FROM A' },
+        { ...template, name: 'config.ini', path: '/etc/b/config.ini', content: 'FROM B' },
+      ];
+    });
+    const result = await resolveCommand('cat local:/etc/b/config.ini', state);
+    const text = result.lines.map(l => l.content).join('\n');
+    expect(text).toContain('FROM B');
+    expect(text).not.toContain('FROM A');
   });
 });

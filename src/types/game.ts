@@ -13,6 +13,8 @@ const ACCESS_RANK: Record<AccessLevel, number> = {
   root: 3,
 };
 
+export const fileReadKey = (nodeId: string, path: string): string => `${nodeId}:${path}`;
+
 export const hasAccess = (have: AccessLevel, need: AccessLevel): boolean => {
   return ACCESS_RANK[have] >= ACCESS_RANK[need];
 };
@@ -293,6 +295,7 @@ export interface GameState {
   turnCount: number;
   recentCommands: string[]; // last 8 commands for AI context
   ariaInfluencedFilesRead: string[]; // file paths of ariaPlanted files the player has read
+  filesRead: string[]; // fileReadKey(nodeId, path) of node files the player has successfully cat'd
   decisionLog: Array<{ turn: number; command: string }>; // key player actions with turn numbers
   traceAuditLog: TraceAuditEntry[]; // append-only log of every trace delta; used for balance analysis
   player: Player;

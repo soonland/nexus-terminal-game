@@ -1,5 +1,6 @@
 import type { GameState, CommandOutput, AccessLevel, FavorOffer, ToolId } from '../types/game';
-import { hasAccess } from '../types/game';
+import { hasAccess, fileReadKey } from '../types/game';
+import { listAccessibleFiles } from './fileTree';
 import { DIVISION_LAYER } from '../data/divisionSeeds';
 import { currentNode, addTrace, thresholdFlag, TRACE_THRESHOLDS } from './state';
 import produce from './produce';
@@ -243,6 +244,10 @@ export const resolveCommand = async (raw: string, state: GameState): Promise<Com
       result = { lines: [] }; // handled as modal in App
       break;
     case 'dossier':
+      result = { lines: [] }; // handled as a window in App
+      break;
+    case 'explorer':
+    case 'files':
       result = { lines: [] }; // handled as a window in App
       break;
     case 'inventory':
@@ -1173,9 +1178,7 @@ const cmdLs = (args: string[], state: GameState): CommandOutput => {
   }
 
   const path = args[0] ?? '/';
-  const accessible = node.files.filter(
-    f => !f.deleted && hasAccess(node.accessLevel, f.accessRequired),
-  );
+  const accessible = listAccessibleFiles(node);
 
   if (accessible.length === 0) {
     return { lines: [sys(`${path}: no accessible files`)] };
@@ -1309,6 +1312,17 @@ const cmdCat = async (args: string[], state: GameState): Promise<CommandOutput> 
         const n = s.network.nodes[node.id];
         const f = n?.files.find(x => x.path === file.path);
         if (f) f.content = content;
+      });
+    }
+  }
+
+  // Record successful reads so the explorer can tell read from unread files.
+  // Fallback content is a failed read — leave it unrecorded so the player can retry.
+  if (content !== FILE_CONTENT_FALLBACK) {
+    const readKey = fileReadKey(node.id, file.path);
+    if (!next.filesRead.includes(readKey)) {
+      next = produce(next, s => {
+        s.filesRead.push(readKey);
       });
     }
   }

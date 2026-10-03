@@ -1,4 +1,10 @@
-import type { WindowManagerState, Viewport, WindowInstance, WindowKind } from './windowManager';
+import type {
+  WindowManagerState,
+  Viewport,
+  WindowInstance,
+  WindowKind,
+  WindowBounds,
+} from './windowManager';
 import {
   WINDOW_KINDS,
   createDefaultLayout,
@@ -22,6 +28,27 @@ export const saveWindowLayout = (state: WindowManagerState): void => {
   } catch (e) {
     console.warn('[windowLayout] saveWindowLayout failed', e);
   }
+};
+
+const isValidBounds = (value: unknown): value is WindowBounds => {
+  if (!value || typeof value !== 'object') return false;
+  const v = value as Record<string, unknown>;
+  return (
+    typeof v.x === 'number' &&
+    typeof v.y === 'number' &&
+    typeof v.width === 'number' &&
+    typeof v.height === 'number'
+  );
+};
+
+// Drops maximize fields a hand-edited/corrupt blob left inconsistent; a maximized
+// window without usable restore bounds simply loads un-maximized.
+const sanitizeMaximize = (instance: WindowInstance): WindowInstance => {
+  const { maximized, restoreBounds, ...rest } = instance;
+  if (maximized === true && isValidBounds(restoreBounds)) {
+    return { ...rest, maximized: true, restoreBounds };
+  }
+  return rest;
 };
 
 const isValidInstance = (value: unknown, kind: WindowKind): value is WindowInstance => {
@@ -52,7 +79,7 @@ export const loadWindowLayout = (viewport: Viewport): WindowManagerState => {
     for (const kind of WINDOW_KINDS) {
       const stored: unknown = parsed.windows[kind];
       const base = isValidInstance(stored, kind) ? stored : fallback[kind];
-      result[kind] = clampInstance(base, viewport);
+      result[kind] = clampInstance(sanitizeMaximize(base), viewport);
     }
 
     // A corrupted/hand-edited huge z-index must not break stacking order.

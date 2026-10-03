@@ -25,6 +25,7 @@ const BODY: HelpLine[] = [
   { text: r('  briefing      -re-read mission briefing'), color: 'var(--color-system)' },
   { text: r('  notes         -intel log (creds, nodes, exfils)'), color: 'var(--color-system)' },
   { text: r('  dossier       -cross-run dossier & aria memory'), color: 'var(--color-system)' },
+  { text: r('  explorer      -file explorer (alias: files)'), color: 'var(--color-system)' },
   { text: r('  status        -session overview'), color: 'var(--color-system)' },
   { text: r('  map           -discovered network nodes'), color: 'var(--color-system)' },
   { text: r('  clear         -clear terminal'), color: 'var(--color-system)' },
