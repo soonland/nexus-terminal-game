@@ -7,7 +7,9 @@ export const ARIA_NAME_FLAG = 'ARIA_NAME_KNOWN';
 // The single authored document outside layer 5 allowed to bridge CASSANDRA and ARIA.
 export const SENTINEL_VOTE_PATH = '/home/cfo/documents/PROJ_SENTINEL_BOARD_VOTE.pdf';
 
-export const isAriaNameKnown = (state: GameState): boolean => state.flags[ARIA_NAME_FLAG];
+// `flags` is a sparse record: a missing key means not set (the type does not say so).
+export const isAriaNameKnown = (state: GameState): boolean =>
+  ARIA_NAME_FLAG in state.flags && state.flags[ARIA_NAME_FLAG];
 
 export const markAriaNameKnown = (state: GameState): GameState =>
   isAriaNameKnown(state) ? state : { ...state, flags: { ...state.flags, [ARIA_NAME_FLAG]: true } };
