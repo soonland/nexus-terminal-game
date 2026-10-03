@@ -5,6 +5,7 @@ import {
   SENTINEL_HISTORY_LIMIT,
   appendSentinelHistory,
   closeSentinelChannel,
+  createRunGuard,
   openSentinelChannel,
   requestSentinelOpening,
   requestSentinelReply,
@@ -118,5 +119,35 @@ describe('open/close', () => {
     const closed = closeSentinelChannel(openSentinelChannel(createInitialState()));
     expect(closed.activeChannel).toBeNull();
     expect(closed.sentinel.channelEstablished).toBe(true);
+  });
+});
+
+describe('createRunGuard', () => {
+  it('treats a token as current until the run is invalidated', () => {
+    const guard = createRunGuard();
+    const token = guard.token();
+    expect(guard.isCurrent(token)).toBe(true);
+    guard.invalidate();
+    expect(guard.isCurrent(token)).toBe(false);
+  });
+
+  it('hands out a fresh current token after each invalidation', () => {
+    const guard = createRunGuard();
+    const first = guard.token();
+    guard.invalidate();
+    const second = guard.token();
+    expect(second).not.toBe(first);
+    expect(guard.isCurrent(second)).toBe(true);
+    guard.invalidate();
+    guard.invalidate();
+    expect(guard.isCurrent(second)).toBe(false);
+  });
+
+  it('keeps independent guards independent', () => {
+    const a = createRunGuard();
+    const b = createRunGuard();
+    const token = a.token();
+    b.invalidate();
+    expect(a.isCurrent(token)).toBe(true);
   });
 });

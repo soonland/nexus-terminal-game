@@ -27,6 +27,7 @@ import { resolveCommand } from './engine/commands';
 import {
   appendSentinelHistory,
   closeSentinelChannel,
+  createRunGuard,
   openSentinelChannel,
   requestSentinelOpening,
   requestSentinelReply,
@@ -244,6 +245,7 @@ export const App = () => {
   const [sentinelBusy, setSentinelBusy] = useState(false);
   const [interruptKey, setInterruptKey] = useState(0);
   const commsRef = useRef<CommsHandle>(null);
+  const [runGuard] = useState(createRunGuard);
 
   const push = useCallback((lines: TerminalLine[]) => {
     setSessionLines(prev => [...prev, ...lines]);
@@ -256,10 +258,12 @@ export const App = () => {
   // New run / reset: the channel UI starts clean (session-only; a saved activeChannel is
   // never used to reopen it).
   const resetSentinelUi = useCallback(() => {
+    // Any Sentinel request still in flight belongs to the run being discarded.
+    runGuard.invalidate();
     setSentinelLines([]);
     setSentinelOpen(false);
     setSentinelBusy(false);
-  }, []);
+  }, [runGuard]);
 
   const startSpinner = useCallback(() => {
     spinnerFrame.current = 0;
@@ -667,7 +671,10 @@ export const App = () => {
             makeLine('separator', ''),
           ]);
           setSentinelBusy(true);
+          const token = runGuard.token();
           const opening = await requestSentinelOpening(trigger, withChannel);
+          // The run was reset while waiting: drop the stale opening line.
+          if (!runGuard.isCurrent(token)) return;
           setSentinelBusy(false);
           setGameState(prev => {
             if (!prev) return prev;
@@ -688,6 +695,7 @@ export const App = () => {
       push,
       pushSentinel,
       resetSentinelUi,
+      runGuard,
       startSpinner,
       stopSpinner,
       username,
@@ -718,7 +726,10 @@ export const App = () => {
 
       pushSentinel([makeLine('output', `${username} >> ${raw}`)]);
       setSentinelBusy(true);
+      const token = runGuard.token();
       const reply = await requestSentinelReply(gameState, raw);
+      // The run was reset while waiting: drop the stale reply (the reset already cleared busy).
+      if (!runGuard.isCurrent(token)) return;
       setSentinelBusy(false);
 
       // Functional updater avoids a stale-closure race with commands typed meanwhile.
@@ -733,7 +744,7 @@ export const App = () => {
       });
       pushSentinel([makeLine('output', `sentinel >> ${reply}`)]);
     },
-    [gameState, sentinelOpen, sentinelBusy, username, pushSentinel],
+    [gameState, sentinelOpen, sentinelBusy, username, pushSentinel, runGuard],
   );
 
   // ── Prompt and masking per phase ───────────────────────────

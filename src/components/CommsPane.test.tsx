@@ -92,6 +92,29 @@ describe('CommsPane — first contact interruption', () => {
   });
 });
 
+describe('CommsPane — repeated interruption keys', () => {
+  it('restarts the window on a second bump and still ends on the Sentinel tab (never stuck)', () => {
+    vi.useFakeTimers();
+    const { update } = renderPane();
+    const props = { sentinelEstablished: true, sentinelOpen: true };
+    update({ ...props, interruptKey: 1 });
+    act(() => {
+      vi.advanceTimersByTime(INTERRUPT_MS - 100);
+    });
+    update({ ...props, interruptKey: 2 });
+    act(() => {
+      vi.advanceTimersByTime(INTERRUPT_MS - 100);
+    });
+    expect(screen.getByText(/signal lost/i)).toBeTruthy();
+    act(() => {
+      vi.advanceTimersByTime(100);
+    });
+    expect(tab('SENTINEL').getAttribute('aria-selected')).toBe('true');
+    expect(tab('SENTINEL').className).not.toContain('comms-flicker');
+    expect(screen.queryByText(/signal lost/i)).toBeNull();
+  });
+});
+
 describe('CommsPane — restored and reopened channels', () => {
   it('shows a closed Sentinel tab for a restored save, with NEXUS selected and a quiet line', () => {
     renderPane({ sentinelEstablished: true });

@@ -32,6 +32,7 @@ export const CommsPane = forwardRef<CommsHandle, Props>(
     const seenInterruptKey = useRef(interruptKey);
     const interruptingRef = useRef(false);
     const inputRef = useRef<HTMLInputElement>(null);
+    const rootRef = useRef<HTMLDivElement>(null);
 
     useImperativeHandle(ref, () => ({
       focus: () => {
@@ -55,6 +56,15 @@ export const CommsPane = forwardRef<CommsHandle, Props>(
       };
     }, [interruptKey]);
 
+    // The Sentinel input appears only once its tab shows (after the interruption). Take
+    // focus then only if comms is still the focused pane: the player may have moved
+    // back to the terminal while the Nexus line was being cut.
+    useEffect(() => {
+      if (tab !== 'sentinel') return;
+      const pane = rootRef.current?.closest('[data-pane]');
+      if (pane?.getAttribute('data-focused') === 'true') inputRef.current?.focus();
+    }, [tab]);
+
     // Reopening later (msg sentinel, another trigger) switches at once; the first
     // contact is handled by the interruption above.
     useEffect(() => {
@@ -77,7 +87,7 @@ export const CommsPane = forwardRef<CommsHandle, Props>(
         : 'line open — no traffic';
 
     return (
-      <div className="comms">
+      <div className="comms" ref={rootRef}>
         {sentinelEstablished && (
           <div role="tablist" className="comms-tabs">
             <button
@@ -123,7 +133,7 @@ export const CommsPane = forwardRef<CommsHandle, Props>(
               disabled={!sentinelOpen}
               prompt="ghost >>"
               testId="comms-input"
-              focusPolicy="always"
+              focusPolicy="if-idle"
             />
           </div>
         )}

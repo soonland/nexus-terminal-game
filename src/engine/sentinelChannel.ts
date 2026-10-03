@@ -68,3 +68,23 @@ export const closeSentinelChannel = (state: GameState): GameState => ({
   ...state,
   activeChannel: null,
 });
+
+// A new run (new game, burn retry, resume choice) can land while a Sentinel request is
+// still in flight. Callers take a token before awaiting and drop the result if it is no
+// longer current, so a stale reply never leaks into the next run.
+export interface RunGuard {
+  token: () => number;
+  invalidate: () => void;
+  isCurrent: (token: number) => boolean;
+}
+
+export const createRunGuard = (): RunGuard => {
+  let epoch = 0;
+  return {
+    token: () => epoch,
+    invalidate: () => {
+      epoch += 1;
+    },
+    isCurrent: token => token === epoch,
+  };
+};

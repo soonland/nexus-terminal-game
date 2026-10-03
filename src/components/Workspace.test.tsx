@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createRef, useEffect } from 'react';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { Workspace, PERSIST_DEBOUNCE_MS } from './Workspace';
+import { CommsPane, INTERRUPT_MS } from './CommsPane';
 import type { WorkspaceHandle } from './Workspace';
 import { createInitialState } from '../engine/state';
 import produce from '../engine/produce';
@@ -400,5 +401,67 @@ describe('Workspace — comms', () => {
       ref.current?.focusPane('comms');
     });
     expect(section('comms').dataset.focused).toBe('true');
+  });
+});
+
+describe('Workspace — comms focus during the first-contact interruption', () => {
+  beforeEach(() => {
+    Element.prototype.scrollIntoView = vi.fn();
+  });
+
+  const renderWithComms = (established: boolean, key: number) => (
+    <Workspace
+      terminal={<input aria-label="term-input" />}
+      gameState={withFile()}
+      nodeIp="10.0.0.1"
+      trace={0}
+      map={<div>map-content</div>}
+      notes={<div>notes-content</div>}
+      help={<div>help-content</div>}
+      briefing={<div>briefing-content</div>}
+      dossier={<div>dossier-content</div>}
+      explorerDisabled={false}
+      onRunCommand={vi.fn()}
+      onTerminalFocused={() => {
+        screen.getByLabelText('term-input').focus();
+      }}
+      comms={
+        <CommsPane
+          sentinelEstablished={established}
+          sentinelOpen={established}
+          sentinelLines={[]}
+          sentinelBusy={false}
+          interruptKey={key}
+          onSend={vi.fn()}
+        />
+      }
+      commsAlert={established}
+      onCommsFocused={vi.fn()}
+    />
+  );
+
+  it('does not pull focus back to comms if the player moved to the terminal meanwhile', () => {
+    vi.useFakeTimers();
+    const { rerender } = render(renderWithComms(false, 0));
+    rerender(renderWithComms(true, 1));
+    alt('Digit5'); // App focuses comms when the channel opens
+    alt('Digit1'); // the player goes back to the terminal during the interruption
+    expect(document.activeElement).toBe(screen.getByLabelText('term-input'));
+    act(() => {
+      vi.advanceTimersByTime(INTERRUPT_MS);
+    });
+    expect(screen.getByTestId('comms-input')).toBeTruthy();
+    expect(document.activeElement).toBe(screen.getByLabelText('term-input'));
+  });
+
+  it('focuses the comms input when the interruption ends and comms is still the focused pane', () => {
+    vi.useFakeTimers();
+    const { rerender } = render(renderWithComms(false, 0));
+    rerender(renderWithComms(true, 1));
+    alt('Digit5');
+    act(() => {
+      vi.advanceTimersByTime(INTERRUPT_MS);
+    });
+    expect(document.activeElement).toBe(screen.getByTestId('comms-input'));
   });
 });
