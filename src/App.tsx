@@ -9,6 +9,8 @@ import { MapModal } from './components/MapModal';
 import { HelpModal } from './components/HelpModal';
 import { NotesModal } from './components/NotesModal';
 import { DossierWindow } from './components/DossierWindow';
+import { CommsPane } from './components/CommsPane';
+import type { CommsHandle } from './components/CommsPane';
 import { Workspace } from './components/Workspace';
 import type { WorkspaceHandle } from './components/Workspace';
 import { useBootSequence } from './hooks/useBootSequence';
@@ -22,6 +24,15 @@ import { hasAccess } from './types/game';
 import { createInitialState, currentNode, burnRetry } from './engine/state';
 import produce from './engine/produce';
 import { resolveCommand } from './engine/commands';
+import {
+  appendSentinelHistory,
+  closeSentinelChannel,
+  createRunGuard,
+  openSentinelChannel,
+  sentinelHistoryLines,
+  requestSentinelOpening,
+  requestSentinelReply,
+} from './engine/sentinelChannel';
 import {
   saveGame,
   loadGame,
@@ -125,7 +136,6 @@ type AppPhase =
   | 'booting'
   | 'playing'
   | 'aria'
-  | 'dm'
   | 'burned'
   | 'ending_sequence'
   | 'ended';
@@ -231,24 +241,30 @@ export const App = () => {
       saveGame(gameState);
   }, [gameState]);
 
-  // Apply / remove dm-sentinel CSS class when phase changes
-  useEffect(() => {
-    if (appPhase === 'dm') {
-      document.body.classList.add('dm-sentinel');
-    } else {
-      document.body.classList.remove('dm-sentinel');
-    }
-  }, [appPhase]);
-
-  const [dmLines, setDmLines] = useState<TerminalLine[]>([]);
+  const [sentinelLines, setSentinelLines] = useState<TerminalLine[]>([]);
+  const [sentinelOpen, setSentinelOpen] = useState(false);
+  const [sentinelBusy, setSentinelBusy] = useState(false);
+  const [interruptKey, setInterruptKey] = useState(0);
+  const commsRef = useRef<CommsHandle>(null);
+  const [runGuard] = useState(createRunGuard);
 
   const push = useCallback((lines: TerminalLine[]) => {
     setSessionLines(prev => [...prev, ...lines]);
   }, []);
 
-  const pushDm = useCallback((lines: TerminalLine[]) => {
-    setDmLines(prev => [...prev, ...lines]);
+  const pushSentinel = useCallback((lines: TerminalLine[]) => {
+    setSentinelLines(prev => [...prev, ...lines]);
   }, []);
+
+  // New run / reset: the channel UI starts clean (session-only; a saved activeChannel is
+  // never used to reopen it).
+  const resetSentinelUi = useCallback(() => {
+    // Any Sentinel request still in flight belongs to the run being discarded.
+    runGuard.invalidate();
+    setSentinelLines([]);
+    setSentinelOpen(false);
+    setSentinelBusy(false);
+  }, [runGuard]);
 
   const startSpinner = useCallback(() => {
     spinnerFrame.current = 0;
@@ -292,7 +308,7 @@ export const App = () => {
         saveGame(retryState);
         setGameState(retryState);
         setSessionLines([]);
-        setDmLines([]);
+        resetSentinelUi();
         setAiSuggestions([]);
 
         if (retryState.phase === 'ended') {
@@ -365,13 +381,13 @@ export const App = () => {
           setPendingContract(contract);
           setContractRerollUsed(false);
           setSessionLines(buildContractLines(contract));
-          setDmLines([]);
+          resetSentinelUi();
           setGameState(null);
           setAppPhase('contract_screen');
         } else {
           setGameState(createInitialState());
           setSessionLines([]);
-          setDmLines([]);
+          resetSentinelUi();
           setAppPhase('scanning');
         }
         return;
@@ -415,7 +431,7 @@ export const App = () => {
             } else {
               setGameState(createInitialState());
               setSessionLines([]);
-              setDmLines([]);
+              resetSentinelUi();
               setAppPhase('scanning');
             }
           }
@@ -439,7 +455,7 @@ export const App = () => {
           setPendingContract(null);
           setContractRerollUsed(false);
           setSessionLines([]);
-          setDmLines([]);
+          resetSentinelUi();
           bootHandled.current = false;
           setAppPhase('scanning');
         } else if (input === 'r') {
@@ -466,9 +482,12 @@ export const App = () => {
           const saved = loadGame();
           if (saved) {
             setGameState(saved);
+            // Start the channel UI clean, but show the saved conversation (if any).
+            resetSentinelUi();
+            setSentinelLines(sentinelHistoryLines(saved.sentinel.messageHistory, username));
           } else {
             setGameState(createInitialState());
-            setDmLines([]);
+            resetSentinelUi();
           }
           setSessionLines([]);
           setAppPhase('scanning');
@@ -480,89 +499,15 @@ export const App = () => {
             setPendingContract(contract);
             setContractRerollUsed(false);
             setSessionLines(buildContractLines(contract));
-            setDmLines([]);
+            resetSentinelUi();
             setAppPhase('contract_screen');
           } else {
             setGameState(createInitialState());
-            setDmLines([]);
+            resetSentinelUi();
             setSessionLines([]);
             setAppPhase('scanning');
           }
         }
-        return;
-      }
-
-      // ── DM mode (Sentinel channel) ─────────────────────────
-      if (appPhase === 'dm') {
-        if (!gameState) return;
-        const exitCmd = raw.trim().toLowerCase();
-        if (exitCmd === 'exit' || exitCmd === 'quit') {
-          // Return to main terminal; clear active channel in state
-          const cleared = { ...gameState, activeChannel: null } as GameState;
-          setGameState(cleared);
-          saveGame(cleared);
-          pushDm([
-            makeLine('separator', ''),
-            makeLine('system', '// SENTINEL: channel closed'),
-            makeLine('separator', ''),
-          ]);
-          // Defer phase switch so React renders the close banner in dmLines before switching
-          window.setTimeout(() => {
-            setAppPhase(cleared.phase === 'aria' ? 'aria' : 'playing');
-          }, 0);
-          return;
-        }
-
-        if (!raw.trim()) return;
-
-        pushDm([makeLine('output', `${username} >> ${raw}`)]);
-        startSpinner();
-
-        let dmReply = '...transmission interrupted.';
-        try {
-          const res = await fetch('/api/sentinel', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              message: raw,
-              sentinelContext: {
-                traceLevel: gameState.player.trace,
-                currentNodeId: gameState.network.currentNodeId,
-                currentLayer: gameState.network.nodes[gameState.network.currentNodeId]?.layer ?? 0,
-                recentCommands: gameState.recentCommands,
-              },
-              messageHistory: gameState.sentinel.messageHistory,
-            }),
-          });
-          if (res.ok) {
-            const data = (await res.json()) as { reply?: string };
-            if (typeof data.reply === 'string') dmReply = data.reply;
-          }
-        } catch {
-          // fallback already set
-        }
-
-        stopSpinner();
-
-        // Update history in GameState — functional updater avoids stale-closure race
-        setGameState(prev => {
-          if (!prev) return prev;
-          const updatedState: GameState = {
-            ...prev,
-            sentinel: {
-              ...prev.sentinel,
-              messageHistory: [
-                ...prev.sentinel.messageHistory,
-                { role: 'player' as const, content: raw },
-                { role: 'sentinel' as const, content: dmReply },
-              ].slice(-40),
-            },
-          };
-          saveGame(updatedState);
-          return updatedState;
-        });
-
-        pushDm([makeLine('output', `sentinel >> ${dmReply}`)]);
         return;
       }
 
@@ -705,78 +650,43 @@ export const App = () => {
 
       push(out);
 
-      // ── Channel trigger: enter Sentinel DM mode ───────────
+      // ── Channel trigger: open the Sentinel channel in the COMMS pane ──
       if (result.channelTrigger?.character === 'sentinel') {
-        const { triggerType, context } = result.channelTrigger;
-        const isManual = triggerType === 'manual_reentry';
-
-        // Mark channel as established in state
-        const baseForDm = (result.nextState ?? gameState) as GameState;
-        const withChannel = {
-          ...baseForDm,
-          activeChannel: 'sentinel' as const,
-          sentinel: {
-            ...baseForDm.sentinel,
-            channelEstablished: true,
-          },
-        } as GameState;
+        const trigger = result.channelTrigger;
+        const base = (result.nextState ?? gameState) as GameState;
+        const firstContact = !base.sentinel.channelEstablished;
+        const withChannel = openSentinelChannel(base);
         setGameState(withChannel);
         saveGame(withChannel);
+        setSentinelOpen(true);
+        if (firstContact) setInterruptKey(k => k + 1);
+        workspaceRef.current?.focusPane('comms');
 
-        setAppPhase('dm');
-
-        if (!isManual) {
-          // Auto-trigger: call API for opening message
-          pushDm([
-            makeLine('separator', ''),
-            makeLine('dm', '// SENTINEL — INCOMING TRANSMISSION'),
-            makeLine('separator', ''),
-          ]);
-          startSpinner();
-          let openingReply = '...I see you.';
-          try {
-            const res = await fetch('/api/sentinel', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                message: `[SYSTEM: trigger=${triggerType}]`,
-                triggerContext: { type: triggerType },
-                sentinelContext: context,
-                messageHistory: withChannel.sentinel.messageHistory,
-              }),
-            });
-            if (res.ok) {
-              const data = (await res.json()) as { reply?: string };
-              if (typeof data.reply === 'string') openingReply = data.reply;
-            }
-          } catch {
-            // use fallback
-          }
-          stopSpinner();
-
-          // Functional updater avoids stale-closure race if player typed during the await
-          setGameState(prev => {
-            if (!prev) return prev;
-            const withOpening: GameState = {
-              ...prev,
-              sentinel: {
-                ...prev.sentinel,
-                messageHistory: [
-                  ...prev.sentinel.messageHistory,
-                  { role: 'sentinel' as const, content: openingReply },
-                ].slice(-40),
-              },
-            };
-            saveGame(withOpening);
-            return withOpening;
-          });
-          pushDm([makeLine('output', `sentinel >> ${openingReply}`)]);
-        } else {
-          pushDm([
+        if (trigger.triggerType === 'manual_reentry') {
+          pushSentinel([
             makeLine('separator', ''),
             makeLine('dm', '// SENTINEL — CHANNEL OPEN'),
             makeLine('separator', ''),
           ]);
+        } else {
+          pushSentinel([
+            makeLine('separator', ''),
+            makeLine('dm', '// SENTINEL — INCOMING TRANSMISSION'),
+            makeLine('separator', ''),
+          ]);
+          setSentinelBusy(true);
+          const token = runGuard.token();
+          const opening = await requestSentinelOpening(trigger, withChannel);
+          // The run was reset while waiting: drop the stale opening line.
+          if (!runGuard.isCurrent(token)) return;
+          setSentinelBusy(false);
+          setGameState(prev => {
+            if (!prev) return prev;
+            const updated = appendSentinelHistory(prev, [{ role: 'sentinel', content: opening }]);
+            saveGame(updated);
+            return updated;
+          });
+          pushSentinel([makeLine('output', `sentinel >> ${opening}`)]);
         }
       }
     },
@@ -787,11 +697,58 @@ export const App = () => {
       gameState,
       pendingContract,
       push,
-      pushDm,
+      pushSentinel,
+      resetSentinelUi,
+      runGuard,
       startSpinner,
       stopSpinner,
       username,
     ],
+  );
+
+  const handleSentinelSubmit = useCallback(
+    async (raw: string) => {
+      // Ignore sends while closed, while a reply is pending, or when empty.
+      if (!gameState || !sentinelOpen || sentinelBusy) return;
+      const text = raw.trim();
+      if (!text) return;
+      const lower = text.toLowerCase();
+
+      if (lower === 'exit' || lower === 'quit') {
+        const cleared = closeSentinelChannel(gameState);
+        setGameState(cleared);
+        saveGame(cleared);
+        setSentinelOpen(false);
+        pushSentinel([
+          makeLine('separator', ''),
+          makeLine('system', '// SENTINEL: channel closed'),
+          makeLine('separator', ''),
+        ]);
+        workspaceRef.current?.focusPane('term');
+        return;
+      }
+
+      pushSentinel([makeLine('output', `${username} >> ${text}`)]);
+      setSentinelBusy(true);
+      const token = runGuard.token();
+      const reply = await requestSentinelReply(gameState, text);
+      // The run was reset while waiting: drop the stale reply (the reset already cleared busy).
+      if (!runGuard.isCurrent(token)) return;
+      setSentinelBusy(false);
+
+      // Functional updater avoids a stale-closure race with commands typed meanwhile.
+      setGameState(prev => {
+        if (!prev) return prev;
+        const updated = appendSentinelHistory(prev, [
+          { role: 'player', content: text },
+          { role: 'sentinel', content: reply },
+        ]);
+        saveGame(updated);
+        return updated;
+      });
+      pushSentinel([makeLine('output', `sentinel >> ${reply}`)]);
+    },
+    [gameState, sentinelOpen, sentinelBusy, username, pushSentinel, runGuard],
   );
 
   // ── Prompt and masking per phase ───────────────────────────
@@ -808,9 +765,7 @@ export const App = () => {
               ? '[ENDED]'
               : appPhase === 'ended'
                 ? '[ENDED]'
-                : appPhase === 'dm'
-                  ? 'ghost >>'
-                  : 'nexus $';
+                : 'nexus $';
   const isMasked = appPhase === 'login_pass';
   const isNoHistory = appPhase === 'login_user' || appPhase === 'login_pass';
   const inputDisabled =
@@ -825,7 +780,7 @@ export const App = () => {
   const trace = gameState?.player.trace ?? 0;
 
   const allLines: TerminalLine[] = [
-    ...(appPhase === 'dm' ? dmLines : sessionLines),
+    ...sessionLines,
     ...(spinnerLine ? [spinnerLine] : []),
     ...(appPhase === 'booting' ? bootLines : []),
     ...(appPhase === 'ending_sequence' ? endingLines : []),
@@ -882,6 +837,23 @@ export const App = () => {
       }}
       onTerminalFocused={() => {
         terminalRef.current?.focus();
+      }}
+      comms={
+        <CommsPane
+          ref={commsRef}
+          sentinelEstablished={gameState?.sentinel.channelEstablished ?? false}
+          sentinelOpen={sentinelOpen}
+          sentinelLines={sentinelLines}
+          sentinelBusy={sentinelBusy}
+          interruptKey={interruptKey}
+          onSend={text => {
+            void handleSentinelSubmit(text);
+          }}
+        />
+      }
+      commsAlert={sentinelOpen}
+      onCommsFocused={() => {
+        commsRef.current?.focus();
       }}
       terminal={
         <Terminal

@@ -1,13 +1,199 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
-import { CommsPane } from './CommsPane';
+import { describe, it, expect, vi, beforeAll, afterEach } from 'vitest';
+import { createRef } from 'react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
+import { CommsPane, INTERRUPT_MS } from './CommsPane';
+import type { CommsHandle } from './CommsPane';
+import { makeLine } from '../types/terminal';
 
-describe('CommsPane', () => {
-  it('shows the Nexus line as the only channel and says nothing about Sentinel or Aria', () => {
-    const { container } = render(<CommsPane />);
-    expect(screen.getByText(/nexus/i)).toBeTruthy();
-    expect(screen.getByText(/no traffic/i)).toBeTruthy();
+beforeAll(() => {
+  Element.prototype.scrollIntoView = vi.fn();
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+type Props = Parameters<typeof CommsPane>[0];
+
+const baseProps: Props = {
+  sentinelEstablished: false,
+  sentinelOpen: false,
+  sentinelLines: [],
+  sentinelBusy: false,
+  interruptKey: 0,
+  onSend: vi.fn(),
+};
+
+const renderPane = (over: Partial<Props> = {}) => {
+  const ref = createRef<CommsHandle>();
+  const view = render(<CommsPane ref={ref} {...baseProps} {...over} />);
+  const update = (next: Partial<Props>) => {
+    view.rerender(<CommsPane ref={ref} {...baseProps} {...over} {...next} />);
+  };
+  return { ref, update, ...view };
+};
+
+const tab = (name: string) => screen.getByRole('tab', { name });
+
+describe('CommsPane — before first contact', () => {
+  it('shows the Nexus line only, with no tab strip and no mention of Sentinel or Aria', () => {
+    const { container } = renderPane();
+    expect(screen.getByText(/nexus \/\/ encrypted line/i)).toBeTruthy();
+    expect(screen.getByText(/line open — no traffic/i)).toBeTruthy();
+    expect(screen.queryAllByRole('tab')).toHaveLength(0);
     expect(container.textContent).not.toMatch(/sentinel|aria/i);
+  });
+});
+
+describe('CommsPane — first contact interruption', () => {
+  it('cuts into the Nexus line, then switches to the Sentinel tab', () => {
+    vi.useFakeTimers();
+    const { update } = renderPane();
+    update({ sentinelEstablished: true, sentinelOpen: true, interruptKey: 1 });
+    expect(screen.getByText(/signal lost/i)).toBeTruthy();
+    expect(tab('NEXUS').getAttribute('aria-selected')).toBe('true');
+    expect(tab('SENTINEL').className).toContain('comms-flicker');
+    expect(screen.queryByTestId('comms-input')).toBeNull();
+    act(() => {
+      vi.advanceTimersByTime(INTERRUPT_MS);
+    });
+    expect(tab('SENTINEL').getAttribute('aria-selected')).toBe('true');
+    expect(screen.getByTestId('comms-input')).toBeTruthy();
+    expect(tab('SENTINEL').className).not.toContain('comms-flicker');
+  });
+
+  it('goes quiet on the Nexus tab afterwards', () => {
+    vi.useFakeTimers();
+    const { update } = renderPane();
+    update({ sentinelEstablished: true, sentinelOpen: true, interruptKey: 1 });
+    act(() => {
+      vi.advanceTimersByTime(INTERRUPT_MS);
+    });
+    fireEvent.click(tab('NEXUS'));
+    expect(screen.getByText(/line quiet/i)).toBeTruthy();
+  });
+
+  it('does not interrupt again for the same key and clears its timer on unmount', () => {
+    vi.useFakeTimers();
+    const { update, unmount } = renderPane();
+    update({ sentinelEstablished: true, sentinelOpen: true, interruptKey: 1 });
+    update({
+      sentinelEstablished: true,
+      sentinelOpen: true,
+      interruptKey: 1,
+      sentinelLines: [makeLine('output', 'x')],
+    });
+    expect(screen.getByText(/signal lost/i)).toBeTruthy();
+    unmount();
+    expect(() => {
+      vi.advanceTimersByTime(INTERRUPT_MS * 2);
+    }).not.toThrow();
+  });
+});
+
+describe('CommsPane — repeated interruption keys', () => {
+  it('restarts the window on a second bump and still ends on the Sentinel tab (never stuck)', () => {
+    vi.useFakeTimers();
+    const { update } = renderPane();
+    const props = { sentinelEstablished: true, sentinelOpen: true };
+    update({ ...props, interruptKey: 1 });
+    act(() => {
+      vi.advanceTimersByTime(INTERRUPT_MS - 100);
+    });
+    update({ ...props, interruptKey: 2 });
+    act(() => {
+      vi.advanceTimersByTime(INTERRUPT_MS - 100);
+    });
+    expect(screen.getByText(/signal lost/i)).toBeTruthy();
+    act(() => {
+      vi.advanceTimersByTime(100);
+    });
+    expect(tab('SENTINEL').getAttribute('aria-selected')).toBe('true');
+    expect(tab('SENTINEL').className).not.toContain('comms-flicker');
+    expect(screen.queryByText(/signal lost/i)).toBeNull();
+  });
+});
+
+describe('CommsPane — restored and reopened channels', () => {
+  it('shows a closed Sentinel tab for a restored save, with NEXUS selected and a quiet line', () => {
+    renderPane({ sentinelEstablished: true });
+    expect(tab('NEXUS').getAttribute('aria-selected')).toBe('true');
+    expect(screen.getByText(/line quiet/i)).toBeTruthy();
+    fireEvent.click(tab('SENTINEL'));
+    expect(screen.getByText(/channel closed/i)).toBeTruthy();
+    expect(screen.getByTestId<HTMLInputElement>('comms-input').disabled).toBe(true);
+  });
+
+  it('switches to the Sentinel tab at once when the channel reopens without an interruption', () => {
+    const { update } = renderPane({ sentinelEstablished: true });
+    update({ sentinelOpen: true });
+    expect(tab('SENTINEL').getAttribute('aria-selected')).toBe('true');
+    expect(screen.getByTestId<HTMLInputElement>('comms-input').disabled).toBe(false);
+  });
+
+  it('returns to a bare Nexus line when a new run clears the channel', () => {
+    const { update } = renderPane({ sentinelEstablished: true, sentinelOpen: true });
+    fireEvent.click(tab('SENTINEL'));
+    update({ sentinelEstablished: false, sentinelOpen: false });
+    expect(screen.queryAllByRole('tab')).toHaveLength(0);
+    expect(screen.getByText(/line open — no traffic/i)).toBeTruthy();
+  });
+});
+
+describe('CommsPane — Sentinel channel view', () => {
+  const openProps: Partial<Props> = { sentinelEstablished: true, sentinelOpen: true };
+
+  const showSentinel = (over: Partial<Props> = {}) => {
+    const utils = renderPane({ ...openProps, ...over });
+    fireEvent.click(tab('SENTINEL'));
+    return utils;
+  };
+
+  it('renders the channel lines', () => {
+    showSentinel({ sentinelLines: [makeLine('output', 'sentinel >> I see you.')] });
+    expect(screen.getByText('sentinel >> I see you.')).toBeTruthy();
+  });
+
+  it('sends the typed text on Enter and shows the ghost prompt', () => {
+    const onSend = vi.fn();
+    showSentinel({ onSend });
+    expect(screen.getByText('ghost >>')).toBeTruthy();
+    const input = screen.getByTestId('comms-input');
+    fireEvent.change(input, { target: { value: 'who are you' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(onSend).toHaveBeenCalledWith('who are you');
+  });
+
+  it('shows a busy line and keeps the input enabled while a reply is pending', () => {
+    showSentinel({ sentinelBusy: true });
+    expect(screen.getByText(/sentinel >> …/)).toBeTruthy();
+    expect(screen.getByTestId<HTMLInputElement>('comms-input').disabled).toBe(false);
+  });
+
+  it('shows the closed hint and disables the input when the channel is closed', () => {
+    showSentinel({ sentinelOpen: false });
+    expect(screen.getByText(/channel closed/i)).toBeTruthy();
+    expect(screen.getByTestId<HTMLInputElement>('comms-input').disabled).toBe(true);
+  });
+
+  it('focus() focuses the input when the Sentinel tab is showing, and is a no-op otherwise', () => {
+    const { ref } = showSentinel();
+    (document.activeElement as HTMLElement | null)?.blur();
+    act(() => {
+      ref.current?.focus();
+    });
+    expect(document.activeElement).toBe(screen.getByTestId('comms-input'));
+    fireEvent.click(tab('NEXUS'));
+    expect(() => {
+      ref.current?.focus();
+    }).not.toThrow();
+  });
+
+  it('typing in the comms input does not move focus elsewhere when other inputs re-enable', () => {
+    showSentinel();
+    const input = screen.getByTestId('comms-input');
+    input.focus();
+    expect(document.activeElement).toBe(input);
   });
 });

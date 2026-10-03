@@ -225,3 +225,26 @@ describe('LayoutRoot — dividers', () => {
     expect(onRatio).not.toHaveBeenCalled();
   });
 });
+
+describe('LayoutRoot — alerts', () => {
+  it('flags only the panes that are in alert', () => {
+    render(
+      <LayoutRoot
+        state={createDefaultLayout()}
+        panes={panes}
+        narrow={false}
+        alerts={{ comms: true }}
+        onFocusPane={vi.fn()}
+        onRatio={vi.fn()}
+      />,
+    );
+    expect(section('comms').dataset.alert).toBe('true');
+    expect(section('term').dataset.alert).toBe('false');
+    expect(section('doc').dataset.alert).toBe('false');
+  });
+
+  it('defaults to no alerts', () => {
+    setup(createDefaultLayout());
+    for (const id of PANE_IDS) expect(section(id).dataset.alert).toBe('false');
+  });
+});

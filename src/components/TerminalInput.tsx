@@ -9,6 +9,8 @@ interface Props {
   prompt?: string;
   masked?: boolean;
   noHistory?: boolean;
+  focusPolicy?: 'always' | 'if-idle';
+  testId?: string;
 }
 
 export const TerminalInput = forwardRef<HTMLInputElement, Props>(
@@ -20,6 +22,8 @@ export const TerminalInput = forwardRef<HTMLInputElement, Props>(
       prompt = 'nexus $',
       masked = false,
       noHistory = false,
+      focusPolicy = 'always',
+      testId = 'terminal-command-input',
     },
     ref,
   ) => {
@@ -27,12 +31,19 @@ export const TerminalInput = forwardRef<HTMLInputElement, Props>(
     const tabIndex = useRef(-1);
 
     useEffect(() => {
-      if (!disabled && ref && 'current' in ref) {
-        ref.current?.focus();
+      if (disabled || !ref || !('current' in ref)) return;
+      const input = ref.current;
+      if (!input) return;
+      if (focusPolicy === 'if-idle') {
+        // Another pane (e.g. the COMMS input) may hold focus: only take it when nothing does.
+        const active = document.activeElement;
+        const idle = !active || active === document.body || active === input;
+        if (!idle) return;
       }
+      input.focus();
       // `masked` is a dependency because the <input> below is remounted (via
       // `key`) whenever it changes — the new element starts unfocused.
-    }, [disabled, ref, masked]);
+    }, [disabled, ref, masked, focusPolicy]);
 
     const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
       const input = e.currentTarget;
@@ -111,7 +122,7 @@ export const TerminalInput = forwardRef<HTMLInputElement, Props>(
           // back to type="text" for the regular command prompt.
           key={masked ? 'masked' : 'unmasked'}
           ref={ref}
-          data-testid="terminal-command-input"
+          data-testid={testId}
           type={masked ? 'password' : 'text'}
           autoComplete={masked ? 'new-password' : 'off'}
           autoCorrect="off"

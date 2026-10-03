@@ -68,6 +68,7 @@ export const Terminal = forwardRef<TerminalHandle, Props>(
             prompt={inputPrompt}
             masked={inputMasked}
             noHistory={inputNoHistory}
+            focusPolicy="if-idle"
           />
         </div>
       </div>

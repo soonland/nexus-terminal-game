@@ -144,18 +144,6 @@ body {
   --color-aggressive: #f85149;
 }
 
-/* ── Sentinel DM mode — full terminal takeover ────────────── */
-body.dm-sentinel {
-  --color-bg: #000000;
-  --color-bg-header: #000000;
-  --color-border: #aa0000;
-  --color-output: #ff5555;
-  --color-input: #ff5555;
-  --color-system: #ff5555;
-  --color-separator: #aa0000;
-  --color-error: #ff0000;
-}
-
 /* ── Scrollbar ────────────────────────────────────────────── */
 ::-webkit-scrollbar {
   width: 4px;
@@ -518,4 +506,95 @@ body.dm-sentinel {
 
 .layout-bare .pane-title {
   display: none;
+}
+
+/* A pane in alert re-skins itself red (replaces the old full-screen Sentinel takeover). */
+.pane[data-alert='true'] {
+  --color-bg: #000000;
+  --color-bg-header: #000000;
+  --color-border: #aa0000;
+  --color-output: #ff5555;
+  --color-input: #ff5555;
+  --color-system: #ff5555;
+  --color-separator: #aa0000;
+  --color-error: #ff0000;
+  --win-bg: #0a0000;
+  --win-border: #aa0000;
+  --win-titlebar-bg: #140000;
+  --win-title-color: #ff5555;
+  --win-body-color: #ff5555;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .comms-flicker {
+    animation: comms-flicker 120ms steps(2, end) 5;
+  }
+}
+
+@keyframes comms-flicker {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.2;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+/* The comms pane lays itself out (tabs + channel view), like the terminal. */
+.pane[data-pane='comms'] .pane-body {
+  padding: 0;
+  overflow: hidden;
+}
+
+.comms {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.comms-nexus {
+  padding: 8px;
+}
+
+.comms-channel {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 0 8px;
+}
+
+.comms-tabs {
+  display: flex;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--win-border);
+}
+
+.comms-tab {
+  background: transparent;
+  border: none;
+  border-right: 1px solid var(--win-border);
+  color: var(--win-title-color);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 3px 10px;
+  cursor: pointer;
+  opacity: 0.55;
+}
+
+.comms-tab[aria-selected='true'] {
+  opacity: 1;
+  background: var(--win-bg);
+}
+
+.comms-tab[data-closed='true'] {
+  opacity: 0.35;
+}
+
+/* A selected tab for a closed channel stays clearly more visible than the unselected one. */
+.comms-tab[aria-selected='true'][data-closed='true'] {
+  opacity: 0.75;
 }
