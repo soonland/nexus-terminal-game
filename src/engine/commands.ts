@@ -1,5 +1,6 @@
 import type { GameState, CommandOutput, AccessLevel, FavorOffer, ToolId } from '../types/game';
 import { hasAccess, fileReadKey } from '../types/game';
+import { listAccessibleFiles } from './fileTree';
 import { DIVISION_LAYER } from '../data/divisionSeeds';
 import { currentNode, addTrace, thresholdFlag, TRACE_THRESHOLDS } from './state';
 import produce from './produce';
@@ -1173,9 +1174,7 @@ const cmdLs = (args: string[], state: GameState): CommandOutput => {
   }
 
   const path = args[0] ?? '/';
-  const accessible = node.files.filter(
-    f => !f.deleted && hasAccess(node.accessLevel, f.accessRequired),
-  );
+  const accessible = listAccessibleFiles(node);
 
   if (accessible.length === 0) {
     return { lines: [sys(`${path}: no accessible files`)] };
