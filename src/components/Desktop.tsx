@@ -10,6 +10,7 @@ import {
   focusWindow,
   moveWindow,
   resizeWindow,
+  toggleMaximizeWindow,
   clampInstance,
 } from '../engine/windowManager';
 import { loadWindowLayout, saveWindowLayout } from '../engine/windowLayoutPersistence';
@@ -219,6 +220,9 @@ export const Desktop = forwardRef<DesktopHandle, Props>(
             }}
             onMinimize={() => {
               applyAndMaybeFocusTerminal(prev => minimizeWindow(prev, kind));
+            }}
+            onToggleMaximize={() => {
+              setState(prev => toggleMaximizeWindow(prev, kind, currentViewport()));
             }}
             onClose={() => {
               applyAndMaybeFocusTerminal(prev => closeWindow(prev, kind));

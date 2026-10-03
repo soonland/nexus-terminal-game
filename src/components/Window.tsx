@@ -13,6 +13,7 @@ interface Props {
   onMove: (x: number, y: number) => void;
   onResize: (width: number, height: number) => void;
   onMinimize: () => void;
+  onToggleMaximize: () => void;
   onClose: () => void;
   children: ReactNode;
 }
@@ -41,6 +42,7 @@ export const Window = ({
   onMove,
   onResize,
   onMinimize,
+  onToggleMaximize,
   onClose,
   children,
 }: Props) => {
@@ -112,7 +114,8 @@ export const Window = ({
       <div
         className="window-titlebar"
         data-testid="window-titlebar"
-        onPointerDown={handleTitleBarPointerDown}>
+        onPointerDown={handleTitleBarPointerDown}
+        onDoubleClick={onToggleMaximize}>
         <span className="window-title">{title}</span>
         <span className="window-controls">
           {minimizable && (
@@ -120,6 +123,16 @@ export const Window = ({
               &ndash;
             </button>
           )}
+          <button
+            type="button"
+            aria-label={`${instance.maximized ? 'Restore' : 'Maximize'} ${title}`}
+            onClick={onToggleMaximize}
+            // Keep the title bar's double-click from firing on rapid button clicks.
+            onDoubleClick={e => {
+              e.stopPropagation();
+            }}>
+            {instance.maximized ? '\u2750' : '\u25A1'}
+          </button>
           {closable && (
             <button type="button" aria-label={`Close ${title}`} onClick={onClose}>
               &times;
@@ -128,11 +141,13 @@ export const Window = ({
         </span>
       </div>
       <div className="window-body">{children}</div>
-      <div
-        className="window-resize-handle"
-        data-testid="window-resize-handle"
-        onPointerDown={handleResizeHandlePointerDown}
-      />
+      {!instance.maximized && (
+        <div
+          className="window-resize-handle"
+          data-testid="window-resize-handle"
+          onPointerDown={handleResizeHandlePointerDown}
+        />
+      )}
     </div>
   );
 };

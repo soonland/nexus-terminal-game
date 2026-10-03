@@ -26,6 +26,7 @@ const renderWindow = (overrides: Partial<Parameters<typeof Window>[0]> = {}) => 
     onMove: vi.fn(),
     onResize: vi.fn(),
     onMinimize: vi.fn(),
+    onToggleMaximize: vi.fn(),
     onClose: vi.fn(),
     children: <div>content</div>,
     ...overrides,
@@ -88,5 +89,19 @@ describe('Window', () => {
     renderWindow({ instance: { ...baseInstance, kind: 'terminal' } });
     const terminalBody = screen.getAllByText('content')[1].closest('.window-body');
     expect(terminalBody?.className).toBe('window-body');
+  });
+
+  it('toggles maximize from the button and a title bar double-click', () => {
+    const props = renderWindow();
+    fireEvent.click(screen.getByLabelText('Maximize NETWORK MAP'));
+    expect(props.onToggleMaximize).toHaveBeenCalledTimes(1);
+    fireEvent.doubleClick(screen.getByTestId('window-titlebar'));
+    expect(props.onToggleMaximize).toHaveBeenCalledTimes(2);
+  });
+
+  it('shows Restore and hides the resize handle while maximized', () => {
+    renderWindow({ instance: { ...baseInstance, maximized: true } });
+    expect(screen.getByLabelText('Restore NETWORK MAP')).toBeTruthy();
+    expect(screen.queryByTestId('window-resize-handle')).toBeNull();
   });
 });
