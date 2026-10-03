@@ -10,6 +10,7 @@ import { runAriaTurn } from './ariaMutations';
 import { loadDossier, recordEnding, addLoreFragment } from './dossierPersistence';
 import type { EndingName } from '../types/dossier';
 import { shouldSuppressMutation, injectConstraintFragment } from './faradayCage';
+import { SENTINEL_VOTE_PATH, markAriaNameKnown } from './ariaName';
 import { detectChannelTrigger, isChannelBlocked, layerReachedFlag } from './channel';
 
 interface WorldAIResponse {
@@ -1034,6 +1035,8 @@ const cmdConnect = async (args: string[], state: GameState): Promise<CommandOutp
     s.network.previousNodeId = s.network.currentNodeId;
     s.network.currentNodeId = target.id;
   });
+  // First contact with the restricted subnet: she introduces herself (fallback reveal).
+  if (target.layer === 5) next = markAriaNameKnown(next);
 
   let description = (target.anchor ? target.flavourDescription : undefined) ?? target.description;
 
@@ -1233,6 +1236,10 @@ const cmdCat = async (args: string[], state: GameState): Promise<CommandOutput> 
     const lines: Out = [sep()];
     content.split('\n').forEach(l => lines.push(out(l)));
     lines.push(sep());
+    // Re-reading an exfiltrated copy of the board vote also teaches the player the name.
+    if (cached.path === SENTINEL_VOTE_PATH && cached.content !== null) {
+      return { lines, nextState: markAriaNameKnown(state) };
+    }
     return { lines };
   }
 
@@ -1325,6 +1332,11 @@ const cmdCat = async (args: string[], state: GameState): Promise<CommandOutput> 
         s.filesRead.push(readKey);
       });
     }
+  }
+
+  // Reading the board vote is how the player learns Sentinel's parent has a name.
+  if (content !== FILE_CONTENT_FALLBACK && file.path === SENTINEL_VOTE_PATH) {
+    next = markAriaNameKnown(next);
   }
 
   // Track ariaPlanted files the player reads

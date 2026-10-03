@@ -656,3 +656,23 @@ describe('filesRead persistence', () => {
     expect(loadGame()?.filesRead).toEqual([]);
   });
 });
+
+describe('ARIA_NAME_KNOWN persistence', () => {
+  let mockStorage: ReturnType<typeof makeMockStorage>;
+  beforeEach(() => {
+    mockStorage = makeMockStorage();
+    vi.stubGlobal('localStorage', mockStorage);
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('survives a save and reload', () => {
+    saveGame(
+      produce(createInitialState(), s => {
+        s.flags['ARIA_NAME_KNOWN'] = true;
+      }),
+    );
+    expect(loadGame()?.flags['ARIA_NAME_KNOWN']).toBe(true);
+  });
+});

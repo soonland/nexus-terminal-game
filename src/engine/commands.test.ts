@@ -4,6 +4,7 @@ import { createInitialState } from './state';
 import type { GameState } from '../types/game';
 import { hasAccess, fileReadKey } from '../types/game';
 import produce from './produce';
+import { isAriaNameKnown, SENTINEL_VOTE_PATH } from './ariaName';
 
 // ── Helpers ────────────────────────────────────────────────
 
@@ -3811,5 +3812,98 @@ describe('cat local: — path lookup (used by the explorer)', () => {
     const text = result.lines.map(l => l.content).join('\n');
     expect(text).toContain('FROM B');
     expect(text).not.toContain('FROM A');
+  });
+});
+
+describe('ARIA_NAME_KNOWN triggers', () => {
+  const atCfo = (over: (s: GameState) => void = () => undefined): GameState =>
+    produce(createInitialState(), s => {
+      s.network.currentNodeId = 'exec_cfo';
+      s.network.nodes['exec_cfo']!.accessLevel = 'admin';
+      over(s);
+    });
+
+  it('is set by reading the board vote', async () => {
+    const result = await resolveCommand(`cat ${SENTINEL_VOTE_PATH}`, atCfo());
+    expect(isAriaNameKnown(result.nextState as GameState)).toBe(true);
+  });
+
+  it('is set by reading an exfiltrated copy of the board vote', async () => {
+    const base = atCfo();
+    const vote = base.network.nodes['exec_cfo']!.files.find(f => f.path === SENTINEL_VOTE_PATH)!;
+    const state = produce(base, s => {
+      s.player.exfiltrated = [{ ...vote }];
+    });
+    const result = await resolveCommand(`cat local:${SENTINEL_VOTE_PATH}`, state);
+    expect(isAriaNameKnown((result.nextState ?? state) as GameState)).toBe(true);
+  });
+
+  it('is not set by a denied, locked or exfil-only touch of the vote', async () => {
+    const denied = atCfo(s => {
+      s.network.nodes['exec_cfo']!.accessLevel = 'none';
+    });
+    expect(
+      isAriaNameKnown(
+        ((await resolveCommand(`cat ${SENTINEL_VOTE_PATH}`, denied)).nextState ??
+          denied) as GameState,
+      ),
+    ).toBe(false);
+
+    const locked = atCfo(s => {
+      s.network.nodes['exec_cfo']!.files.find(f => f.path === SENTINEL_VOTE_PATH)!.locked = true;
+    });
+    expect(
+      isAriaNameKnown(
+        ((await resolveCommand(`cat ${SENTINEL_VOTE_PATH}`, locked)).nextState ??
+          locked) as GameState,
+      ),
+    ).toBe(false);
+
+    const exfil = await resolveCommand(`exfil ${SENTINEL_VOTE_PATH}`, atCfo());
+    expect(isAriaNameKnown((exfil.nextState ?? atCfo()) as GameState)).toBe(false);
+  });
+
+  it('is not set by a read that fell back to the offline placeholder', async () => {
+    const state = atCfo(s => {
+      s.network.nodes['exec_cfo']!.files.find(f => f.path === SENTINEL_VOTE_PATH)!.content = null;
+    });
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')));
+    try {
+      const result = await resolveCommand(`cat ${SENTINEL_VOTE_PATH}`, state);
+      expect(isAriaNameKnown((result.nextState ?? state) as GameState)).toBe(false);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('is not set by exfiltrating the restricted subnet key', async () => {
+    const state = produce(createInitialState(), s => {
+      s.network.currentNodeId = 'exec_ceo';
+      s.network.nodes['exec_ceo']!.accessLevel = 'admin';
+    });
+    const result = await resolveCommand('exfil aria_key.bin', state); // renamed to subnet_key.bin in Task 2
+    expect((result.nextState as GameState).player.tools.length).toBeGreaterThan(0);
+    expect(isAriaNameKnown(result.nextState as GameState)).toBe(false);
+  });
+
+  it('is set by the first connect to a layer-5 node', async () => {
+    const state = produce(createInitialState(), s => {
+      s.network.currentNodeId = 'exec_ceo';
+      s.network.nodes['exec_ceo']!.compromised = true;
+      s.network.nodes['exec_ceo']!.connections.push('aria_surveillance');
+      s.network.nodes['aria_surveillance']!.discovered = true;
+    });
+    const result = await resolveCommand('connect 172.16.0.1', state);
+    expect((result.nextState as GameState).network.currentNodeId).toBe('aria_surveillance');
+    expect(isAriaNameKnown(result.nextState as GameState)).toBe(true);
+  });
+
+  it('is not set by connecting to a node below layer 5', async () => {
+    const state = produce(createInitialState(), s => {
+      s.network.nodes['contractor_portal']!.compromised = true;
+      s.network.nodes['vpn_gateway']!.discovered = true;
+    });
+    const result = await resolveCommand('connect 10.0.0.2', state);
+    expect(isAriaNameKnown((result.nextState ?? state) as GameState)).toBe(false);
   });
 });
