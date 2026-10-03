@@ -36,10 +36,10 @@ interface Props {
   explorerDisabled: boolean;
   onRunCommand: (cmd: string) => void;
   onTerminalFocused: () => void;
-  // The comms pane is injected (App owns the channel state). Optional until App passes it.
-  comms?: ReactNode;
-  commsAlert?: boolean;
-  onCommsFocused?: () => void;
+  // The comms pane is injected: App owns the channel state.
+  comms: ReactNode;
+  commsAlert: boolean;
+  onCommsFocused: () => void;
 }
 
 const OVERLAY_TITLES: Record<OverlayKind, string> = {
@@ -51,8 +51,6 @@ const OVERLAY_TITLES: Record<OverlayKind, string> = {
 // Debounce localStorage writes so a divider drag (many pointer events) does not write
 // dozens of times per second.
 export const PERSIST_DEBOUNCE_MS = 250;
-
-const noop = () => undefined;
 
 export const Workspace = forwardRef<WorkspaceHandle, Props>(
   (
@@ -69,9 +67,9 @@ export const Workspace = forwardRef<WorkspaceHandle, Props>(
       explorerDisabled,
       onRunCommand,
       onTerminalFocused,
-      comms = null,
-      commsAlert = false,
-      onCommsFocused = noop,
+      comms,
+      commsAlert,
+      onCommsFocused,
     },
     ref,
   ) => {

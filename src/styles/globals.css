@@ -144,18 +144,6 @@ body {
   --color-aggressive: #f85149;
 }
 
-/* ── Sentinel DM mode — full terminal takeover ────────────── */
-body.dm-sentinel {
-  --color-bg: #000000;
-  --color-bg-header: #000000;
-  --color-border: #aa0000;
-  --color-output: #ff5555;
-  --color-input: #ff5555;
-  --color-system: #ff5555;
-  --color-separator: #aa0000;
-  --color-error: #ff0000;
-}
-
 /* ── Scrollbar ────────────────────────────────────────────── */
 ::-webkit-scrollbar {
   width: 4px;
@@ -604,4 +592,9 @@ body.dm-sentinel {
 
 .comms-tab[data-closed='true'] {
   opacity: 0.35;
+}
+
+/* A selected tab for a closed channel stays clearly more visible than the unselected one. */
+.comms-tab[aria-selected='true'][data-closed='true'] {
+  opacity: 0.75;
 }

@@ -131,6 +131,9 @@ describe('Workspace — game starting and ending', () => {
       explorerDisabled={false}
       onRunCommand={vi.fn()}
       onTerminalFocused={vi.fn()}
+      comms={<div>comms-content</div>}
+      commsAlert={false}
+      onCommsFocused={vi.fn()}
     />
   );
 
@@ -160,6 +163,9 @@ describe('Workspace — game starting and ending', () => {
         explorerDisabled={false}
         onRunCommand={vi.fn()}
         onTerminalFocused={vi.fn()}
+        comms={<div>comms-content</div>}
+        commsAlert={false}
+        onCommsFocused={vi.fn()}
       />
     );
     const { rerender } = render(withRef(withFile()));
