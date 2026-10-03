@@ -102,6 +102,34 @@ describe('migrateSavePaths', () => {
     });
   });
 
+  it('rewrites the path part of filesRead keys so renamed files still count as read', () => {
+    const save = base({
+      filesRead: [
+        'exec_legal:/legal/aria/ARIA_BOARD_DISCLOSURE',
+        'exec_ceo:/root/.aria/aria_key.bin',
+        'ops_hr_db:/tmp/.aria_hint_7.txt',
+        'exec_cfo:/home/cfo/documents/board_minutes_oct.pdf',
+      ],
+    });
+    const out = migrateSavePaths(save) as unknown as { filesRead: string[] };
+    expect(out.filesRead).toEqual([
+      'exec_legal:/legal/cassandra/CASSANDRA_BOARD_DISCLOSURE',
+      'exec_ceo:/root/.cassandra/subnet_key.bin',
+      'ops_hr_db:/tmp/.hint_7.txt',
+      'exec_cfo:/home/cfo/documents/board_minutes_oct.pdf',
+    ]);
+  });
+
+  it('copes with a save that has no filesRead, and with a malformed key', () => {
+    expect(
+      (migrateSavePaths(base()) as unknown as { filesRead?: string[] }).filesRead,
+    ).toBeUndefined();
+    const odd = migrateSavePaths(base({ filesRead: ['no-colon-here'] })) as unknown as {
+      filesRead: string[];
+    };
+    expect(odd.filesRead).toEqual(['no-colon-here']);
+  });
+
   it('leaves a current save untouched', () => {
     const save = base({
       player: {

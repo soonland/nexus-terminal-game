@@ -17,6 +17,13 @@ const HINT_NAME = /^\.aria_hint_(\d+)\.txt$/;
 const migratePath = (path: string): string =>
   LEGACY_PATHS[path] ?? path.replace(HINT_PATH, '/tmp/.hint_$1.txt');
 
+// filesRead entries are fileReadKey(nodeId, path) = `${nodeId}:${path}` — rewrite the path part.
+const migrateReadKey = (key: string): string => {
+  const sep = key.indexOf(':');
+  if (sep < 0) return key;
+  return `${key.slice(0, sep + 1)}${migratePath(key.slice(sep + 1))}`;
+};
+
 const migrateName = (name: string): string => name.replace(HINT_NAME, '.hint_$1.txt');
 
 const KEY_TOOL: Tool = {
@@ -47,6 +54,7 @@ export const migrateSavePaths = (save: SaveState): SaveState => {
 
   return {
     ...save,
+    ...(save.filesRead ? { filesRead: save.filesRead.map(migrateReadKey) } : {}),
     player: {
       ...save.player,
       exfiltratedPaths: save.player.exfiltratedPaths.map(migratePath),

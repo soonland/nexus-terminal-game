@@ -779,6 +779,8 @@ export const App = () => {
     spinnerLine !== null;
   // The name "Aria" stays hidden until the player learns it through Sentinel's lore.
   const ariaNameKnown = gameState ? isAriaNameKnown(gameState) : false;
+  // Read once per render (it parses localStorage).
+  const dossierData = loadDossier();
   const explorerDisabled = inputDisabled || (appPhase !== 'playing' && appPhase !== 'aria');
 
   const node = gameState ? currentNode(gameState) : null;
@@ -891,8 +893,8 @@ export const App = () => {
       briefing={<BriefingModal />}
       dossier={
         <DossierWindow
-          dossier={loadDossier()}
-          nameKnown={ariaNameKnown || loadDossier().runsCompleted > 0}
+          dossier={dossierData}
+          nameKnown={ariaNameKnown || dossierData.runsCompleted > 0}
         />
       }
     />

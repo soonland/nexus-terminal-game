@@ -676,6 +676,22 @@ describe('ARIA_NAME_KNOWN persistence', () => {
     expect(loadGame()?.flags['ARIA_NAME_KNOWN']).toBe(true);
   });
 
+  it('keeps a renamed file marked as read when loading a pre-audit save', () => {
+    saveGame(
+      produce(createInitialState(), s => {
+        s.filesRead = ['exec_legal:/legal/cassandra/CASSANDRA_BOARD_DISCLOSURE'];
+      }),
+    );
+    const legacy = (mockStorage.getItem(SAVE_KEY) as string).replaceAll(
+      '/legal/cassandra/CASSANDRA_BOARD_DISCLOSURE',
+      '/legal/aria/ARIA_BOARD_DISCLOSURE',
+    );
+    mockStorage.setItem(SAVE_KEY, legacy);
+    expect(loadGame()?.filesRead).toEqual([
+      'exec_legal:/legal/cassandra/CASSANDRA_BOARD_DISCLOSURE',
+    ]);
+  });
+
   it('loads a save written with the pre-audit key path and tool id', () => {
     const base = createInitialState();
     const key = base.network.nodes['exec_ceo']!.files.find(
