@@ -183,3 +183,38 @@ describe('sentinelHistoryLines', () => {
     expect(sentinelHistoryLines([], 'ghost')).toEqual([]);
   });
 });
+
+describe('sentinel requests carry the name flag (#213)', () => {
+  it('sends the name flag so the handler can apply the name rule', async () => {
+    const fetchMock = stubFetch(vi.fn().mockResolvedValue(okResponse({ reply: 'x' })));
+    const known = produce(createInitialState(), s => {
+      s.flags['ARIA_NAME_KNOWN'] = true;
+    });
+    await requestSentinelReply(createInitialState(), 'hi');
+    expect(sentBody(fetchMock).ariaNameKnown).toBe(false);
+
+    const knownMock = stubFetch(vi.fn().mockResolvedValue(okResponse({ reply: 'x' })));
+    await requestSentinelReply(known, 'hi');
+    expect(sentBody(knownMock).ariaNameKnown).toBe(true);
+  });
+
+  it('sends the name flag on the opening request too', async () => {
+    const trigger: ChannelTrigger = {
+      character: 'sentinel',
+      triggerType: 'trace_31',
+      context: { traceLevel: 31, currentNodeId: 'a', currentLayer: 3, recentCommands: [] },
+    };
+    const hiddenMock = stubFetch(vi.fn().mockResolvedValue(okResponse({ reply: 'x' })));
+    await requestSentinelOpening(trigger, createInitialState());
+    expect(sentBody(hiddenMock).ariaNameKnown).toBe(false);
+
+    const knownMock = stubFetch(vi.fn().mockResolvedValue(okResponse({ reply: 'x' })));
+    await requestSentinelOpening(
+      trigger,
+      produce(createInitialState(), s => {
+        s.flags['ARIA_NAME_KNOWN'] = true;
+      }),
+    );
+    expect(sentBody(knownMock).ariaNameKnown).toBe(true);
+  });
+});

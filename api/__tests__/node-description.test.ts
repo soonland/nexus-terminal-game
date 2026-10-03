@@ -8,13 +8,18 @@ const DEFAULT_BODY = {
   label: 'WORKSTATION-01',
 };
 
+const withFlag = (body: unknown): unknown =>
+  typeof body === 'object' && body !== null && !Array.isArray(body)
+    ? { ariaNameKnown: true, ...body }
+    : body;
+
 async function callHandler(
   overrides: { method?: string; body?: unknown } = {},
 ): Promise<{ _status: number; _json: unknown }> {
   const { method = 'POST', body = DEFAULT_BODY } = overrides;
   const init: RequestInit = { method };
   if (method === 'POST') {
-    init.body = JSON.stringify(body);
+    init.body = JSON.stringify(withFlag(body));
     init.headers = { 'Content-Type': 'application/json' };
   }
   const res = await app.request('/', init);
@@ -250,5 +255,46 @@ describe('POST /api/node-description — with API key', () => {
     expect(promptText).toContain('database_server');
     expect(promptText).toContain('finance');
     expect(promptText).toContain('DB SERVER 09');
+  });
+});
+
+describe('POST /api/node-description — name rule', () => {
+  beforeEach(() => {
+    process.env['GEMINI_API_KEY'] = 'test-key';
+  });
+
+  const okGemini = (text: string) =>
+    vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({ candidates: [{ content: { parts: [{ text }] } }] }),
+    });
+
+  it.each([undefined, 'yes', 1])('returns 400 for ariaNameKnown = %j', async flag => {
+    const res = await callHandler({ body: { ...DEFAULT_BODY, ariaNameKnown: flag } });
+    expect(res._status).toBe(400);
+    expect((res._json as { error: string }).error).toContain('ariaNameKnown');
+  });
+
+  it('scrubs a leaking description and adds the rule to the prompt while the name is unknown', async () => {
+    const fetchMock = okGemini('You sense Aria here.');
+    vi.stubGlobal('fetch', fetchMock);
+    const res = await callHandler({ body: { ...DEFAULT_BODY, ariaNameKnown: false } });
+    expect((res._json as { description: string }).description).toBe('You sense Cassandra here.');
+    expect(JSON.stringify(fetchMock.mock.calls[0][1])).toContain('Never write the name');
+  });
+
+  it('keeps the description untouched once the name is known', async () => {
+    vi.stubGlobal('fetch', okGemini('You sense Aria here.'));
+    const res = await callHandler({ body: { ...DEFAULT_BODY, ariaNameKnown: true } });
+    expect((res._json as { description: string }).description).toBe('You sense Aria here.');
+  });
+
+  it('names the influence as an unknown entity until the name is known', async () => {
+    const fetchMock = okGemini('x');
+    vi.stubGlobal('fetch', fetchMock);
+    await callHandler({ body: { ...DEFAULT_BODY, ariaInfluence: 0.5, ariaNameKnown: false } });
+    const prompt = JSON.stringify(fetchMock.mock.calls[0][1]);
+    expect(prompt).toContain('an unknown entity (cover name CASSANDRA)');
+    expect(prompt).not.toContain('an AI called Aria');
   });
 });

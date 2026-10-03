@@ -3907,3 +3907,112 @@ describe('ARIA_NAME_KNOWN triggers', () => {
     expect(isAriaNameKnown((result.nextState ?? state) as GameState)).toBe(false);
   });
 });
+
+describe('AI requests carry the name flag (#213)', () => {
+  const lastBody = (fetchMock: ReturnType<typeof vi.fn>, urlPart: string) => {
+    const call = fetchMock.mock.calls.find(c => String(c[0]).includes(urlPart));
+    return JSON.parse((call?.[1] as { body: string }).body) as Record<string, unknown>;
+  };
+
+  it('the world AI request says the name is unknown, then known', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(makeOkFetchResponse(DEFAULT_AI_RESPONSE));
+    vi.stubGlobal('fetch', fetchMock);
+    await resolveCommand('look around', createInitialState());
+    expect(lastBody(fetchMock, '/api/world').ariaNameKnown).toBe(false);
+
+    const known = produce(createInitialState(), s => {
+      s.flags['ARIA_NAME_KNOWN'] = true;
+    });
+    const knownMock = vi.fn().mockResolvedValue(makeOkFetchResponse(DEFAULT_AI_RESPONSE));
+    vi.stubGlobal('fetch', knownMock);
+    await resolveCommand('look around', known);
+    expect(lastBody(knownMock, '/api/world').ariaNameKnown).toBe(true);
+  });
+
+  it('the file generation request carries the flag', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(makeOkFetchResponse({ content: 'x' }));
+    vi.stubGlobal('fetch', fetchMock);
+    const state = produce(createInitialState(), s => {
+      const node = s.network.nodes['contractor_portal']!;
+      node.accessLevel = 'user';
+      node.files = [
+        {
+          name: 'pending.txt',
+          path: '/pending.txt',
+          type: 'document',
+          content: null,
+          exfiltrable: true,
+          accessRequired: 'user',
+        },
+      ];
+    });
+    await resolveCommand('cat /pending.txt', state);
+    expect(lastBody(fetchMock, '/api/file').ariaNameKnown).toBe(false);
+  });
+
+  it('the world AI cannot set the protected ARIA_NAME_KNOWN flag', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      makeOkFetchResponse({
+        ...DEFAULT_AI_RESPONSE,
+        flagsSet: { ARIA_NAME_KNOWN: true, OTHER: true },
+      }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    const result = await resolveCommand('look around', createInitialState());
+    const next = result.nextState as GameState;
+    expect(next.flags['ARIA_NAME_KNOWN']).toBeUndefined();
+    expect(next.flags['OTHER']).toBe(true);
+  });
+});
+
+describe('Aria introducing herself (#213)', () => {
+  const ariaReply = (reply: string, extra: Record<string, unknown> = {}) =>
+    vi.fn().mockResolvedValue(makeOkFetchResponse({ reply, trustDelta: 0, ...extra }));
+
+  it('sends the flag and marks the name known when her reply contains it', async () => {
+    const fetchMock = ariaReply('I am Aria.');
+    vi.stubGlobal('fetch', fetchMock);
+    const result = await resolveCommand('msg aria hello', createInitialState());
+    const body = JSON.parse((fetchMock.mock.calls[0][1] as { body: string }).body) as Record<
+      string,
+      unknown
+    >;
+    expect(body.ariaNameKnown).toBe(false);
+    expect(isAriaNameKnown(result.nextState as GameState)).toBe(true);
+  });
+
+  it('does not mark the name known when her reply does not contain it', async () => {
+    vi.stubGlobal('fetch', ariaReply('Careful. You are being watched.'));
+    const result = await resolveCommand('msg aria hello', createInitialState());
+    expect(isAriaNameKnown(result.nextState as GameState)).toBe(false);
+  });
+
+  it('does not mark the name known on an offline fallback reply', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')));
+    const result = await resolveCommand('msg aria hello', createInitialState());
+    expect(isAriaNameKnown((result.nextState ?? createInitialState()) as GameState)).toBe(false);
+  });
+
+  it('does not say her name in the engine offer line while the name is unknown', async () => {
+    vi.stubGlobal(
+      'fetch',
+      ariaReply('Careful.', { offersFavor: { description: 'I can open a door', cost: 3 } }),
+    );
+    const result = await resolveCommand('msg aria hello', createInitialState());
+    const text = result.lines.map(l => l.content).join('\n');
+    expect(text).toContain('CASSANDRA OFFER');
+    expect(text).not.toMatch(/aria/i);
+  });
+
+  it('uses her name in the engine offer line once it is known', async () => {
+    vi.stubGlobal(
+      'fetch',
+      ariaReply('Careful.', { offersFavor: { description: 'I can open a door', cost: 3 } }),
+    );
+    const known = produce(createInitialState(), s => {
+      s.flags['ARIA_NAME_KNOWN'] = true;
+    });
+    const result = await resolveCommand('msg aria hello', known);
+    expect(result.lines.map(l => l.content).join('\n')).toContain('ARIA OFFER');
+  });
+});

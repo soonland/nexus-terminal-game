@@ -10,8 +10,15 @@ import { runAriaTurn } from './ariaMutations';
 import { loadDossier, recordEnding, addLoreFragment } from './dossierPersistence';
 import type { EndingName } from '../types/dossier';
 import { shouldSuppressMutation, injectConstraintFragment } from './faradayCage';
-import { SENTINEL_VOTE_PATH, isAriaNameKnown, markAriaNameKnown } from './ariaName';
+import { ARIA_NAME_FLAG, SENTINEL_VOTE_PATH, isAriaNameKnown, markAriaNameKnown } from './ariaName';
 import { detectChannelTrigger, isChannelBlocked, layerReachedFlag } from './channel';
+
+// The AI may suggest game flags, but the secret-name flag is set only by the engine.
+const withoutProtectedFlags = (flags: Record<string, boolean>): Record<string, boolean> =>
+  Object.fromEntries(Object.entries(flags).filter(([key]) => key !== ARIA_NAME_FLAG));
+
+// Engine-generated Aria dialogue says her name only once the player knows it.
+const ariaTag = (state: GameState): string => (isAriaNameKnown(state) ? 'ARIA' : 'CASSANDRA');
 
 interface WorldAIResponse {
   narrative: string;
@@ -559,6 +566,7 @@ const cmdWorldAI = async (raw: string, state: GameState): Promise<CommandOutput>
     },
     recentCommands: state.recentCommands,
     turnCount: state.turnCount,
+    ariaNameKnown: isAriaNameKnown(state),
   };
 
   let aiResponse: WorldAIResponse;
@@ -590,7 +598,7 @@ const cmdWorldAI = async (raw: string, state: GameState): Promise<CommandOutput>
 
   if (Object.keys(aiResponse.flagsSet).length > 0) {
     next = produce(next, s => {
-      Object.assign(s.flags, aiResponse.flagsSet);
+      Object.assign(s.flags, withoutProtectedFlags(aiResponse.flagsSet));
     });
   }
 
@@ -642,6 +650,7 @@ const cmdAriaAI = async (
     ariaMemory: dossier.ariaMemory,
     runNumber: dossier.runsCompleted + 1,
     previousEndings: dossier.endings.map(e => e.ending),
+    ariaNameKnown: isAriaNameKnown(state),
   };
 
   let aiResponse: AriaAIResponse;
@@ -702,19 +711,24 @@ const cmdAriaAI = async (
     }
   });
 
+  // If she introduced herself, the player now knows her name (an offline fallback never does).
+  const introduced =
+    !isAriaNameKnown(state) && aiResponse !== ARIA_AI_FALLBACK && /\baria\b/i.test(safeReply);
+  const finalState = introduced ? markAriaNameKnown(next) : next;
+
   const lines: CommandOutput['lines'] = [line(displayReply, 'aria')];
 
   if (safeOffer) {
     lines.push(
       sep(),
-      line(`// ARIA OFFER: ${safeOffer.description}`, 'aria'),
+      line(`// ${ariaTag(finalState)} OFFER: ${safeOffer.description}`, 'aria'),
       line(`  Cost: +${String(safeOffer.cost)} trace`, 'aria'),
       line('  Type "yes" to accept or "no" to decline.', 'aria'),
       sep(),
     );
   }
 
-  return withTurn({ lines, nextState: next }, raw, state);
+  return withTurn({ lines, nextState: finalState }, raw, state);
 };
 
 // ── Favor confirmation ────────────────────────────────────
@@ -735,7 +749,7 @@ const cmdAcceptFavor = (state: GameState): CommandOutput => {
   });
   return {
     lines: [
-      line('// ARIA: Agreement logged.', 'aria'),
+      line(`// ${ariaTag(state)}: Agreement logged.`, 'aria'),
       line(`  +${String(sanitizedCost)} trace`, 'aria'),
     ],
     nextState: next,
@@ -747,7 +761,7 @@ const cmdDeclineFavor = (state: GameState): CommandOutput => {
     s.aria.pendingFavor = undefined;
   });
   return {
-    lines: [line('// ARIA: Understood. The offer is withdrawn.', 'aria')],
+    lines: [line(`// ${ariaTag(state)}: Understood. The offer is withdrawn.`, 'aria')],
     nextState: next,
   };
 };
@@ -789,6 +803,7 @@ const cmdDecisionTerminal = async (choice: string, state: GameState): Promise<Co
       ariaMemory: dossier.ariaMemory,
       runNumber: dossier.runsCompleted + 1,
       previousEndings: dossier.endings.map(e => e.ending),
+      ariaNameKnown: isAriaNameKnown(state),
     };
     const res = await fetch('/api/aria', {
       method: 'POST',
@@ -1060,6 +1075,7 @@ const cmdConnect = async (args: string[], state: GameState): Promise<CommandOutp
           division: LAYER_DIVISION[target.layer] ?? 'unknown',
           label: target.label,
           ariaInfluence: target.ariaInfluence ?? 0,
+          ariaNameKnown: isAriaNameKnown(state),
         }),
       });
       if (res.ok) {
@@ -1312,6 +1328,7 @@ const cmdCat = async (args: string[], state: GameState): Promise<CommandOutput> 
           ownerTemplate: node.template,
           division: LAYER_DIVISION[node.layer] ?? 'unknown',
           ariaPlanted: file.ariaPlanted ?? false,
+          ariaNameKnown: isAriaNameKnown(state),
         }),
       });
       if (res.ok) {
@@ -1500,6 +1517,7 @@ const cmdExploit = async (args: string[], state: GameState): Promise<CommandOutp
     },
     recentCommands: state.recentCommands,
     turnCount: state.turnCount,
+    ariaNameKnown: isAriaNameKnown(state),
   };
 
   let aiResponse: WorldAIResponse;
@@ -1547,7 +1565,7 @@ const cmdExploit = async (args: string[], state: GameState): Promise<CommandOutp
 
   if (Object.keys(aiResponse.flagsSet).length > 0) {
     next = produce(next, s => {
-      Object.assign(s.flags, aiResponse.flagsSet);
+      Object.assign(s.flags, withoutProtectedFlags(aiResponse.flagsSet));
     });
   }
 
@@ -2004,7 +2022,11 @@ const cmdViewCam = async (args: string[], state: GameState): Promise<CommandOutp
     const res = await fetch('/api/camera-feed', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ cameraId: args[0], location: cam.location }),
+      body: JSON.stringify({
+        cameraId: args[0],
+        location: cam.location,
+        ariaNameKnown: isAriaNameKnown(state),
+      }),
     });
     if (res.ok) {
       const data = (await res.json()) as { description?: string };

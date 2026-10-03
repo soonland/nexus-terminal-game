@@ -26,7 +26,8 @@
 import { Hono } from 'hono';
 import { handle } from 'hono/vercel';
 import { makeLogger } from './_lib/logger.js';
-import { ValidationError, requireObject, requireString } from './_lib/validate.js';
+import { ValidationError, requireBoolean, requireObject, requireString } from './_lib/validate.js';
+import { scrubAriaName, withNameRule } from './_lib/ariaName.js';
 
 const log = makeLogger('world');
 
@@ -106,10 +107,12 @@ export const app = new Hono();
 app.post('*', async c => {
   let body: Record<string, unknown>;
   let command: string;
+  let ariaNameKnown: boolean;
   try {
     const rawBody: unknown = await c.req.json();
     body = requireObject(rawBody, 'Request body');
     command = requireString(body['command'], 'command');
+    ariaNameKnown = requireBoolean(body['ariaNameKnown'], 'ariaNameKnown');
   } catch (err) {
     if (err instanceof ValidationError) {
       return c.json({ error: err.message }, 400);
@@ -169,7 +172,7 @@ app.post('*', async c => {
     }
 
     const fullPrompt = [
-      SYSTEM_PROMPT,
+      withNameRule(SYSTEM_PROMPT, ariaNameKnown),
       contextParts.length > 0 ? contextParts.join('\n') : '',
       `Command: ${command}`,
     ]
@@ -225,8 +228,10 @@ app.post('*', async c => {
     const parsed = JSON.parse(stripped.slice(jsonStart, jsonEnd + 1)) as Partial<WorldAIResponse>;
 
     const response: WorldAIResponse = {
-      narrative:
+      narrative: scrubAriaName(
         typeof parsed.narrative === 'string' ? parsed.narrative : FALLBACK_RESPONSE.narrative,
+        ariaNameKnown,
+      ),
       traceChange:
         typeof parsed.traceChange === 'number' ? Math.max(0, Math.min(5, parsed.traceChange)) : 0,
       accessGranted: typeof parsed.accessGranted === 'boolean' ? parsed.accessGranted : false,
@@ -235,7 +240,10 @@ app.post('*', async c => {
       nodesUnlocked: Array.isArray(parsed.nodesUnlocked) ? parsed.nodesUnlocked : [],
       isUnknown: typeof parsed.isUnknown === 'boolean' ? parsed.isUnknown : false,
       suggestions: Array.isArray(parsed.suggestions)
-        ? parsed.suggestions.filter((s): s is string => typeof s === 'string').slice(0, 3)
+        ? parsed.suggestions
+            .filter((s): s is string => typeof s === 'string')
+            .slice(0, 3)
+            .map(s => scrubAriaName(s, ariaNameKnown))
         : [],
     };
 

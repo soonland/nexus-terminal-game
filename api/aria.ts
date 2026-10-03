@@ -21,7 +21,8 @@
 import { Hono } from 'hono';
 import { handle } from 'hono/vercel';
 import { makeLogger } from './_lib/logger.js';
-import { ValidationError, requireObject, requireString } from './_lib/validate.js';
+import { ValidationError, requireBoolean, requireObject, requireString } from './_lib/validate.js';
+import { withAriaIntro } from './_lib/ariaName.js';
 
 const log = makeLogger('aria');
 
@@ -83,17 +84,22 @@ export const app = new Hono();
 app.post('*', async c => {
   let body: Record<string, unknown>;
   let message: string;
+  let ariaNameKnown: boolean;
   try {
     const rawBody: unknown = await c.req.json();
     body = requireObject(rawBody, 'Request body');
     // Cap at 500 chars — long messages are truncated, not rejected, to keep UX smooth
     message = requireString(body['message'], 'message').slice(0, 500);
+    ariaNameKnown = requireBoolean(body['ariaNameKnown'], 'ariaNameKnown');
   } catch (err) {
     if (err instanceof ValidationError) {
       return c.json({ error: err.message }, 400);
     }
     return c.json({ error: 'Invalid request body' }, 400);
   }
+
+  // Reached before the name is known (fallback path), she introduces herself by name.
+  const systemPrompt = withAriaIntro(SYSTEM_PROMPT, ariaNameKnown);
 
   try {
     const ariaStateRaw =
@@ -203,7 +209,7 @@ app.post('*', async c => {
           model: ariaModel,
           max_tokens: 300,
           temperature: 0.9,
-          system: SYSTEM_PROMPT,
+          system: systemPrompt,
           messages: [
             {
               role: 'user',
@@ -230,7 +236,7 @@ app.post('*', async c => {
         return c.json(FALLBACK_RESPONSE, 200);
       }
     } else {
-      const fullPrompt = [SYSTEM_PROMPT, contextParts.join('\n'), `Player: ${message}`, 'Aria:']
+      const fullPrompt = [systemPrompt, contextParts.join('\n'), `Player: ${message}`, 'Aria:']
         .filter(Boolean)
         .join('\n\n');
 

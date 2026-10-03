@@ -14,7 +14,8 @@
 import { Hono } from 'hono';
 import { handle } from 'hono/vercel';
 import { makeLogger } from './_lib/logger.js';
-import { ValidationError, requireObject, requireString } from './_lib/validate.js';
+import { ValidationError, requireBoolean, requireObject, requireString } from './_lib/validate.js';
+import { scrubAriaName, withNameRule } from './_lib/ariaName.js';
 
 export interface CameraFeedRequest {
   cameraId: string;
@@ -36,11 +37,13 @@ export const app = new Hono();
 app.post('*', async c => {
   let cameraId: string;
   let location: string;
+  let ariaNameKnown: boolean;
   try {
     const rawBody: unknown = await c.req.json();
     const body = requireObject(rawBody, 'Request body');
     cameraId = requireString(body['cameraId'], 'cameraId');
     location = requireString(body['location'], 'location');
+    ariaNameKnown = requireBoolean(body['ariaNameKnown'], 'ariaNameKnown');
   } catch (err) {
     if (err instanceof ValidationError) {
       return c.json({ error: err.message }, 400);
@@ -61,11 +64,12 @@ app.post('*', async c => {
       .replace(/[^\w ]/g, '')
       .replaceAll('_', ' ');
 
-    const prompt =
+    const promptBase =
       `You are a security camera feed display system inside IronGate Corp, a powerful and secretive corporation. ` +
       `Generate a terse, clinical surveillance description of what camera ${safeCameraId} (location: ${safeLocation}) currently shows. ` +
       `Write in present tense. Exactly two to three complete sentences. Describe people, activity, lighting, and any anomalies. ` +
       `Tone: cold, factual, sci-fi noir. No markdown. No prefix of any kind — begin directly with the description.`;
+    const prompt = withNameRule(promptBase, ariaNameKnown);
 
     const geminiRes = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
       method: 'POST',
@@ -95,7 +99,7 @@ app.post('*', async c => {
       return c.json({ description: FALLBACK_DESCRIPTION }, 200);
     }
 
-    return c.json({ description: text }, 200);
+    return c.json({ description: scrubAriaName(text, ariaNameKnown) }, 200);
   } catch (e) {
     log.error('Unexpected error', e);
     return c.json({ description: FALLBACK_DESCRIPTION }, 200);
