@@ -9,7 +9,6 @@ import { NARROW_WIDTH, useViewportWidth } from '../layout/useViewportWidth';
 import { LayoutRoot } from '../layout/LayoutRoot';
 import { StatusBar } from '../layout/StatusBar';
 import { Overlay } from './Overlay';
-import { CommsPane } from './CommsPane';
 import { FilesPane } from './FilesPane';
 import { DocPane } from './DocPane';
 import { catCommand } from './explorerShared';
@@ -37,6 +36,10 @@ interface Props {
   explorerDisabled: boolean;
   onRunCommand: (cmd: string) => void;
   onTerminalFocused: () => void;
+  // The comms pane is injected (App owns the channel state). Optional until App passes it.
+  comms?: ReactNode;
+  commsAlert?: boolean;
+  onCommsFocused?: () => void;
 }
 
 const OVERLAY_TITLES: Record<OverlayKind, string> = {
@@ -48,6 +51,8 @@ const OVERLAY_TITLES: Record<OverlayKind, string> = {
 // Debounce localStorage writes so a divider drag (many pointer events) does not write
 // dozens of times per second.
 export const PERSIST_DEBOUNCE_MS = 250;
+
+const noop = () => undefined;
 
 export const Workspace = forwardRef<WorkspaceHandle, Props>(
   (
@@ -64,6 +69,9 @@ export const Workspace = forwardRef<WorkspaceHandle, Props>(
       explorerDisabled,
       onRunCommand,
       onTerminalFocused,
+      comms = null,
+      commsAlert = false,
+      onCommsFocused = noop,
     },
     ref,
   ) => {
@@ -81,8 +89,15 @@ export const Workspace = forwardRef<WorkspaceHandle, Props>(
 
     // Put the DOM caret in the terminal input only after the terminal pane is actually
     // visible (a zoomed-away pane is display:none and cannot take focus yet).
+    const onCommsFocusedRef = useRef(onCommsFocused);
     useEffect(() => {
-      if (layout.focused === 'term' && overlay === null) onTerminalFocusedRef.current();
+      onCommsFocusedRef.current = onCommsFocused;
+    });
+
+    useEffect(() => {
+      if (overlay !== null) return;
+      if (layout.focused === 'term') onTerminalFocusedRef.current();
+      else if (layout.focused === 'comms') onCommsFocusedRef.current();
     }, [layout.focused, layout.zoomed, overlay, noGame, narrow]);
 
     // Persist preset and tree changes only — focus and zoom are session state.
@@ -193,7 +208,7 @@ export const Workspace = forwardRef<WorkspaceHandle, Props>(
         />
       ),
       aux: auxTab === 'map' ? map : notes,
-      comms: <CommsPane />,
+      comms,
     };
 
     // Before a game exists (login screens) the terminal is shown alone. It stays in the
@@ -213,6 +228,7 @@ export const Workspace = forwardRef<WorkspaceHandle, Props>(
           headerExtras={{ aux: auxTabs }}
           narrow={narrow && !noGame}
           bare={noGame}
+          alerts={{ comms: commsAlert }}
           onFocusPane={focus}
           onRatio={(path: TreePath, ratio: number) => {
             setLayout(prev => setRatio(prev, path, ratio));

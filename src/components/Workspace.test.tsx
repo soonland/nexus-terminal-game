@@ -41,6 +41,7 @@ const setup = (over: Partial<Parameters<typeof Workspace>[0]> = {}) => {
   const ref = createRef<WorkspaceHandle>();
   const onRunCommand = vi.fn();
   const onTerminalFocused = vi.fn();
+  const onCommsFocused = vi.fn();
   const view = render(
     <Workspace
       ref={ref}
@@ -56,10 +57,13 @@ const setup = (over: Partial<Parameters<typeof Workspace>[0]> = {}) => {
       explorerDisabled={false}
       onRunCommand={onRunCommand}
       onTerminalFocused={onTerminalFocused}
+      comms={<div>comms-content</div>}
+      commsAlert={false}
+      onCommsFocused={onCommsFocused}
       {...over}
     />,
   );
-  return { ref, onRunCommand, onTerminalFocused, ...view };
+  return { ref, onRunCommand, onTerminalFocused, onCommsFocused, ...view };
 };
 
 const section = (id: string) => document.querySelector<HTMLElement>(`[data-pane="${id}"]`)!;
@@ -178,7 +182,7 @@ describe('Workspace — tiled', () => {
     }
     expect(screen.getByText('10.0.0.1')).toBeTruthy();
     expect(screen.getByText('TRC 14%')).toBeTruthy();
-    expect(screen.getByText(/nexus \/\/ encrypted line/i)).toBeTruthy();
+    expect(screen.getByText('comms-content')).toBeTruthy();
   });
 
   it('starts with the map tab in aux and switches to notes via the tab button', () => {
@@ -353,5 +357,42 @@ describe('Workspace — narrow and persistence', () => {
     unmount();
     expect(storage.setItem).toHaveBeenCalledTimes(1);
     expect(lastSavedHuntRatio()).toBeCloseTo(0.6, 5);
+  });
+});
+
+describe('Workspace — comms', () => {
+  it('marks the comms pane in alert only when commsAlert is set', () => {
+    setup({ commsAlert: true });
+    expect(section('comms').dataset.alert).toBe('true');
+    expect(section('term').dataset.alert).toBe('false');
+  });
+
+  it('calls onCommsFocused when comms takes focus, not when other panes do', () => {
+    const { onCommsFocused } = setup();
+    onCommsFocused.mockClear();
+    alt('Digit3');
+    expect(onCommsFocused).not.toHaveBeenCalled();
+    alt('Digit5');
+    expect(onCommsFocused).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not call onCommsFocused while an overlay is open', () => {
+    const { ref, onCommsFocused } = setup();
+    act(() => {
+      ref.current?.focusPane('comms');
+    });
+    onCommsFocused.mockClear();
+    act(() => {
+      ref.current?.showOverlay('help');
+    });
+    expect(onCommsFocused).not.toHaveBeenCalled();
+  });
+
+  it('focusPane("comms") via the handle focuses the comms pane', () => {
+    const { ref } = setup();
+    act(() => {
+      ref.current?.focusPane('comms');
+    });
+    expect(section('comms').dataset.focused).toBe('true');
   });
 });
