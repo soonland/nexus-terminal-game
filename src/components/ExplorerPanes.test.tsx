@@ -1,11 +1,48 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
+import { useState } from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { ExplorerWindow } from './ExplorerWindow';
+import { FilesPane } from './FilesPane';
+import { DocPane } from './DocPane';
+import type { Selection } from './explorerShared';
+import { catCommand } from './explorerShared';
 import { createInitialState } from '../engine/state';
 import produce from '../engine/produce';
 import { fileReadKey } from '../types/game';
 import type { GameFile, GameState } from '../types/game';
+
+// Composes the two panes the way Workspace does, so the existing explorer behaviour
+// tests keep exercising tree + viewer together.
+const Harness = ({
+  gameState,
+  onRunCommand,
+  disabled,
+}: {
+  gameState: GameState;
+  onRunCommand: (cmd: string) => void;
+  disabled: boolean;
+}) => {
+  const [selection, setSelection] = useState<Selection | null>(null);
+  return (
+    <>
+      <FilesPane
+        gameState={gameState}
+        selection={selection}
+        onSelect={setSelection}
+        onOpen={(root, file) => {
+          onRunCommand(catCommand(root, file));
+        }}
+        disabled={disabled}
+      />
+      <DocPane
+        gameState={gameState}
+        selection={selection}
+        onRunCommand={onRunCommand}
+        disabled={disabled}
+      />
+    </>
+  );
+};
 
 const NODE_ID = 'contractor_portal';
 
@@ -30,7 +67,7 @@ const stateWith = (files: GameFile[], mutate?: (s: GameState) => void): GameStat
 const setup = (state: GameState, disabled = false) => {
   const onRunCommand = vi.fn();
   const view = render(
-    <ExplorerWindow gameState={state} onRunCommand={onRunCommand} disabled={disabled} />,
+    <Harness gameState={state} onRunCommand={onRunCommand} disabled={disabled} />,
   );
   return { onRunCommand, ...view };
 };
@@ -41,7 +78,7 @@ const select = (name: string) => {
   fireEvent.click(screen.getByText(name));
 };
 
-describe('ExplorerWindow — tree', () => {
+describe('Explorer panes — tree', () => {
   it('shows top-level directories expanded and deeper ones collapsed until toggled', () => {
     setup(stateWith([makeFile('/var/www/site/index.html')]));
     expect(screen.getByText('var')).toBeTruthy();
@@ -104,7 +141,7 @@ describe('ExplorerWindow — tree', () => {
   });
 });
 
-describe('ExplorerWindow — selection and actions', () => {
+describe('Explorer panes — selection and actions', () => {
   it('selecting a file shows details but runs no command', () => {
     const { onRunCommand } = setup(stateWith([makeFile('/etc/vpn.cfg')]));
     select('vpn.cfg');
@@ -180,12 +217,12 @@ describe('ExplorerWindow — selection and actions', () => {
     const gone = produce(state, s => {
       s.network.nodes[NODE_ID]!.files[0].deleted = true;
     });
-    rerender(<ExplorerWindow gameState={gone} onRunCommand={onRunCommand} disabled={false} />);
+    rerender(<Harness gameState={gone} onRunCommand={onRunCommand} disabled={false} />);
     expect(screen.queryByRole('button', { name: 'Open' })).toBeNull();
   });
 });
 
-describe('ExplorerWindow — viewer', () => {
+describe('Explorer panes — viewer', () => {
   it('does not reveal content of an unread file even though content exists in state', () => {
     setup(stateWith([makeFile('/a/doc.txt', { content: 'TOP SECRET BODY' })]));
     select('doc.txt');
@@ -212,7 +249,7 @@ describe('ExplorerWindow — viewer', () => {
   });
 });
 
-describe('ExplorerWindow — local cache', () => {
+describe('Explorer panes — local cache', () => {
   const withLocal = (files: GameFile[]) =>
     stateWith([makeFile('/a/ok.txt')], s => {
       s.player.exfiltrated = files;
@@ -250,5 +287,33 @@ describe('ExplorerWindow — local cache', () => {
     fireEvent.click(rows[rows.length - 1]);
     fireEvent.click(button('Open'));
     expect(onRunCommand).toHaveBeenCalledWith('cat local:/etc/b/config.ini');
+  });
+});
+
+describe('Explorer panes — doc pane empty state and shared selection', () => {
+  it('shows a hint in the doc pane until a file is selected', () => {
+    setup(stateWith([makeFile('/etc/vpn.cfg')]));
+    expect(screen.getByText(/select a file in the files pane/i)).toBeTruthy();
+    select('vpn.cfg');
+    expect(screen.queryByText(/select a file in the files pane/i)).toBeNull();
+  });
+
+  it('FilesPane alone never runs a command on single click and honours disabled on double click', () => {
+    const onOpen = vi.fn();
+    const onSelect = vi.fn();
+    render(
+      <FilesPane
+        gameState={stateWith([makeFile('/etc/vpn.cfg')])}
+        selection={null}
+        onSelect={onSelect}
+        onOpen={onOpen}
+        disabled
+      />,
+    );
+    const row = screen.getByText('vpn.cfg', { selector: '.explorer-file span' });
+    fireEvent.click(row);
+    fireEvent.doubleClick(row);
+    expect(onSelect).toHaveBeenCalledWith({ root: 'node', path: '/etc/vpn.cfg' });
+    expect(onOpen).not.toHaveBeenCalled();
   });
 });

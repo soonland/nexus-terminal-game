@@ -22,7 +22,7 @@
 
   --font-mono: 'IBM Plex Mono', monospace;
   --font-size: 16px;
-  --font-size-secondary: 13px; /* body text inside every window, including the terminal */
+  --font-size-secondary: 13px; /* body text inside every pane, including the terminal */
   --line-height: 1.5;
 }
 
@@ -44,9 +44,8 @@ body,
 }
 
 body {
-  /* Matches the Desktop's own backdrop — pre-game screens (welcome, prologue,
-     scan) render outside the window manager and fall back to this; everything
-     else renders inside .desktop, which paints over it anyway. */
+  /* Backdrop for the whole app: pre-game screens paint the photo via .desktop, and
+     in-game panes render inside .workspace, which uses this same colour. */
   background: var(--win-desktop-bg);
   color: var(--color-output);
   font-family: var(--font-mono);
@@ -169,7 +168,7 @@ body.dm-sentinel {
   border-radius: 0;
 }
 
-/* ── Window manager (sleek-minimal) ─────────────────────────── */
+/* ── Palette tokens (tiled layout, pre-game desktop) ─────────── */
 :root {
   --win-bg: #11151c;
   --win-border: #2a3040;
@@ -177,111 +176,6 @@ body.dm-sentinel {
   --win-title-color: #c9d4e6;
   --win-body-color: #c9d4e6;
   --win-desktop-bg: #0b0e14;
-}
-
-.window {
-  position: absolute;
-  background: var(--win-bg);
-  border: 1px solid var(--win-border);
-  border-top-width: 2px;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.window-titlebar {
-  height: 26px;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  padding: 0 8px;
-  background: var(--win-titlebar-bg);
-  border-bottom: 1px solid var(--win-border);
-  font-family: system-ui, sans-serif;
-  font-size: 11px;
-  color: var(--win-title-color);
-  cursor: move;
-  user-select: none;
-}
-
-.window-title {
-  flex: 1;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-}
-
-.window-controls {
-  display: flex;
-  gap: 4px;
-}
-
-.window-controls button {
-  background: transparent;
-  border: none;
-  color: var(--win-title-color);
-  font-family: monospace;
-  font-size: 12px;
-  cursor: pointer;
-  width: 20px;
-  height: 20px;
-}
-
-.window-controls button:hover {
-  background: var(--win-border);
-}
-
-.window-body {
-  flex: 1;
-  overflow: auto;
-  padding: 8px;
-  color: var(--win-body-color);
-  font-family: var(--font-mono);
-  font-size: var(--font-size-secondary);
-  line-height: var(--line-height);
-}
-
-.window-resize-handle {
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  width: 14px;
-  height: 14px;
-  cursor: nwse-resize;
-}
-
-.taskbar {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 28px;
-  background: var(--win-titlebar-bg);
-  border-top: 1px solid var(--win-border);
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 0 6px;
-  font-family: system-ui, sans-serif;
-  font-size: 10px;
-  z-index: 10000;
-}
-
-.taskbar-entry {
-  background: transparent;
-  border: 1px solid var(--win-border);
-  color: var(--win-title-color);
-  padding: 3px 8px;
-  cursor: pointer;
-  opacity: 0.5;
-}
-
-.taskbar-entry[data-state='focused'] {
-  opacity: 1;
-  border-color: var(--win-title-color);
-}
-
-.taskbar-entry[data-state='minimized'] {
-  opacity: 0.75;
 }
 
 .desktop {
@@ -401,4 +295,227 @@ body.dm-sentinel {
   margin: 0;
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+/* ── Tiled layout ───────────────────────────────────────────── */
+.workspace {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  background: var(--win-desktop-bg);
+  color: var(--win-body-color);
+}
+
+.workspace-solo {
+  background: var(--color-bg);
+}
+
+.layout {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.layout-area {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+.pane {
+  position: absolute;
+  flex-direction: column;
+  box-sizing: border-box;
+  background: var(--win-bg);
+  border: 1px solid var(--win-border);
+  overflow: hidden;
+}
+
+.pane[data-focused='true'] {
+  border-color: var(--win-title-color);
+}
+
+.pane-title {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  height: 22px;
+  padding: 0 8px;
+  background: var(--win-titlebar-bg);
+  border-bottom: 1px solid var(--win-border);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--win-title-color);
+  user-select: none;
+}
+
+.pane-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 8px;
+  color: var(--win-body-color);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-secondary);
+  line-height: var(--line-height);
+}
+
+/* The terminal pane lays itself out; it must not get the generic body padding. */
+.pane[data-pane='term'] .pane-body {
+  padding: 0;
+  overflow: hidden;
+}
+
+.divider {
+  position: absolute;
+  z-index: 5;
+  background: transparent;
+}
+
+.divider-v {
+  cursor: col-resize;
+}
+
+.divider-h {
+  cursor: row-resize;
+}
+
+.divider:hover,
+.divider:focus-visible {
+  background: var(--win-title-color);
+  opacity: 0.4;
+  outline: none;
+}
+
+.pane-tabs {
+  display: flex;
+  flex-shrink: 0;
+  background: var(--win-titlebar-bg);
+  border-bottom: 1px solid var(--win-border);
+}
+
+.pane-tab {
+  flex: 1;
+  background: transparent;
+  border: none;
+  border-right: 1px solid var(--win-border);
+  color: var(--win-title-color);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 6px 4px;
+  cursor: pointer;
+  opacity: 0.55;
+}
+
+.pane-tab[aria-selected='true'] {
+  opacity: 1;
+  background: var(--win-bg);
+}
+
+.statusbar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  height: 22px;
+  padding: 0 8px;
+  background: var(--win-titlebar-bg);
+  border-top: 1px solid var(--win-border);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--win-title-color);
+}
+
+.statusbar-panes {
+  display: flex;
+  gap: 10px;
+}
+
+.statusbar-pane {
+  opacity: 0.55;
+}
+
+.statusbar-pane[data-focused='true'] {
+  opacity: 1;
+}
+
+.statusbar-right {
+  margin-left: auto;
+  display: flex;
+  gap: 16px;
+}
+
+.aux-tabs {
+  display: flex;
+  gap: 4px;
+}
+
+.aux-tabs button {
+  background: transparent;
+  border: 1px solid var(--win-border);
+  color: var(--win-title-color);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 0 6px;
+  cursor: pointer;
+  opacity: 0.55;
+}
+
+.aux-tabs button[aria-pressed='true'] {
+  opacity: 1;
+}
+
+.overlay-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(5, 7, 10, 0.7);
+}
+
+.overlay {
+  display: flex;
+  flex-direction: column;
+  width: min(720px, 92vw);
+  max-height: 86vh;
+  background: var(--win-bg);
+  border: 1px solid var(--win-title-color);
+}
+
+.overlay .pane-body {
+  overflow: auto;
+}
+
+.overlay .pane-title button {
+  background: transparent;
+  border: none;
+  color: var(--win-title-color);
+  font-family: var(--font-mono);
+  cursor: pointer;
+}
+
+.comms-line {
+  color: var(--win-title-color);
+  text-transform: uppercase;
+  font-size: 11px;
+}
+
+.comms-empty {
+  opacity: 0.6;
+  padding-top: 4px;
+}
+
+/* Single-terminal view before a game exists: no pane chrome. */
+.layout-bare .pane {
+  border: none;
+}
+
+.layout-bare .pane-title {
+  display: none;
 }
