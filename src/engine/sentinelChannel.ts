@@ -1,4 +1,5 @@
 import type { ChannelTrigger, GameState } from '../types/game';
+import { isAriaNameKnown } from './ariaName';
 import { makeLine } from '../types/terminal';
 import type { TerminalLine } from '../types/terminal';
 
@@ -34,6 +35,7 @@ export const requestSentinelReply = (state: GameState, message: string): Promise
         recentCommands: state.recentCommands,
       },
       messageHistory: state.sentinel.messageHistory,
+      ariaNameKnown: isAriaNameKnown(state),
     },
     SENTINEL_FALLBACK_REPLY,
   );
@@ -48,6 +50,7 @@ export const requestSentinelOpening = (
       triggerContext: { type: trigger.triggerType },
       sentinelContext: trigger.context,
       messageHistory: state.sentinel.messageHistory,
+      ariaNameKnown: isAriaNameKnown(state),
     },
     SENTINEL_FALLBACK_OPENING,
   );

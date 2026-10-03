@@ -204,7 +204,8 @@ describe('aria: prefix routing', () => {
     const favor = { description: 'Unlock an executive terminal.', cost: 15 };
     vi.stubGlobal('fetch', makeAriaFetchResponse('I have something for you.', 0, favor));
 
-    const state = makeState();
+    // Her name is known here; the cover-name variant is covered in commands.test.ts.
+    const state = makeState({ flags: { ARIA_NAME_KNOWN: true } });
     const result = await resolveCommand('msg aria what can you do', state);
 
     const offerLine = result.lines.find(l => l.type === 'aria' && l.content.includes('ARIA OFFER'));
@@ -305,6 +306,7 @@ describe('pending favor — accept', () => {
 
   const stateWithFavor = (): GameState =>
     makeState({
+      flags: { ARIA_NAME_KNOWN: true },
       player: {
         handle: 'ghost',
         trace: 10,
@@ -385,6 +387,7 @@ describe('pending favor — decline', () => {
 
   const stateWithFavor = (): GameState =>
     makeState({
+      flags: { ARIA_NAME_KNOWN: true },
       aria: {
         discovered: false,
         trustScore: 50,
