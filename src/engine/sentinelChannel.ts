@@ -1,4 +1,6 @@
 import type { ChannelTrigger, GameState } from '../types/game';
+import { makeLine } from '../types/terminal';
+import type { TerminalLine } from '../types/terminal';
 
 type History = GameState['sentinel']['messageHistory'];
 
@@ -88,3 +90,10 @@ export const createRunGuard = (): RunGuard => {
     isCurrent: token => token === epoch,
   };
 };
+
+// Rebuilds the channel transcript from saved history, in the same format the live
+// channel prints, so a resumed save shows its earlier conversation.
+export const sentinelHistoryLines = (history: History, handle: string): TerminalLine[] =>
+  history.map(entry =>
+    makeLine('output', `${entry.role === 'player' ? handle : 'sentinel'} >> ${entry.content}`),
+  );

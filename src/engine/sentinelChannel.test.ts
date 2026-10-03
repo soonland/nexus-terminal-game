@@ -9,6 +9,7 @@ import {
   openSentinelChannel,
   requestSentinelOpening,
   requestSentinelReply,
+  sentinelHistoryLines,
 } from './sentinelChannel';
 import { createInitialState } from './state';
 import produce from './produce';
@@ -149,5 +150,36 @@ describe('createRunGuard', () => {
     const token = a.token();
     b.invalidate();
     expect(a.isCurrent(token)).toBe(true);
+  });
+});
+
+describe('sentinelHistoryLines', () => {
+  it('rebuilds the transcript from saved history in order, with the live-channel line format', () => {
+    const lines = sentinelHistoryLines(
+      [
+        { role: 'sentinel', content: 'I see you.' },
+        { role: 'player', content: 'who are you' },
+        { role: 'sentinel', content: 'noted.' },
+      ],
+      'ghost',
+    );
+    expect(lines.map(l => l.content)).toEqual([
+      'sentinel >> I see you.',
+      'ghost >> who are you',
+      'sentinel >> noted.',
+    ]);
+    expect(lines.every(l => l.type === 'output')).toBe(true);
+  });
+
+  it('gives each line a unique id and returns nothing for an empty history', () => {
+    const lines = sentinelHistoryLines(
+      [
+        { role: 'player', content: 'a' },
+        { role: 'player', content: 'b' },
+      ],
+      'ghost',
+    );
+    expect(new Set(lines.map(l => l.id)).size).toBe(2);
+    expect(sentinelHistoryLines([], 'ghost')).toEqual([]);
   });
 });

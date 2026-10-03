@@ -29,6 +29,7 @@ import {
   closeSentinelChannel,
   createRunGuard,
   openSentinelChannel,
+  sentinelHistoryLines,
   requestSentinelOpening,
   requestSentinelReply,
 } from './engine/sentinelChannel';
@@ -481,6 +482,9 @@ export const App = () => {
           const saved = loadGame();
           if (saved) {
             setGameState(saved);
+            // Start the channel UI clean, but show the saved conversation (if any).
+            resetSentinelUi();
+            setSentinelLines(sentinelHistoryLines(saved.sentinel.messageHistory, username));
           } else {
             setGameState(createInitialState());
             resetSentinelUi();
@@ -724,10 +728,10 @@ export const App = () => {
         return;
       }
 
-      pushSentinel([makeLine('output', `${username} >> ${raw}`)]);
+      pushSentinel([makeLine('output', `${username} >> ${text}`)]);
       setSentinelBusy(true);
       const token = runGuard.token();
-      const reply = await requestSentinelReply(gameState, raw);
+      const reply = await requestSentinelReply(gameState, text);
       // The run was reset while waiting: drop the stale reply (the reset already cleared busy).
       if (!runGuard.isCurrent(token)) return;
       setSentinelBusy(false);
@@ -736,7 +740,7 @@ export const App = () => {
       setGameState(prev => {
         if (!prev) return prev;
         const updated = appendSentinelHistory(prev, [
-          { role: 'player', content: raw },
+          { role: 'player', content: text },
           { role: 'sentinel', content: reply },
         ]);
         saveGame(updated);
