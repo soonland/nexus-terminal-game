@@ -94,6 +94,7 @@ export const createInitialState = (sessionSeed?: number, contractId?: string): G
     turnCount: 0,
     recentCommands: [],
     ariaInfluencedFilesRead: [],
+    filesRead: [],
     decisionLog: [],
     traceAuditLog: [],
     player: {

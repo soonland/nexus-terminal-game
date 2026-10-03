@@ -1,5 +1,5 @@
 import type { GameState, CommandOutput, AccessLevel, FavorOffer, ToolId } from '../types/game';
-import { hasAccess } from '../types/game';
+import { hasAccess, fileReadKey } from '../types/game';
 import { DIVISION_LAYER } from '../data/divisionSeeds';
 import { currentNode, addTrace, thresholdFlag, TRACE_THRESHOLDS } from './state';
 import produce from './produce';
@@ -1309,6 +1309,17 @@ const cmdCat = async (args: string[], state: GameState): Promise<CommandOutput> 
         const n = s.network.nodes[node.id];
         const f = n?.files.find(x => x.path === file.path);
         if (f) f.content = content;
+      });
+    }
+  }
+
+  // Record successful reads so the explorer can tell read from unread files.
+  // Fallback content is a failed read — leave it unrecorded so the player can retry.
+  if (content !== FILE_CONTENT_FALLBACK) {
+    const readKey = fileReadKey(node.id, file.path);
+    if (!next.filesRead.includes(readKey)) {
+      next = produce(next, s => {
+        s.filesRead.push(readKey);
       });
     }
   }

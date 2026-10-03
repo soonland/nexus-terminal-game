@@ -40,6 +40,7 @@ interface SaveState {
   sessionSeed: number;
   turnCount: number;
   recentCommands: string[];
+  filesRead?: string[]; // optional for backwards compat — no SAVE_VERSION bump
   player: {
     trace: number;
     charges: number;
@@ -122,6 +123,7 @@ const toSaveState = (state: GameState): SaveState => {
     sessionSeed: state.sessionSeed,
     turnCount: state.turnCount,
     recentCommands: state.recentCommands,
+    filesRead: state.filesRead,
     player: {
       trace: state.player.trace,
       charges: state.player.charges,
@@ -167,6 +169,7 @@ const fromSaveState = (save: SaveState): GameState => {
   state.startedAt = save.startedAt;
   state.turnCount = save.turnCount;
   state.recentCommands = save.recentCommands;
+  state.filesRead = save.filesRead ?? [];
 
   state.player.trace = save.player.trace;
   state.player.charges = save.player.charges;

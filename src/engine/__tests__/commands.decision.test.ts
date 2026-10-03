@@ -68,6 +68,7 @@ const makeState = (overrides: Partial<GameState> = {}): GameState => {
     turnCount: 0,
     recentCommands: [],
     ariaInfluencedFilesRead: [],
+    filesRead: [],
     decisionLog: [],
     traceAuditLog: [],
     player: {
