@@ -10,7 +10,7 @@ import { runAriaTurn } from './ariaMutations';
 import { loadDossier, recordEnding, addLoreFragment } from './dossierPersistence';
 import type { EndingName } from '../types/dossier';
 import { shouldSuppressMutation, injectConstraintFragment } from './faradayCage';
-import { SENTINEL_VOTE_PATH, markAriaNameKnown } from './ariaName';
+import { SENTINEL_VOTE_PATH, isAriaNameKnown, markAriaNameKnown } from './ariaName';
 import { detectChannelTrigger, isChannelBlocked, layerReachedFlag } from './channel';
 
 interface WorldAIResponse {
@@ -854,7 +854,15 @@ const cmdWhoami = (state: GameState): CommandOutput => {
 const cmdMsg = (args: string[], state: GameState): CommandOutput => {
   const target = args[0]?.toLowerCase();
   if (target !== 'sentinel') {
-    return { lines: [err('Usage: msg [sentinel|aria] <message>')] };
+    return {
+      lines: [
+        err(
+          isAriaNameKnown(state)
+            ? 'Usage: msg [sentinel|aria] <message>'
+            : 'Usage: msg sentinel <message>',
+        ),
+      ],
+    };
   }
 
   if (!state.sentinel.channelEstablished) {

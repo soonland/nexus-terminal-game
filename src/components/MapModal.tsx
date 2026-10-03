@@ -9,7 +9,7 @@ interface Props {
 // per-line formatting later without touching every line below.
 const r = (s = '') => s;
 
-const LAYER_LABELS = ['ENTRY', 'OPS', 'SECURITY', 'FINANCE', 'EXECUTIVE', 'ARIA'];
+const LAYER_LABELS = ['ENTRY', 'OPS', 'SECURITY', 'FINANCE', 'EXECUTIVE', 'CASSANDRA'];
 
 const mono = {
   fontFamily: 'var(--font-mono)',

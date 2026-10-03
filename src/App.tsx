@@ -25,6 +25,7 @@ import { createInitialState, currentNode, burnRetry } from './engine/state';
 import produce from './engine/produce';
 import { resolveCommand } from './engine/commands';
 import { LOGIN_FAILED_HINT, OPERATIVE_PASS, OPERATIVE_USER } from './data/operativeLogin';
+import { isAriaNameKnown } from './engine/ariaName';
 import {
   appendSentinelHistory,
   closeSentinelChannel,
@@ -776,6 +777,8 @@ export const App = () => {
     appPhase === 'booting' ||
     appPhase === 'ending_sequence' ||
     spinnerLine !== null;
+  // The name "Aria" stays hidden until the player learns it through Sentinel's lore.
+  const ariaNameKnown = gameState ? isAriaNameKnown(gameState) : false;
   const explorerDisabled = inputDisabled || (appPhase !== 'playing' && appPhase !== 'aria');
 
   const node = gameState ? currentNode(gameState) : null;
@@ -884,9 +887,14 @@ export const App = () => {
       }
       map={gameState ? <MapModal gameState={gameState} /> : null}
       notes={gameState ? <NotesModal gameState={gameState} /> : null}
-      help={<HelpModal />}
+      help={<HelpModal ariaNameKnown={ariaNameKnown} />}
       briefing={<BriefingModal />}
-      dossier={<DossierWindow dossier={loadDossier()} />}
+      dossier={
+        <DossierWindow
+          dossier={loadDossier()}
+          nameKnown={ariaNameKnown || loadDossier().runsCompleted > 0}
+        />
+      }
     />
   );
 };

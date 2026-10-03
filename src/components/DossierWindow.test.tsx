@@ -12,7 +12,7 @@ describe('DossierWindow', () => {
       ariaMemory: [],
       fullyExplored: false,
     };
-    render(<DossierWindow dossier={dossier} />);
+    render(<DossierWindow dossier={dossier} nameKnown />);
     expect(screen.getByText(/no runs completed/i)).toBeTruthy();
   });
 
@@ -26,9 +26,20 @@ describe('DossierWindow', () => {
       ariaMemory: ['She remembers the note.'],
       fullyExplored: false,
     };
-    render(<DossierWindow dossier={dossier} />);
+    render(<DossierWindow dossier={dossier} nameKnown />);
     expect(screen.getByText(/LEAK/)).toBeTruthy();
     expect(screen.getByText(/FREE/)).toBeTruthy();
     expect(screen.getByText('She remembers the note.')).toBeTruthy();
+  });
+});
+
+describe('DossierWindow — naming rule', () => {
+  it('uses a neutral heading until the name is known, and "Aria memory" after', () => {
+    const dossier = { runsCompleted: 0, endings: [], ariaMemory: [] } as never;
+    const { container, rerender } = render(<DossierWindow dossier={dossier} nameKnown={false} />);
+    expect(container.textContent).not.toMatch(/aria/i);
+    expect(container.textContent).toMatch(/Memory/);
+    rerender(<DossierWindow dossier={dossier} nameKnown />);
+    expect(container.textContent).toMatch(/Aria memory/);
   });
 });
