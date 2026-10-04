@@ -165,15 +165,24 @@ body {
   --win-body-color: #c9d4e6;
   --win-desktop-bg: #0b0e14;
 
+  /* How much of the pane colour covers the photo behind the tiled panes (the rest shows through). */
+  --glass: 60%;
+  --glass-chrome: 76%;
+
   /* The photo backdrop shared by every pre-game screen: welcome, prologue, and the bare terminal
      (login, boot, resume). A dark tint over a circuit-board photo (free Unsplash License, no
      attribution required) keeps text readable against a busy photo.
      Photo: "Closeup photo of circuit board" by Tim Käbel (@dokawastaken),
      https://unsplash.com/photos/closeup-photo-of-circuit-board-FCrYdP8gohg */
+  --desktop-photo: url('https://images.unsplash.com/photo-1524234107056-1c1f48f64ab8?auto=format&fit=crop&w=1920&q=70')
+    center / cover no-repeat;
+  /* Pre-game screens: a heavy tint, so text sits straight on the photo. */
   --desktop-backdrop:
-    linear-gradient(rgba(11, 14, 20, 0.82), rgba(11, 14, 20, 0.88)),
-    url('https://images.unsplash.com/photo-1524234107056-1c1f48f64ab8?auto=format&fit=crop&w=1920&q=70')
-      center / cover no-repeat,
+    linear-gradient(rgba(11, 14, 20, 0.82), rgba(11, 14, 20, 0.88)), var(--desktop-photo),
+    var(--win-desktop-bg);
+  /* The tiled UI: a lighter tint, because the translucent panes cover most of it again. */
+  --desktop-backdrop-tiled:
+    linear-gradient(rgba(11, 14, 20, 0.5), rgba(11, 14, 20, 0.6)), var(--desktop-photo),
     var(--win-desktop-bg);
 }
 
@@ -294,7 +303,7 @@ body {
   flex-direction: column;
   width: 100%;
   height: 100%;
-  background: var(--win-desktop-bg);
+  background: var(--desktop-backdrop-tiled);
   color: var(--win-body-color);
 }
 
@@ -319,7 +328,8 @@ body {
   position: absolute;
   flex-direction: column;
   box-sizing: border-box;
-  background: var(--win-bg);
+  background: color-mix(in srgb, var(--win-bg) var(--glass), transparent);
+  backdrop-filter: blur(3px);
   border: 1px solid var(--win-border);
   overflow: hidden;
 }
@@ -336,7 +346,7 @@ body {
   gap: 8px;
   height: 22px;
   padding: 0 8px;
-  background: var(--win-titlebar-bg);
+  background: color-mix(in srgb, var(--win-titlebar-bg) var(--glass-chrome), transparent);
   border-bottom: 1px solid var(--win-border);
   font-family: var(--font-mono);
   font-size: 11px;
@@ -385,7 +395,7 @@ body {
 .pane-tabs {
   display: flex;
   flex-shrink: 0;
-  background: var(--win-titlebar-bg);
+  background: color-mix(in srgb, var(--win-titlebar-bg) var(--glass-chrome), transparent);
   border-bottom: 1px solid var(--win-border);
 }
 
@@ -404,7 +414,7 @@ body {
 
 .pane-tab[aria-selected='true'] {
   opacity: 1;
-  background: var(--win-bg);
+  background: color-mix(in srgb, var(--win-bg) var(--glass), transparent);
 }
 
 .statusbar {
@@ -414,7 +424,7 @@ body {
   gap: 16px;
   height: 22px;
   padding: 0 8px;
-  background: var(--win-titlebar-bg);
+  background: color-mix(in srgb, var(--win-titlebar-bg) var(--glass-chrome), transparent);
   border-top: 1px solid var(--win-border);
   font-family: var(--font-mono);
   font-size: 11px;
@@ -509,7 +519,7 @@ body {
 }
 
 .terminal-header {
-  background: var(--win-titlebar-bg);
+  background: color-mix(in srgb, var(--win-titlebar-bg) var(--glass-chrome), transparent);
 }
 
 /* Before a game exists the photo shows through the terminal; keep the header strip legible. */
@@ -597,7 +607,7 @@ body {
   margin-top: 12px;
   padding: 4px 0;
   border-top: 1px dashed var(--win-border);
-  background: var(--win-bg);
+  background: color-mix(in srgb, var(--win-bg) var(--glass), transparent);
   color: var(--win-title-color);
   font-size: 11px;
   opacity: 0.6;
@@ -647,7 +657,7 @@ body {
 
 .comms-tab[aria-selected='true'] {
   opacity: 1;
-  background: var(--win-bg);
+  background: color-mix(in srgb, var(--win-bg) var(--glass), transparent);
 }
 
 .comms-tab[data-closed='true'] {

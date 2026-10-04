@@ -90,7 +90,7 @@ The mole and Sentinel trail (reset log, cast documents, Cho decoy, the rewritten
 
 ### Styling
 
-Pure CSS, no framework. `src/styles/globals.css` uses CSS custom properties for the color palette. The aesthetic is DOS/ncurses: `#0000aa` background, IBM Plex Mono font (loaded via `@fontsource/ibm-plex-mono`, imported in `main.tsx`), white/gray text. No glow or CRT effects are active (the `body.crt` class was removed).
+Pure CSS, no framework. A circuit-board photo (`--desktop-photo`) is the backdrop everywhere: heavily tinted behind the pre-game screens, and visible through translucent, blurred panes in the tiled UI (`--glass`, `--glass-chrome`; the Help/Briefing/Dossier overlays stay opaque). The welcome and prologue screens share one smaller text size (`PRE_GAME_FONT_SIZE`). `src/styles/globals.css` uses CSS custom properties for the color palette. The aesthetic is DOS/ncurses: `#0000aa` background, IBM Plex Mono font (loaded via `@fontsource/ibm-plex-mono`, imported in `main.tsx`), white/gray text. No glow or CRT effects are active (the `body.crt` class was removed).
 
 ## Implemented phases
 
