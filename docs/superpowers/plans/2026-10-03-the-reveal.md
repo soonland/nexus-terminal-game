@@ -481,8 +481,8 @@ Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>"
 
 **Files:**
 - Create: `src/data/epilogues.ts`, `src/engine/epilogue.ts`, `src/engine/epilogue.test.ts`
-- Modify: `src/engine/commands.ts` (`cmdDecisionTerminal`), `src/engine/postGameReadout.ts`
-- Test: `src/engine/__tests__/commands.decision.test.ts`, `src/engine/postGameReadout.test.ts` (add a case; create the file's `describe` block next to existing cases)
+- Modify: `src/App.tsx` (animation-complete effect: epilogue between animation and readout), `src/engine/postGameReadout.ts`
+- Test: `src/engine/__tests__/commands.decision.test.ts` (the decision output has no epilogue), `src/engine/postGameReadout.test.ts` (add a case; create the file's `describe` block next to existing cases)
 
 **Interfaces:**
 - Consumes: `isNoteRevealed`, `markNoteRevealed`; `EndingName`; `LineType` from `../types/terminal`.
@@ -749,18 +749,7 @@ export const buildEpilogue = (state: GameState, ending: EndingName): EpilogueLin
 };
 ```
 
-`src/engine/commands.ts` — import `buildEpilogue` from `./epilogue`; in `cmdDecisionTerminal`, change the returned `lines` to:
-
-```ts
-    lines: [
-      sep(),
-      line(`// CHOICE LOCKED: ${endingChoice}`, 'aria'),
-      sep(),
-      line(`// ARIA: ${ariaFinalMessage}`, 'aria'),
-      ...buildEpilogue(next, endingChoice as EndingName).map(l => line(l.content, l.type)),
-      sep(),
-    ],
-```
+`src/App.tsx` — import `buildEpilogue` from `./engine/epilogue`; in the effect that runs when the ending animation completes, build the epilogue lines (`[]` for an `'UNKNOWN'` ending) and place them between the animation lines and the readout: `setSessionLines(prev => [...prev, ...flushedLines, ...epilogueLines, ...readoutLines])`. (Ruling: this replaced a first version that appended the epilogue to `cmdDecisionTerminal`'s output, which played it before the sale animation; the browser check caught it.)
 
 `src/engine/postGameReadout.ts` — import `isNoteRevealed` and add after the `ARIA TRUST` line in the `lines` array:
 

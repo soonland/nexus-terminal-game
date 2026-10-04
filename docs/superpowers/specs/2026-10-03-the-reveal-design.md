@@ -46,8 +46,9 @@ cross-run changes.
 
 ## 3. Epilogue (`src/engine/epilogue.ts`, text in `src/data/epilogues.ts`)
 
-`buildEpilogue(state, ending): TerminalLine[]`, appended after the existing ending lines in
-`cmdDecisionTerminal`, and `[]` unless `NOTE_REVEALED`.
+`buildEpilogue(state, ending)` returns `[]` unless `NOTE_REVEALED`. `App.tsx` places it when the
+ending animation completes: animation, then epilogue, then the post-game readout (found in the
+browser check: appended to the decision command's output it played before the sale animation).
 
 Structure: ending-specific **frame** → up to **four facet paragraphs** (fixed priority order)
 → ending-specific **closing line**.

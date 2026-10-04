@@ -580,14 +580,10 @@ describe('cmdDecisionTerminal — output structure', () => {
 });
 
 describe('epilogue in the ending sequence (#218)', () => {
-  it('adds an epilogue only when the note was revealed', async () => {
-    vi.stubGlobal('fetch', makeAriaFinalResponse('ack'));
-    const plain = await resolveCommand('4', makeDecisionState());
-    expect(plain.lines.some(l => l.content === '// EPILOGUE')).toBe(false);
-
+  it('leaves the epilogue to the ending screen, revealed or not', async () => {
     vi.stubGlobal('fetch', makeAriaFinalResponse('ack'));
     const revealed = await resolveCommand('4', markNoteRevealed(makeDecisionState()));
-    expect(revealed.lines.some(l => l.content === '// EPILOGUE')).toBe(true);
+    expect(revealed.lines.some(l => l.content === '// EPILOGUE')).toBe(false);
   });
 
   it('an unrevealed ending is exactly the existing sequence', async () => {

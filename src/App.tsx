@@ -16,6 +16,7 @@ import type { WorkspaceHandle } from './components/Workspace';
 import { useBootSequence } from './hooks/useBootSequence';
 import { useEndingSequence, buildEndingLines } from './hooks/useEndingSequence';
 import { buildPostGameReadout } from './engine/postGameReadout';
+import { buildEpilogue } from './engine/epilogue';
 import type { EndingName } from './hooks/useEndingSequence';
 import type { TerminalLine } from './types/terminal';
 import { makeLine } from './types/terminal';
@@ -223,11 +224,17 @@ export const App = () => {
     const flushedLines = buildEndingLines(name, trust).map(({ type, content }) =>
       makeLine(type, content),
     );
+    // The epilogue follows the ending animation and precedes the readout; empty unless the note
+    // was revealed.
+    const epilogueLines =
+      name === 'UNKNOWN'
+        ? []
+        : buildEpilogue(endingGameState, name).map(({ type, content }) => makeLine(type, content));
     const readoutLines = buildPostGameReadout(endingGameState).map(({ type, content }) =>
       makeLine(type, content),
     );
 
-    setSessionLines(prev => [...prev, ...flushedLines, ...readoutLines]);
+    setSessionLines(prev => [...prev, ...flushedLines, ...epilogueLines, ...readoutLines]);
     setAppPhase('ended');
   }, [endingDone, appPhase, endingGameState]);
 
