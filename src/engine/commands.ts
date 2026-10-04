@@ -1042,12 +1042,18 @@ const cmdConnect = async (args: string[], state: GameState): Promise<CommandOutp
   if (!target.discovered) return { lines: [err(`No route to ${args[0]} — try scanning first`)] };
 
   const node = currentNode(state);
-  if (!node.connections.includes(target.id)) {
+  if (target.id === node.id) return { lines: [err(`Already connected to ${target.ip}`)] };
+
+  // A node you already hold a session on can be re-entered from anywhere (a pivot): no link and
+  // no layer gating needed. Everything else needs a direct route.
+  const linked = node.connections.includes(target.id);
+  const pivot = !linked && target.accessLevel !== 'none';
+  if (!linked && !pivot) {
     return { lines: [err(`No direct route from ${node.ip} to ${target.ip}`)] };
   }
 
   // Layer gating: cross-layer connect blocked unless current layer's key anchor is compromised.
-  if (target.layer > node.layer) {
+  if (linked && target.layer > node.layer) {
     const keyAnchorId = LAYER_KEY_ANCHOR[node.layer];
     if (keyAnchorId) {
       const keyAnchor = state.network.nodes[keyAnchorId];
@@ -1112,12 +1118,16 @@ const cmdConnect = async (args: string[], state: GameState): Promise<CommandOutp
     }
   }
 
+  // Read access from the updated node: the subnet key may have just granted it.
+  const accessNow = next.network.nodes[target.id]?.accessLevel ?? target.accessLevel;
   const connectLines: CommandOutput['lines'] = [
-    out(`Connecting to ${target.ip}...`),
+    out(
+      pivot ? `Pivoting through your session on ${target.ip}...` : `Connecting to ${target.ip}...`,
+    ),
     sys(`  ${target.label}`),
     sys(`  ${description ?? NODE_DESCRIPTION_FALLBACK}`),
     sys(
-      `  Access: ${target.accessLevel === 'none' ? 'NONE — authenticate to proceed' : target.accessLevel.toUpperCase()}`,
+      `  Access: ${accessNow === 'none' ? 'NONE — authenticate to proceed' : accessNow.toUpperCase()}`,
     ),
   ];
 

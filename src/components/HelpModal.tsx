@@ -40,7 +40,10 @@ const BODY: HelpLine[] = [
     text: r('  scan [ip]           -probe a specific node (+1 trace)'),
     color: 'var(--color-system)',
   },
-  { text: r('  connect [ip]        -connect to a node'), color: 'var(--color-system)' },
+  {
+    text: r('  connect [ip]        -connect to a node, or re-enter one you hold'),
+    color: 'var(--color-system)',
+  },
   {
     text: r('  login [user] [pass] -authenticate (+5 trace on fail)'),
     color: 'var(--color-system)',
