@@ -156,7 +156,12 @@ describe('every room is closed', () => {
 });
 
 // Rooms that have been given the building's look; each recolour task adds its feeds here.
-const BUILDING_FEEDS: string[] = [];
+const BUILDING_FEEDS: string[] = [
+  'lobby-reception',
+  'lobby-entrance',
+  'server-aisle',
+  'server-airlock',
+];
 
 const colourOf = (mesh: Mesh): number =>
   (mesh.material as MeshStandardMaterial | MeshBasicMaterial).color.getHex();

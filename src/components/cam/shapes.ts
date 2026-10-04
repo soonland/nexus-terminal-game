@@ -179,6 +179,6 @@ export const wallTrim = (
         : trim(depth, height, length, accent, offset, y, center),
     );
   };
-  place(0.18, 0.09, 0.08);
-  place(0.14, 1.1, 0.06);
+  place(0.3, 0.15, 0.1);
+  place(0.28, 1.15, 0.08);
 };
