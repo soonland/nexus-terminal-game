@@ -4,7 +4,7 @@ import { SENTINEL_VOTE_PATH } from '../../engine/ariaName';
 import { FIRST_NAMES } from '../employeeData';
 import { NEXUS_MESSAGES } from '../nexusMessages';
 import { CASE_FACTS, CASE_PEOPLE } from '../casebook';
-import { CAMERA_FEEDS } from '../cameras';
+import { CAMERA_FEEDS, FLOORS } from '../cameras';
 import { buildCasebook } from '../../engine/casebook';
 import { createInitialState } from '../../engine/state';
 import { fileReadKey } from '../../types/game';
@@ -45,7 +45,10 @@ describe('pre-reveal data never contains the name Aria', () => {
   });
 
   it('the camera feeds (view-cam and the CAM tab) never say it', () => {
-    const text = CAMERA_FEEDS.flatMap(f => [f.label, f.description, f.offlineReason ?? '']);
+    const text = [
+      ...FLOORS.map(f => f.name),
+      ...CAMERA_FEEDS.flatMap(f => [f.id, f.name, f.description, f.offlineReason ?? '']),
+    ];
     expect(text.filter(t => ARIA.test(t))).toEqual([]);
   });
 

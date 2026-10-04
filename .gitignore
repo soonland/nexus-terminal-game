@@ -32,6 +32,7 @@ npm-debug.log*
 # Playwright playthrough artifacts
 playthrough.webm
 playthrough-video/
+playthrough-cameras/
 
 # Superpowers brainstorming companion
 .superpowers/

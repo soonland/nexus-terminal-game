@@ -35,7 +35,7 @@ beforeEach(() => {
 describe('startFeed with reduced motion', () => {
   it('draws one still frame, and draws again after a resize wipes the canvas', async () => {
     const { startFeed } = await import('./render');
-    const handle = startFeed(document.createElement('canvas'), 'cam_01', true);
+    const handle = startFeed(document.createElement('canvas'), { scene: 'lobby', mount: 0 }, true);
     expect(render).toHaveBeenCalledTimes(1);
     resizeCallback();
     expect(render).toHaveBeenCalledTimes(2);

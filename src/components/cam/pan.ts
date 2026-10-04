@@ -1,3 +1,5 @@
+import type { PerspectiveCamera } from 'three';
+
 const smooth = (x: number): number => x * x * (3 - 2 * x);
 
 // A security-camera pan: sweep one way, hold, sweep back, hold. Returns 0..1, where 0 is one end
@@ -14,3 +16,29 @@ export const panPhase = (t: number, sweep: number, hold: number): number => {
 // The camera's yaw in radians, swinging between -range and +range.
 export const panAngle = (t: number, range: number, sweep: number, hold: number): number =>
   (panPhase(t, sweep, hold) * 2 - 1) * range;
+
+// Where a camera hangs and how it pans: position, a heading (0 looks down -z, π looks back down
+// +z), and the pan's range in radians, sweep and hold in seconds, and a time offset so rooms do
+// not all sweep in step.
+export interface Mount {
+  position: readonly [number, number, number];
+  heading: number;
+  range: number;
+  sweep: number;
+  hold: number;
+  offset: number;
+}
+
+export const pickMount = (mounts: readonly [Mount, ...Mount[]], index: number): Mount =>
+  mounts.at(index) ?? mounts[0];
+
+// Points a camera that stays on its mount along its panning view: ten units ahead, at a fixed
+// height.
+export const aimCamera = (camera: PerspectiveCamera, t: number, mount: Mount): void => {
+  const yaw = mount.heading + panAngle(t + mount.offset, mount.range, mount.sweep, mount.hold);
+  camera.lookAt(
+    camera.position.x + Math.sin(yaw) * 10,
+    1.2,
+    camera.position.z - Math.cos(yaw) * 10,
+  );
+};

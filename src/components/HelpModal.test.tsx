@@ -15,4 +15,11 @@ describe('HelpModal', () => {
     expect(container.textContent).toMatch(/msg aria <message>/);
     expect(container.textContent).toMatch(/aria memory/i);
   });
+
+  it('describes view-cam by camera name, and its trace cost by floor, not by an old camera number', () => {
+    const { container } = render(<HelpModal ariaNameKnown={false} />);
+    expect(container.textContent).toMatch(/view-cam <camera>/);
+    expect(container.textContent).toMatch(/executive: \+1 trace/);
+    expect(container.textContent).not.toMatch(/cam_03/);
+  });
 });

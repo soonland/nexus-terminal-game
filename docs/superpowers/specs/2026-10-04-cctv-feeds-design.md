@@ -1,5 +1,7 @@
 # CCTV feeds — design
 
+> The unlock rules, floors, the vault door and the building's look are in 2026-10-04-cctv-unlock-design.md.
+
 ## Intent
 
 The player can hold a session on `ops_cctv_ctrl`, whose config lists three cameras. This adds a
@@ -46,7 +48,7 @@ it is decoration and not game time.
 
 Scenes are pure builders in `src/components/cam/scenes.ts`:
 `buildLobby(scene): (t: number) => void` and `buildServerRoom(scene)` return an `update(t)`
-function. Lobby: an empty hall, a slow camera sweep, one flickering light. Server room: racks
+function. Lobby: an empty hall, a slow camera sweep, steady light. Server room: racks
 with blinking LEDs. Offline feed: a card with static noise, no WebGL.
 
 ## Full screen

@@ -485,7 +485,7 @@ body {
   border-bottom: 1px solid var(--win-border);
 }
 
-.cam-bar button {
+.cam-bar > button {
   background: transparent;
   border: 1px solid var(--win-border);
   color: var(--win-title-color);
@@ -496,7 +496,7 @@ body {
   opacity: 0.55;
 }
 
-.cam-bar button[aria-pressed='true'] {
+.cam-bar > button[aria-pressed='true'] {
   opacity: 1;
 }
 
@@ -506,6 +506,81 @@ body {
 
 .cam-bar .cam-full {
   opacity: 1;
+}
+
+.cam-menu {
+  position: relative;
+}
+
+.cam-menu-button,
+.cam-menu-floor,
+.cam-menu-item {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--win-title-color);
+  background: transparent;
+  border: 1px solid var(--win-border);
+  cursor: pointer;
+}
+
+.cam-menu-button {
+  padding: 0 6px;
+}
+
+.cam-menu-popover {
+  position: absolute;
+  top: calc(100% + 2px);
+  left: 0;
+  z-index: 5;
+  display: flex;
+  align-items: flex-start;
+  max-height: 190px;
+  background: #0b1015;
+  border: 1px solid var(--win-border);
+}
+
+.cam-menu-floors,
+.cam-menu-cameras {
+  min-width: 150px;
+  max-height: 188px;
+  overflow-y: auto;
+}
+
+.cam-menu-cameras {
+  min-width: 190px;
+  border-left: 1px solid var(--win-border);
+}
+
+.cam-menu-floor,
+.cam-menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  padding: 3px 8px;
+}
+
+.cam-menu-active,
+.cam-menu-item[aria-checked='true'] {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.cam-menu-swatch {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 6px;
+  border-radius: 1px;
+}
+
+.cam-menu-off {
+  opacity: 0.5;
+}
+
+.cam-menu-floor:focus-visible,
+.cam-menu-item:focus-visible,
+.cam-menu-button:focus-visible {
+  outline: 1px solid var(--win-title-color);
 }
 
 .cam-stage {
@@ -519,7 +594,8 @@ body {
   width: 100%;
   height: 100%;
   display: block;
-  filter: grayscale(0.7) contrast(1.15) brightness(0.95);
+  /* Colour CCTV: the floors' accent colours show; night vision swaps this for the green look. */
+  filter: contrast(1.06) brightness(0.86);
 }
 
 /* Night vision: IR-lit monochrome with a green cast. */

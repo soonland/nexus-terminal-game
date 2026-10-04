@@ -1,50 +1,140 @@
 import { describe, it, expect } from 'vitest';
-import { cameraFeeds } from '../cameras';
-import { CAMERA_FEEDS } from '../../data/cameras';
+import { cameraFeeds, deepestLayer } from '../cameras';
+import { CAMERA_FEEDS, FLOORS, floorAccent, floorName } from '../../data/cameras';
 import { createInitialState } from '../state';
 import produce from '../produce';
+import type { GameState } from '../../types/game';
 
-const onCctv = (access: 'none' | 'user' | 'admin') =>
+// Grants a session on each node and puts the player at `current`.
+const held = (nodeIds: string[], current = 'contractor_portal'): GameState =>
   produce(createInitialState(), s => {
-    s.network.currentNodeId = 'ops_cctv_ctrl';
-    s.network.nodes['ops_cctv_ctrl']!.accessLevel = access;
+    for (const id of nodeIds) s.network.nodes[id]!.accessLevel = 'user';
+    s.network.currentNodeId = current;
   });
 
-describe('cameraFeeds', () => {
-  it('is empty away from the CCTV controller', () => {
-    expect(cameraFeeds(createInitialState())).toEqual([]);
+const ids = (state: GameState) => cameraFeeds(state).map(f => f.id);
+const liveIds = (state: GameState) =>
+  cameraFeeds(state)
+    .filter(f => f.live)
+    .map(f => f.id);
+
+const L1 = 'ops_cctv_ctrl';
+const L2 = 'sec_access_ctrl';
+const L3 = 'fin_payments_db';
+const L4 = 'exec_cfo';
+const L5 = 'aria_core';
+
+describe('deepestLayer', () => {
+  it('is 0 before any session is held', () => {
+    expect(deepestLayer(createInitialState())).toBe(0);
   });
 
-  it('is empty on the controller without a session', () => {
-    expect(cameraFeeds(onCctv('none'))).toEqual([]);
+  it('is the highest layer where a session is held', () => {
+    expect(deepestLayer(held([L1]))).toBe(1);
+    expect(deepestLayer(held([L1, L3, L2]))).toBe(3);
   });
 
-  it('lists the three feeds with a session, and the executive floor is offline', () => {
-    const feeds = cameraFeeds(onCctv('user'));
-    expect(feeds.map(f => f.id)).toEqual(['cam_01', 'cam_02', 'cam_03']);
-    expect(feeds.filter(f => f.offlineReason !== null).map(f => f.id)).toEqual(['cam_03']);
-  });
-
-  it('matches the cameras named in camera_config.ini', () => {
-    const state = createInitialState();
-    const ini = state.network.nodes['ops_cctv_ctrl']!.files.find(
-      f => f.name === 'camera_config.ini',
-    );
-    for (const feed of CAMERA_FEEDS) {
-      expect(ini?.content).toContain(`${feed.id}=${feed.label.replace(' ', '_')}`);
-    }
-  });
-
-  it('never uses the secret name in player-visible text', () => {
-    for (const feed of CAMERA_FEEDS) {
-      expect(`${feed.label} ${feed.offlineReason ?? ''}`).not.toMatch(/aria/i);
-    }
+  it('drops when the deepest session is lost', () => {
+    const state = produce(held([L1, L3]), s => {
+      s.network.nodes[L3]!.accessLevel = 'none';
+    });
+    expect(deepestLayer(state)).toBe(1);
   });
 });
 
-describe('camera text matches the footage', () => {
+describe('cameraFeeds', () => {
+  it('is empty without a session on the controller', () => {
+    expect(cameraFeeds(createInitialState())).toEqual([]);
+  });
+
+  it('is empty when deeper sessions are held but the controller was never taken', () => {
+    expect(cameraFeeds(held([L2, L3, L4]))).toEqual([]);
+  });
+
+  it('lists every camera once the controller is held, and marks what is not live', () => {
+    const feeds = cameraFeeds(held([L1], L1));
+    expect(feeds.map(f => f.id)).toEqual(CAMERA_FEEDS.map(f => f.id));
+    const byId = Object.fromEntries(feeds.map(f => [f.id, f]));
+    expect(byId['lobby-reception']).toMatchObject({ live: true, locked: false });
+    expect(byId['executive-corridor']).toMatchObject({ live: false, locked: false });
+    expect(byId['security-office']).toMatchObject({ live: false, locked: true });
+    expect(byId['vault-door']).toMatchObject({ live: false, locked: true });
+  });
+
+  it('turns cameras live with each layer, and the executive floor at layer 4', () => {
+    expect(liveIds(held([L1, L2]))).toContain('security-office');
+    expect(liveIds(held([L1, L2]))).not.toContain('finance-floor');
+    expect(liveIds(held([L1, L2, L3]))).toContain('finance-floor');
+    expect(liveIds(held([L1, L2, L3]))).not.toContain('executive-corridor');
+    const four = liveIds(held([L1, L2, L3, L4]));
+    expect(four).toEqual(expect.arrayContaining(['executive-corridor', 'executive-office']));
+    expect(four).not.toContain('data-hall-b');
+    expect(liveIds(held([L1, L2, L3, L4, L5]))).toEqual(
+      expect.arrayContaining(['data-hall-b', 'vault-door']),
+    );
+  });
+
+  it('keeps the feeds after leaving the controller, from any node', () => {
+    expect(ids(held([L1, 'ops_hr_db'], 'ops_hr_db'))).toContain('lobby-reception');
+  });
+});
+
+describe('camera data', () => {
+  it('gives every floor a distinct accent colour', () => {
+    const accents = FLOORS.map(f => f.accent);
+    expect(new Set(accents).size).toBe(FLOORS.length);
+    expect(floorAccent('ground')).toBe(0x2b6cb0);
+  });
+
+  it('has the vault door on Sub-level B, unlocked with the data hall', () => {
+    const vault = CAMERA_FEEDS.find(f => f.id === 'vault-door');
+    expect(vault).toMatchObject({ floor: 'sublevel', scene: 'vaultApproach', unlockLayer: 5 });
+  });
+
+  it('has unique ids, and aliases that never collide with ids or each other', () => {
+    const names = CAMERA_FEEDS.flatMap(f => [f.id, ...f.aliases]);
+    expect(new Set(names).size).toBe(names.length);
+  });
+
+  it('puts every camera on a known floor', () => {
+    const floors = new Set(FLOORS.map(f => f.id));
+    for (const feed of CAMERA_FEEDS) expect(floors.has(feed.floor)).toBe(true);
+  });
+
+  it('keeps the three numbered aliases that camera_config.ini names', () => {
+    const ini = createInitialState().network.nodes[L1]!.files.find(
+      f => f.name === 'camera_config.ini',
+    );
+    const expected = {
+      cam_01: 'lobby-reception',
+      cam_02: 'server-aisle',
+      cam_03: 'executive-corridor',
+    } as const;
+    for (const [alias, id] of Object.entries(expected)) {
+      expect(ini?.content).toContain(`${alias}=`);
+      expect(CAMERA_FEEDS.find(f => f.id === id)?.aliases).toContain(alias);
+    }
+  });
+
   it('describes the server-room lights as red and green, like the scene', () => {
-    const cam = CAMERA_FEEDS.find(f => f.id === 'cam_02');
-    expect(cam?.description).toMatch(/red and green/);
+    expect(CAMERA_FEEDS.find(f => f.id === 'server-aisle')?.description).toMatch(/red and green/);
+  });
+
+  it('has a description for every camera that can go live', () => {
+    for (const feed of CAMERA_FEEDS) expect(feed.description.length).toBeGreaterThan(40);
+  });
+
+  it('charges trace only on the restricted executive cameras', () => {
+    expect(CAMERA_FEEDS.filter(f => f.traceCost > 0).map(f => f.id)).toEqual([
+      'executive-corridor',
+      'executive-office',
+    ]);
+  });
+});
+
+describe('floorName', () => {
+  it('names a floor, and falls back to the id for one it does not know', () => {
+    expect(floorName('ground')).toBe('Ground floor');
+    expect(floorName('basement' as never)).toBe('basement');
   });
 });

@@ -18,7 +18,10 @@
  *   --url        where the game is served (default http://localhost:5173)
  *
  * Output: playthrough.webm in the project root (git-ignored), a per-command log, milestone
- *         checks (the process exits non-zero if one fails), and a trace-balance summary.
+ *         checks (the process exits non-zero if one fails) and a trace-balance summary. At layers
+ *         1, 3, 4 and 5 it also opens every camera feed through the CAM menu and checks it (live
+ *         ones render, locked ones say FEED LOCKED); the final pass saves a screenshot of each
+ *         camera in playthrough-cameras/ (git-ignored).
  *
  * The AI routes are not part of a dev-server run, so Sentinel and Aria fall back to their
  * authored offline lines; the run exercises the engine and the UI, not Gemini.
@@ -124,10 +127,114 @@ const phase = title => {
   console.log(`\n── ${title}`);
 };
 
+// The floors the CAM menu lists right now (opens the CAM tab and the menu, then closes the menu).
+const camFloors = async () => {
+  await page.getByRole('button', { name: 'CAM', exact: true }).click();
+  await page.waitForTimeout(400);
+  await page.locator('.cam-menu-button').click();
+  const floors = await page.getByRole('menuitem').allInnerTexts();
+  await page.keyboard.press('Escape');
+  return floors.map(f => f.replace(/\s*▸$/, ''));
+};
+
+// Opens a camera through the menu: expand its floor if needed, then pick it.
+const pickCamera = async (floor, camera) => {
+  await page.locator('.cam-menu-button').click();
+  await page.getByRole('menuitem', { name: new RegExp(floor, 'i') }).click();
+  await page.getByRole('menuitemradio', { name: new RegExp(camera) }).click();
+  await page.waitForTimeout(600);
+};
+
+// The cameras a floor lists right now (opens the CAM tab and the menu, hovers the floor, closes it).
+const camsOnFloor = async floor => {
+  await page.getByRole('button', { name: 'CAM', exact: true }).click();
+  await page.locator('.cam-menu-button').click();
+  await page.getByRole('menuitem', { name: new RegExp(floor, 'i') }).hover();
+  const items = await page.getByRole('menuitemradio').allInnerTexts();
+  await page.keyboard.press('Escape');
+  return items;
+};
+
+const CAMERA_SHOTS = './playthrough-cameras';
+
+const closeCamMenu = async () => {
+  const opener = page.locator('.cam-menu-button');
+  if ((await opener.getAttribute('aria-expanded')) === 'true') await opener.click();
+};
+
+// Opens every camera in the CAM menu, one after another, and checks each feed against what the menu
+// says about it: a live camera renders a scene, a locked one shows FEED LOCKED, a disabled one its
+// reason. The cameras are read from the menu itself, so this never drifts from the data. With
+// `shots`, the aux pane is saved as a screenshot for every live camera.
+const visitEveryCamera = async (stage, expectedLive, shots = false) => {
+  await page.getByRole('button', { name: 'CAM', exact: true }).click();
+  await page.waitForTimeout(300);
+  const opener = page.locator('.cam-menu-button');
+  await opener.click();
+  const floorCount = await page.locator('[data-floor-id]').count();
+  await closeCamMenu();
+  const aux = page.locator('[data-pane="aux"]');
+  const slug = text =>
+    text
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '');
+  const problems = [];
+  let total = 0;
+  let live = 0;
+  for (let f = 0; f < floorCount; f += 1) {
+    await opener.click();
+    const floor = page.locator('[data-floor-id]').nth(f);
+    const floorName = (await floor.innerText()).replace(/\s*▸$/, '').trim();
+    await floor.hover();
+    const labels = await page.locator('[data-column="cameras"] [data-menu-item]').allInnerTexts();
+    await closeCamMenu();
+    for (let c = 0; c < labels.length; c += 1) {
+      const label = labels[c];
+      const state = / — locked$/.test(label)
+        ? 'locked'
+        : / — offline$/.test(label)
+          ? 'offline'
+          : 'live';
+      await opener.click();
+      await page.locator('[data-floor-id]').nth(f).hover();
+      await page.locator('[data-column="cameras"] [data-menu-item]').nth(c).click();
+      await page.waitForTimeout(700);
+      const canvas = await page.locator('[data-testid="cam-canvas"]').count();
+      const noSignal = await page.locator('[data-testid="cam-nosignal"]').count();
+      const card = (await page.locator('[data-testid="cam-offline"]').allInnerTexts())[0] ?? '';
+      const fine =
+        state === 'live'
+          ? canvas === 1 && noSignal === 0 && card === ''
+          : state === 'locked'
+            ? canvas === 0 && card === 'FEED LOCKED'
+            : canvas === 0 && /FEED DISABLED/.test(card);
+      total += 1;
+      if (state === 'live') live += 1;
+      if (!fine) problems.push(`${floorName} / ${label}: canvas ${String(canvas)}, card "${card}"`);
+      if (shots && state === 'live') {
+        await aux.screenshot({ path: `${CAMERA_SHOTS}/${slug(floorName)}--${slug(label)}.png` });
+      }
+    }
+  }
+  check(
+    `every camera feed matches its menu state (${stage})`,
+    problems.length === 0,
+    problems.join('; '),
+  );
+  check(
+    `${String(live)} of ${String(total)} cameras are live (${stage})`,
+    live === expectedLive && total >= expectedLive,
+    `expected ${String(expectedLive)} live`,
+  );
+  await page.getByRole('button', { name: 'MAP', exact: true }).click();
+};
+
 // ── Run ──────────────────────────────────────────────────────────────────────
 
 try {
   // Boot: a clean slate, the disclaimer, the prologue, the field-terminal login.
+  await mkdir(CAMERA_SHOTS, { recursive: true });
   await page.goto(BASE_URL, { waitUntil: 'networkidle' });
   await page.evaluate(() => {
     localStorage.clear();
@@ -177,6 +284,14 @@ try {
       (await page.locator('[data-testid="cam-nosignal"]').count()) === 0,
   );
   await page.getByRole('button', { name: 'MAP', exact: true }).click();
+  const lockedFinance = await camsOnFloor('FINANCE');
+  check(
+    'a camera that is not unlocked yet is listed as locked',
+    lockedFinance.length > 0 && lockedFinance.every(c => /locked/.test(c)),
+    lockedFinance.join(', '),
+  );
+  await page.getByRole('button', { name: 'MAP', exact: true }).click();
+  await visitEveryCamera('layer 1', 4);
   await cmd('connect 10.1.0.2');
   await cmd('login ops.admin IronG8te#Ops');
   await cmd('cat employee_roster.csv');
@@ -208,6 +323,21 @@ try {
   await cmd('connect 10.3.0.2');
   await cmd('login fin.dba P@yments2024');
   await cmd('cat calendar_access.cfg'); // e.torres in plain text
+  for (const floor of ['SECURITY', 'FINANCE']) {
+    const cams = await camsOnFloor(floor);
+    check(
+      `layer 3 has made the ${floor.toLowerCase()} camera live`,
+      cams.length > 0 && cams.every(c => !/locked|offline/.test(c)),
+      cams.join(', '),
+    );
+  }
+  await pickCamera('EXECUTIVE', 'Executive corridor');
+  check(
+    'the executive floor is still disabled at layer 3',
+    (await page.locator('[data-testid="cam-offline"]').count()) === 1,
+  );
+  await page.getByRole('button', { name: 'MAP', exact: true }).click();
+  await visitEveryCamera('layer 3', 6);
   await cmd('status');
 
   phase('LAYER 4: executive');
@@ -222,6 +352,15 @@ try {
   await cmd('connect 10.4.0.3');
   await cmd('exploit cassandra-socket', SLOW_PAUSE);
   await cmd('exfil subnet_key.bin'); // opens the way into the restricted subnet
+  await camFloors();
+  await pickCamera('EXECUTIVE', 'Corner office');
+  check(
+    'layer 4 brings the executive floor online',
+    (await page.locator('[data-testid="cam-offline"]').count()) === 0 &&
+      (await page.locator('[data-testid="cam-canvas"]').count()) === 1,
+  );
+  await page.getByRole('button', { name: 'MAP', exact: true }).click();
+  await visitEveryCamera('layer 4', 8);
   await cmd('status');
 
   // The casebook should now hold what the run has read so far.
@@ -249,6 +388,14 @@ try {
   await cmd('connect 172.16.0.4');
   await cmd('scan');
   await cmd('cat /aria/core/self_model.txt', SLOW_PAUSE); // the reveal
+  const sub = await camsOnFloor('SUB-LEVEL B');
+  check(
+    'the restricted subnet makes the data hall and the vault door live',
+    sub.length === 2 && sub.every(c => !/locked|offline/.test(c)),
+    sub.join(', '),
+  );
+  await page.getByRole('button', { name: 'MAP', exact: true }).click();
+  await visitEveryCamera('layer 5', 10, true);
   check('reading the self-model shows the note as draft 7', /draft 7/.test(await paneText('term')));
   await page.waitForTimeout(HEADLESS ? 500 : 4000);
   await cmd('connect 172.16.0.5');
