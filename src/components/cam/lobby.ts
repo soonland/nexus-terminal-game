@@ -1,6 +1,7 @@
 import { AmbientLight, PerspectiveCamera, PointLight } from 'three';
 import type { Mesh, Scene, MeshBasicMaterial } from 'three';
-import { panAngle } from './pan';
+import { aimCamera, pickMount } from './pan';
+import type { Mount } from './pan';
 import { ASPECT, base, box, cylinder, floor, glass, glow, sphere } from './shapes';
 import type { FeedScene } from './scenes';
 
@@ -141,12 +142,24 @@ const addCeiling = (scene: Scene): MeshBasicMaterial => {
 };
 
 // An empty lobby at night: a camera panning on its mount, and one tired ceiling light.
-export const buildLobby = (): FeedScene => {
+const MOUNTS: readonly [Mount, ...Mount[]] = [
+  // Reception: from the front of the hall, sweeping the whole room.
+  { position: [0, 2.6, 5], heading: 0, range: 0.6, sweep: 7, hold: 2.5, offset: 0 },
+  // Entrance: from the glass doors, turned across the hall toward the desk and the elevators.
+  { position: [-7, 2.6, 6], heading: 0.7, range: 0.45, sweep: 8, hold: 3, offset: 2 },
+];
+
+export const buildLobby = (mountIndex: number): FeedScene => {
+  const mount = pickMount(MOUNTS, mountIndex);
   const scene = base(0x05080a, 8, 26);
   scene.add(new AmbientLight(0x88aacc, 1.6));
   const light = new PointLight(0xcfe8ff, 60, 18);
   light.position.set(0, 3.6, -2);
   scene.add(light);
+  // A second, dimmer light over the elevator bank, so the entrance camera is not left in the dark.
+  const sideLight = new PointLight(0xcfe8ff, 45, 14);
+  sideLight.position.set(5.5, 3.4, -2);
+  scene.add(sideLight);
 
   addFloor(scene);
   addBackWall(scene);
@@ -159,11 +172,10 @@ export const buildLobby = (): FeedScene => {
   const flickerMaterial = addCeiling(scene);
 
   const camera = new PerspectiveCamera(60, ASPECT, 0.1, 44);
-  camera.position.set(0, 2.6, 5);
+  camera.position.set(...mount.position);
   const update = (t: number) => {
     // The camera stays on its mount and turns, holding for a moment at each end.
-    const yaw = panAngle(t, 0.6, 7, 2.5);
-    camera.lookAt(Math.sin(yaw) * 10, 1.2, camera.position.z - Math.cos(yaw) * 10);
+    aimCamera(camera, t, mount);
     // Mostly steady, with an occasional stutter.
     const stutter = Math.sin(t * 23) * Math.sin(t * 3.1) > 0.92;
     light.intensity = stutter ? 18 : 60;

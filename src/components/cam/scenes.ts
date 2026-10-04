@@ -12,8 +12,8 @@ export interface FeedScene {
 
 // The offline feeds still map to a scene: whether a feed is live is the engine's decision.
 export const buildScene = (feed: Pick<CameraFeed, 'scene' | 'mount'>): FeedScene | null => {
-  if (feed.scene === 'lobby') return buildLobby();
-  if (feed.scene === 'serverRoom') return buildServerRoom();
+  if (feed.scene === 'lobby') return buildLobby(feed.mount);
+  if (feed.scene === 'serverRoom') return buildServerRoom(feed.mount);
   return null;
 };
 

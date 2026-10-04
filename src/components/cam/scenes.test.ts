@@ -74,3 +74,20 @@ describe('camera scenes', () => {
     }).not.toThrow();
   });
 });
+
+describe('second mounts', () => {
+  it.each(['lobby', 'serverRoom'] as const)(
+    '%s: mount 1 is another position that also pans in place',
+    scene => {
+      const first = buildScene({ scene, mount: 0 })!;
+      const second = buildScene({ scene, mount: 1 })!;
+      expect(second.camera.position.equals(first.camera.position)).toBe(false);
+      second.update(0);
+      const from = second.camera.getWorldDirection(new Vector3()).x;
+      const position = second.camera.position.clone();
+      second.update(10);
+      expect(second.camera.getWorldDirection(new Vector3()).x).not.toBeCloseTo(from);
+      expect(second.camera.position.equals(position)).toBe(true);
+    },
+  );
+});

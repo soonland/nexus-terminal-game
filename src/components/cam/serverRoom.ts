@@ -1,6 +1,7 @@
 import { AmbientLight, PerspectiveCamera, PointLight } from 'three';
 import type { Mesh, MeshBasicMaterial, Scene } from 'three';
-import { panAngle } from './pan';
+import { aimCamera, pickMount } from './pan';
+import type { Mount } from './pan';
 import { ASPECT, base, box, cylinder, floor, glow } from './shapes';
 import type { FeedScene } from './scenes';
 
@@ -136,7 +137,15 @@ const addFixtures = (scene: Scene): void => {
 
 // Racks of blinking servers, trays, cooling units and an airlock door, seen from a camera
 // panning on its mount.
-export const buildServerRoom = (): FeedScene => {
+const MOUNTS: readonly [Mount, ...Mount[]] = [
+  // Aisle: from the front, down the cold aisle.
+  { position: [0, 2.2, 2], heading: 0, range: 0.45, sweep: 9, hold: 3, offset: 3 },
+  // Airlock: from the vault door, looking back down the aisle.
+  { position: [0, 2.2, -10.8], heading: Math.PI, range: 0.4, sweep: 9, hold: 3, offset: 0 },
+];
+
+export const buildServerRoom = (mountIndex: number): FeedScene => {
+  const mount = pickMount(MOUNTS, mountIndex);
   const scene = base(0x020407, 6, 24);
   scene.add(new AmbientLight(0x88aadd, 2.6));
   const light = new PointLight(0xaaccff, 80, 20);
@@ -152,10 +161,9 @@ export const buildServerRoom = (): FeedScene => {
   const flickerMaterial = addCeiling(scene);
 
   const camera = new PerspectiveCamera(65, ASPECT, 0.1, 40);
-  camera.position.set(0, 2.2, 2);
+  camera.position.set(...mount.position);
   const update = (t: number) => {
-    const yaw = panAngle(t + 3, 0.45, 9, 3);
-    camera.lookAt(Math.sin(yaw) * 10, 1.2, camera.position.z - Math.cos(yaw) * 10);
+    aimCamera(camera, t, mount);
     for (const led of leds) {
       const on = Math.sin(t * led.rate + led.phase) > -0.2;
       led.material.color.setHex(on ? led.color : 0x101010);

@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { panAngle, panPhase } from './pan';
+import { PerspectiveCamera, Vector3 } from 'three';
+import { aimCamera, panAngle, panPhase, pickMount } from './pan';
+import type { Mount } from './pan';
 
 const SWEEP = 6;
 const HOLD = 2;
@@ -33,5 +35,41 @@ describe('panAngle', () => {
     expect(panAngle(0, 0.5, SWEEP, HOLD)).toBeCloseTo(-0.5);
     expect(panAngle(SWEEP, 0.5, SWEEP, HOLD)).toBeCloseTo(0.5);
     expect(panAngle(SWEEP / 2, 0.5, SWEEP, HOLD)).toBeCloseTo(0);
+  });
+});
+
+const MOUNT: Mount = {
+  position: [0, 2, 5],
+  heading: 0,
+  range: 0.5,
+  sweep: SWEEP,
+  hold: HOLD,
+  offset: 0,
+};
+
+describe('aimCamera', () => {
+  it('turns the view without moving the camera', () => {
+    const camera = new PerspectiveCamera();
+    camera.position.set(...MOUNT.position);
+    aimCamera(camera, 0, MOUNT);
+    const from = camera.getWorldDirection(new Vector3()).x;
+    aimCamera(camera, SWEEP, MOUNT);
+    expect(camera.getWorldDirection(new Vector3()).x).toBeGreaterThan(from);
+    expect(camera.position.toArray()).toEqual([0, 2, 5]);
+  });
+
+  it('looks back down +z when the heading is a half turn', () => {
+    const camera = new PerspectiveCamera();
+    camera.position.set(0, 2, -10);
+    aimCamera(camera, SWEEP / 2, { ...MOUNT, position: [0, 2, -10], heading: Math.PI });
+    expect(camera.getWorldDirection(new Vector3()).z).toBeGreaterThan(0.9);
+  });
+});
+
+describe('pickMount', () => {
+  const second: Mount = { ...MOUNT, heading: 1 };
+  it('returns the mount at the index, and the first for an unknown index', () => {
+    expect(pickMount([MOUNT, second], 1)).toBe(second);
+    expect(pickMount([MOUNT, second], 7)).toBe(MOUNT);
   });
 });
