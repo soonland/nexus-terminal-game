@@ -10,6 +10,24 @@ interface Props {
 }
 
 const STORY_DATE = '2024-11-27';
+const NIGHT_VISION_KEY = 'irongate_cam_night_vision';
+
+// A per-viewer convenience: on by default, remembered when the tab is closed and reopened.
+const readNightVision = (): boolean => {
+  try {
+    return localStorage.getItem(NIGHT_VISION_KEY) !== 'off';
+  } catch {
+    return true;
+  }
+};
+
+const writeNightVision = (on: boolean): void => {
+  try {
+    localStorage.setItem(NIGHT_VISION_KEY, on ? 'on' : 'off');
+  } catch {
+    // Storage can be blocked; the choice then lasts until the tab closes.
+  }
+};
 
 const camNumber = (feed: CameraFeed): string => feed.id.slice(-2);
 
@@ -81,6 +99,7 @@ export const CamPane = ({ feeds, visible, fullscreen, onToggleFullscreen }: Prop
   const first = feeds.at(0);
   const [selected, setSelected] = useState(first?.id);
   const stamp = useStamp();
+  const [nightVision, setNightVision] = useState(readNightVision);
   const feed = feeds.find(f => f.id === selected) ?? first;
   if (feed === undefined) return null;
 
@@ -98,11 +117,21 @@ export const CamPane = ({ feeds, visible, fullscreen, onToggleFullscreen }: Prop
             {`CAM ${camNumber(f)}`}
           </button>
         ))}
+        <button
+          type="button"
+          className="cam-nv-toggle"
+          aria-pressed={nightVision}
+          onClick={() => {
+            writeNightVision(!nightVision);
+            setNightVision(!nightVision);
+          }}>
+          NIGHT VISION
+        </button>
         <button type="button" className="cam-full" onClick={onToggleFullscreen}>
           {fullscreen ? 'EXIT FULL SCREEN' : 'FULL SCREEN'}
         </button>
       </div>
-      <div className="cam-stage">
+      <div className={nightVision ? 'cam-stage cam-nv' : 'cam-stage'} data-testid="cam-stage">
         {feed.offlineReason === null ? (
           <Canvas key={feed.id} feed={feed} visible={visible} />
         ) : (

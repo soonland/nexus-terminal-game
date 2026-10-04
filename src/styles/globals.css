@@ -500,8 +500,11 @@ body {
   opacity: 1;
 }
 
-.cam-bar .cam-full {
+.cam-bar .cam-nv-toggle {
   margin-left: auto;
+}
+
+.cam-bar .cam-full {
   opacity: 1;
 }
 
@@ -517,6 +520,11 @@ body {
   height: 100%;
   display: block;
   filter: grayscale(0.7) contrast(1.15) brightness(0.95);
+}
+
+/* Night vision: IR-lit monochrome with a green cast. */
+.cam-nv .cam-canvas {
+  filter: grayscale(1) sepia(0.55) hue-rotate(75deg) saturate(2.4) contrast(1.3) brightness(1.05);
 }
 
 .cam-card {
@@ -574,7 +582,27 @@ body {
   }
 }
 
+/* Sensor grain over the whole feed; it only shimmers when motion is welcome. */
+.cam-overlay::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0.14;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+@keyframes cam-grain {
+  to {
+    background-position: 80px 40px;
+  }
+}
+
 @media (prefers-reduced-motion: no-preference) {
+  .cam-overlay::after {
+    animation: cam-grain 0.5s steps(5) infinite;
+  }
+
   .cam-rec {
     animation: cam-blink 1.4s steps(2, start) infinite;
   }

@@ -13,6 +13,7 @@ import {
 } from 'three';
 import type { Object3D } from 'three';
 import type { CameraFeed } from '../../data/cameras';
+import { panAngle } from './pan';
 
 export interface FeedScene {
   scene: Scene;
@@ -69,8 +70,9 @@ const buildLobby = (): FeedScene => {
   const camera = new PerspectiveCamera(60, ASPECT, 0.1, 40);
   camera.position.set(0, 2.6, 5);
   const update = (t: number) => {
-    camera.position.x = Math.sin(t * 0.15) * 3;
-    camera.lookAt(0, 1.2, -5);
+    // The camera stays on its mount and turns, holding for a moment at each end.
+    const yaw = panAngle(t, 0.6, 7, 2.5);
+    camera.lookAt(Math.sin(yaw) * 10, 1.2, camera.position.z - Math.cos(yaw) * 10);
     // Mostly steady, with an occasional stutter.
     const stutter = Math.sin(t * 23) * Math.sin(t * 3.1) > 0.92 ? 0.3 : 1;
     light.intensity = 60 * stutter;
@@ -89,8 +91,8 @@ interface Led {
 // Two rows of racks; every status LED blinks on its own rhythm.
 const buildServerRoom = (): FeedScene => {
   const scene = base(0x020407, 4, 18);
-  scene.add(new AmbientLight(0x5577aa, 1.2));
-  const light = new PointLight(0x88aaff, 35, 16);
+  scene.add(new AmbientLight(0x88aadd, 2.6));
+  const light = new PointLight(0xaaccff, 80, 18);
   light.position.set(0, 3, 0);
   scene.add(light);
 
@@ -115,8 +117,8 @@ const buildServerRoom = (): FeedScene => {
   const camera = new PerspectiveCamera(65, ASPECT, 0.1, 30);
   camera.position.set(0, 2.2, 2);
   const update = (t: number) => {
-    camera.position.x = Math.sin(t * 0.1) * 0.8;
-    camera.lookAt(0, 1.2, -8);
+    const yaw = panAngle(t + 3, 0.45, 9, 3);
+    camera.lookAt(Math.sin(yaw) * 10, 1.2, camera.position.z - Math.cos(yaw) * 10);
     for (const led of leds) {
       const on = Math.sin(t * led.rate + led.phase) > -0.2;
       led.material.color.setHex(on ? led.color : 0x101010);

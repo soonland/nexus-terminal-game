@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { Mesh } from 'three';
+import { Mesh, Vector3 } from 'three';
 import { buildScene, disposeScene } from './scenes';
 
 const meshCount = (root: { traverse: (cb: (o: object) => void) => void }): number => {
@@ -33,12 +33,22 @@ describe('camera scenes', () => {
     expect(buildScene('cam_03')).toBeNull();
   });
 
-  it('moves the camera over time (the lobby sweep)', () => {
+  it('pans the lobby camera in place: the view turns, the camera does not move', () => {
     const built = buildScene('cam_01')!;
     built.update(0);
-    const x0 = built.camera.position.x;
+    const from = built.camera.getWorldDirection(new Vector3()).x;
+    const position = built.camera.position.clone();
+    built.update(7);
+    expect(built.camera.getWorldDirection(new Vector3()).x).not.toBeCloseTo(from);
+    expect(built.camera.position.equals(position)).toBe(true);
+  });
+
+  it('pans the server-room camera in place too', () => {
+    const built = buildScene('cam_02')!;
+    built.update(0);
+    const from = built.camera.getWorldDirection(new Vector3()).x;
     built.update(10);
-    expect(built.camera.position.x).not.toBe(x0);
+    expect(built.camera.getWorldDirection(new Vector3()).x).not.toBeCloseTo(from);
   });
 
   it('disposes geometries and materials without throwing', () => {

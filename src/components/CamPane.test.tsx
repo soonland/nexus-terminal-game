@@ -18,6 +18,7 @@ beforeEach(() => {
   startFeed.mockReset();
   startFeed.mockReturnValue({ stop, setPaused });
   window.matchMedia = vi.fn().mockReturnValue({ matches: false }) as never;
+  localStorage.clear();
 });
 
 const setup = (over: { visible?: boolean } = {}) => {
@@ -110,5 +111,38 @@ describe('CamPane', () => {
   it('never uses the secret name', () => {
     const { container } = setup();
     expect(container.textContent).not.toMatch(/aria/i);
+  });
+
+  it('has night vision on by default and toggles it off and on', () => {
+    setup();
+    const toggle = screen.getByRole('button', { name: 'NIGHT VISION' });
+    const stage = screen.getByTestId('cam-stage');
+    expect(toggle.getAttribute('aria-pressed')).toBe('true');
+    expect(stage.className).toContain('cam-nv');
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute('aria-pressed')).toBe('false');
+    expect(stage.className).not.toContain('cam-nv');
+    fireEvent.click(toggle);
+    expect(stage.className).toContain('cam-nv');
+  });
+
+  it('remembers the night-vision choice when the tab is reopened', () => {
+    const first = setup();
+    fireEvent.click(screen.getByRole('button', { name: 'NIGHT VISION' }));
+    first.unmount();
+    setup();
+    expect(screen.getByRole('button', { name: 'NIGHT VISION' }).getAttribute('aria-pressed')).toBe(
+      'false',
+    );
+  });
+
+  it('does not restart the feed when night vision is toggled', async () => {
+    setup();
+    await vi.waitFor(() => {
+      expect(startFeed).toHaveBeenCalledTimes(1);
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'NIGHT VISION' }));
+    expect(startFeed).toHaveBeenCalledTimes(1);
+    expect(stop).not.toHaveBeenCalled();
   });
 });
