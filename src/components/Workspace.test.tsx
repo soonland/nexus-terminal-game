@@ -7,6 +7,7 @@ import { CommsPane, INTERRUPT_MS } from './CommsPane';
 import type { WorkspaceHandle } from './Workspace';
 import { createInitialState } from '../engine/state';
 import produce from '../engine/produce';
+import { fileReadKey } from '../types/game';
 import type { GameState } from '../types/game';
 
 const makeStorage = () => {
@@ -51,7 +52,6 @@ const setup = (over: Partial<Parameters<typeof Workspace>[0]> = {}) => {
       nodeIp="10.0.0.1"
       trace={14}
       map={<div>map-content</div>}
-      notes={<div>notes-content</div>}
       help={<div>help-content</div>}
       briefing={<div>briefing-content</div>}
       dossier={<div>dossier-content</div>}
@@ -126,7 +126,6 @@ describe('Workspace — game starting and ending', () => {
       nodeIp="10.0.0.1"
       trace={0}
       map={<div>map-content</div>}
-      notes={<div>notes-content</div>}
       help={<div>help-content</div>}
       briefing={<div>briefing-content</div>}
       dossier={<div>dossier-content</div>}
@@ -159,7 +158,6 @@ describe('Workspace — game starting and ending', () => {
         nodeIp="10.0.0.1"
         trace={0}
         map={<div>map-content</div>}
-        notes={<div>notes-content</div>}
         help={<div>help-content</div>}
         briefing={<div>briefing-content</div>}
         dossier={<div>dossier-content</div>}
@@ -195,12 +193,13 @@ describe('Workspace — tiled', () => {
     expect(screen.getByText('comms-content')).toBeTruthy();
   });
 
-  it('starts with the map tab in aux and switches to notes via the tab button', () => {
+  it('starts with the map tab in aux and switches to the casebook via the tab button', () => {
     setup();
     expect(screen.getByText('map-content')).toBeTruthy();
-    expect(screen.queryByText('notes-content')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'NOTES' }));
-    expect(screen.getByText('notes-content')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /^PEOPLE/ })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'CASE' }));
+    expect(screen.getByRole('button', { name: /^PEOPLE/ })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'NOTES' })).toBeNull();
   });
 
   it('shares the explorer selection between the files and doc panes', () => {
@@ -257,9 +256,9 @@ describe('Workspace — shortcuts and handle', () => {
   it('handle.showAux selects the tab and focuses aux; focusPane focuses files', () => {
     const { ref } = setup();
     act(() => {
-      ref.current?.showAux('notes');
+      ref.current?.showAux('case');
     });
-    expect(screen.getByText('notes-content')).toBeTruthy();
+    expect(screen.getByRole('button', { name: /^PEOPLE/ })).toBeTruthy();
     expect(section('aux').dataset.focused).toBe('true');
     act(() => {
       ref.current?.focusPane('files');
@@ -419,7 +418,6 @@ describe('Workspace — comms focus during the first-contact interruption', () =
       nodeIp="10.0.0.1"
       trace={0}
       map={<div>map-content</div>}
-      notes={<div>notes-content</div>}
       help={<div>help-content</div>}
       briefing={<div>briefing-content</div>}
       dossier={<div>dossier-content</div>}
@@ -495,7 +493,6 @@ describe('Workspace — unread comms marker', () => {
         nodeIp="10.0.0.1"
         trace={14}
         map={<div>map-content</div>}
-        notes={<div>notes-content</div>}
         help={<div>help-content</div>}
         briefing={<div>briefing-content</div>}
         dossier={<div>dossier-content</div>}
@@ -509,5 +506,68 @@ describe('Workspace — unread comms marker', () => {
       />,
     );
     expect(marked()).toBe(true);
+  });
+});
+
+describe('Workspace — the casebook', () => {
+  const KESSLER = '/var/db/hr/terminated/kessler_h_2024-03.txt';
+  const base = (): GameState =>
+    produce(createInitialState(), s => {
+      s.network.currentNodeId = 'ops_hr_db';
+      s.network.nodes['ops_hr_db']!.accessLevel = 'user';
+      s.network.nodes['ops_hr_db']!.discovered = true;
+      s.turnCount = 5;
+    });
+  // The same run (same runId) with one more document read; a new runId would be a new game.
+  const withRead = (state: GameState): GameState =>
+    produce(state, s => {
+      s.filesRead.push(fileReadKey('ops_hr_db', KESSLER));
+    });
+
+  const element = (state: GameState) => (
+    <Workspace
+      terminal={<input aria-label="term-input" />}
+      gameState={state}
+      nodeIp="10.1.0.2"
+      trace={0}
+      map={<div>map-content</div>}
+      help={<div>help-content</div>}
+      briefing={<div>briefing-content</div>}
+      dossier={<div>dossier-content</div>}
+      explorerDisabled={false}
+      onRunCommand={vi.fn()}
+      onTerminalFocused={vi.fn()}
+      comms={<div>comms-content</div>}
+      commsAlert={false}
+      commsActivity={0}
+      onCommsFocused={vi.fn()}
+    />
+  );
+
+  it('marks the aux pane when something new is learned while the map is showing', () => {
+    const start = base();
+    const view = render(element(start));
+    expect(section('aux').getAttribute('data-unread')).toBe('false');
+    view.rerender(element(withRead(start)));
+    expect(section('aux').getAttribute('data-unread')).toBe('true');
+    expect(screen.getByText(/4:aux!/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'CASE' }));
+    expect(section('aux').getAttribute('data-unread')).toBe('false');
+  });
+
+  it('does not mark the pane for things learned while the CASE tab is open', () => {
+    const start = base();
+    const view = render(element(start));
+    fireEvent.click(screen.getByRole('button', { name: 'CASE' }));
+    view.rerender(element(withRead(start)));
+    expect(section('aux').getAttribute('data-unread')).toBe('false');
+  });
+
+  it('selecting a source in the casebook opens that file in the doc pane', () => {
+    render(element(withRead(base())));
+    fireEvent.click(screen.getByRole('button', { name: 'CASE' }));
+    fireEvent.click(screen.getAllByRole('button', { name: /kessler_h_2024-03\.txt/ })[0]);
+    expect(section('doc').textContent).toContain('kessler_h_2024-03.txt');
+    expect(section('doc').textContent).toContain('HR SEPARATION RECORD');
   });
 });

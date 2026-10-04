@@ -29,6 +29,27 @@ export const catCommand = (root: Root, file: GameFile): string =>
 
 export const exfilCommand = (file: GameFile): string => `exfil ${file.path}`;
 
+// Where a casebook source can be opened from right now: the file is on the node the player is
+// on, or the player holds an exfiltrated copy. Null when it is out of reach.
+export const sourceSelection = (
+  gameState: GameState,
+  source: { nodeId: string; path: string },
+): Selection | null => {
+  const node = currentNode(gameState);
+  if (node.id === source.nodeId && listAccessibleFiles(node).some(f => f.path === source.path)) {
+    return { root: 'node', path: source.path };
+  }
+  // An exfiltrated copy counts when it came from the cited node. The origin (`sourceNodeId`) is
+  // set when the file is exfiltrated but is not saved, so a copy restored from a save has none:
+  // then the path alone decides (casebook sources are unique authored paths).
+  const copy = gameState.player.exfiltrated.some(
+    f =>
+      f.path === source.path && (f.sourceNodeId === undefined || f.sourceNodeId === source.nodeId),
+  );
+  if (copy) return { root: 'local', path: source.path };
+  return null;
+};
+
 // Resolved from live state on every render, so a file the sentinel deletes (or a node
 // change) drops the selection instead of leaving stale details on screen.
 export const resolveSelection = (

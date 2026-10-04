@@ -3,6 +3,10 @@ import { ANCHOR_CREDENTIALS, buildNodeMap } from '../anchorNodes';
 import { SENTINEL_VOTE_PATH } from '../../engine/ariaName';
 import { FIRST_NAMES } from '../employeeData';
 import { NEXUS_MESSAGES } from '../nexusMessages';
+import { CASE_FACTS, CASE_PEOPLE } from '../casebook';
+import { buildCasebook } from '../../engine/casebook';
+import { createInitialState } from '../../engine/state';
+import { fileReadKey } from '../../types/game';
 
 const ARIA = /aria/i;
 
@@ -37,6 +41,26 @@ describe('pre-reveal data never contains the name Aria', () => {
 
   it('the scripted Nexus line never says it (it plays before the reveal)', () => {
     expect(NEXUS_MESSAGES.flatMap(m => m.lines).filter(line => ARIA.test(line))).toEqual([]);
+  });
+
+  it('the casebook never says it, however much the player has read and obtained', () => {
+    const authored = [
+      ...CASE_PEOPLE.flatMap(p => [p.name, p.role]),
+      ...CASE_FACTS.flatMap(f => [f.text, f.title ?? '']),
+    ];
+    expect(authored.filter(text => ARIA.test(text))).toEqual([]);
+
+    // The rendered casebook with every document read and every credential obtained. Generated
+    // employees can be called Maria or have a password like 'ariel@861', so match the name as a
+    // whole word here (the authored text above is held to the stricter substring match).
+    const state = createInitialState();
+    state.filesRead = CASE_FACTS.map(f => fileReadKey(f.source.nodeId, f.source.path));
+    for (const credential of state.player.credentials) credential.obtained = true;
+    for (const employee of state.employees) {
+      const world = state.worldCredentials.find(c => c.id === `cred_${employee.id}`);
+      if (world) state.player.credentials.push({ ...world, obtained: true });
+    }
+    expect(/\baria\b/i.test(JSON.stringify(buildCasebook(state)))).toBe(false);
   });
 
   it('the board vote bridges both names', () => {

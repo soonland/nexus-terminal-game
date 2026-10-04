@@ -79,6 +79,7 @@ describe('guide.html — matches the game', () => {
     'help',
     'whoami',
     'briefing',
+    'case',
     'notes',
     'dossier',
     'explorer',
