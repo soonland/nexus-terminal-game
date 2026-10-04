@@ -742,3 +742,56 @@ describe('restricted subnet route after loading', () => {
     expect(loaded?.network.nodes['exec_ceo']?.connections).not.toContain('aria_surveillance');
   });
 });
+
+describe('cached AI content only applies to AI-generated paths', () => {
+  let mockStorage: ReturnType<typeof makeMockStorage>;
+  beforeEach(() => {
+    mockStorage = makeMockStorage();
+    vi.stubGlobal('localStorage', mockStorage);
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('does not let a stale cached text override an authored file', () => {
+    saveGame(createInitialState());
+    const raw = JSON.parse(mockStorage.getItem(SAVE_KEY) as string) as {
+      network: { nodes: Record<string, { cachedFileContents: Record<string, string> }> };
+    };
+    // welcome.txt is authored; an old save might carry cached text for a path that was
+    // AI-generated back then (e.g. access_log before it was authored).
+    raw.network.nodes['contractor_portal'].cachedFileContents['/var/www/contractor/welcome.txt'] =
+      'STALE CACHED TEXT';
+    mockStorage.setItem(SAVE_KEY, JSON.stringify(raw));
+    const loaded = loadGame();
+    const welcome = loaded?.network.nodes['contractor_portal']?.files.find(
+      f => f.path === '/var/www/contractor/welcome.txt',
+    );
+    expect(welcome?.content).not.toBe('STALE CACHED TEXT');
+    expect(welcome?.content).toContain('CONTRACTOR ONBOARDING');
+  });
+
+  it('still restores cached text for genuinely AI-generated files', () => {
+    const base = createInitialState();
+    const aiFile = Object.values(base.network.nodes)
+      .flatMap(n => n?.files ?? [])
+      .find(f => f.content === null);
+    expect(aiFile).toBeDefined();
+    const state = produce(base, s => {
+      for (const n of Object.values(s.network.nodes)) {
+        const f = n?.files.find(x => x.path === aiFile?.path);
+        if (f && n) {
+          f.content = 'GENERATED TEXT';
+          // saves only store discovered nodes
+          n.discovered = true;
+        }
+      }
+    });
+    saveGame(state);
+    const loaded = loadGame();
+    const restored = Object.values(loaded?.network.nodes ?? {})
+      .flatMap(n => n?.files ?? [])
+      .find(f => f.path === aiFile?.path);
+    expect(restored?.content).toBe('GENERATED TEXT');
+  });
+});

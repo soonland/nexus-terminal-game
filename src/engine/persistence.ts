@@ -205,7 +205,11 @@ const fromSaveState = (save: SaveState): GameState => {
     node.files.forEach(f => {
       if (lockedPaths.has(f.path)) f.locked = true;
       if (deletedPaths.has(f.path)) f.deleted = true;
-      if (f.path in delta.cachedFileContents) f.content = delta.cachedFileContents[f.path];
+      // Only AI-generated files carry cached text; ignore stale entries for files that have
+      // since become authored (the lore pass authored access_log and badge_log_nov.csv).
+      if (AI_GENERATED_FILE_PATHS.has(f.path) && f.path in delta.cachedFileContents) {
+        f.content = delta.cachedFileContents[f.path];
+      }
     });
     // Re-add dynamically planted files (e.g. sentinel RESET_NOTICE.txt)
     for (const planted of delta.plantedFiles ?? []) {
