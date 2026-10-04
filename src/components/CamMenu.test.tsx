@@ -163,4 +163,39 @@ describe('CamMenu', () => {
     fireEvent.click(opener());
     expect(container.textContent).not.toMatch(/aria/i);
   });
+
+  it('returns focus to the opener when a camera is chosen from the keyboard', () => {
+    setup();
+    fireEvent.click(opener());
+    const operations = floorItem(/OPERATIONS/);
+    operations.focus();
+    fireEvent.keyDown(operations, { key: 'ArrowRight' });
+    const airlock = cameraItem('Server room (airlock)')!;
+    airlock.focus();
+    fireEvent.click(airlock);
+    expect(screen.queryByRole('menu')).toBeNull();
+    expect(document.activeElement).toBe(opener());
+  });
+
+  it('returns focus to the opener when Escape closes the menu', () => {
+    setup();
+    fireEvent.click(opener());
+    const floors = dataItems('floors');
+    floors[0].focus();
+    fireEvent.keyDown(floors[0], { key: 'Escape' });
+    expect(screen.queryByRole('menu')).toBeNull();
+    expect(document.activeElement).toBe(opener());
+  });
+
+  it('does not steal focus when a click outside closes the menu', () => {
+    setup();
+    fireEvent.click(opener());
+    const outside = document.createElement('button');
+    document.body.appendChild(outside);
+    outside.focus();
+    fireEvent.mouseDown(outside);
+    expect(screen.queryByRole('menu')).toBeNull();
+    expect(document.activeElement).toBe(outside);
+    outside.remove();
+  });
 });

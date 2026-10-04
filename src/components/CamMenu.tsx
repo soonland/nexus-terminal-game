@@ -26,6 +26,7 @@ export const CamMenu = ({ feeds, selectedId, onSelect }: Props) => {
   const [active, setActive] = useState<string | null>(null);
   const [enterCameras, setEnterCameras] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
   const floors = floorsWithFeeds(feeds);
   const activeFloor = floors.find(f => f.id === active);
 
@@ -49,6 +50,13 @@ export const CamMenu = ({ feeds, selectedId, onSelect }: Props) => {
     setEnterCameras(false);
   }, [enterCameras, active]);
 
+  // Closing from inside the menu (Escape, choosing a camera) hands focus back to the opener, so the
+  // keyboard user is not dropped at the top of the page. A click outside leaves focus where it went.
+  const closeToOpener = () => {
+    setOpen(false);
+    buttonRef.current?.focus();
+  };
+
   const toggleMenu = () => {
     if (!open) setActive(selected?.floor ?? null);
     setOpen(!open);
@@ -69,7 +77,7 @@ export const CamMenu = ({ feeds, selectedId, onSelect }: Props) => {
     if (event.key === 'Escape') {
       event.stopPropagation();
       if (inCameras) focusFloor();
-      else setOpen(false);
+      else closeToOpener();
       return;
     }
     if (event.key === 'ArrowLeft' && inCameras) {
@@ -102,6 +110,7 @@ export const CamMenu = ({ feeds, selectedId, onSelect }: Props) => {
     <div className="cam-menu" ref={rootRef} onKeyDown={onKeyDown}>
       <button
         type="button"
+        ref={buttonRef}
         className="cam-menu-button"
         aria-haspopup="menu"
         aria-expanded={open}
@@ -149,7 +158,7 @@ export const CamMenu = ({ feeds, selectedId, onSelect }: Props) => {
                   className={feed.live ? 'cam-menu-item' : 'cam-menu-item cam-menu-off'}
                   onClick={() => {
                     onSelect(feed.id);
-                    setOpen(false);
+                    closeToOpener();
                   }}>
                   {feed.live ? feed.name : `${feed.name} — offline`}
                 </button>
