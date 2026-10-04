@@ -39,9 +39,14 @@ export const sourceSelection = (
   if (node.id === source.nodeId && listAccessibleFiles(node).some(f => f.path === source.path)) {
     return { root: 'node', path: source.path };
   }
-  if (gameState.player.exfiltrated.some(f => f.path === source.path)) {
-    return { root: 'local', path: source.path };
-  }
+  // An exfiltrated copy counts when it came from the cited node. The origin (`sourceNodeId`) is
+  // set when the file is exfiltrated but is not saved, so a copy restored from a save has none:
+  // then the path alone decides (casebook sources are unique authored paths).
+  const copy = gameState.player.exfiltrated.some(
+    f =>
+      f.path === source.path && (f.sourceNodeId === undefined || f.sourceNodeId === source.nodeId),
+  );
+  if (copy) return { root: 'local', path: source.path };
   return null;
 };
 

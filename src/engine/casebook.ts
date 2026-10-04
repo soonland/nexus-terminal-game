@@ -7,6 +7,7 @@ import type { DivisionId } from '../types/divisionSeed';
 // A credential as the casebook shows it. It deliberately carries no node ids, labels or source
 // text: which password works where stays the player's puzzle.
 interface CaseAccount {
+  id: string; // the credential's id: a stable React key, even if two usernames ever repeat
   username: string;
   password: string;
   // Null until the credential has actually been obtained (a login or decrypt): a document that
@@ -46,6 +47,7 @@ const DIVISION_LABEL: Record<DivisionId, string> = {
 };
 
 const toAccount = (c: Credential): CaseAccount => ({
+  id: c.id,
   username: c.username,
   password: c.password,
   accessLevel: c.obtained ? c.accessLevel : null,

@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { catCommand, exfilCommand, fileBadges, resolveSelection } from './explorerShared';
+import {
+  catCommand,
+  exfilCommand,
+  fileBadges,
+  resolveSelection,
+  sourceSelection,
+} from './explorerShared';
 import { createInitialState } from '../engine/state';
 import produce from '../engine/produce';
 import type { GameFile } from '../types/game';
@@ -56,5 +62,43 @@ describe('resolveSelection', () => {
     ]);
     expect(resolveSelection(state, { root: 'node', path: '/a/admin.txt' })).toBeUndefined();
     expect(resolveSelection(state, { root: 'node', path: '/a/gone.txt' })).toBeUndefined();
+  });
+});
+
+describe('sourceSelection', () => {
+  const source = { nodeId: 'ops_hr_db', path: '/var/log/auth.log' };
+  const elsewhere = (local: GameFile[]) =>
+    produce(createInitialState(), s => {
+      s.network.currentNodeId = 'contractor_portal';
+      s.player.exfiltrated = local;
+    });
+
+  it('opens a file that is on the current node', () => {
+    const state = produce(createInitialState(), s => {
+      s.network.currentNodeId = 'ops_hr_db';
+      const node = s.network.nodes['ops_hr_db']!;
+      node.accessLevel = 'user';
+      node.files = [file(source.path)];
+    });
+    expect(sourceSelection(state, source)).toEqual({ root: 'node', path: source.path });
+  });
+
+  it('opens an exfiltrated copy that came from the cited node', () => {
+    const state = elsewhere([file(source.path, { sourceNodeId: 'ops_hr_db' })]);
+    expect(sourceSelection(state, source)).toEqual({ root: 'local', path: source.path });
+  });
+
+  it('does not open a same-path copy that came from a different node', () => {
+    const state = elsewhere([file(source.path, { sourceNodeId: 'sec_firewall' })]);
+    expect(sourceSelection(state, source)).toBeNull();
+  });
+
+  it('accepts a copy with no recorded origin (the origin is lost on a reload)', () => {
+    const state = elsewhere([file(source.path)]);
+    expect(sourceSelection(state, source)).toEqual({ root: 'local', path: source.path });
+  });
+
+  it('is null when the file is out of reach', () => {
+    expect(sourceSelection(elsewhere([]), source)).toBeNull();
   });
 });

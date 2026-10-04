@@ -101,7 +101,7 @@ describe('buildCasebook — accounts and account holders', () => {
   it('shows a shared account with its password and level, and nothing else about it', () => {
     const book = buildCasebook(obtain(createInitialState(), 'cred_contractor'));
     expect(book.accounts).toEqual([
-      { username: 'contractor', password: 'Welcome1!', accessLevel: 'user' },
+      { id: 'cred_contractor', username: 'contractor', password: 'Welcome1!', accessLevel: 'user' },
     ]);
     expect(book.people).toEqual([]);
   });
@@ -196,14 +196,19 @@ describe('buildCasebook — a credential found in a document counts before it is
   it('reading the camera config adds ops.admin and its password, with no access level yet', () => {
     const book = buildCasebook(withReads(CAMERA));
     expect(book.accounts).toEqual([
-      { username: 'ops.admin', password: 'IronG8te#Ops', accessLevel: null },
+      { id: 'cred_ops_admin', username: 'ops.admin', password: 'IronG8te#Ops', accessLevel: null },
     ]);
   });
 
   it('the access level appears only once the credential is actually obtained', () => {
     const used = buildCasebook(obtain(withReads(CAMERA), 'cred_ops_admin'));
     expect(used.accounts).toEqual([
-      { username: 'ops.admin', password: 'IronG8te#Ops', accessLevel: 'admin' },
+      {
+        id: 'cred_ops_admin',
+        username: 'ops.admin',
+        password: 'IronG8te#Ops',
+        accessLevel: 'admin',
+      },
     ]);
   });
 
@@ -216,6 +221,7 @@ describe('buildCasebook — a credential found in a document counts before it is
     const book = buildCasebook(withReads(TICKET));
     const mercer = book.people.find(p => p.id === 'mercer');
     expect(mercer?.account).toEqual({
+      id: 'cred_sec_analyst',
       username: 'j.mercer',
       password: 'S3ntinel99',
       accessLevel: null,
@@ -248,5 +254,26 @@ describe('buildCasebook — a credential found in a document counts before it is
     const json = JSON.stringify(buildCasebook(withReads(CAMERA, TICKET)));
     expect(json).not.toContain('ops_cctv_ctrl');
     expect(json).not.toContain('Found in plaintext config');
+  });
+});
+
+describe('buildCasebook — account ids', () => {
+  it('every account carries its credential id, unique within the casebook', () => {
+    const state = obtain(
+      createInitialState(),
+      'cred_contractor',
+      'cred_ops_admin',
+      'cred_sec_analyst',
+      'cred_exec_assistant',
+    );
+    const book = buildCasebook(state);
+    const ids = [
+      ...book.accounts.map(a => a.id),
+      ...book.people.flatMap(p => (p.account ? [p.account.id] : [])),
+    ];
+    expect(ids.sort()).toEqual(
+      ['cred_contractor', 'cred_ops_admin', 'cred_sec_analyst', 'cred_exec_assistant'].sort(),
+    );
+    expect(new Set(ids).size).toBe(ids.length);
   });
 });

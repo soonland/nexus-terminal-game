@@ -183,7 +183,7 @@ export const CasePane = ({ gameState, onOpenSource }: Props) => {
         ) : (
           book.accounts.map(account => (
             <div
-              key={account.username}
+              key={account.id}
               className="case-account"
               data-testid={`case-account-${account.username}`}>
               {accountText(account)}
