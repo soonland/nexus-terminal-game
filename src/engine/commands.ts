@@ -10,6 +10,7 @@ import { runAriaTurn } from './ariaMutations';
 import { loadDossier, recordEnding, addLoreFragment } from './dossierPersistence';
 import type { EndingName } from '../types/dossier';
 import { shouldSuppressMutation, injectConstraintFragment } from './faradayCage';
+import { ariaTier } from './aiTiers';
 import { ARIA_NAME_FLAG, SENTINEL_VOTE_PATH, isAriaNameKnown, markAriaNameKnown } from './ariaName';
 import { detectChannelTrigger, isChannelBlocked, layerReachedFlag } from './channel';
 
@@ -651,6 +652,7 @@ const cmdAriaAI = async (
     runNumber: dossier.runsCompleted + 1,
     previousEndings: dossier.endings.map(e => e.ending),
     ariaNameKnown: isAriaNameKnown(state),
+    tier: ariaTier(state),
   };
 
   let aiResponse: AriaAIResponse;
@@ -804,6 +806,7 @@ const cmdDecisionTerminal = async (choice: string, state: GameState): Promise<Co
       runNumber: dossier.runsCompleted + 1,
       previousEndings: dossier.endings.map(e => e.ending),
       ariaNameKnown: isAriaNameKnown(state),
+      tier: ariaTier(state),
     };
     const res = await fetch('/api/aria', {
       method: 'POST',

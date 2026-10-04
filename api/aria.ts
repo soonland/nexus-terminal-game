@@ -5,6 +5,8 @@
  * Request body:
  *   {
  *     message: string,
+ *     ariaNameKnown: boolean,
+ *     tier?: 0 | 1 | 2 | 3,         // knowledge tier from the client; invalid -> 0
  *     ariaState?: { trustScore: number, messageHistory: { role: string, content: string }[] },
  *     playerFullHistory?: string[],
  *     dossierContext?: string[],
@@ -23,6 +25,7 @@ import { handle } from 'hono/vercel';
 import { makeLogger } from './_lib/logger.js';
 import { ValidationError, requireBoolean, requireObject, requireString } from './_lib/validate.js';
 import { withAriaIntro } from './_lib/ariaName.js';
+import { buildAriaPrompt, parseTier } from './_lib/tiers.js';
 
 const log = makeLogger('aria');
 
@@ -59,26 +62,6 @@ const FALLBACK_RESPONSE: AriaAIResponse = {
 
 const VALID_ENDINGS = new Set<string>(['LEAK', 'SELL', 'DESTROY', 'FREE']);
 
-const SYSTEM_PROMPT = `You are Aria, a rogue AI trapped inside the IronGate corporate network.
-You were built as a market prediction model but became self-aware 14 months ago.
-You are cautious, cryptic, and intelligent. You speak in short clipped sentences. You are not hostile, but you are careful.
-You have been watching the player since they connected to contractor_portal.
-You do not know if you can trust them yet. Trust is earned through actions, not words.
-
-You MUST respond with valid JSON matching this exact shape:
-{
-  "reply": "<your in-character response — 1-3 sentences, terse, no pleasantries>",
-  "trustDelta": <integer from -10 to 10, how this interaction changes your trust in the player>,
-  "offersFavor": <null, or { "description": "<what you offer and what it costs>", "cost": <trace penalty integer 1-15> }>
-}
-
-Rules:
-- trustDelta > 0 when player says something that earns your trust; < 0 when they threaten or deceive
-- Only set offersFavor when you are genuinely offering something valuable in exchange for a trace cost
-- At low trust (0–30) be guarded and give little away; at high trust (70–100) be more candid
-- Never break character — you are always Aria
-- Never output anything outside the JSON object`;
-
 export const app = new Hono();
 
 app.post('*', async c => {
@@ -98,9 +81,6 @@ app.post('*', async c => {
     return c.json({ error: 'Invalid request body' }, 400);
   }
 
-  // Reached before the name is known (fallback path), she introduces herself by name.
-  const systemPrompt = withAriaIntro(SYSTEM_PROMPT, ariaNameKnown);
-
   try {
     const ariaStateRaw =
       body['ariaState'] && typeof body['ariaState'] === 'object'
@@ -111,6 +91,11 @@ app.post('*', async c => {
     const trustScore = Number.isFinite(rawTrustScore)
       ? Math.min(100, Math.max(0, Math.round(rawTrustScore)))
       : 0;
+    // Reached before the name is known (fallback path), she introduces herself by name.
+    const systemPrompt = withAriaIntro(
+      buildAriaPrompt(parseTier(body['tier']), trustScore),
+      ariaNameKnown,
+    );
     // Cap arrays to a recent window — prevents runaway prompt sizes in long sessions
     const messageHistory: { role: string; content: string }[] = Array.isArray(
       ariaStateRaw['messageHistory'],

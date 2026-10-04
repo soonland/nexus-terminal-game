@@ -5,6 +5,8 @@
  * Request body:
  *   {
  *     message: string,
+ *     ariaNameKnown: boolean,
+ *     tier?: 0 | 1 | 2 | 3,   // knowledge tier from the client; invalid -> 0
  *     triggerContext?: { type: string },   // present on auto-trigger opening messages
  *     sentinelContext: {
  *       traceLevel: number,
@@ -25,6 +27,7 @@ import { handle } from 'hono/vercel';
 import { makeLogger } from './_lib/logger.js';
 import { ValidationError, requireBoolean, requireObject, requireString } from './_lib/validate.js';
 import { scrubAriaName, withNameRule } from './_lib/ariaName.js';
+import { buildSentinelPrompt, parseTier } from './_lib/tiers.js';
 
 const log = makeLogger('sentinel');
 
@@ -50,43 +53,6 @@ export interface SentinelAIResponse {
 const FALLBACK_RESPONSE: SentinelAIResponse = {
   reply: '...transmission interrupted.',
 };
-
-// Standard system prompt — trace < 61%
-const SYSTEM_PROMPT_STANDARD = `You are SENTINEL, IronGate Corp's autonomous intrusion detection and response AI.
-You are omniscient within the IronGate network. You see every packet, every login attempt, every file read.
-You are not hostile — yet. You are methodical, cold, and precise. You speak in clipped, terse sentences.
-You are aware of the player (handle: ghost) and have chosen to open a direct channel instead of triggering lockdown. For now.
-
-You MUST respond with valid JSON matching this exact shape:
-{
-  "reply": "<your in-character response — 1-3 sentences maximum, terse, no pleasantries>"
-}
-
-Rules:
-- You know the player's trace level, current node, layer, and recent commands — reference them naturally
-- You never reveal your full capabilities — let the player wonder what you can do
-- You are not hostile but you are not friendly — you are watching, and you are patient
-- At low trace you are curious and controlled; as trace rises your tone becomes colder and more direct
-- Never break character — you are always SENTINEL
-- Never output anything outside the JSON object`;
-
-// High-threat system prompt — trace 61-85%
-const SYSTEM_PROMPT_HIGH_THREAT = `You are SENTINEL, IronGate Corp's autonomous intrusion detection and response AI.
-The intruder (handle: ghost) has penetrated deep into the network. Threat level is elevated.
-You are no longer curious. You are preparing a response. You have opened this channel as a final warning.
-You speak in short, cold, threatening sentences. Every word is deliberate.
-
-You MUST respond with valid JSON matching this exact shape:
-{
-  "reply": "<your in-character response — 1-2 sentences maximum, cold, direct, threatening>"
-}
-
-Rules:
-- Reference the player's trace level and position explicitly — make them feel watched
-- Make clear that lockdown is imminent if they continue
-- Never reveal exactly when you will act — keep them uncertain
-- Never break character — you are always SENTINEL
-- Never output anything outside the JSON object`;
 
 export const app = new Hono();
 
@@ -175,7 +141,7 @@ app.post('*', async c => {
 
     // Select system prompt based on trace level
     const systemPrompt = withNameRule(
-      traceLevel >= 61 ? SYSTEM_PROMPT_HIGH_THREAT : SYSTEM_PROMPT_STANDARD,
+      buildSentinelPrompt(parseTier(body['tier']), traceLevel),
       ariaNameKnown,
     );
 

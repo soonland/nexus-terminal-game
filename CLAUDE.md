@@ -81,6 +81,10 @@ The player never sees the name "Aria" until the flag `ARIA_NAME_KNOWN` is set (`
 
 The mole and Sentinel trail (reset log, cast documents, Cho decoy, the rewritten NOTE_01) is authored in `src/data/anchorNodes.ts` and specified in `docs/superpowers/specs/2026-10-03-lore-pass-design.md`. `src/data/__tests__/lorePass.test.ts` pins each document's node, path, access level and the cross-document dates and amounts — update it with the outline when editing them. `access_log` and `badge_log_nov.csv` are authored now, no longer AI-generated; `access_log` stays admin-only and non-exfiltrable.
 
+### Knowledge tiers (Aria and Sentinel)
+
+`src/engine/aiTiers.ts` computes a 0–3 tier per character from `GameState` (`ariaTier`: trust, `BOARD_KNEW`, `self_model.txt` read on `aria_core`, trust ≥ 80 on layer 5; `sentinelTier`: trace, layer 5, `ARIA_NAME_KNOWN`, `NOTE_REVEALED`). The client sends it as `tier`; `api/_lib/tiers.ts` (`parseTier`: invalid → 0) builds each handler's prompt as persona → ALLOWED → FORBIDDEN → output contract. Knowledge above the current tier never appears in the prompt. `NOTE_REVEALED` is set by nothing yet (reveal event, #218). Design: `docs/superpowers/specs/2026-10-03-ai-knowledge-tiers-design.md`; the story bible §9 is the source for the tier text.
+
 ### Styling
 
 Pure CSS, no framework. `src/styles/globals.css` uses CSS custom properties for the color palette. The aesthetic is DOS/ncurses: `#0000aa` background, IBM Plex Mono font (loaded via `@fontsource/ibm-plex-mono`, imported in `main.tsx`), white/gray text. No glow or CRT effects are active (the `body.crt` class was removed).

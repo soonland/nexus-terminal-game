@@ -752,3 +752,44 @@ describe('POST /api/aria — name rule', () => {
     expect(JSON.stringify(fetchMock.mock.calls[0][1])).not.toContain('introduce yourself by name');
   });
 });
+
+describe('knowledge tiers (#217)', () => {
+  const promptFor = async (extra: Record<string, unknown>): Promise<string> => {
+    const fetchMock = mockGeminiJson('ok');
+    vi.stubGlobal('fetch', fetchMock);
+    process.env['GEMINI_API_KEY'] = 'test-key';
+    await callHandler({
+      body: { message: 'hello', ariaState: { trustScore: 10, messageHistory: [] }, ...extra },
+    });
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body) as {
+      contents: { parts: { text: string }[] }[];
+    };
+    return body.contents[0].parts[0].text;
+  };
+
+  it('uses the tier 0 prompt when no tier is sent', async () => {
+    const prompt = await promptFor({});
+    expect(prompt).toContain('You may say that you watch.');
+    expect(prompt).not.toMatch(/you wrote the contractor note/i);
+  });
+
+  it('uses the tier 0 prompt for an invalid tier', async () => {
+    const prompt = await promptFor({ tier: 3.5 });
+    expect(prompt).not.toMatch(/you wrote the contractor note/i);
+  });
+
+  it('puts tier 3 knowledge in the prompt only at tier 3', async () => {
+    expect(await promptFor({ tier: 2 })).not.toMatch(/you wrote the contractor note/i);
+    expect(await promptFor({ tier: 3 })).toMatch(/you wrote the contractor note/i);
+  });
+
+  it('derives the Sentinel register from the trust score', async () => {
+    const low = await promptFor({ tier: 0 });
+    expect(low).toMatch(/the newer one.*contempt/i);
+  });
+
+  it('keeps the name introduction rule while the name is unknown', async () => {
+    const prompt = await promptFor({ ariaNameKnown: false, tier: 1 });
+    expect(prompt).toContain('introduce yourself by name');
+  });
+});

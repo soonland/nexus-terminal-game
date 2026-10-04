@@ -218,3 +218,31 @@ describe('sentinel requests carry the name flag (#213)', () => {
     expect(sentBody(knownMock).ariaNameKnown).toBe(true);
   });
 });
+
+describe('sentinel requests carry the knowledge tier (#217)', () => {
+  it('sends tier 0 at the start and tier 2 once the name is known', async () => {
+    const fresh = stubFetch(vi.fn().mockResolvedValue(okResponse({ reply: 'x' })));
+    await requestSentinelReply(createInitialState(), 'hi');
+    expect(sentBody(fresh).tier).toBe(0);
+
+    const known = stubFetch(vi.fn().mockResolvedValue(okResponse({ reply: 'x' })));
+    await requestSentinelReply(
+      produce(createInitialState(), s => {
+        s.flags['ARIA_NAME_KNOWN'] = true;
+      }),
+      'hi',
+    );
+    expect(sentBody(known).tier).toBe(2);
+  });
+
+  it('sends the tier on the opening request too', async () => {
+    const trigger: ChannelTrigger = {
+      character: 'sentinel',
+      triggerType: 'trace_31',
+      context: { traceLevel: 31, currentNodeId: 'a', currentLayer: 3, recentCommands: [] },
+    };
+    const mock = stubFetch(vi.fn().mockResolvedValue(okResponse({ reply: 'x' })));
+    await requestSentinelOpening(trigger, createInitialState());
+    expect(sentBody(mock).tier).toBe(0);
+  });
+});
