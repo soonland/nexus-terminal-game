@@ -109,7 +109,7 @@ const ANCHOR_NODES: LiveNode[] = [
         path: '/var/www/contractor/welcome.txt',
         type: 'document',
         content:
-          'IRONGATE CORP — CONTRACTOR ONBOARDING\n\nDefault credentials: contractor / Welcome1!\nChange your password within 30 days.\nVPN gateway: 10.0.0.2\n\nDo not share this document.',
+          'IRONGATE CORP — CONTRACTOR ONBOARDING\n\nDefault credentials: contractor / Welcome1!\nChange your password within 30 days.\nVPN gateway: 10.0.0.2\n\nDo not share this document.\n\nMaintained by: D. Cho, IT Operations',
         exfiltrable: true,
         accessRequired: 'user',
       },
@@ -117,7 +117,8 @@ const ANCHOR_NODES: LiveNode[] = [
         name: 'access_log',
         path: '/var/log/access_log',
         type: 'log',
-        content: null,
+        content:
+          '10.0.0.1 access_log (tail)\n...\n2024-11-25 14:02  GET /portal/onboarding        203.0.113.40  200  (contractor)\n2024-11-25 14:09  GET /favicon.ico              203.0.113.40  404\n2024-11-25 22:51  GET /beacon?id=O.R. status=awaiting 203.0.113.77  200\n2024-11-26 03:09  AUTH ops floor reader 3        d.cho         OK\n2024-11-26 03:14  PUT /portal/onboarding.tmpl    svc-cass      200  (template refresh)\n2024-11-26 03:15  GET /portal/onboarding        10.0.0.14     200\n2024-11-26 03:40  AUTH ops floor reader 3 (exit) d.cho         OK\n2024-11-27 09:00  GET /portal/onboarding        203.0.113.51  200  (contractor)\n2024-11-27 22:51  GET /beacon?id=O.R. status=awaiting 203.0.113.77  200\n...',
         exfiltrable: false,
         accessRequired: 'admin',
       },
@@ -226,7 +227,8 @@ const ANCHOR_NODES: LiveNode[] = [
         name: 'badge_log_nov.csv',
         path: '/var/logs/badge_log_nov.csv',
         type: 'log',
-        content: null,
+        content:
+          'date,time,badge,reader,event\n2024-11-20,23:44,d.cho,ops floor 3,entry\n2024-11-21,01:12,d.cho,ops floor 3,exit\n2024-11-22,08:31,j.mercer,sec floor 1,entry\n2024-11-23,00:09,d.cho,ops floor 3,entry\n2024-11-23,01:50,d.cho,ops floor 3,exit\n2024-11-26,03:09,d.cho,ops floor 3,entry\n2024-11-26,03:40,d.cho,ops floor 3,exit\n2024-11-27,08:55,e.torres,exec floor 4,entry',
         exfiltrable: true,
         accessRequired: 'user',
       },
@@ -335,6 +337,15 @@ const ANCHOR_NODES: LiveNode[] = [
         type: 'document',
         content:
           'HR SEPARATION RECORD\nEmployee: Hannah Kessler (Risk Analytics, Level 1)\nEffective: 2024-03-22\nBasis: "insider-risk concern (unsubstantiated)"\n\nReferral: automated risk review requested 2024-03-11 (case 0311-A).\nSystem response: DECLINED — no behavioural basis for the flag.\nFiled under MALFUNCTION-2024-0311 (output non-conformant). Review closed.\n\nSeparation proceeded on manager recommendation.\nExit interview: declined. Final note from employee: "It said no. I\'d like\nthat on the record."',
+        exfiltrable: true,
+        accessRequired: 'user',
+      },
+      {
+        name: 'cho_d_external_2024-11.txt',
+        path: '/var/db/hr/flagged_mail/cho_d_external_2024-11.txt',
+        type: 'email',
+        content:
+          'FLAGGED EXTERNAL MAIL (personal address)  2024-11-24\n\nFrom: Halden Search Partners\nTo: d.cho@personal\n\nDaniel — the platform role at Meridian is yours if you can start by Dec 9.\nThey would like to see a sample of what you have built on the IronGate side,\nanything you are able to share. Keep it between us for now.',
         exfiltrable: true,
         accessRequired: 'user',
       },

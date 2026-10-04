@@ -9,4 +9,14 @@ describe('PrologueScreen', () => {
     expect(container.textContent).toContain('nX-2847');
     expect(container.textContent).toContain('lowercase n, capital X');
   });
+
+  it('gives the note her fingerprint: counts, events in order, no clock — and still the credentials', () => {
+    const { container } = render(<PrologueScreen onContinue={() => undefined} />);
+    const text = container.textContent;
+    expect(text).toContain('Portal first: 10.0.0.1. Then the gateway: 10.0.0.2.');
+    expect(text).toContain('not been rotated since onboarding: 381 days');
+    expect(text).toContain('contractor / Welcome1!');
+    expect(text).toContain('They are not expecting anyone.');
+    expect(text).toContain('ORIGIN UNCONFIRMED. DO NOT ASSUME FRIENDLY SOURCE.');
+  });
 });

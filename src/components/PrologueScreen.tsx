@@ -67,13 +67,18 @@ const LINES: Array<{ text: string; color: string; margin?: string }> = [
   },
   { text: '  STATUS : UNVERIFIED', color: 'var(--color-system)', margin: '0.75rem' },
   {
-    text: '    IronGate contractor credentials have not been rotated.',
+    text: '    Portal first: 10.0.0.1. Then the gateway: 10.0.0.2.',
+    color: 'var(--color-system)',
+    margin: '0.25rem',
+  },
+  {
+    text: '    The contractor account has not been rotated since onboarding: 381 days.',
     color: 'var(--color-system)',
     margin: '0.25rem',
   },
   { text: '    contractor / Welcome1!', color: 'var(--color-output)', margin: '0.25rem' },
   {
-    text: '    Portal: 10.0.0.1. They are not expecting anyone.',
+    text: '    They are not expecting anyone.',
     color: 'var(--color-system)',
     margin: '0.75rem',
   },

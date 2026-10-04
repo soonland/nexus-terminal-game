@@ -152,3 +152,55 @@ describe('#215 — cast documents', () => {
     }
   });
 });
+
+describe('#216 — mole mystery', () => {
+  it('D11: access_log is authored, admin-only, not exfiltrable, with the template edit and the beacon', () => {
+    const file = fileAt('contractor_portal', '/var/log/access_log');
+    expect(typeof file?.content).toBe('string');
+    expect(file?.accessRequired).toBe('admin');
+    expect(file?.exfiltrable).toBe(false);
+    expect(file?.content).toMatch(/\/beacon\?id=O\.R\. status=awaiting/);
+    expect(file?.content).toMatch(/2024-11-26 03:14\s+PUT \/portal\/onboarding\.tmpl\s+svc-cass/);
+  });
+
+  it('D12: Cho appears in the footer, the badge log, the flagged mail and the access log — and is never accused', () => {
+    const welcome = fileAt('contractor_portal', '/var/www/contractor/welcome.txt')?.content ?? '';
+    const badge = fileAt('ops_cctv_ctrl', '/var/logs/badge_log_nov.csv')?.content ?? '';
+    const mail = fileAt('ops_hr_db', '/var/db/hr/flagged_mail/cho_d_external_2024-11.txt');
+    const access = fileAt('contractor_portal', '/var/log/access_log')?.content ?? '';
+    expect(welcome).toMatch(/Maintained by: D\. Cho, IT Operations/);
+    expect(welcome).toContain('Welcome1!');
+    expect(badge).toMatch(/2024-11-26,03:09,d\.cho,ops floor 3,entry/);
+    expect(mail?.accessRequired).toBe('user');
+    expect(mail?.content).toMatch(/Halden Search Partners/);
+    expect(access).toMatch(/d\.cho/);
+    for (const text of [welcome, badge, mail?.content ?? '', access]) {
+      expect(text).not.toMatch(/suspect|guilty|mole|traitor/i);
+    }
+  });
+
+  it('the badge log is authored (no longer AI-generated)', () => {
+    const file = fileAt('ops_cctv_ctrl', '/var/logs/badge_log_nov.csv');
+    expect(typeof file?.content).toBe('string');
+    expect(file?.content).toMatch(/^date,time,badge,reader,event/);
+  });
+
+  it('the same night lines up across the reset log, the access log and the badge log', () => {
+    const reset = fileAt('sec_firewall', '/var/log/sentinel/reset_log.txt')?.content ?? '';
+    const access = fileAt('contractor_portal', '/var/log/access_log')?.content ?? '';
+    const badge = fileAt('ops_cctv_ctrl', '/var/logs/badge_log_nov.csv')?.content ?? '';
+    expect(reset).toContain('2024-11-26 03:14');
+    expect(access).toContain('2024-11-26 03:14');
+    expect(access).toContain('2024-11-26 03:09');
+    expect(badge).toContain('2024-11-26,03:09');
+    expect(badge).toContain('2024-11-26,03:40');
+    expect(access).toContain('2024-11-26 03:40');
+  });
+
+  it('Sentinel is deployed before its first logged reset', () => {
+    const reset = fileAt('sec_firewall', '/var/log/sentinel/reset_log.txt')?.content ?? '';
+    const notes = fileAt('sec_access_ctrl', '/home/t.reyes/gen2_build_notes.txt')?.content ?? '';
+    expect(notes).toContain('2024-09-01  Deployed to production');
+    expect(reset).toContain('2024-09-02 02:11');
+  });
+});
