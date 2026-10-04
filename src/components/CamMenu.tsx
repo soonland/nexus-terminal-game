@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { KeyboardEvent } from 'react';
-import { FLOORS, floorName } from '../data/cameras';
+import { FLOORS, floorAccent, floorName } from '../data/cameras';
 import type { ListedFeed } from '../engine/cameras';
 
 interface Props {
@@ -138,6 +138,10 @@ export const CamMenu = ({ feeds, selectedId, onSelect }: Props) => {
                 onClick={() => {
                   openFloor(floor.id, true);
                 }}>
+                <span
+                  className="cam-menu-swatch"
+                  style={{ background: `#${floorAccent(floor.id).toString(16).padStart(6, '0')}` }}
+                />
                 {`${floor.name.toUpperCase()} ▸`}
               </button>
             ))}
@@ -160,7 +164,7 @@ export const CamMenu = ({ feeds, selectedId, onSelect }: Props) => {
                     onSelect(feed.id);
                     closeToOpener();
                   }}>
-                  {feed.live ? feed.name : `${feed.name} — offline`}
+                  {feed.live ? feed.name : `${feed.name} — ${feed.locked ? 'locked' : 'offline'}`}
                 </button>
               ))}
             </div>

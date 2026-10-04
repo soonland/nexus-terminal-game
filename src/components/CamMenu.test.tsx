@@ -5,9 +5,9 @@ import { CamMenu } from './CamMenu';
 import { CAMERA_FEEDS } from '../data/cameras';
 
 const feedsUpTo = (layer: number) =>
-  CAMERA_FEEDS.flatMap(f => {
+  CAMERA_FEEDS.map(f => {
     const live = layer >= f.unlockLayer;
-    return live || f.offlineReason !== null ? [{ ...f, live, locked: false }] : [];
+    return { ...f, live, locked: !live && f.offlineReason === null };
   });
 
 const setup = (layer = 1, selectedId = 'lobby-reception') => {
@@ -31,25 +31,6 @@ describe('CamMenu', () => {
     setup();
     expect(opener().getAttribute('aria-expanded')).toBe('false');
     expect(screen.queryByRole('menu')).toBeNull();
-  });
-
-  it('lists only floors that have a listed camera, in order', () => {
-    setup(1);
-    fireEvent.click(opener());
-    expect(floorNames()).toEqual(['GROUND FLOOR', 'OPERATIONS', 'EXECUTIVE']);
-  });
-
-  it('adds floors as layers are reached', () => {
-    setup(5);
-    fireEvent.click(opener());
-    expect(floorNames()).toEqual([
-      'GROUND FLOOR',
-      'OPERATIONS',
-      'SECURITY',
-      'FINANCE',
-      'EXECUTIVE',
-      'SUB-LEVEL B',
-    ]);
   });
 
   it("opens with the current floor's cameras beside the floor list", () => {
@@ -151,8 +132,44 @@ describe('CamMenu', () => {
     expect(document.activeElement).toBe(operations);
   });
 
+  it('lists every floor from the start, locked or not', () => {
+    setup(1);
+    fireEvent.click(opener());
+    expect(floorNames()).toEqual([
+      'GROUND FLOOR',
+      'OPERATIONS',
+      'SECURITY',
+      'FINANCE',
+      'EXECUTIVE',
+      'SUB-LEVEL B',
+    ]);
+  });
+
+  it('marks locked cameras "locked" and disabled ones "offline", both dimmed, and they stay selectable', () => {
+    const { onSelect } = setup(1);
+    fireEvent.click(opener());
+    fireEvent.mouseEnter(floorItem(/SECURITY/));
+    const office = screen.getByRole('menuitemradio', { name: /Security office/ });
+    expect(office.textContent).toContain('locked');
+    expect(office.className).toContain('cam-menu-off');
+    fireEvent.mouseEnter(floorItem(/EXECUTIVE/));
+    expect(screen.getByRole('menuitemradio', { name: /Executive corridor/ }).textContent).toContain(
+      'offline',
+    );
+    fireEvent.mouseEnter(floorItem(/SECURITY/));
+    fireEvent.click(screen.getByRole('menuitemradio', { name: /Security office/ }));
+    expect(onSelect).toHaveBeenCalledWith('security-office');
+  });
+
+  it("shows each floor's accent colour as a swatch", () => {
+    setup(1);
+    fireEvent.click(opener());
+    const swatch = floorItem(/OPERATIONS/).querySelector<HTMLElement>('.cam-menu-swatch');
+    expect(swatch?.style.background).toMatch(/rgb\(237, 137, 54\)|#ed8936/i);
+  });
+
   it('shows a neutral label when the selected camera is no longer listed', () => {
-    setup(1, 'finance-floor');
+    setup(1, 'no-such-camera');
     expect(screen.getByRole('button', { name: /CAMERAS/ })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: /CAMERAS/ }));
     expect(within(screen.getByRole('menu')).getAllByRole('menuitem').length).toBeGreaterThan(0);
