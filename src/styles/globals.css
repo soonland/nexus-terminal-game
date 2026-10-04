@@ -738,6 +738,10 @@ button.case-source {
   color: var(--color-system);
 }
 
+.case-owner {
+  opacity: 0.7;
+}
+
 .case-timeline-entry {
   display: flex;
   gap: 10px;
