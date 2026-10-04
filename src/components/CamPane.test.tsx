@@ -12,6 +12,10 @@ vi.mock('./cam/render', () => ({
   startFeed: (...args: unknown[]) => startFeed(...args) as unknown,
 }));
 
+const FEEDS = CAMERA_FEEDS.filter(f =>
+  ['lobby-reception', 'server-aisle', 'executive-corridor'].includes(f.id),
+).map(f => ({ ...f, live: f.offlineReason === null }));
+
 beforeEach(() => {
   stop.mockReset();
   setPaused.mockReset();
@@ -25,7 +29,7 @@ const setup = (over: { visible?: boolean } = {}) => {
   const onToggleFullscreen = vi.fn();
   const view = render(
     <CamPane
-      feeds={CAMERA_FEEDS}
+      feeds={FEEDS}
       visible={over.visible ?? true}
       fullscreen={false}
       onToggleFullscreen={onToggleFullscreen}
@@ -39,12 +43,16 @@ describe('CamPane', () => {
     setup();
     await screen.findByTestId('cam-canvas');
     await vi.waitFor(() => {
-      expect(startFeed).toHaveBeenCalledWith(screen.getByTestId('cam-canvas'), 'cam_01', false);
+      expect(startFeed).toHaveBeenCalledWith(
+        screen.getByTestId('cam-canvas'),
+        { scene: 'lobby', mount: 0 },
+        false,
+      );
     });
     expect(screen.getByTestId('cam-timestamp').textContent).toMatch(
       /^2024-11-27 \d{2}:\d{2}:\d{2}$/,
     );
-    expect(screen.getByText('CAM 01 — LOBBY')).toBeTruthy();
+    expect(screen.getByText('GROUND FLOOR — LOBBY (RECEPTION)')).toBeTruthy();
   });
 
   it('switches feeds, stopping the previous one', async () => {
@@ -52,19 +60,37 @@ describe('CamPane', () => {
     await vi.waitFor(() => {
       expect(startFeed).toHaveBeenCalledTimes(1);
     });
-    fireEvent.click(screen.getByRole('button', { name: 'CAM 02' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Server room (aisle)' }));
     await vi.waitFor(() => {
       expect(startFeed).toHaveBeenCalledTimes(2);
     });
-    expect(startFeed.mock.calls[1]?.[1]).toBe('cam_02');
+    expect(startFeed.mock.calls[1]?.[1]).toEqual({ scene: 'serverRoom', mount: 0 });
     expect(stop).toHaveBeenCalledTimes(1);
   });
 
-  it('shows the offline card for the disabled feed, with no renderer', () => {
+  it('shows the offline card for a disabled feed, with no renderer', () => {
     setup();
-    fireEvent.click(screen.getByRole('button', { name: 'CAM 03' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Executive corridor' }));
     expect(screen.getByTestId('cam-offline').textContent).toContain('FEED DISABLED — CEO OFFICE');
     expect(screen.queryByTestId('cam-canvas')).toBeNull();
+  });
+
+  it('swaps the card for the scene when the selected feed goes live', async () => {
+    const view = setup();
+    await vi.waitFor(() => {
+      expect(startFeed).toHaveBeenCalledTimes(1);
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Executive corridor' }));
+    expect(screen.getByTestId('cam-offline')).toBeTruthy();
+    expect(startFeed).toHaveBeenCalledTimes(1);
+
+    const live = FEEDS.map(f => ({ ...f, live: true }));
+    view.rerender(<CamPane feeds={live} visible fullscreen={false} onToggleFullscreen={vi.fn()} />);
+    expect(screen.queryByTestId('cam-offline')).toBeNull();
+    await vi.waitFor(() => {
+      expect(startFeed).toHaveBeenCalledTimes(2);
+    });
+    expect(startFeed.mock.calls[1]?.[1]).toEqual({ scene: 'executiveFloor', mount: 0 });
   });
 
   it('shows NO SIGNAL when WebGL is unavailable', async () => {
@@ -81,16 +107,11 @@ describe('CamPane', () => {
       expect(startFeed).toHaveBeenCalled();
     });
     view.rerender(
-      <CamPane
-        feeds={CAMERA_FEEDS}
-        visible={false}
-        fullscreen={false}
-        onToggleFullscreen={vi.fn()}
-      />,
+      <CamPane feeds={FEEDS} visible={false} fullscreen={false} onToggleFullscreen={vi.fn()} />,
     );
     expect(setPaused).toHaveBeenLastCalledWith(true);
     view.rerender(
-      <CamPane feeds={CAMERA_FEEDS} visible fullscreen={false} onToggleFullscreen={vi.fn()} />,
+      <CamPane feeds={FEEDS} visible fullscreen={false} onToggleFullscreen={vi.fn()} />,
     );
     expect(setPaused).toHaveBeenLastCalledWith(false);
   });

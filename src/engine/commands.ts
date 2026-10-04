@@ -14,7 +14,8 @@ import { ariaTier } from './aiTiers';
 import { latchNexusMessages } from './nexusLine';
 import { appendAriaExchange } from './ariaChannel';
 import { ARIA_CORE_NODE_ID, SELF_MODEL_PATH, markNoteRevealed } from './noteReveal';
-import { CAMERA_FEEDS } from '../data/cameras';
+import { CCTV_NODE_ID, floorName } from '../data/cameras';
+import { cameraFeeds } from './cameras';
 import { ARIA_NAME_FLAG, SENTINEL_VOTE_PATH, isAriaNameKnown, markAriaNameKnown } from './ariaName';
 import { detectChannelTrigger, isChannelBlocked, layerReachedFlag } from './channel';
 
@@ -2017,21 +2018,31 @@ const cmdUnlock = (args: string[], state: GameState): UnlockResult => {
 };
 
 // ── view-cam ─────────────────────────────────────────────
-// Authored, like the CAM tab's footage: both read the same feed data, so they cannot disagree.
+// Authored, like the CAM tab's footage: both read the same feed list, so they cannot disagree.
+// Feeds are available from any node while a session is held on the controller, and the controller
+// enables more of them as the player reaches deeper layers. A camera is named by id or by an alias.
 const cmdViewCam = (args: string[], state: GameState): CommandOutput => {
-  if (!args[0]) return { lines: [err('Usage: view-cam [cam_01|cam_02|cam_03]')] };
+  if (!args[0]) return { lines: [err('Usage: view-cam <camera>')] };
 
-  const node = currentNode(state);
-  if (node.id !== 'ops_cctv_ctrl') {
-    return { lines: [err('No camera feed available from this node.')] };
-  }
-  if (node.accessLevel === 'none') {
-    return { lines: [err('Permission denied — not authenticated')] };
+  const feeds = cameraFeeds(state);
+  if (feeds.length === 0) {
+    const here = currentNode(state);
+    return {
+      lines: [
+        err(
+          here.id === CCTV_NODE_ID
+            ? 'Permission denied — not authenticated'
+            : 'No camera feed available — you hold no session on the CCTV controller.',
+        ),
+      ],
+    };
   }
 
-  const cam = CAMERA_FEEDS.find(f => f.id === args[0]);
+  const wanted = args[0];
+  const cam = feeds.find(f => f.id === wanted || f.aliases.includes(wanted));
   if (!cam) {
-    return { lines: [err(`Unknown camera: ${args[0]}. Known cameras: cam_01, cam_02, cam_03`)] };
+    const known = feeds.map(f => f.id).join(', ');
+    return { lines: [err(`Unknown camera: ${wanted}. Known cameras: ${known}`)] };
   }
 
   const nextState =
@@ -2039,8 +2050,10 @@ const cmdViewCam = (args: string[], state: GameState): CommandOutput => {
 
   const lines: Out = [
     sep(),
-    line(`// CCTV — ${cam.id.toUpperCase()} — ${cam.label.toUpperCase()}`, 'aria'),
-    ...(cam.offlineReason ?? cam.description).split('\n').map(l => line(l, 'aria')),
+    line(`// CCTV — ${floorName(cam.floor).toUpperCase()} — ${cam.name.toUpperCase()}`, 'aria'),
+    ...(cam.live ? cam.description : (cam.offlineReason ?? ''))
+      .split('\n')
+      .map(l => line(l, 'aria')),
     sep(),
   ];
 

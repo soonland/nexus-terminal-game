@@ -10,10 +10,10 @@ export interface FeedScene {
   update: (t: number) => void;
 }
 
-// The offline feed has no scene: the viewer shows a card instead.
-export const buildScene = (id: CameraFeed['id']): FeedScene | null => {
-  if (id === 'cam_01') return buildLobby();
-  if (id === 'cam_02') return buildServerRoom();
+// The offline feeds still map to a scene: whether a feed is live is the engine's decision.
+export const buildScene = (feed: Pick<CameraFeed, 'scene' | 'mount'>): FeedScene | null => {
+  if (feed.scene === 'lobby') return buildLobby();
+  if (feed.scene === 'serverRoom') return buildServerRoom();
   return null;
 };
 

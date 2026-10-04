@@ -13,11 +13,11 @@ const MAX_PIXEL_RATIO = 1.5;
 // turns that into the NO SIGNAL card.
 export const startFeed = (
   canvas: HTMLCanvasElement,
-  id: CameraFeed['id'],
+  feed: Pick<CameraFeed, 'scene' | 'mount'>,
   reducedMotion: boolean,
 ): FeedHandle => {
-  const built = buildScene(id);
-  if (built === null) throw new Error(`feed ${id} has no scene`);
+  const built = buildScene(feed);
+  if (built === null) throw new Error(`feed ${feed.scene} has no scene`);
   const renderer = new WebGLRenderer({ canvas, antialias: false });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, MAX_PIXEL_RATIO));
 

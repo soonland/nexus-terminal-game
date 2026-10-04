@@ -12,7 +12,7 @@ const meshCount = (root: { traverse: (cb: (o: object) => void) => void }): numbe
 
 describe('camera scenes', () => {
   it('builds the lobby with geometry and an update function', () => {
-    const built = buildScene('cam_01');
+    const built = buildScene({ scene: 'lobby', mount: 0 });
     expect(built).not.toBeNull();
     expect(meshCount(built!.scene)).toBeGreaterThan(60);
     expect(() => {
@@ -22,7 +22,7 @@ describe('camera scenes', () => {
   });
 
   it('keeps every lobby object inside the room', () => {
-    const built = buildScene('cam_01')!;
+    const built = buildScene({ scene: 'lobby', mount: 0 })!;
     built.scene.updateMatrixWorld(true);
     const box = new Box3().setFromObject(built.scene);
     expect(box.min.x).toBeGreaterThanOrEqual(-9);
@@ -32,7 +32,7 @@ describe('camera scenes', () => {
   });
 
   it('builds the server room with racks and blinking LEDs', () => {
-    const built = buildScene('cam_02');
+    const built = buildScene({ scene: 'serverRoom', mount: 0 });
     expect(meshCount(built!.scene)).toBeGreaterThan(200);
     expect(() => {
       built!.update(3.3);
@@ -40,7 +40,7 @@ describe('camera scenes', () => {
   });
 
   it('keeps every server-room object inside the room', () => {
-    const built = buildScene('cam_02')!;
+    const built = buildScene({ scene: 'serverRoom', mount: 0 })!;
     built.scene.updateMatrixWorld(true);
     const box = new Box3().setFromObject(built.scene);
     expect(box.min.x).toBeGreaterThanOrEqual(-7.5);
@@ -49,12 +49,8 @@ describe('camera scenes', () => {
     expect(box.min.z).toBeGreaterThanOrEqual(-12.5);
   });
 
-  it('has no scene for the offline executive-floor feed', () => {
-    expect(buildScene('cam_03')).toBeNull();
-  });
-
   it('pans the lobby camera in place: the view turns, the camera does not move', () => {
-    const built = buildScene('cam_01')!;
+    const built = buildScene({ scene: 'lobby', mount: 0 })!;
     built.update(0);
     const from = built.camera.getWorldDirection(new Vector3()).x;
     const position = built.camera.position.clone();
@@ -64,7 +60,7 @@ describe('camera scenes', () => {
   });
 
   it('pans the server-room camera in place too', () => {
-    const built = buildScene('cam_02')!;
+    const built = buildScene({ scene: 'serverRoom', mount: 0 })!;
     built.update(0);
     const from = built.camera.getWorldDirection(new Vector3()).x;
     built.update(10);
@@ -72,7 +68,7 @@ describe('camera scenes', () => {
   });
 
   it('disposes geometries and materials without throwing', () => {
-    const built = buildScene('cam_02')!;
+    const built = buildScene({ scene: 'serverRoom', mount: 0 })!;
     expect(() => {
       disposeScene(built.scene);
     }).not.toThrow();

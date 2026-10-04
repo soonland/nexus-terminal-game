@@ -3735,6 +3735,61 @@ describe('view-cam command', () => {
     expect(result.lines.map(l => l.content).join('\n')).toContain('FEED DISABLED — CEO OFFICE');
   });
 
+  const deepState = (nodeIds: string[], current: string): GameState =>
+    produce(createInitialState(), draft => {
+      for (const id of nodeIds) draft.network.nodes[id]!.accessLevel = 'user';
+      draft.network.currentNodeId = current;
+    });
+  const text = (lines: { content: string }[]) => lines.map(l => l.content).join('\n');
+
+  it('works from another node while a session is held on the controller', async () => {
+    const s = deepState(['ops_cctv_ctrl', 'ops_hr_db'], 'ops_hr_db');
+    const result = await resolveCommand('view-cam lobby-reception', s);
+    expect(result.lines.some(l => l.type === 'error')).toBe(false);
+    expect(text(result.lines)).toContain('Main lobby, night');
+    expect(text(result.lines)).toContain('GROUND FLOOR — LOBBY (RECEPTION)');
+  });
+
+  it('accepts the old numbered alias', async () => {
+    const result = await resolveCommand(
+      'view-cam cam_02',
+      deepState(['ops_cctv_ctrl'], 'ops_cctv_ctrl'),
+    );
+    expect(text(result.lines)).toContain('Server room');
+  });
+
+  it('shows a newly unlocked camera once its layer is reached', async () => {
+    const s = deepState(['ops_cctv_ctrl', 'sec_access_ctrl'], 'sec_access_ctrl');
+    const result = await resolveCommand('view-cam security-office', s);
+    expect(text(result.lines)).toContain('Security operations office');
+  });
+
+  it('does not reveal a camera that is not unlocked yet', async () => {
+    const s = deepState(['ops_cctv_ctrl'], 'ops_cctv_ctrl');
+    const result = await resolveCommand('view-cam finance-floor', s);
+    expect(result.lines.some(l => l.type === 'error')).toBe(true);
+    expect(text(result.lines)).toContain('Unknown camera: finance-floor');
+    expect(text(result.lines)).toContain('lobby-reception');
+    expect(text(result.lines)).not.toContain('security-office');
+    expect(text(result.lines)).not.toContain('finance floor');
+  });
+
+  it('shows the live executive cameras once layer 4 is held, still at +1 trace', async () => {
+    const s = deepState(['ops_cctv_ctrl', 'exec_cfo'], 'exec_cfo');
+    const corridor = await resolveCommand('view-cam executive-corridor', s);
+    expect(text(corridor.lines)).toContain('Executive floor corridor');
+    expect(text(corridor.lines)).not.toContain('FEED DISABLED');
+    expect((corridor.nextState as GameState).player.trace).toBe(s.player.trace + 1);
+    const office = await resolveCommand('view-cam executive-office', s);
+    expect(text(office.lines)).toContain('Corner office');
+  });
+
+  it('refuses when no session is held on the controller, wherever the player is', async () => {
+    const s = deepState(['sec_access_ctrl'], 'sec_access_ctrl');
+    const result = await resolveCommand('view-cam lobby-reception', s);
+    expect(result.lines.some(l => l.type === 'error')).toBe(true);
+  });
+
   it('should show usage hint when no camera ID provided', async () => {
     const s = cctvState();
     const result = await resolveCommand('view-cam', s);

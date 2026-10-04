@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import type { CameraFeed } from '../data/cameras';
+import { floorName } from '../data/cameras';
+import type { ListedFeed } from '../engine/cameras';
 
 interface Props {
-  feeds: readonly CameraFeed[];
+  feeds: readonly ListedFeed[];
   // False while the aux pane is hidden (another pane zoomed, another narrow tab).
   visible: boolean;
   fullscreen: boolean;
@@ -29,8 +30,6 @@ const writeNightVision = (on: boolean): void => {
   }
 };
 
-const camNumber = (feed: CameraFeed): string => feed.id.slice(-2);
-
 // The story's date with the real time of day: decoration, not game time.
 const readStamp = (): string => `${STORY_DATE} ${new Date().toTimeString().slice(0, 8)}`;
 
@@ -53,9 +52,10 @@ interface FeedHandleLike {
 }
 
 // three.js is loaded on first use, so the main bundle never carries it.
-const Canvas = ({ feed, visible }: { feed: CameraFeed; visible: boolean }) => {
+const Canvas = ({ feed, visible }: { feed: ListedFeed; visible: boolean }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const handleRef = useRef<FeedHandleLike | null>(null);
+  const { id, scene, mount } = feed;
   const visibleRef = useRef(visible);
   const [failed, setFailed] = useState(false);
 
@@ -71,7 +71,7 @@ const Canvas = ({ feed, visible }: { feed: CameraFeed; visible: boolean }) => {
         const canvas = canvasRef.current;
         if (cancelled || canvas === null) return;
         const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-        const handle = startFeed(canvas, feed.id, reduced);
+        const handle = startFeed(canvas, { scene, mount }, reduced);
         handle.setPaused(!visibleRef.current);
         handleRef.current = handle;
       })
@@ -83,7 +83,7 @@ const Canvas = ({ feed, visible }: { feed: CameraFeed; visible: boolean }) => {
       handleRef.current?.stop();
       handleRef.current = null;
     };
-  }, [feed.id]);
+  }, [id, scene, mount]);
 
   if (failed) {
     return (
@@ -114,7 +114,7 @@ export const CamPane = ({ feeds, visible, fullscreen, onToggleFullscreen }: Prop
             onClick={() => {
               setSelected(f.id);
             }}>
-            {`CAM ${camNumber(f)}`}
+            {f.name}
           </button>
         ))}
         <button
@@ -132,15 +132,15 @@ export const CamPane = ({ feeds, visible, fullscreen, onToggleFullscreen }: Prop
         </button>
       </div>
       <div className={nightVision ? 'cam-stage cam-nv' : 'cam-stage'} data-testid="cam-stage">
-        {feed.offlineReason === null ? (
+        {feed.live ? (
           <Canvas key={feed.id} feed={feed} visible={visible} />
         ) : (
           <div className="cam-card cam-static" data-testid="cam-offline">
-            {feed.offlineReason}
+            {feed.offlineReason ?? 'NO SIGNAL'}
           </div>
         )}
         <div className="cam-overlay" aria-hidden="true">
-          <span className="cam-id">{`CAM ${camNumber(feed)} — ${feed.label.toUpperCase()}`}</span>
+          <span className="cam-id">{`${floorName(feed.floor)} — ${feed.name}`.toUpperCase()}</span>
           <span className="cam-rec">REC ●</span>
           <span className="cam-stamp" data-testid="cam-timestamp">
             {stamp}
