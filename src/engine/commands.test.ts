@@ -1173,6 +1173,22 @@ describe('resolveCommand — cat', () => {
     expect((result.nextState as GameState).player.trace).toBe(25);
   });
 
+  // A file whose content still has to be generated, on contractor_portal (admin only).
+  // Injected so these tests do not depend on which anchor files happen to be AI-generated.
+  const withPendingFile = (): GameState =>
+    produce(createInitialState(), s => {
+      const node = s.network.nodes['contractor_portal']!;
+      node.accessLevel = 'admin';
+      node.files.push({
+        name: 'pending_audit.log',
+        path: '/var/log/pending_audit.log',
+        type: 'log',
+        content: null,
+        exfiltrable: false,
+        accessRequired: 'admin',
+      });
+    });
+
   it('should fetch and display generated content for files with null content', async () => {
     vi.stubGlobal(
       'fetch',
@@ -1181,11 +1197,9 @@ describe('resolveCommand — cat', () => {
         json: vi.fn().mockResolvedValue({ content: '[MOCK FILE CONTENT]' }),
       }),
     );
-    // access_log has null content but requires admin
-    const withAdmin = produce(createInitialState(), s => {
-      s.network.nodes['contractor_portal']!.accessLevel = 'admin';
-    });
-    const result = await resolveCommand('cat access_log', withAdmin);
+    // a file whose content still has to be generated (admin only)
+    const withAdmin = withPendingFile();
+    const result = await resolveCommand('cat pending_audit.log', withAdmin);
     const contents = result.lines.map(l => l.content);
     expect(contents.some(c => c.includes('MOCK FILE CONTENT'))).toBe(true);
   });
@@ -1197,9 +1211,7 @@ describe('resolveCommand — cat', () => {
   });
 
   it('should cache generated content in nextState so a second cat skips the API', async () => {
-    const withAdmin = produce(createInitialState(), s => {
-      s.network.nodes['contractor_portal']!.accessLevel = 'admin';
-    });
+    const withAdmin = withPendingFile();
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue({
@@ -1208,10 +1220,10 @@ describe('resolveCommand — cat', () => {
       }),
     );
 
-    const first = await resolveCommand('cat access_log', withAdmin);
+    const first = await resolveCommand('cat pending_audit.log', withAdmin);
     const cachedState = first.nextState as GameState;
     const node = cachedState.network.nodes['contractor_portal']!;
-    const file = node.files.find(f => f.name === 'access_log')!;
+    const file = node.files.find(f => f.name === 'pending_audit.log')!;
     expect(file.content).toBe('[CACHED CONTENT]');
 
     // Second call uses the cached state — fetch must not be called again
@@ -1220,23 +1232,21 @@ describe('resolveCommand — cat', () => {
       json: vi.fn().mockResolvedValue({ content: '[SHOULD NOT BE FETCHED]' }),
     });
     vi.stubGlobal('fetch', fetchMock);
-    const second = await resolveCommand('cat access_log', cachedState);
+    const second = await resolveCommand('cat pending_audit.log', cachedState);
     expect(fetchMock).not.toHaveBeenCalled();
     const secondContents = second.lines.map(l => l.content);
     expect(secondContents.some(c => c.includes('[CACHED CONTENT]'))).toBe(true);
   });
 
   it('should POST to /api/file with the correct fields', async () => {
-    const withAdmin = produce(createInitialState(), s => {
-      s.network.nodes['contractor_portal']!.accessLevel = 'admin';
-    });
+    const withAdmin = withPendingFile();
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: vi.fn().mockResolvedValue({ content: '[GENERATED]' }),
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    await resolveCommand('cat access_log', withAdmin);
+    await resolveCommand('cat pending_audit.log', withAdmin);
 
     expect(fetchMock).toHaveBeenCalledOnce();
     const [url, init] = fetchMock.mock.calls[0];
@@ -1245,8 +1255,8 @@ describe('resolveCommand — cat', () => {
 
     const posted = JSON.parse(init.body);
     expect(posted.nodeId).toBe('contractor_portal');
-    expect(posted.fileName).toBe('access_log');
-    expect(posted.filePath).toBe('/var/log/access_log');
+    expect(posted.fileName).toBe('pending_audit.log');
+    expect(posted.filePath).toBe('/var/log/pending_audit.log');
     expect(posted.fileType).toBe('log');
     expect(posted.ownerLabel).toBe('CONTRACTOR PORTAL');
     expect(posted.ownerTemplate).toBe('web_server');
@@ -1255,20 +1265,16 @@ describe('resolveCommand — cat', () => {
   });
 
   it('should use fallback content when fetch throws a network error', async () => {
-    const withAdmin = produce(createInitialState(), s => {
-      s.network.nodes['contractor_portal']!.accessLevel = 'admin';
-    });
+    const withAdmin = withPendingFile();
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('Network failure')));
 
-    const result = await resolveCommand('cat access_log', withAdmin);
+    const result = await resolveCommand('cat pending_audit.log', withAdmin);
     const contents = result.lines.map(l => l.content);
     expect(contents.some(c => c.includes('FILE CONTENT UNAVAILABLE'))).toBe(true);
   });
 
   it('should use fallback content when API response has no content field', async () => {
-    const withAdmin = produce(createInitialState(), s => {
-      s.network.nodes['contractor_portal']!.accessLevel = 'admin';
-    });
+    const withAdmin = withPendingFile();
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue({
@@ -1277,23 +1283,21 @@ describe('resolveCommand — cat', () => {
       }),
     );
 
-    const result = await resolveCommand('cat access_log', withAdmin);
+    const result = await resolveCommand('cat pending_audit.log', withAdmin);
     const contents = result.lines.map(l => l.content);
     expect(contents.some(c => c.includes('FILE CONTENT UNAVAILABLE'))).toBe(true);
   });
 
   it('should derive division "entry" for layer 0 nodes', async () => {
     // contractor_portal is layer 0 → division should be "entry"
-    const withAdmin = produce(createInitialState(), s => {
-      s.network.nodes['contractor_portal']!.accessLevel = 'admin';
-    });
+    const withAdmin = withPendingFile();
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: vi.fn().mockResolvedValue({ content: '[OK]' }),
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    await resolveCommand('cat access_log', withAdmin);
+    await resolveCommand('cat pending_audit.log', withAdmin);
 
     const posted = JSON.parse(fetchMock.mock.calls[0][1].body);
     expect(posted.division).toBe('entry');
