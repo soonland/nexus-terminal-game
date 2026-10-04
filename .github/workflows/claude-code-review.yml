@@ -1,12 +1,19 @@
 name: Claude Code Review
 
+# Opt-in: a PR is reviewed only while it carries the `claude-review` label. `labeled` is a trigger
+# so adding the label to an open PR starts a review; every later push is reviewed while the label
+# stays. Remove the label to stop.
 on:
   pull_request:
-    types: [opened, synchronize, ready_for_review, reopened]
+    types: [opened, synchronize, ready_for_review, reopened, labeled]
 
 jobs:
   claude-review:
-    if: github.event.pull_request.author_association == 'OWNER'
+    # Owner-authored PRs only. Adding some other label (the event is `labeled`) must not re-run it.
+    if: |
+      github.event.pull_request.author_association == 'OWNER' &&
+      contains(github.event.pull_request.labels.*.name, 'claude-review') &&
+      (github.event.action != 'labeled' || github.event.label.name == 'claude-review')
 
     runs-on: ubuntu-latest
     permissions:
