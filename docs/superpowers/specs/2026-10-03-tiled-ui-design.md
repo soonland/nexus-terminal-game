@@ -94,8 +94,10 @@ screens, not workspaces. Their contents are unchanged.
   (focus marker `*`, zoom marker `Z`). Trace colour comes from the existing `getTraceLevel`.
 - Style: one palette and one monospace font family across panes (`var(--font-mono)` throughout,
   no `system-ui` title bars), using the existing CSS custom properties so all themes work.
-  The photo wallpaper stays on pre-game screens only. The final look (phosphor, flat, glow) is
-  tuned in PR 3 with screenshots; PRs 1–2 use flat dark panes.
+  The photo wallpaper is behind everything: pre-game screens (welcome, prologue, the bare login
+  terminal) sit on it under a heavy tint, and the tiled panes are translucent glass (`--glass`,
+  blurred) over a lighter tint of the same photo (`--desktop-backdrop-tiled`). Overlays stay opaque.
+  (PRs 1–2 used flat opaque panes; the glass look came after, from player feedback.)
 
 ### Shortcuts and input routing
 
