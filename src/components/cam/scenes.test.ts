@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { Mesh, Vector3 } from 'three';
+import { Box3, Mesh, Vector3 } from 'three';
 import { buildScene, disposeScene } from './scenes';
 
 const meshCount = (root: { traverse: (cb: (o: object) => void) => void }): number => {
@@ -14,11 +14,21 @@ describe('camera scenes', () => {
   it('builds the lobby with geometry and an update function', () => {
     const built = buildScene('cam_01');
     expect(built).not.toBeNull();
-    expect(meshCount(built!.scene)).toBeGreaterThan(4);
+    expect(meshCount(built!.scene)).toBeGreaterThan(60);
     expect(() => {
       built!.update(0);
       built!.update(12.5);
     }).not.toThrow();
+  });
+
+  it('keeps every lobby object inside the room', () => {
+    const built = buildScene('cam_01')!;
+    built.scene.updateMatrixWorld(true);
+    const box = new Box3().setFromObject(built.scene);
+    expect(box.min.x).toBeGreaterThanOrEqual(-9);
+    expect(box.max.x).toBeLessThanOrEqual(9);
+    expect(box.max.y).toBeLessThanOrEqual(5);
+    expect(box.min.z).toBeGreaterThanOrEqual(-10);
   });
 
   it('builds the server room with racks and blinking LEDs', () => {

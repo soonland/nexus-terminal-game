@@ -1,85 +1,22 @@
 import {
   AmbientLight,
   BoxGeometry,
-  Color,
-  Fog,
   Mesh,
   MeshBasicMaterial,
-  MeshStandardMaterial,
   PerspectiveCamera,
-  PlaneGeometry,
   PointLight,
-  Scene,
 } from 'three';
-import type { Object3D } from 'three';
+import type { Object3D, Scene } from 'three';
 import type { CameraFeed } from '../../data/cameras';
+import { buildLobby } from './lobby';
 import { panAngle } from './pan';
+import { ASPECT, base, box, floor } from './shapes';
 
 export interface FeedScene {
   scene: Scene;
   camera: PerspectiveCamera;
   update: (t: number) => void;
 }
-
-const ASPECT = 16 / 9;
-
-const base = (background: number, fogNear: number, fogFar: number): Scene => {
-  const scene = new Scene();
-  scene.background = new Color(background);
-  scene.fog = new Fog(background, fogNear, fogFar);
-  return scene;
-};
-
-const floor = (width: number, depth: number, color: number): Mesh => {
-  const mesh = new Mesh(
-    new PlaneGeometry(width, depth),
-    new MeshStandardMaterial({ color, roughness: 0.9 }),
-  );
-  mesh.rotation.x = -Math.PI / 2;
-  return mesh;
-};
-
-const box = (
-  w: number,
-  h: number,
-  d: number,
-  color: number,
-  x: number,
-  y: number,
-  z: number,
-): Mesh => {
-  const mesh = new Mesh(new BoxGeometry(w, h, d), new MeshStandardMaterial({ color }));
-  mesh.position.set(x, y, z);
-  return mesh;
-};
-
-// An empty lobby at night: a slow camera sweep and one tired ceiling light.
-const buildLobby = (): FeedScene => {
-  const scene = base(0x05080a, 6, 22);
-  scene.add(new AmbientLight(0x88aacc, 1.6));
-  const light = new PointLight(0xcfe8ff, 60, 18);
-  light.position.set(0, 3.2, -3);
-  scene.add(light);
-
-  scene.add(floor(14, 14, 0x1a2228));
-  scene.add(box(14, 4, 0.2, 0x222c33, 0, 2, -7));
-  for (const x of [-4.5, -1.5, 1.5, 4.5]) scene.add(box(0.5, 4, 0.5, 0x2c3a42, x, 2, -4));
-  scene.add(box(4, 1.1, 1, 0x30404a, 0, 0.55, -5.4)); // reception desk
-  scene.add(box(1.2, 0.5, 1.2, 0x303a30, -5, 0.25, -1)); // a bench
-
-  const camera = new PerspectiveCamera(60, ASPECT, 0.1, 40);
-  camera.position.set(0, 2.6, 5);
-  const update = (t: number) => {
-    // The camera stays on its mount and turns, holding for a moment at each end.
-    const yaw = panAngle(t, 0.6, 7, 2.5);
-    camera.lookAt(Math.sin(yaw) * 10, 1.2, camera.position.z - Math.cos(yaw) * 10);
-    // Mostly steady, with an occasional stutter.
-    const stutter = Math.sin(t * 23) * Math.sin(t * 3.1) > 0.92 ? 0.3 : 1;
-    light.intensity = 60 * stutter;
-  };
-  update(0);
-  return { scene, camera, update };
-};
 
 interface Led {
   material: MeshBasicMaterial;
