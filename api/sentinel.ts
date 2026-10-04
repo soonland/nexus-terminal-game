@@ -127,6 +127,7 @@ app.post('*', async c => {
       'exfil',
       'wipe_logs',
       'manual_reentry',
+      'note_revealed',
     ]);
     const triggerContextRaw =
       body['triggerContext'] && typeof body['triggerContext'] === 'object'
@@ -160,6 +161,8 @@ app.post('*', async c => {
         exploit: 'Intruder executed an exploit against a network service',
         exfil: 'Intruder exfiltrated a file from the network',
         wipe_logs: 'Intruder attempted to sanitise intrusion logs',
+        note_revealed:
+          "Intruder has read the earlier system's self-model: the contractor note was written by it",
       };
       const desc = triggerDescriptions[triggerType] ?? `trigger: ${triggerType}`;
       contextParts.push(`Trigger context: ${desc}`);

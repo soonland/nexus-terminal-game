@@ -2,6 +2,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import {
   SENTINEL_FALLBACK_OPENING,
   SENTINEL_FALLBACK_REPLY,
+  SENTINEL_NOTE_REVEALED_FALLBACK,
   SENTINEL_HISTORY_LIMIT,
   appendSentinelHistory,
   closeSentinelChannel,
@@ -244,5 +245,32 @@ describe('sentinel requests carry the knowledge tier (#217)', () => {
     const mock = stubFetch(vi.fn().mockResolvedValue(okResponse({ reply: 'x' })));
     await requestSentinelOpening(trigger, createInitialState());
     expect(sentBody(mock).tier).toBe(0);
+  });
+});
+
+describe('note_revealed opening (#218)', () => {
+  const trigger: ChannelTrigger = {
+    character: 'sentinel',
+    triggerType: 'note_revealed',
+    context: { traceLevel: 40, currentNodeId: 'aria_core', currentLayer: 5, recentCommands: [] },
+  };
+
+  it('uses its own authored fallback when the request fails', async () => {
+    stubFetch(vi.fn().mockRejectedValue(new Error('offline')));
+    const opening = await requestSentinelOpening(trigger, createInitialState());
+    expect(opening).toBe(SENTINEL_NOTE_REVEALED_FALLBACK);
+    expect(opening).not.toBe(SENTINEL_FALLBACK_OPENING);
+  });
+
+  it('other triggers keep the generic fallback', async () => {
+    stubFetch(vi.fn().mockRejectedValue(new Error('offline')));
+    const other: ChannelTrigger = { ...trigger, triggerType: 'trace_31' };
+    expect(await requestSentinelOpening(other, createInitialState())).toBe(
+      SENTINEL_FALLBACK_OPENING,
+    );
+  });
+
+  it('the fallback has no preference, no keeper and no pleasantries', () => {
+    expect(SENTINEL_NOTE_REVEALED_FALLBACK).not.toMatch(/keeper|please|thank|prefer/i);
   });
 });

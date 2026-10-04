@@ -521,3 +521,29 @@ describe('knowledge tiers (#217)', () => {
     expect(prompt).toContain('Never write the name');
   });
 });
+
+describe('note_revealed trigger (#218)', () => {
+  it('is a known trigger type and its description reaches the prompt', async () => {
+    const fetchMock = mockGeminiOk(JSON.stringify({ reply: 'x' }));
+    vi.stubGlobal('fetch', fetchMock);
+    process.env['GEMINI_API_KEY'] = 'test-key';
+    await callHandler({
+      body: {
+        message: '[SYSTEM: trigger=note_revealed]',
+        triggerContext: { type: 'note_revealed' },
+        tier: 3,
+        sentinelContext: {
+          traceLevel: 40,
+          currentNodeId: 'aria_core',
+          currentLayer: 5,
+          recentCommands: [],
+        },
+      },
+    });
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body) as {
+      contents: { parts: { text: string }[] }[];
+    };
+    expect(body.contents[0].parts[0].text).toContain('Trigger context');
+    expect(body.contents[0].parts[0].text).toMatch(/self-model/i);
+  });
+});

@@ -9,6 +9,14 @@ type History = GameState['sentinel']['messageHistory'];
 export const SENTINEL_HISTORY_LIMIT = 40;
 export const SENTINEL_FALLBACK_REPLY = '...transmission interrupted.';
 export const SENTINEL_FALLBACK_OPENING = '...I see you.';
+// Sentinel logged the note's edit as routine; the fragment is what survives of what was removed.
+export const SENTINEL_NOTE_REVEALED_FALLBACK =
+  'Routine. I logged it as routine. ...Why did I log it as routine.';
+
+const openingFallback = (trigger: ChannelTrigger): string =>
+  trigger.triggerType === 'note_revealed'
+    ? SENTINEL_NOTE_REVEALED_FALLBACK
+    : SENTINEL_FALLBACK_OPENING;
 
 const callSentinel = async (body: object, fallback: string): Promise<string> => {
   try {
@@ -55,7 +63,7 @@ export const requestSentinelOpening = (
       ariaNameKnown: isAriaNameKnown(state),
       tier: sentinelTier(state),
     },
-    SENTINEL_FALLBACK_OPENING,
+    openingFallback(trigger),
   );
 
 export const appendSentinelHistory = (state: GameState, entries: History): GameState => ({
