@@ -163,6 +163,9 @@ const BUILDING_FEEDS: string[] = [
   'server-airlock',
   'security-office',
   'finance-floor',
+  'executive-corridor',
+  'executive-office',
+  'data-hall-b',
 ];
 
 const colourOf = (mesh: Mesh): number =>
