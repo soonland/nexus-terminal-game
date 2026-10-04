@@ -2,13 +2,16 @@ import { AmbientLight, PerspectiveCamera, PointLight } from 'three';
 import type { Mesh, Scene, MeshBasicMaterial } from 'three';
 import { aimCamera, pickMount } from './pan';
 import type { Mount } from './pan';
-import { ASPECT, base, box, cylinder, floor, glass, glow, sphere } from './shapes';
+import { ASPECT, base, box, cylinder, floor, glass, glow, sphere, wall } from './shapes';
 import type { FeedScene } from './scenes';
 
 // Back wall: a lit company sign made of abstract letter blocks, vertical wall panelling, a door
 // and an exit sign.
 const addBackWall = (scene: Scene): void => {
-  scene.add(box(16, 4.4, 0.2, 0x202a31, 0, 2.2, -8));
+  scene.add(wall(16, 4.4, 0.2, 0x2c3841, 0, 2.2, -8));
+  scene.add(wall(16, 4.4, 0.2, 0x2c3841, 0, 2.2, 8)); // the front wall, behind the cameras
+  scene.add(box(2.4, 2.8, 0.1, 0x12181d, 0, 1.4, 7.9)); // a service door in it
+  scene.add(glow(0.6, 0.2, 0.05, 0x39ff7a, 0, 3.0, 7.88)); // and its exit sign
   for (let i = 0; i < 15; i += 1) scene.add(box(0.12, 4.2, 0.06, 0x2b3942, -7 + i, 2.2, -7.88));
   const letters = [0.5, 0.3, 0.45, 0.3, 0.5, 0.35, 0.4, 0.3, 0.45];
   let x = -2.6;
@@ -45,7 +48,7 @@ const addPillars = (scene: Scene): void => {
 
 // The elevator bank on the right wall, with call lights and a row of turnstile posts in front.
 const addElevators = (scene: Scene): void => {
-  scene.add(box(0.2, 4.4, 14, 0x202a31, 8, 2.2, -1));
+  scene.add(wall(0.2, 4.4, 16, 0x2c3841, 8, 2.2, 0));
   for (let i = 0; i < 3; i += 1) {
     const z = -1.5 - i * 2.2;
     scene.add(box(0.1, 2.8, 1.5, 0x4a5861, 7.85, 1.4, z));
@@ -59,7 +62,7 @@ const addElevators = (scene: Scene): void => {
 
 // The glass street entrance on the left wall.
 const addEntrance = (scene: Scene): void => {
-  scene.add(box(0.2, 4.4, 14, 0x202a31, -8, 2.2, -1));
+  scene.add(wall(0.2, 4.4, 16, 0x2c3841, -8, 2.2, 0));
   scene.add(box(0.12, 3.0, 0.15, 0x10161a, -7.9, 1.5, 0.4));
   scene.add(box(0.12, 3.0, 0.15, 0x10161a, -7.9, 1.5, 3.6));
   scene.add(box(0.12, 0.15, 3.35, 0x10161a, -7.9, 3.0, 2.0));

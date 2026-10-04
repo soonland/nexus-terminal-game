@@ -152,7 +152,7 @@ const MOUNTS: readonly [Mount, ...Mount[]] = [
 
 export const buildServerRoom = (mountIndex: number): FeedScene => {
   const mount = pickMount(MOUNTS, mountIndex);
-  const scene = base(0x020407, 8, 42);
+  const scene = base(0x020407, 6, 24);
   scene.add(new AmbientLight(0x88aadd, 2.6));
   const light = new PointLight(0xaaccff, 80, 20);
   light.position.set(0, 3.2, -3);

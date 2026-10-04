@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { Box3, Mesh, Vector3 } from 'three';
+import { Box3, Mesh, Raycaster, Vector3 } from 'three';
 import { CAMERA_FEEDS } from '../../data/cameras';
 import { buildScene, disposeScene } from './scenes';
 
@@ -129,4 +129,24 @@ describe('every camera has a scene', () => {
     const office = buildScene({ scene: 'executiveFloor', mount: 1 });
     expect(office.camera.position.equals(corridor.camera.position)).toBe(false);
   });
+});
+
+describe('every room is closed', () => {
+  // Walls are tagged by the builders; a ray looking in any direction from a camera must hit one.
+  it.each(CAMERA_FEEDS.map(f => [f.id, f] as const))(
+    '%s: no direction from the camera looks out of the room',
+    (_id, feed) => {
+      const built = buildScene(feed);
+      built.scene.updateMatrixWorld(true);
+      const raycaster = new Raycaster();
+      const missed: number[] = [];
+      for (let i = 0; i < 24; i += 1) {
+        const angle = (i / 24) * Math.PI * 2;
+        raycaster.set(built.camera.position, new Vector3(Math.sin(angle), 0, -Math.cos(angle)));
+        const hits = raycaster.intersectObjects(built.scene.children, true);
+        if (!hits.some(h => h.object.name === 'wall')) missed.push(i);
+      }
+      expect(missed).toEqual([]);
+    },
+  );
 });

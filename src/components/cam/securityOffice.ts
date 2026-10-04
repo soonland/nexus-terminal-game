@@ -2,7 +2,7 @@ import { AmbientLight, PerspectiveCamera, PointLight } from 'three';
 import type { Mesh, MeshBasicMaterial, Scene } from 'three';
 import { aimCamera, pickMount } from './pan';
 import type { Mount } from './pan';
-import { ASPECT, base, box, cylinder, floor, glow } from './shapes';
+import { ASPECT, base, box, cylinder, floor, glow, wall } from './shapes';
 import type { FeedScene } from './scenes';
 
 const MOUNTS: readonly [Mount, ...Mount[]] = [
@@ -12,8 +12,9 @@ const MOUNTS: readonly [Mount, ...Mount[]] = [
 // Walls, floor and a ceiling light strip that stutters.
 const addShell = (scene: Scene): MeshBasicMaterial => {
   scene.add(floor(14, 14, 0x141a1f));
-  scene.add(box(14, 4, 0.2, 0x1d262c, 0, 2, -7));
-  for (const x of [-7, 7]) scene.add(box(0.2, 4, 14, 0x1d262c, x, 2, 0));
+  scene.add(wall(14, 4, 0.2, 0x1d262c, 0, 2, -7));
+  scene.add(wall(14, 4, 0.2, 0x1d262c, 0, 2, 7));
+  for (const x of [-7, 7]) scene.add(wall(0.2, 4, 14, 0x1d262c, x, 2, 0));
   const ceiling = floor(14, 14, 0x0e1317);
   ceiling.rotation.x = Math.PI / 2;
   ceiling.position.y = 4;

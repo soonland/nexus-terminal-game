@@ -2,7 +2,7 @@ import { AmbientLight, PerspectiveCamera, PointLight } from 'three';
 import type { Mesh, MeshBasicMaterial, Scene } from 'three';
 import { aimCamera, pickMount } from './pan';
 import type { Mount } from './pan';
-import { ASPECT, base, box, cylinder, floor, glass, glow } from './shapes';
+import { ASPECT, base, box, cylinder, floor, glass, glow, wall } from './shapes';
 import type { FeedScene } from './scenes';
 
 const MOUNTS: readonly [Mount, ...Mount[]] = [
@@ -13,8 +13,9 @@ const addShell = (scene: Scene): MeshBasicMaterial => {
   const ground = floor(16, 16, 0x151c22);
   ground.position.z = -1;
   scene.add(ground);
-  scene.add(box(16, 4.4, 0.2, 0x1d262c, 0, 2.2, -9));
-  for (const x of [-8, 8]) scene.add(box(0.2, 4.4, 16, 0x1d262c, x, 2.2, -1));
+  scene.add(wall(16, 4.4, 0.2, 0x1d262c, 0, 2.2, -9));
+  scene.add(wall(16, 4.4, 0.2, 0x1d262c, 0, 2.2, 7));
+  for (const x of [-8, 8]) scene.add(wall(0.2, 4.4, 16, 0x1d262c, x, 2.2, -1));
   const ceiling = floor(16, 16, 0x0e1317);
   ceiling.rotation.x = Math.PI / 2;
   ceiling.position.set(0, 4.4, -1);

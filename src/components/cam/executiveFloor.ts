@@ -2,7 +2,7 @@ import { AmbientLight, PerspectiveCamera, PointLight } from 'three';
 import type { Mesh, MeshBasicMaterial, Scene } from 'three';
 import { aimCamera, pickMount } from './pan';
 import type { Mount } from './pan';
-import { ASPECT, base, box, cylinder, floor, glass, glow, sphere } from './shapes';
+import { ASPECT, base, box, cylinder, floor, glass, glow, sphere, wall } from './shapes';
 import type { FeedScene } from './scenes';
 
 const MOUNTS: readonly [Mount, ...Mount[]] = [
@@ -14,6 +14,7 @@ const MOUNTS: readonly [Mount, ...Mount[]] = [
 
 // A long corridor: floor with a runner, panelled walls, a ceiling with light panels (one stutters).
 const addCorridor = (scene: Scene): MeshBasicMaterial => {
+  scene.add(wall(5, 3.6, 0.2, 0x2a2622, 0, 1.8, 6)); // the elevator-end wall, behind the corridor camera
   const ground = floor(5, 22, 0x1a1816);
   ground.position.z = -5;
   scene.add(ground);
@@ -21,7 +22,7 @@ const addCorridor = (scene: Scene): MeshBasicMaterial => {
   runner.position.set(0, 0.01, -5);
   scene.add(runner);
   for (const x of [-2.5, 2.5]) {
-    scene.add(box(0.2, 3.6, 22, 0x2a2622, x, 1.8, -5));
+    scene.add(wall(0.2, 3.6, 22, 0x2a2622, x, 1.8, -5));
     scene.add(box(0.06, 1.0, 22, 0x3a2f26, x * 0.96, 0.5, -5));
   }
   const ceiling = floor(5, 22, 0x0f0e0d);
@@ -56,7 +57,7 @@ const addDoors = (scene: Scene): void => {
 // The corner office at the end: window wall with a city skyline glow, a large desk, chairs, a lamp
 // that is off, and two plants.
 const addOffice = (scene: Scene): void => {
-  scene.add(box(5, 3.6, 0.2, 0x1a1f24, 0, 1.8, -16));
+  scene.add(wall(5, 3.6, 0.2, 0x1a1f24, 0, 1.8, -16));
   scene.add(glass(3.6, 2.0, 0.06, 0, 2.0, -15.88));
   scene.add(glow(3.4, 1.8, 0.02, 0x1d3a52, 0, 2.0, -15.95));
   for (let i = 0; i < 10; i += 1) {

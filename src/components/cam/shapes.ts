@@ -43,6 +43,21 @@ export const box = (
   return mesh;
 };
 
+// A wall: a box tagged so tests can check a room is closed all the way round.
+export const wall = (
+  w: number,
+  h: number,
+  d: number,
+  color: number,
+  x: number,
+  y: number,
+  z: number,
+): Mesh => {
+  const mesh = box(w, h, d, color, x, y, z);
+  mesh.name = 'wall';
+  return mesh;
+};
+
 // A box that emits its own light colour (signs, screens, panels): unaffected by scene lighting.
 export const glow = (
   w: number,
