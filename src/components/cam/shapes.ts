@@ -2,7 +2,9 @@ import {
   BoxGeometry,
   Color,
   CylinderGeometry,
+  DirectionalLight,
   Fog,
+  HemisphereLight,
   Mesh,
   MeshBasicMaterial,
   MeshStandardMaterial,
@@ -181,4 +183,15 @@ export const wallTrim = (
   };
   place(0.3, 0.15, 0.1);
   place(0.28, 1.15, 0.08);
+};
+
+// Light for a lit room: soft sky/ground fill plus one directional light for shading. No point lights:
+// near a white ceiling they burn bright pools into it. Returns the directional light, which the
+// room dims for its flicker.
+export const litRoom = (scene: Scene): DirectionalLight => {
+  scene.add(new HemisphereLight(0xffffff, 0xe6ebee, 1.0));
+  const sun = new DirectionalLight(0xffffff, 1.1);
+  sun.position.set(4, 8, 6);
+  scene.add(sun);
+  return sun;
 };

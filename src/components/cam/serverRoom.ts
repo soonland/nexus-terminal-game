@@ -1,4 +1,4 @@
-import { AmbientLight, PerspectiveCamera, PointLight } from 'three';
+import { PerspectiveCamera } from 'three';
 import type { Mesh, MeshBasicMaterial, Scene } from 'three';
 import { aimCamera, pickMount } from './pan';
 import type { Mount } from './pan';
@@ -12,6 +12,7 @@ import {
   floor,
   glow,
   litBase,
+  litRoom,
   tiledFloor,
   trim,
   wall,
@@ -176,10 +177,7 @@ const MOUNTS: readonly [Mount, ...Mount[]] = [
 export const buildServerRoom = (mountIndex: number): FeedScene => {
   const mount = pickMount(MOUNTS, mountIndex);
   const scene = litBase(14, 80);
-  scene.add(new AmbientLight(0xffffff, 0.85));
-  const light = new PointLight(0xffffff, 22, 20);
-  light.position.set(0, 3.2, -3);
-  scene.add(light);
+  const light = litRoom(scene);
 
   const leds: Led[] = [];
   addFloor(scene);
@@ -199,7 +197,7 @@ export const buildServerRoom = (mountIndex: number): FeedScene => {
     }
     const stutter = Math.sin(t * 17) * Math.sin(t * 2.3) > 0.93;
     flickerMaterial.color.setHex(stutter ? 0x9aa5ad : 0xffffff);
-    light.intensity = stutter ? 11 : 22;
+    light.intensity = stutter ? 0.55 : 1.1;
   };
   update(0);
   return { scene, camera, update };

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { MeshBasicMaterial, MeshStandardMaterial } from 'three';
-import { Box3, Mesh, Raycaster, Scene, Vector3 } from 'three';
+import { Box3, Mesh, PointLight, Raycaster, Scene, Vector3 } from 'three';
 import { CAMERA_FEEDS, FLOORS } from '../../data/cameras';
 import { buildScene, disposeScene } from './scenes';
 import { WALL_WHITE, tiledFloor, wallTrim } from './shapes';
@@ -161,12 +161,25 @@ const BUILDING_FEEDS: string[] = [
   'lobby-entrance',
   'server-aisle',
   'server-airlock',
+  'security-office',
+  'finance-floor',
 ];
 
 const colourOf = (mesh: Mesh): number =>
   (mesh.material as MeshStandardMaterial | MeshBasicMaterial).color.getHex();
 
 describe('the building look', () => {
+  // A point light close to a white ceiling burns a bright pool into it; lit rooms use soft fill and a
+  // directional light instead.
+  it.each(BUILDING_FEEDS.map(id => [id] as const))('%s: no point lights, so no hot spots', id => {
+    const built = buildScene(CAMERA_FEEDS.find(f => f.id === id)!);
+    let points = 0;
+    built.scene.traverse(o => {
+      if (o instanceof PointLight) points += 1;
+    });
+    expect(points).toBe(0);
+  });
+
   it('has helpers that tag their meshes', () => {
     const scene = new Scene();
     tiledFloor(scene, 6, 6, 0, 0, 0x2b6cb0);

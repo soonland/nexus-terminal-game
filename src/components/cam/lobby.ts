@@ -1,4 +1,4 @@
-import { AmbientLight, PerspectiveCamera, PointLight } from 'three';
+import { PerspectiveCamera } from 'three';
 import type { Mesh, MeshBasicMaterial, Scene } from 'three';
 import { floorAccent } from '../../data/cameras';
 import { aimCamera, pickMount } from './pan';
@@ -13,6 +13,7 @@ import {
   glass,
   glow,
   litBase,
+  litRoom,
   sphere,
   tiledFloor,
   trim,
@@ -178,14 +179,7 @@ const MOUNTS: readonly [Mount, ...Mount[]] = [
 export const buildLobby = (mountIndex: number): FeedScene => {
   const mount = pickMount(MOUNTS, mountIndex);
   const scene = litBase(14, 70);
-  scene.add(new AmbientLight(0xffffff, 0.8));
-  const light = new PointLight(0xffffff, 16, 18);
-  light.position.set(0, 3.6, -2);
-  scene.add(light);
-  // A second light over the elevator bank, so the entrance camera sees that side of the hall.
-  const sideLight = new PointLight(0xffffff, 12, 14);
-  sideLight.position.set(5.5, 3.4, -2);
-  scene.add(sideLight);
+  const light = litRoom(scene);
 
   tiledFloor(scene, 16, 16, 0, 0, ACCENT);
   addWalls(scene);
@@ -204,7 +198,7 @@ export const buildLobby = (mountIndex: number): FeedScene => {
     aimCamera(camera, t, mount);
     // Mostly steady, with an occasional stutter in one fixture.
     const stutter = Math.sin(t * 23) * Math.sin(t * 3.1) > 0.92;
-    light.intensity = stutter ? 7 : 16;
+    light.intensity = stutter ? 0.55 : 1.1;
     flickerMaterial.color.setHex(stutter ? 0x9aa5ad : 0xffffff);
   };
   update(0);
