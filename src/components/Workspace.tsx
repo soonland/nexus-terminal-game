@@ -13,12 +13,16 @@ import { Overlay } from './Overlay';
 import { FilesPane } from './FilesPane';
 import { DocPane } from './DocPane';
 import { CasePane } from './CasePane';
+import { CamPane } from './CamPane';
+import { cameraFeeds } from '../engine/cameras';
+import { availableAuxTabs, resolveAuxTab } from '../layout/auxTabs';
+import type { AuxTab } from '../layout/auxTabs';
 import { casebookActivity } from '../engine/casebook';
 import { catCommand, sourceSelection } from './explorerShared';
 import type { Root, Selection } from './explorerShared';
 
 export type OverlayKind = 'help' | 'briefing' | 'dossier';
-export type AuxTab = 'map' | 'case';
+export type { AuxTab };
 
 export interface WorkspaceHandle {
   showOverlay: (kind: OverlayKind) => void;
@@ -80,6 +84,9 @@ export const Workspace = forwardRef<WorkspaceHandle, Props>(
     const [layout, setLayout] = useState<LayoutState>(() => loadLayout());
     const [overlay, setOverlay] = useState<OverlayKind | null>(null);
     const [auxTab, setAuxTab] = useState<AuxTab>('map');
+    const feeds = gameState ? cameraFeeds(gameState) : [];
+    const hasCam = feeds.length > 0;
+    const shownAuxTab = resolveAuxTab(auxTab, hasCam);
     const [selection, setSelection] = useState<Selection | null>(null);
     const narrow = useViewportWidth() < NARROW_WIDTH;
     const noGame = gameState === null;
@@ -176,7 +183,7 @@ export const Workspace = forwardRef<WorkspaceHandle, Props>(
     // The CASE tab counts as "being looked at" when it is the selected aux tab and the aux pane
     // is actually on screen (not hidden behind another pane's zoom, or another narrow tab).
     const caseVisible =
-      auxTab === 'case' &&
+      shownAuxTab === 'case' &&
       (narrow ? layout.focused === 'aux' : layout.zoomed === null || layout.zoomed === 'aux');
     const caseUnread = useUnread(
       gameState ? casebookActivity(gameState) : 0,
@@ -184,6 +191,18 @@ export const Workspace = forwardRef<WorkspaceHandle, Props>(
       gameState?.runId ?? null,
       true,
     );
+
+    const camVisible = narrow
+      ? layout.focused === 'aux'
+      : layout.zoomed === null || layout.zoomed === 'aux';
+    const camFullscreen = layout.zoomed === 'aux';
+    const toggleCamFullscreen = () => {
+      setLayout(prev =>
+        prev.zoomed === 'aux'
+          ? { ...prev, zoomed: null }
+          : { ...prev, focused: 'aux', zoomed: 'aux' },
+      );
+    };
 
     // A casebook source opens in the doc pane (when the file can be opened from here).
     const openSource = useCallback(
@@ -206,11 +225,11 @@ export const Workspace = forwardRef<WorkspaceHandle, Props>(
 
     const auxTabs = (
       <span className="aux-tabs">
-        {(['map', 'case'] as const).map(tab => (
+        {availableAuxTabs(hasCam).map(tab => (
           <button
             key={tab}
             type="button"
-            aria-pressed={auxTab === tab}
+            aria-pressed={shownAuxTab === tab}
             onClick={() => {
               setAuxTab(tab);
             }}>
@@ -240,9 +259,18 @@ export const Workspace = forwardRef<WorkspaceHandle, Props>(
         />
       ),
       aux:
-        auxTab === 'map'
-          ? map
-          : gameState && <CasePane gameState={gameState} onOpenSource={openSource} />,
+        shownAuxTab === 'map' ? (
+          map
+        ) : shownAuxTab === 'cam' ? (
+          <CamPane
+            feeds={feeds}
+            visible={camVisible}
+            fullscreen={camFullscreen}
+            onToggleFullscreen={toggleCamFullscreen}
+          />
+        ) : (
+          gameState && <CasePane gameState={gameState} onOpenSource={openSource} />
+        ),
       comms,
     };
 

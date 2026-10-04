@@ -560,7 +560,6 @@ body {
   top: 8px;
   right: 10px;
   color: #ff4a3a;
-  animation: cam-blink 1.4s steps(2, start) infinite;
 }
 
 .cam-stamp {
@@ -575,9 +574,9 @@ body {
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
+@media (prefers-reduced-motion: no-preference) {
   .cam-rec {
-    animation: none;
+    animation: cam-blink 1.4s steps(2, start) infinite;
   }
 }
 
