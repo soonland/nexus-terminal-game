@@ -1,6 +1,7 @@
 import type { KeyboardEvent } from 'react';
 import { useEffect, useRef } from 'react';
 import { OPERATIVE_PASS, PASSWORD_CASE_NOTE } from '../data/operativeLogin';
+import { PRE_GAME_FONT_SIZE } from './preGameStyle';
 
 interface Props {
   onContinue: () => void;
@@ -170,7 +171,7 @@ export const PrologueScreen = ({ onContinue }: Props) => {
         display: 'flex',
         flexDirection: 'column',
         fontFamily: 'var(--font-mono)',
-        fontSize: 'var(--font-size)',
+        fontSize: PRE_GAME_FONT_SIZE,
         lineHeight: 'var(--line-height)',
         cursor: 'text',
         overflow: 'hidden',
@@ -223,7 +224,7 @@ export const PrologueScreen = ({ onContinue }: Props) => {
                 outline: 'none',
                 color: 'var(--color-output)',
                 fontFamily: 'var(--font-mono)',
-                fontSize: 'var(--font-size)',
+                fontSize: PRE_GAME_FONT_SIZE,
                 lineHeight: 'var(--line-height)',
                 caretColor: 'var(--color-output)',
               }}
