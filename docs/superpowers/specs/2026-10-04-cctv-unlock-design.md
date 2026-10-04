@@ -72,15 +72,18 @@ their number as an **alias** that `view-cam` still accepts; nothing else uses nu
 ## Menu
 
 The camera bar's `CAM 01 … CAM 0n` buttons are replaced by one **menu button** that shows where the
-player is (`GROUND FLOOR › LOBBY (RECEPTION) ▾`). It opens a two-level popover: a heading per floor
-that expands to its cameras. The current floor starts expanded. Offline cameras are listed, dimmed
-and marked. NIGHT VISION and FULL SCREEN stay on the bar.
+player is (`Ground floor › Lobby (reception) ▾`). It opens a **cascading menu**: a column of floors,
+and beside it a second column with the cameras of the active floor. The current floor is active when
+the menu opens; hovering or focusing another floor makes it the active one. Offline cameras are
+listed, dimmed and marked "offline". NIGHT VISION and FULL SCREEN stay on the bar.
 
-Behaviour: click or Enter opens; Arrow Up/Down move through the visible items; Enter or click on a
-camera selects it and closes the menu; Esc or a click outside closes it; floor headings toggle
-(`aria-expanded`), cameras are `menuitemradio` items (`aria-checked`). The popover must fit the
-small aux pane (about 550×290 px) and scroll if it is longer. The overlay on the footage reads
-`FLOOR — CAMERA NAME`.
+Behaviour: click or Enter opens; Arrow Up/Down move through the current column (wrapping);
+ArrowRight or a click on a floor moves focus into its cameras; ArrowLeft or Escape from a camera
+goes back to its floor; Escape on a floor, or a click outside, closes; picking a camera selects it
+and closes. Floors are `menuitem`s with `aria-haspopup` and `aria-expanded`; the cameras are
+`menuitemradio`s (`aria-checked`) in a labelled group. Two columns of about 150 and 190 px fit the
+small aux pane (about 550×290 px); each column scrolls if it is longer. The overlay on the footage
+reads `FLOOR — CAMERA NAME`.
 
 ## Unread marker
 
@@ -104,8 +107,9 @@ trace cost. Unknown or unlisted ids: "Unknown camera: X. Known cameras: …" lis
 - `view-cam`: works from another node; accepts aliases; rejects unlisted ids without revealing them;
   executive cameras print the disabled line before layer 4 and the description after; trace
   unchanged.
-- Menu: lists only floors with listed cameras; expands/collapses; selecting calls back and closes;
-  offline cameras are marked; Esc and outside click close; Arrow keys move through items.
+- Menu: lists only floors with listed cameras; the active floor's cameras show beside the floors
+  (on open, on hover, on click); selecting calls back and closes; offline cameras are marked; Esc
+  and outside click close; Arrow keys move through each column and between them.
 - Workspace: the CAM tab stays after pivoting; the aux pane is unread when a camera unlocks
   off-screen and starts read.
 - Scenes: each builder is complex enough, bounded, pans in place; a second mount differs from the
@@ -116,4 +120,4 @@ trace cost. Unknown or unlisted ids: "Unknown camera: X. Known cameras: …" lis
 ## Out of scope
 
 People or events in the footage, an archive of past footage, sound, cameras affecting trace or
-Sentinel, a sidebar tree, any command other than `view-cam`.
+Sentinel, a persistent sidebar tree, any command other than `view-cam`.

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { cameraFeeds, deepestLayer } from '../cameras';
-import { CAMERA_FEEDS, FLOORS } from '../../data/cameras';
+import { CAMERA_FEEDS, FLOORS, floorName } from '../../data/cameras';
 import { createInitialState } from '../state';
 import produce from '../produce';
 import type { GameState } from '../../types/game';
@@ -132,5 +132,12 @@ describe('camera data', () => {
       'executive-corridor',
       'executive-office',
     ]);
+  });
+});
+
+describe('floorName', () => {
+  it('names a floor, and falls back to the id for one it does not know', () => {
+    expect(floorName('ground')).toBe('Ground floor');
+    expect(floorName('basement' as never)).toBe('basement');
   });
 });

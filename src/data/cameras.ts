@@ -14,7 +14,7 @@ export type FloorId = (typeof FLOORS)[number]['id'];
 
 export const floorName = (id: FloorId): string => FLOORS.find(f => f.id === id)?.name ?? id;
 
-export type SceneId =
+type SceneId =
   'lobby' | 'serverRoom' | 'securityOffice' | 'financeFloor' | 'executiveFloor' | 'dataHall';
 
 export interface CameraFeed {

@@ -124,6 +124,24 @@ const phase = title => {
   console.log(`\n── ${title}`);
 };
 
+// The floors the CAM menu lists right now (opens the CAM tab and the menu, then closes the menu).
+const camFloors = async () => {
+  await page.getByRole('button', { name: 'CAM', exact: true }).click();
+  await page.waitForTimeout(400);
+  await page.locator('.cam-menu-button').click();
+  const floors = await page.getByRole('menuitem').allInnerTexts();
+  await page.keyboard.press('Escape');
+  return floors.map(f => f.replace(/\s*▸$/, ''));
+};
+
+// Opens a camera through the menu: expand its floor if needed, then pick it.
+const pickCamera = async (floor, camera) => {
+  await page.locator('.cam-menu-button').click();
+  await page.getByRole('menuitem', { name: new RegExp(floor, 'i') }).click();
+  await page.getByRole('menuitemradio', { name: new RegExp(camera) }).click();
+  await page.waitForTimeout(600);
+};
+
 // ── Run ──────────────────────────────────────────────────────────────────────
 
 try {
@@ -208,6 +226,18 @@ try {
   await cmd('connect 10.3.0.2');
   await cmd('login fin.dba P@yments2024');
   await cmd('cat calendar_access.cfg'); // e.torres in plain text
+  const floorsAtThree = await camFloors();
+  check(
+    'layer 3 has unlocked the security and finance floors',
+    floorsAtThree.includes('SECURITY') && floorsAtThree.includes('FINANCE'),
+    floorsAtThree.join(', '),
+  );
+  await pickCamera('EXECUTIVE', 'Executive corridor');
+  check(
+    'the executive floor is still disabled at layer 3',
+    (await page.locator('[data-testid="cam-offline"]').count()) === 1,
+  );
+  await page.getByRole('button', { name: 'MAP', exact: true }).click();
   await cmd('status');
 
   phase('LAYER 4: executive');
@@ -222,6 +252,14 @@ try {
   await cmd('connect 10.4.0.3');
   await cmd('exploit cassandra-socket', SLOW_PAUSE);
   await cmd('exfil subnet_key.bin'); // opens the way into the restricted subnet
+  await camFloors();
+  await pickCamera('EXECUTIVE', 'Corner office');
+  check(
+    'layer 4 brings the executive floor online',
+    (await page.locator('[data-testid="cam-offline"]').count()) === 0 &&
+      (await page.locator('[data-testid="cam-canvas"]').count()) === 1,
+  );
+  await page.getByRole('button', { name: 'MAP', exact: true }).click();
   await cmd('status');
 
   // The casebook should now hold what the run has read so far.
@@ -249,6 +287,13 @@ try {
   await cmd('connect 172.16.0.4');
   await cmd('scan');
   await cmd('cat /aria/core/self_model.txt', SLOW_PAUSE); // the reveal
+  const floorsAtFive = await camFloors();
+  check(
+    'the restricted subnet unlocks the last floor',
+    floorsAtFive.includes('SUB-LEVEL B'),
+    floorsAtFive.join(', '),
+  );
+  await page.getByRole('button', { name: 'MAP', exact: true }).click();
   check('reading the self-model shows the note as draft 7', /draft 7/.test(await paneText('term')));
   await page.waitForTimeout(HEADLESS ? 500 : 4000);
   await cmd('connect 172.16.0.5');
