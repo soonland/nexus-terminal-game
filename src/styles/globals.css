@@ -160,8 +160,10 @@ body {
 :root {
   --win-bg: #11151c;
   --win-border: #2a3040;
+  --win-border-calm: var(--win-border);
   --win-titlebar-bg: #161a22;
   --win-title-color: #c9d4e6;
+  --win-title-color-calm: var(--win-title-color);
   --win-body-color: #c9d4e6;
   --win-desktop-bg: #0b0e14;
 
@@ -745,8 +747,25 @@ body {
   display: none;
 }
 
-/* A pane in alert re-skins itself red (replaces the old full-screen Sentinel takeover). */
+/* A pane in alert keeps a red frame (border, title strip, glass tint, trace bar) as the signal that a
+   Sentinel channel is open. What is red *inside* it is only the Sentinel view (below), so Rhee's
+   Nexus line never looks like Sentinel's. */
 .pane[data-alert='true'] {
+  --win-bg: #0a0000;
+  --win-border: #aa0000;
+  --win-titlebar-bg: #140000;
+  --win-title-color: #ff5555;
+}
+
+.comms-view {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+/* The SENTINEL tab (and the first-contact interruption): the full red palette. */
+.comms-view[data-skin='alert'] {
   --color-bg: #000000;
   --color-bg-header: #000000;
   --color-border: #aa0000;
@@ -755,11 +774,13 @@ body {
   --color-system: #ff5555;
   --color-separator: #aa0000;
   --color-error: #ff0000;
-  --win-bg: #0a0000;
-  --win-border: #aa0000;
-  --win-titlebar-bg: #140000;
-  --win-title-color: #ff5555;
   --win-body-color: #ff5555;
+}
+
+/* Every other tab keeps the normal border and title colours, even inside a pane in alert. */
+.comms-view[data-skin='calm'] {
+  --win-border: var(--win-border-calm);
+  --win-title-color: var(--win-title-color-calm);
 }
 
 @media (prefers-reduced-motion: no-preference) {

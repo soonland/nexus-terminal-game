@@ -126,6 +126,11 @@ export const CommsPane = forwardRef<CommsHandle, Props>(
       if (el) el.scrollTop = el.scrollHeight;
     }, [messageCount, tab, interrupting]);
 
+    // The red palette belongs to the Sentinel view: the SENTINEL tab and the first-contact
+    // interruption, while the channel is open. The pane's frame stays in alert either way, but the
+    // NEXUS and ARIA tabs are drawn calm, so Rhee's messages never look like Sentinel's.
+    const skin = sentinelOpen && (tab === 'sentinel' || interrupting) ? 'alert' : 'calm';
+
     const nexusText = interrupting
       ? '▒▒▒ signal lost ▒▒▒'
       : sentinelEstablished
@@ -135,103 +140,105 @@ export const CommsPane = forwardRef<CommsHandle, Props>(
     return (
       <div className="comms" ref={rootRef}>
         <TraceMeter trace={trace} />
-        {(sentinelEstablished || hasAria) && (
-          <div role="tablist" className="comms-tabs">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={tab === 'nexus'}
-              className="comms-tab"
-              onClick={() => {
-                setTab('nexus');
-              }}>
-              NEXUS
-            </button>
-            {sentinelEstablished && (
+        <div className="comms-view" data-skin={skin}>
+          {(sentinelEstablished || hasAria) && (
+            <div role="tablist" className="comms-tabs">
               <button
                 type="button"
                 role="tab"
-                aria-selected={tab === 'sentinel'}
-                data-closed={!sentinelOpen}
-                className={interrupting ? 'comms-tab comms-flicker' : 'comms-tab'}
-                onClick={() => {
-                  setTab('sentinel');
-                }}>
-                SENTINEL
-              </button>
-            )}
-            {hasAria && (
-              <button
-                type="button"
-                role="tab"
-                aria-selected={tab === 'aria'}
+                aria-selected={tab === 'nexus'}
                 className="comms-tab"
                 onClick={() => {
-                  setTab('aria');
+                  setTab('nexus');
                 }}>
-                {ariaLabel}
+                NEXUS
               </button>
-            )}
-          </div>
-        )}
-        {tab === 'aria' && hasAria ? (
-          <div className="comms-channel comms-aria">
-            <TerminalOutput lines={ariaLines} />
-            <div className="comms-readonly">[read-only — answer from the terminal]</div>
-          </div>
-        ) : tab === 'nexus' || !sentinelEstablished ? (
-          <div className="comms-nexus" ref={nexusRef}>
-            <div className="comms-line">NEXUS // ENCRYPTED LINE</div>
-            {nexusMessages.length === 0 ? (
-              <div className="comms-empty">{nexusText}</div>
-            ) : (
-              <>
-                {nexusMessages.map((message, index) => {
-                  const isLast = index === nexusMessages.length - 1;
-                  // An interruption breaks the newest message off mid-sentence.
-                  if (interrupting && isLast) {
+              {sentinelEstablished && (
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === 'sentinel'}
+                  data-closed={!sentinelOpen}
+                  className={interrupting ? 'comms-tab comms-flicker' : 'comms-tab'}
+                  onClick={() => {
+                    setTab('sentinel');
+                  }}>
+                  SENTINEL
+                </button>
+              )}
+              {hasAria && (
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === 'aria'}
+                  className="comms-tab"
+                  onClick={() => {
+                    setTab('aria');
+                  }}>
+                  {ariaLabel}
+                </button>
+              )}
+            </div>
+          )}
+          {tab === 'aria' && hasAria ? (
+            <div className="comms-channel comms-aria">
+              <TerminalOutput lines={ariaLines} />
+              <div className="comms-readonly">[read-only — answer from the terminal]</div>
+            </div>
+          ) : tab === 'nexus' || !sentinelEstablished ? (
+            <div className="comms-nexus" ref={nexusRef}>
+              <div className="comms-line">NEXUS // ENCRYPTED LINE</div>
+              {nexusMessages.length === 0 ? (
+                <div className="comms-empty">{nexusText}</div>
+              ) : (
+                <>
+                  {nexusMessages.map((message, index) => {
+                    const isLast = index === nexusMessages.length - 1;
+                    // An interruption breaks the newest message off mid-sentence.
+                    if (interrupting && isLast) {
+                      return (
+                        <div key={message.id} className="comms-msg">
+                          <div className="comms-msg-line">{cutLine(message.lines[0] ?? '')}</div>
+                        </div>
+                      );
+                    }
                     return (
                       <div key={message.id} className="comms-msg">
-                        <div className="comms-msg-line">{cutLine(message.lines[0] ?? '')}</div>
+                        {message.lines.map(text => (
+                          <div key={text} className="comms-msg-line">
+                            {text}
+                          </div>
+                        ))}
                       </div>
                     );
-                  }
-                  return (
-                    <div key={message.id} className="comms-msg">
-                      {message.lines.map(text => (
-                        <div key={text} className="comms-msg-line">
-                          {text}
-                        </div>
-                      ))}
-                    </div>
-                  );
-                })}
-                {sentinelEstablished && !interrupting && (
-                  <div className="comms-empty">line quiet</div>
-                )}
-              </>
-            )}
-            <div className="comms-readonly">[ENCRYPTED LINE — RECEIVE ONLY]</div>
-          </div>
-        ) : (
-          <div className="comms-channel">
-            <TerminalOutput lines={sentinelLines} />
-            {sentinelBusy && <div className="line line--dm">sentinel &gt;&gt; …</div>}
-            {!sentinelOpen && (
-              <div className="comms-empty">
-                [channel closed — type msg sentinel in the terminal to reopen]
-              </div>
-            )}
-            <TerminalInput
-              ref={inputRef}
-              onSubmit={onSend}
-              disabled={!sentinelOpen}
-              prompt="ghost >>"
-              testId="comms-input"
-              focusPolicy="if-idle"
-            />
-          </div>
-        )}
+                  })}
+                  {sentinelEstablished && !interrupting && (
+                    <div className="comms-empty">line quiet</div>
+                  )}
+                </>
+              )}
+              <div className="comms-readonly">[ENCRYPTED LINE — RECEIVE ONLY]</div>
+            </div>
+          ) : (
+            <div className="comms-channel">
+              <TerminalOutput lines={sentinelLines} />
+              {sentinelBusy && <div className="line line--dm">sentinel &gt;&gt; …</div>}
+              {!sentinelOpen && (
+                <div className="comms-empty">
+                  [channel closed — type msg sentinel in the terminal to reopen]
+                </div>
+              )}
+              <TerminalInput
+                ref={inputRef}
+                onSubmit={onSend}
+                disabled={!sentinelOpen}
+                prompt="ghost >>"
+                testId="comms-input"
+                focusPolicy="if-idle"
+              />
+            </div>
+          )}
+        </div>
       </div>
     );
   },
