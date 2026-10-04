@@ -38,6 +38,12 @@ const setup = (over: { visible?: boolean } = {}) => {
   return { onToggleFullscreen, ...view };
 };
 
+const pick = (floor: RegExp, camera: string) => {
+  fireEvent.click(screen.getByRole('button', { name: /›/ }));
+  fireEvent.click(screen.getByRole('menuitem', { name: floor }));
+  fireEvent.click(screen.getByRole('menuitemradio', { name: new RegExp(camera) }));
+};
+
 describe('CamPane', () => {
   it('starts the first feed on its canvas and shows the CCTV overlay', async () => {
     setup();
@@ -60,7 +66,7 @@ describe('CamPane', () => {
     await vi.waitFor(() => {
       expect(startFeed).toHaveBeenCalledTimes(1);
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Server room (aisle)' }));
+    pick(/OPERATIONS/, 'Server room \\(aisle\\)');
     await vi.waitFor(() => {
       expect(startFeed).toHaveBeenCalledTimes(2);
     });
@@ -70,7 +76,7 @@ describe('CamPane', () => {
 
   it('shows the offline card for a disabled feed, with no renderer', () => {
     setup();
-    fireEvent.click(screen.getByRole('button', { name: 'Executive corridor' }));
+    pick(/EXECUTIVE/, 'Executive corridor');
     expect(screen.getByTestId('cam-offline').textContent).toContain('FEED DISABLED — CEO OFFICE');
     expect(screen.queryByTestId('cam-canvas')).toBeNull();
   });
@@ -80,7 +86,7 @@ describe('CamPane', () => {
     await vi.waitFor(() => {
       expect(startFeed).toHaveBeenCalledTimes(1);
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Executive corridor' }));
+    pick(/EXECUTIVE/, 'Executive corridor');
     expect(screen.getByTestId('cam-offline')).toBeTruthy();
     expect(startFeed).toHaveBeenCalledTimes(1);
 

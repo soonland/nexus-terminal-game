@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { floorName } from '../data/cameras';
+import { CamMenu } from './CamMenu';
 import type { ListedFeed } from '../engine/cameras';
 
 interface Props {
@@ -106,17 +107,7 @@ export const CamPane = ({ feeds, visible, fullscreen, onToggleFullscreen }: Prop
   return (
     <div className="cam-pane">
       <div className="cam-bar">
-        {feeds.map(f => (
-          <button
-            key={f.id}
-            type="button"
-            aria-pressed={f.id === feed.id}
-            onClick={() => {
-              setSelected(f.id);
-            }}>
-            {f.name}
-          </button>
-        ))}
+        <CamMenu feeds={feeds} selectedId={feed.id} onSelect={setSelected} />
         <button
           type="button"
           className="cam-nv-toggle"
