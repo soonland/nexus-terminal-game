@@ -4106,3 +4106,49 @@ describe('NOTE_REVEALED (#218)', () => {
     expect(isNoteRevealed(await run(once))).toBe(true);
   });
 });
+
+describe('the Restricted Subnet Key authenticates on the subnet (#218)', () => {
+  const nearCore = (withKey: boolean): GameState =>
+    produce(createInitialState(), s => {
+      s.network.currentNodeId = 'aria_behavioural';
+      s.network.nodes['aria_core']!.discovered = true;
+      if (withKey) {
+        s.player.tools.push({
+          id: 'subnet-key',
+          name: 'Restricted Subnet Key',
+          description: 'key',
+        });
+      }
+    });
+
+  it('connecting to a layer-5 node with the key grants user access', async () => {
+    const result = await resolveCommand('connect 172.16.0.4', nearCore(true));
+    const next = result.nextState as GameState;
+    expect(next.network.currentNodeId).toBe('aria_core');
+    expect(next.network.nodes['aria_core']!.accessLevel).toBe('user');
+  });
+
+  it('a player can reach the reveal through play: key, connect, cat', async () => {
+    const connected = (await resolveCommand('connect 172.16.0.4', nearCore(true)))
+      .nextState as GameState;
+    const read = (await resolveCommand(`cat ${SELF_MODEL_PATH}`, connected)).nextState as GameState;
+    expect(isNoteRevealed(read)).toBe(true);
+  });
+
+  it('without the key the node stays unauthenticated and the file stays unread', async () => {
+    const connected = (await resolveCommand('connect 172.16.0.4', nearCore(false)))
+      .nextState as GameState;
+    expect(connected.network.nodes['aria_core']!.accessLevel).toBe('none');
+    const read = await resolveCommand(`cat ${SELF_MODEL_PATH}`, connected);
+    expect(isNoteRevealed((read.nextState ?? connected) as GameState)).toBe(false);
+  });
+
+  it('does not touch access on other layers', async () => {
+    const state = produce(createInitialState(), s => {
+      s.player.tools.push({ id: 'subnet-key', name: 'Restricted Subnet Key', description: 'key' });
+    });
+    const result = await resolveCommand('connect 10.0.0.2', state);
+    const next = (result.nextState ?? state) as GameState;
+    expect(next.network.nodes['vpn_gateway']!.accessLevel).toBe('none');
+  });
+});

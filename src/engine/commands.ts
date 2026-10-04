@@ -1058,9 +1058,19 @@ const cmdConnect = async (args: string[], state: GameState): Promise<CommandOutp
     }
   }
 
+  // The Restricted Subnet Key is the authentication token for the subnet: with it, connecting to
+  // a layer-5 node grants user access (nothing else can authenticate there).
+  const keyAuthenticates =
+    target.layer === 5 &&
+    target.accessLevel === 'none' &&
+    state.player.tools.some(t => t.id === 'subnet-key');
   let next = produce(state, s => {
     s.network.previousNodeId = s.network.currentNodeId;
     s.network.currentNodeId = target.id;
+    if (keyAuthenticates) {
+      const entered = s.network.nodes[target.id];
+      if (entered) entered.accessLevel = 'user';
+    }
   });
   // First contact with the restricted subnet: she introduces herself (fallback reveal).
   if (target.layer === 5) next = markAriaNameKnown(next);
