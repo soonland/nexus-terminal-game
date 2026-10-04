@@ -1,5 +1,6 @@
 import type { GameState, MutationEvent } from '../types/game';
 import type { LineType } from '../types/terminal';
+import { isNoteRevealed } from './noteReveal';
 
 export type ReadoutLine = { type: LineType; content: string };
 
@@ -102,6 +103,14 @@ export const buildPostGameReadout = (state: GameState): ReadoutLine[] => {
       content: `  FILES EXFILTRATED:   ${String(state.player.exfiltrated.length)}`,
     },
     { type: 'system', content: `  ARIA TRUST:          ${String(state.aria.trustScore)}` },
+    ...(isNoteRevealed(state)
+      ? [
+          {
+            type: 'system' as const,
+            content: '  CONTRACTOR NOTE:     origin established',
+          },
+        ]
+      : []),
     ...(state.aria.suppressedMutations > 0
       ? [
           {

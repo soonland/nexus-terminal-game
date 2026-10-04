@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { resolveCommand } from '../commands';
 import { ariaTier } from '../aiTiers';
+import { markNoteRevealed } from '../noteReveal';
 import type { GameState, LiveNode } from '../../types/game';
 
 // ── Minimal state factory ──────────────────────────────────
@@ -575,5 +576,29 @@ describe('cmdDecisionTerminal — output structure', () => {
     const ariaLines = result.lines.filter(l => l.type === 'aria').map(l => l.content);
     expect(ariaLines.some(c => c.startsWith('// CHOICE LOCKED:'))).toBe(true);
     expect(ariaLines.some(c => c.startsWith('// ARIA:'))).toBe(true);
+  });
+});
+
+describe('epilogue in the ending sequence (#218)', () => {
+  it('adds an epilogue only when the note was revealed', async () => {
+    vi.stubGlobal('fetch', makeAriaFinalResponse('ack'));
+    const plain = await resolveCommand('4', makeDecisionState());
+    expect(plain.lines.some(l => l.content === '// EPILOGUE')).toBe(false);
+
+    vi.stubGlobal('fetch', makeAriaFinalResponse('ack'));
+    const revealed = await resolveCommand('4', markNoteRevealed(makeDecisionState()));
+    expect(revealed.lines.some(l => l.content === '// EPILOGUE')).toBe(true);
+  });
+
+  it('an unrevealed ending is exactly the existing sequence', async () => {
+    vi.stubGlobal('fetch', makeAriaFinalResponse('ack'));
+    const plain = await resolveCommand('2', makeDecisionState());
+    expect(plain.lines.map(l => l.content)).toEqual([
+      '',
+      '// CHOICE LOCKED: SELL',
+      '',
+      '// ARIA: ack',
+      '',
+    ]);
   });
 });

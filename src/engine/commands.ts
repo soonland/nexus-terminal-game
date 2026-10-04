@@ -12,6 +12,7 @@ import type { EndingName } from '../types/dossier';
 import { shouldSuppressMutation, injectConstraintFragment } from './faradayCage';
 import { ariaTier } from './aiTiers';
 import { ARIA_CORE_NODE_ID, SELF_MODEL_PATH, markNoteRevealed } from './noteReveal';
+import { buildEpilogue } from './epilogue';
 import { ARIA_NAME_FLAG, SENTINEL_VOTE_PATH, isAriaNameKnown, markAriaNameKnown } from './ariaName';
 import { detectChannelTrigger, isChannelBlocked, layerReachedFlag } from './channel';
 
@@ -846,6 +847,7 @@ const cmdDecisionTerminal = async (choice: string, state: GameState): Promise<Co
       line(`// CHOICE LOCKED: ${endingChoice}`, 'aria'),
       sep(),
       line(`// ARIA: ${ariaFinalMessage}`, 'aria'),
+      ...buildEpilogue(next, endingChoice as EndingName).map(l => line(l.content, l.type)),
       sep(),
     ],
     nextState: next,

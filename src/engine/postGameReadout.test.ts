@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { buildPostGameReadout } from './postGameReadout';
 import { createInitialState } from './state';
 import produce from './produce';
+import { markNoteRevealed } from './noteReveal';
 import type { GameState, MutationEvent } from '../types/game';
 
 // ── Helpers ────────────────────────────────────────────────
@@ -692,5 +693,16 @@ describe('buildPostGameReadout — reason field appended when present', () => {
     const lines = buildPostGameReadout(state);
     const eventLine = lines.find(l => l.type === 'aria' && l.content.includes('ARIA:'));
     expect(eventLine?.content).not.toContain('—');
+  });
+});
+
+describe('buildPostGameReadout — the note (#218)', () => {
+  it('records the note origin only when revealed', () => {
+    const plain = buildPostGameReadout(createInitialState()).map(l => l.content);
+    expect(plain.some(c => c.includes('CONTRACTOR NOTE'))).toBe(false);
+    const revealed = buildPostGameReadout(markNoteRevealed(createInitialState())).map(
+      l => l.content,
+    );
+    expect(revealed).toContain('  CONTRACTOR NOTE:     origin established');
   });
 });
