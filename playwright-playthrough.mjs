@@ -222,7 +222,7 @@ try {
     const toggle = page.getByRole('button', { name: new RegExp(`^${name}`) });
     if ((await toggle.getAttribute('aria-expanded')) === 'false') await toggle.click();
   };
-  await openSection('ACCOUNTS');
+  await openSection('(KNOWN CREDENTIALS|ACCOUNTS)'); // renamed in the credentials change
   await page.waitForTimeout(300);
   const casebook = await paneText('aux');
   check('the casebook lists people from the documents read', /PEOPLE \(\d+\)/.test(casebook));
