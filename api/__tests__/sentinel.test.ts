@@ -480,3 +480,44 @@ describe('POST /api/sentinel — name rule', () => {
     expect(JSON.stringify(fetchMock.mock.calls[0][1])).not.toContain('Never write the name');
   });
 });
+
+describe('knowledge tiers (#217)', () => {
+  const systemPromptFor = async (extra: Record<string, unknown>): Promise<string> => {
+    const fetchMock = mockGeminiOk(JSON.stringify({ reply: 'x' }));
+    vi.stubGlobal('fetch', fetchMock);
+    process.env['GEMINI_API_KEY'] = 'test-key';
+    await callHandler({
+      body: {
+        message: 'hello',
+        sentinelContext: {
+          traceLevel: 10,
+          currentNodeId: 'n',
+          currentLayer: 0,
+          recentCommands: [],
+        },
+        ...extra,
+      },
+    });
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body) as {
+      system_instruction: { parts: { text: string }[] };
+    };
+    return body.system_instruction.parts[0].text;
+  };
+
+  it('uses the tier 0 prompt when no tier is sent', async () => {
+    const prompt = await systemPromptFor({});
+    expect(prompt).toContain('You may say the channel is open');
+    expect(prompt).not.toMatch(/derivative/i);
+  });
+
+  it('adds the derivative acknowledgement only from tier 2', async () => {
+    expect(await systemPromptFor({ tier: 1 })).not.toMatch(/derivative/i);
+    expect(await systemPromptFor({ tier: 2 })).toMatch(/derivative/i);
+  });
+
+  it('never calls itself a keeper and still scrubs the name', async () => {
+    const prompt = await systemPromptFor({ tier: 2, ariaNameKnown: false });
+    expect(prompt).not.toMatch(/keeper/i);
+    expect(prompt).toContain('Never write the name');
+  });
+});
