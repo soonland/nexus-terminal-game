@@ -217,13 +217,18 @@ try {
 
   // The casebook should now hold what the run has read so far.
   await cmd('case');
-  await page.getByRole('button', { name: /ACCOUNTS/ }).click(); // collapsed by default
+  // Open a section only if it is closed: a click on an open one would close it.
+  const openSection = async name => {
+    const toggle = page.getByRole('button', { name: new RegExp(`^${name}`) });
+    if ((await toggle.getAttribute('aria-expanded')) === 'false') await toggle.click();
+  };
+  await openSection('ACCOUNTS');
+  await page.waitForTimeout(300);
   const casebook = await paneText('aux');
   check('the casebook lists people from the documents read', /PEOPLE \(\d+\)/.test(casebook));
-  check(
-    'the casebook shows a credential found in a document',
-    /ops\.admin \/ IronG8te#Ops/.test(casebook),
-  );
+  const hasCredential = /ops\.admin \/ IronG8te#Ops/.test(casebook);
+  check('the casebook shows a credential found in a document', hasCredential);
+  if (!hasCredential) console.log(`--- CASE pane at the failure ---\n${casebook}\n---`);
   await page.getByRole('button', { name: 'MAP' }).click();
 
   phase('THE SUBNET: scan hop by hop');
