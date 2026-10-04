@@ -16,7 +16,7 @@ conclusion, and keeps every item in exactly one place.
 | Who is listed | **Story characters** plus **employees whose credentials the player has obtained**. |
 | Where it lives | **Reuse the NOTES panel**, renamed **CASE**; no duplicated information. |
 | Panel name | **CASE** (aux tabs: MAP, CASE). |
-| Duplication rule | Every item appears **once**: a credential lives on its person's card, otherwise under ACCOUNTS. |
+| Duplication rule | Every item appears **once**: each credential is listed once under KNOWN CREDENTIALS (see *Amended*). |
 | Player-written notes | Out of scope for this change. |
 
 ## Data
@@ -116,6 +116,15 @@ One PR on `feat/case-tab`: the engine and data (`src/engine/casebook.ts`, `src/d
 the CASE component replacing `NotesModal`, the rename and `case` command, the guide, help and
 `CLAUDE.md`. The authored facts (about 40, drawn from the story documents) are listed in the
 implementation plan for review before they are committed.
+
+## Amended: KNOWN CREDENTIALS
+
+Players looking for a password went to ACCOUNTS and did not find `j.mercer` or `e.torres`,
+because they sat on their owners' cards. The section is now **KNOWN CREDENTIALS** and lists
+*every* known credential, each tagged with its owner (a story character, or an employee's name
+and role). A person's card only names the account (`Account: j.mercer`) and never repeats the
+password, so each password is still shown exactly once. Employees whose credentials the player
+holds are rows in that list rather than separate cards, so PEOPLE is the story cast only.
 
 ## Delivered
 

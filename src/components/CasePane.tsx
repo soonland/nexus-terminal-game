@@ -121,10 +121,8 @@ export const CasePane = ({ gameState, onOpenSource }: Props) => {
                   <span>{fact.text}</span> {renderSource(fact.source)}
                 </div>
               ))}
-              {card.account && (
-                <div className="case-account" data-testid={`case-account-${card.account.username}`}>
-                  {accountText(card.account)}
-                </div>
+              {card.account !== null && (
+                <div className="case-fact">{`Account: ${card.account}`}</div>
               )}
             </article>
           ))
@@ -171,15 +169,15 @@ export const CasePane = ({ gameState, onOpenSource }: Props) => {
       </Section>
 
       <Section
-        title="ACCOUNTS"
+        title="KNOWN CREDENTIALS"
         count={book.accounts.length}
         open={open.accounts}
         onToggle={() => {
           toggle('accounts');
         }}
-        testId="case-accounts">
+        testId="case-credentials">
         {book.accounts.length === 0 ? (
-          <div className="comms-empty">No accounts yet.</div>
+          <div className="comms-empty">No credentials yet.</div>
         ) : (
           book.accounts.map(account => (
             <div
@@ -187,6 +185,9 @@ export const CasePane = ({ gameState, onOpenSource }: Props) => {
               className="case-account"
               data-testid={`case-account-${account.username}`}>
               {accountText(account)}
+              {account.owner !== null && (
+                <span className="case-owner">{` · ${account.owner}`}</span>
+              )}
             </div>
           ))
         )}

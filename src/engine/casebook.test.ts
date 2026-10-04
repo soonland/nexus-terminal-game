@@ -97,61 +97,70 @@ describe('buildCasebook — timeline', () => {
   });
 });
 
-describe('buildCasebook — accounts and account holders', () => {
-  it('shows a shared account with its password and level, and nothing else about it', () => {
+describe('buildCasebook — known credentials', () => {
+  it('lists a shared credential with its password and level, and no owner', () => {
     const book = buildCasebook(obtain(createInitialState(), 'cred_contractor'));
     expect(book.accounts).toEqual([
-      { id: 'cred_contractor', username: 'contractor', password: 'Welcome1!', accessLevel: 'user' },
+      {
+        id: 'cred_contractor',
+        username: 'contractor',
+        password: 'Welcome1!',
+        accessLevel: 'user',
+        owner: null,
+      },
     ]);
     expect(book.people).toEqual([]);
   });
 
-  it("puts a story character's credential on their card and not under accounts", () => {
+  it("lists a story character's credential with their name as the owner, and a card that only names the account", () => {
     const book = buildCasebook(obtain(createInitialState(), 'cred_exec_assistant'));
-    expect(book.accounts).toEqual([]);
+    expect(book.accounts).toEqual([
+      expect.objectContaining({ username: 'e.torres', owner: 'Elena Torres' }),
+    ]);
     expect(book.people.map(p => p.id)).toEqual(['torres']);
-    expect(book.people[0].account).toMatchObject({
-      username: 'e.torres',
-      accessLevel: expect.any(String),
-    });
+    expect(book.people[0]?.account).toBe('e.torres'); // the username only, never the password
   });
 
-  it('never lists an account that was not obtained', () => {
+  it('never repeats a password on a person card', () => {
+    const book = buildCasebook(
+      obtain(createInitialState(), 'cred_exec_assistant', 'cred_sec_analyst'),
+    );
+    const cards = JSON.stringify(book.people);
+    expect(cards).not.toContain('Exec@ssist1');
+    expect(cards).not.toContain('S3ntinel99');
+  });
+
+  it('never lists a credential that was not obtained', () => {
     expect(buildCasebook(createInitialState()).accounts).toEqual([]);
   });
 
-  it('gives an employee whose credential is obtained a small card, with no internals', () => {
+  it('lists an employee whose credential is obtained, owned by name and role, with no card and no internals', () => {
     const base = createInitialState();
     const employee = base.employees[0];
     const book = buildCasebook(obtainEmployee(base, employee.id));
-    const card = book.people.find(p => p.id === employee.id)!;
-    expect(card).toMatchObject({
-      kind: 'holder',
-      name: `${employee.firstName} ${employee.lastName}`,
+    expect(book.people).toEqual([]);
+    expect(book.accounts).toHaveLength(1);
+    expect(book.accounts[0]).toMatchObject({
+      username: employee.username,
+      owner: expect.stringContaining(`${employee.firstName} ${employee.lastName}`),
     });
-    expect(card.account?.username).toBe(employee.username);
-    expect(JSON.stringify(card)).not.toMatch(/traits|workstation/i);
-    expect(book.accounts).toEqual([]);
-    expect(book.people).toHaveLength(1);
+    expect(book.accounts[0]?.owner).toContain(employee.role);
+    expect(JSON.stringify(book)).not.toMatch(/traits|workstation/i);
   });
 
   it('ignores employees whose credential has not been obtained', () => {
-    expect(buildCasebook(createInitialState()).people).toEqual([]);
+    expect(buildCasebook(createInitialState()).accounts).toEqual([]);
   });
 
-  it('shows every obtained credential exactly once, on a card or under accounts', () => {
+  it('lists every known credential exactly once', () => {
     const base = createInitialState();
     const employee = base.employees[0];
     const state = obtainEmployee(
       obtain(base, 'cred_contractor', 'cred_ops_admin', 'cred_sec_analyst', 'cred_exec_assistant'),
       employee.id,
     );
-    const book = buildCasebook(state);
-    const shown = [
-      ...book.accounts.map(a => a.username),
-      ...book.people.flatMap(p => (p.account ? [p.account.username] : [])),
-    ];
-    expect(shown.sort()).toEqual(
+    const usernames = buildCasebook(state).accounts.map(a => a.username);
+    expect(usernames.sort()).toEqual(
       ['contractor', 'ops.admin', 'j.mercer', 'e.torres', employee.username].sort(),
     );
   });
@@ -193,40 +202,42 @@ describe('buildCasebook — persistence', () => {
 });
 
 describe('buildCasebook — a credential found in a document counts before it is used', () => {
-  it('reading the camera config adds ops.admin and its password, with no access level yet', () => {
+  it('reading the camera config lists ops.admin and its password, with no access level yet', () => {
     const book = buildCasebook(withReads(CAMERA));
     expect(book.accounts).toEqual([
-      { id: 'cred_ops_admin', username: 'ops.admin', password: 'IronG8te#Ops', accessLevel: null },
+      {
+        id: 'cred_ops_admin',
+        username: 'ops.admin',
+        password: 'IronG8te#Ops',
+        accessLevel: null,
+        owner: null,
+      },
     ]);
   });
 
   it('the access level appears only once the credential is actually obtained', () => {
     const used = buildCasebook(obtain(withReads(CAMERA), 'cred_ops_admin'));
     expect(used.accounts).toEqual([
-      {
-        id: 'cred_ops_admin',
-        username: 'ops.admin',
-        password: 'IronG8te#Ops',
-        accessLevel: 'admin',
-      },
+      expect.objectContaining({ username: 'ops.admin', accessLevel: 'admin' }),
     ]);
   });
 
-  it('shows it once, not twice, when it is both read and obtained', () => {
+  it('lists it once, not twice, when it is both read and obtained', () => {
     const book = buildCasebook(obtain(withReads(CAMERA), 'cred_ops_admin'));
     expect(book.accounts).toHaveLength(1);
   });
 
-  it("puts a person's credential on their card when a document shows it", () => {
+  it("lists a person's credential under their name when a document shows it", () => {
     const book = buildCasebook(withReads(TICKET));
-    const mercer = book.people.find(p => p.id === 'mercer');
-    expect(mercer?.account).toEqual({
-      id: 'cred_sec_analyst',
-      username: 'j.mercer',
-      password: 'S3ntinel99',
-      accessLevel: null,
-    });
-    expect(book.accounts).toEqual([]);
+    expect(book.accounts).toEqual([
+      expect.objectContaining({
+        username: 'j.mercer',
+        password: 'S3ntinel99',
+        accessLevel: null,
+        owner: 'James Mercer',
+      }),
+    ]);
+    expect(book.people.find(p => p.id === 'mercer')?.account).toBe('j.mercer');
   });
 
   it('does not count the encrypted archive: only a decrypt (an obtained credential) reveals those', () => {
@@ -258,7 +269,7 @@ describe('buildCasebook — a credential found in a document counts before it is
 });
 
 describe('buildCasebook — account ids', () => {
-  it('every account carries its credential id, unique within the casebook', () => {
+  it('every credential carries its id, unique within the list', () => {
     const state = obtain(
       createInitialState(),
       'cred_contractor',
@@ -266,11 +277,7 @@ describe('buildCasebook — account ids', () => {
       'cred_sec_analyst',
       'cred_exec_assistant',
     );
-    const book = buildCasebook(state);
-    const ids = [
-      ...book.accounts.map(a => a.id),
-      ...book.people.flatMap(p => (p.account ? [p.account.id] : [])),
-    ];
+    const ids = buildCasebook(state).accounts.map(a => a.id);
     expect(ids.sort()).toEqual(
       ['cred_contractor', 'cred_ops_admin', 'cred_sec_analyst', 'cred_exec_assistant'].sort(),
     );

@@ -24,7 +24,7 @@ const BODY: HelpLine[] = [
   },
   { text: r('  briefing      -re-read mission briefing'), color: 'var(--color-system)' },
   {
-    text: r('  case          -casebook: people, timeline, accounts (alias: notes)'),
+    text: r('  case          -casebook: people, timeline, credentials (alias: notes)'),
     color: 'var(--color-system)',
   },
   { text: r('  dossier       -cross-run dossier'), color: 'var(--color-system)' },

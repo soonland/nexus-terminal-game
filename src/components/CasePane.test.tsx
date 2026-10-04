@@ -35,7 +35,7 @@ const section = (name: string) => screen.getByRole('button', { name: new RegExp(
 describe('CasePane — sections', () => {
   it('shows the five sections, PEOPLE open and the rest collapsed', () => {
     setup(createInitialState());
-    for (const name of ['PEOPLE', 'TIMELINE', 'ACCOUNTS', 'NODES', 'FILES']) {
+    for (const name of ['PEOPLE', 'TIMELINE', 'KNOWN CREDENTIALS', 'NODES', 'FILES']) {
       expect(section(name)).toBeTruthy();
     }
     expect(section('PEOPLE').getAttribute('aria-expanded')).toBe('true');
@@ -45,12 +45,12 @@ describe('CasePane — sections', () => {
 
   it('opens and closes a section', () => {
     setup(createInitialState());
-    fireEvent.click(section('ACCOUNTS'));
-    expect(section('ACCOUNTS').getAttribute('aria-expanded')).toBe('true');
-    expect(screen.getByText(/no accounts yet/i)).toBeTruthy();
-    fireEvent.click(section('ACCOUNTS'));
-    expect(section('ACCOUNTS').getAttribute('aria-expanded')).toBe('false');
-    expect(screen.queryByText(/no accounts yet/i)).toBeNull();
+    fireEvent.click(section('KNOWN CREDENTIALS'));
+    expect(section('KNOWN CREDENTIALS').getAttribute('aria-expanded')).toBe('true');
+    expect(screen.getByText(/no credentials yet/i)).toBeTruthy();
+    fireEvent.click(section('KNOWN CREDENTIALS'));
+    expect(section('KNOWN CREDENTIALS').getAttribute('aria-expanded')).toBe('false');
+    expect(screen.queryByText(/no credentials yet/i)).toBeNull();
   });
 });
 
@@ -105,26 +105,30 @@ describe('CasePane — credentials', () => {
       s.filesRead.push(fileReadKey('ops_hr_db', '/var/db/hr/tickets/sec_ticket_2023_0601.txt'));
     });
 
-  it('shows a shared account under ACCOUNTS with its password and level', () => {
+  it('lists a shared credential with its password and level, and no owner', () => {
     setup(withCredentials());
-    fireEvent.click(section('ACCOUNTS'));
+    fireEvent.click(section('KNOWN CREDENTIALS'));
     const line = screen.getByTestId('case-account-contractor');
     expect(line.textContent).toContain('contractor');
     expect(line.textContent).toContain('Welcome1!');
     expect(line.textContent).toMatch(/USER/);
   });
 
-  it("shows a person's account on their card, and not again under ACCOUNTS", () => {
+  it("lists a credential under its owner, and the owner's card only names the account", () => {
     setup(withCredentials());
+    fireEvent.click(section('KNOWN CREDENTIALS'));
+    const row = screen.getByTestId('case-account-j.mercer');
+    expect(row.textContent).toContain('S3ntinel99');
+    expect(row.textContent).toContain('James Mercer');
     const card = screen.getByTestId('case-person-mercer');
-    expect(within(card).getByTestId('case-account-j.mercer').textContent).toContain('S3ntinel99');
-    fireEvent.click(section('ACCOUNTS'));
+    expect(card.textContent).toContain('j.mercer');
+    expect(card.textContent).not.toContain('S3ntinel99');
     expect(screen.queryAllByTestId('case-account-j.mercer')).toHaveLength(1);
   });
 
   it('never says where a credential works or where it was found', () => {
     setup(withCredentials());
-    fireEvent.click(section('ACCOUNTS'));
+    fireEvent.click(section('KNOWN CREDENTIALS'));
     const state = withCredentials();
     for (const line of document.querySelectorAll('[data-testid^="case-account-"]')) {
       const text = line.textContent;
@@ -170,6 +174,7 @@ describe('CasePane — timeline, nodes and files', () => {
       s.player.credentials.push({ ...world, obtained: true });
     });
     const { container } = setup(state);
+    fireEvent.click(section('KNOWN CREDENTIALS'));
     const employee = state.employees[0];
     expect(container.textContent).toContain(`${employee.firstName} ${employee.lastName}`);
     for (const trait of employee.traits) expect(container.textContent).not.toContain(trait);
@@ -184,7 +189,7 @@ describe('CasePane — a credential found in a document', () => {
 
   it('shows the password but no access level until it has been used', () => {
     setup(read());
-    fireEvent.click(section('ACCOUNTS'));
+    fireEvent.click(section('KNOWN CREDENTIALS'));
     const line = screen.getByTestId('case-account-ops.admin');
     expect(line.textContent).toContain('ops.admin');
     expect(line.textContent).toContain('IronG8te#Ops');
@@ -197,7 +202,7 @@ describe('CasePane — a credential found in a document', () => {
         for (const c of s.player.credentials) if (c.id === 'cred_ops_admin') c.obtained = true;
       }),
     );
-    fireEvent.click(section('ACCOUNTS'));
+    fireEvent.click(section('KNOWN CREDENTIALS'));
     expect(screen.getByTestId('case-account-ops.admin').textContent).toContain('[ADMIN]');
   });
 });

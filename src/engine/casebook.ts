@@ -2,7 +2,6 @@ import { CASE_CREDENTIAL_SOURCES, CASE_FACTS, CASE_PEOPLE } from '../data/casebo
 import type { CaseFact } from '../data/casebook';
 import { fileReadKey } from '../types/game';
 import type { AccessLevel, Credential, GameState } from '../types/game';
-import type { DivisionId } from '../types/divisionSeed';
 
 // A credential as the casebook shows it. It deliberately carries no node ids, labels or source
 // text: which password works where stays the player's puzzle.
@@ -13,15 +12,18 @@ interface CaseAccount {
   // Null until the credential has actually been obtained (a login or decrypt): a document that
   // shows a password never states the level, so showing it earlier would be a hint.
   accessLevel: AccessLevel | null;
+  // Whose it is, when the casebook knows: a story character, or an employee (name and role).
+  owner: string | null;
 }
 
 interface CasePersonCard {
   id: string;
-  kind: 'story' | 'holder';
   name: string;
   role: string;
   facts: CaseFact[];
-  account: CaseAccount | null;
+  // The username of this person's credential. Never the password: KNOWN CREDENTIALS is the one
+  // place a password is shown.
+  account: string | null;
 }
 
 interface CaseTimelineEntry {
@@ -38,19 +40,12 @@ export interface Casebook {
   accounts: CaseAccount[];
 }
 
-const DIVISION_LABEL: Record<DivisionId, string> = {
-  external_perimeter: 'External perimeter',
-  operations: 'Operations',
-  security: 'Security',
-  finance: 'Finance',
-  executive: 'Executive',
-};
-
-const toAccount = (c: Credential): CaseAccount => ({
+const toAccount = (c: Credential, owner: string | null): CaseAccount => ({
   id: c.id,
   username: c.username,
   password: c.password,
   accessLevel: c.obtained ? c.accessLevel : null,
+  owner,
 });
 
 // Credentials the casebook knows: obtained ones, plus those a read document shows in plain text.
@@ -89,7 +84,6 @@ export const buildCasebook = (state: GameState): Casebook => {
   const knownById = new Map(known.map(c => [c.id, c]));
 
   // ── Story cards ──
-  const claimedCredentialIds = new Set(CASE_PEOPLE.flatMap(p => p.credentialIds ?? []));
   const story = CASE_PEOPLE.flatMap((person, order) => {
     const facts = unlocked.filter(f => f.person === person.id);
     const credential = (person.credentialIds ?? [])
@@ -101,38 +95,27 @@ export const buildCasebook = (state: GameState): Casebook => {
     );
     const card: CasePersonCard = {
       id: person.id,
-      kind: 'story',
       name: person.name,
       role: person.role,
       facts,
-      account: credential ? toAccount(credential) : null,
+      account: credential?.username ?? null,
     };
     return [{ card, rank, order }];
   });
   story.sort((a, b) => a.rank - b.rank || a.order - b.order);
 
-  // ── Account holders: employees whose credential the player has obtained ──
-  const employeeCredentialIds = new Set(state.employees.map(e => `cred_${e.id}`));
-  const holders: CasePersonCard[] = state.employees.flatMap(employee => {
-    const credential = knownById.get(`cred_${employee.id}`);
-    if (!credential) return [];
-    return [
-      {
-        id: employee.id,
-        kind: 'holder' as const,
-        name: `${employee.firstName} ${employee.lastName}`,
-        role: `${employee.role}, ${DIVISION_LABEL[employee.divisionId]}`,
-        facts: [],
-        account: toAccount(credential),
-      },
-    ];
-  });
-  holders.sort((a, b) => a.name.localeCompare(b.name));
-
-  // ── Accounts that belong to nobody ──
-  const accounts = known
-    .filter(c => !claimedCredentialIds.has(c.id) && !employeeCredentialIds.has(c.id))
-    .map(toAccount);
+  // ── Known credentials: one list, each tagged with its owner when the casebook knows it ──
+  const ownerById = new Map<string, string>();
+  for (const person of CASE_PEOPLE) {
+    for (const id of person.credentialIds ?? []) ownerById.set(id, person.name);
+  }
+  for (const employee of state.employees) {
+    ownerById.set(
+      `cred_${employee.id}`,
+      `${employee.firstName} ${employee.lastName}, ${employee.role}`,
+    );
+  }
+  const accounts = known.map(c => toAccount(c, ownerById.get(c.id) ?? null));
 
   // ── Timeline ──
   const nameOf = new Map(CASE_PEOPLE.map(p => [p.id, p.name]));
@@ -152,5 +135,5 @@ export const buildCasebook = (state: GameState): Casebook => {
     )
     .sort((a, b) => a.date.localeCompare(b.date) || a.factId.localeCompare(b.factId));
 
-  return { people: [...story.map(s => s.card), ...holders], timeline, accounts };
+  return { people: story.map(s => s.card), timeline, accounts };
 };
