@@ -17,6 +17,8 @@ interface Props {
   bare?: boolean;
   // Panes in alert re-skin themselves (data-alert), e.g. the comms pane during a Sentinel channel.
   alerts?: Partial<Record<PaneId, boolean>>;
+  // Panes with traffic the player has not seen get a marker on their title (and narrow tab).
+  unread?: Partial<Record<PaneId, boolean>>;
   onFocusPane: (pane: PaneId) => void;
   onRatio: (path: TreePath, ratio: number) => void;
 }
@@ -102,6 +104,7 @@ export const LayoutRoot = ({
   narrow,
   bare = false,
   alerts,
+  unread,
   onFocusPane,
   onRatio,
 }: Props) => {
@@ -124,7 +127,7 @@ export const LayoutRoot = ({
               onClick={() => {
                 onFocusPane(id);
               }}>
-              {`${String(i + 1)}:${id}`}
+              {`${String(i + 1)}:${id}${unread?.[id] === true ? ' ●' : ''}`}
             </button>
           ))}
         </div>
@@ -143,6 +146,7 @@ export const LayoutRoot = ({
               data-pane={id}
               data-focused={id === state.focused}
               data-alert={alerts?.[id] === true}
+              data-unread={unread?.[id] === true}
               style={{
                 display: isVisible ? 'flex' : 'none',
                 left: pct(rect.x),
@@ -155,6 +159,11 @@ export const LayoutRoot = ({
               }}>
               <header className="pane-title">
                 <span>{`${String(i + 1)}:${id}`}</span>
+                {unread?.[id] === true && (
+                  <span className="pane-unread" title="unread">
+                    ●
+                  </span>
+                )}
                 {headerExtras?.[id]}
               </header>
               <div className="pane-body">{panes[id]}</div>

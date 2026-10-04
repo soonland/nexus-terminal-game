@@ -5,6 +5,7 @@ import { render, screen, fireEvent, act } from '@testing-library/react';
 import { CommsPane, INTERRUPT_MS } from './CommsPane';
 import type { CommsHandle } from './CommsPane';
 import { makeLine } from '../types/terminal';
+import type { NexusMessage } from '../data/nexusMessages';
 
 beforeAll(() => {
   Element.prototype.scrollIntoView = vi.fn();
@@ -23,6 +24,10 @@ const baseProps: Props = {
   sentinelBusy: false,
   interruptKey: 0,
   onSend: vi.fn(),
+  nexusMessages: [],
+  ariaLines: [],
+  ariaLabel: 'CASSANDRA',
+  trace: 0,
 };
 
 const renderPane = (over: Partial<Props> = {}) => {
@@ -195,5 +200,159 @@ describe('CommsPane — Sentinel channel view', () => {
     const input = screen.getByTestId('comms-input');
     input.focus();
     expect(document.activeElement).toBe(input);
+  });
+});
+
+const A: NexusMessage = {
+  id: 'a',
+  trigger: 'mission_start',
+  lines: ['Uplink verified, ghost.', '— O.R.'],
+};
+const B: NexusMessage = {
+  id: 'b',
+  trigger: 'trace_31',
+  lines: ['You are on a watchlist now. That is normal.', 'Slow down anyway.', '— O.R.'],
+};
+
+describe('CommsPane — the scripted Nexus line', () => {
+  it('shows every received message and the receive-only note, not the empty-line text', () => {
+    renderPane({ nexusMessages: [A, B] });
+    expect(screen.getByText('Uplink verified, ghost.')).toBeTruthy();
+    expect(screen.getByText('Slow down anyway.')).toBeTruthy();
+    expect(screen.getAllByText('— O.R.')).toHaveLength(2);
+    expect(screen.getByText(/\[ENCRYPTED LINE — RECEIVE ONLY\]/)).toBeTruthy();
+    expect(screen.queryByText(/line open — no traffic/i)).toBeNull();
+  });
+
+  it('keeps the empty-line text when nothing has arrived', () => {
+    renderPane();
+    expect(screen.getByText(/line open — no traffic/i)).toBeTruthy();
+    expect(screen.getByText(/\[ENCRYPTED LINE — RECEIVE ONLY\]/)).toBeTruthy();
+  });
+
+  it('the receive-only line has no input to type in', () => {
+    renderPane({ nexusMessages: [A] });
+    expect(screen.queryByTestId('comms-input')).toBeNull();
+    expect(document.querySelectorAll('input')).toHaveLength(0);
+  });
+
+  it('a Sentinel interruption breaks the last message off mid-sentence', () => {
+    vi.useFakeTimers();
+    const { update } = renderPane({ nexusMessages: [A, B] });
+    update({ sentinelEstablished: true, sentinelOpen: true, interruptKey: 1 });
+    expect(screen.getByText('Uplink verified, ghost.')).toBeTruthy(); // earlier messages intact
+    expect(screen.getByText(/signal lost/i)).toBeTruthy();
+    expect(screen.queryByText('Slow down anyway.')).toBeNull(); // the rest of the cut message is gone
+    expect(screen.queryByText('You are on a watchlist now. That is normal.')).toBeNull(); // cut short
+    expect(document.body.textContent).toContain('You are on a');
+  });
+
+  it('after the interruption the Nexus tab keeps its history and goes quiet', () => {
+    vi.useFakeTimers();
+    const { update } = renderPane({ nexusMessages: [A, B] });
+    update({ sentinelEstablished: true, sentinelOpen: true, interruptKey: 1 });
+    act(() => {
+      vi.advanceTimersByTime(INTERRUPT_MS);
+    });
+    fireEvent.click(tab('NEXUS'));
+    expect(screen.getByText('Slow down anyway.')).toBeTruthy();
+    expect(screen.getByText(/line quiet/i)).toBeTruthy();
+  });
+
+  it('never mentions Sentinel or the secret name before first contact', () => {
+    const { container } = renderPane({ nexusMessages: [A, B] });
+    expect(container.textContent).not.toMatch(/sentinel|aria|cassandra/i);
+  });
+});
+
+describe('CommsPane — the ARIA / CASSANDRA tab', () => {
+  const lines = [makeLine('output', 'ghost >> hello'), makeLine('aria', 'who is asking.')];
+
+  it('has no such tab until she has spoken', () => {
+    renderPane();
+    expect(screen.queryByRole('tab', { name: /cassandra|aria/i })).toBeNull();
+    expect(screen.queryAllByRole('tab')).toHaveLength(0);
+  });
+
+  it('appears at the first exchange under the label it is given, and shows her lines', () => {
+    const { update } = renderPane();
+    update({ ariaLines: lines, ariaLabel: 'CASSANDRA' });
+    expect(tab('CASSANDRA').getAttribute('aria-selected')).toBe('true');
+    expect(screen.getByText('who is asking.')).toBeTruthy();
+    expect(screen.getByText('ghost >> hello')).toBeTruthy();
+  });
+
+  it('uses the real name once it is known', () => {
+    renderPane({ ariaLines: lines, ariaLabel: 'ARIA' });
+    expect(tab('ARIA')).toBeTruthy();
+  });
+
+  it('is read-only: it has no input and says where to answer', () => {
+    renderPane({ ariaLines: lines });
+    fireEvent.click(tab('CASSANDRA')); // a resumed game does not switch to the tab on its own
+    expect(screen.queryByTestId('comms-input')).toBeNull();
+    expect(document.querySelectorAll('input')).toHaveLength(0);
+    expect(screen.getByText(/answer from the terminal/i)).toBeTruthy();
+  });
+
+  it('a new reply switches to the tab but does not take focus from the terminal', () => {
+    const { update } = renderPane({ ariaLines: [lines[0]] });
+    const before = document.activeElement;
+    update({ ariaLines: lines });
+    expect(tab('CASSANDRA').getAttribute('aria-selected')).toBe('true');
+    expect(document.activeElement).toBe(before);
+  });
+
+  it('coexists with the Sentinel tab, and tabs switch both ways', () => {
+    renderPane({
+      ariaLines: lines,
+      sentinelEstablished: true,
+      sentinelOpen: true,
+      sentinelLines: [makeLine('output', 'sentinel >> I see you.')],
+    });
+    fireEvent.click(tab('SENTINEL'));
+    expect(screen.getByText('sentinel >> I see you.')).toBeTruthy();
+    expect(screen.queryByText('who is asking.')).toBeNull();
+    fireEvent.click(tab('CASSANDRA'));
+    expect(screen.getByText('who is asking.')).toBeTruthy();
+    fireEvent.click(tab('NEXUS'));
+    expect(screen.getByText(/nexus \/\/ encrypted line/i)).toBeTruthy();
+  });
+
+  it('a new run (no lines, no channel) goes back to the bare Nexus line', () => {
+    const { update } = renderPane({ ariaLines: lines });
+    update({ ariaLines: [] });
+    expect(screen.queryAllByRole('tab')).toHaveLength(0);
+    expect(screen.getByText(/nexus \/\/ encrypted line/i)).toBeTruthy();
+  });
+});
+
+describe('CommsPane — trace meter', () => {
+  it('shows the meter along the top edge on every tab', () => {
+    renderPane({ trace: 64 });
+    expect(screen.getByRole('meter').getAttribute('aria-valuenow')).toBe('64');
+    const root = document.querySelector('.comms')!;
+    expect(root.firstElementChild).toBe(screen.getByRole('meter'));
+  });
+
+  it('follows the trace as it changes', () => {
+    const { update } = renderPane({ trace: 10 });
+    update({ trace: 88 });
+    expect(screen.getByRole('meter').getAttribute('data-level')).toBe('aggressive');
+  });
+});
+
+describe('CommsPane — her tab at the history cap', () => {
+  const at = (n: number) => [
+    { ...makeLine('output', `ghost >> q${String(n)}`), id: `aria-${String(n)}-player` },
+    { ...makeLine('aria', `a${String(n)}`), id: `aria-${String(n)}-aria` },
+  ];
+
+  it('a new reply switches to her tab even when the number of lines has not changed', () => {
+    const { update } = renderPane({ ariaLines: at(40) });
+    fireEvent.click(tab('NEXUS'));
+    expect(tab('NEXUS').getAttribute('aria-selected')).toBe('true');
+    update({ ariaLines: at(41) }); // same length, a newer reply
+    expect(tab('CASSANDRA').getAttribute('aria-selected')).toBe('true');
   });
 });

@@ -1,25 +1,22 @@
-import { getTraceLevel } from '../types/terminal';
-
 interface Props {
   nodeIp: string;
-  trace: number;
 }
 
-export const TerminalHeader = ({ nodeIp, trace }: Props) => {
-  const level = getTraceLevel(trace);
-
+// The trace readout lives on the COMMS pane (meter) and in the status bar.
+export const TerminalHeader = ({ nodeIp }: Props) => {
   return (
     <header
       style={{
-        display: 'flex',
+        display: 'grid',
+        gridTemplateColumns: '1fr auto 1fr',
         alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '0.1rem 1.5rem',
-        borderBottom: '1px solid var(--color-border)',
-        background: 'var(--color-bg-header)',
+        padding: '3px 1.5rem',
+        // Same flat title strip as the other panes (one palette across the workspace).
+        borderBottom: '1px solid var(--win-border)',
+        background: 'var(--win-titlebar-bg)',
         flexShrink: 0,
         fontFamily: 'var(--font-mono)',
-        fontSize: '18px',
+        fontSize: '13px',
         userSelect: 'none',
       }}>
       <span style={{ color: 'var(--color-system)' }}>NEXUS OPS</span>
@@ -31,7 +28,7 @@ export const TerminalHeader = ({ nodeIp, trace }: Props) => {
         &nbsp;&#x251C;
       </span>
 
-      <span style={{ color: level.color }}>TRC {String(trace).padStart(3, ' ')}%</span>
+      <span />
     </header>
   );
 };

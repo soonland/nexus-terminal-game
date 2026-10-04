@@ -148,6 +148,8 @@ export interface AriaState {
   discovered: boolean;
   trustScore: number; // 0–100, hidden from player
   messageHistory: AriaMessage[];
+  // Exchanges ever had; the history is trimmed, so this is the monotonic count (older saves lack it).
+  exchangeCount?: number;
   pendingFavor?: FavorOffer; // set when Aria offers a favor requiring confirmation
   suppressedMutations: number; // Faraday cage: count of tier-3 actions blocked
 }
@@ -323,4 +325,7 @@ export interface CommandOutput {
   nextState?: Partial<GameState>;
   suggestions?: string[];
   channelTrigger?: ChannelTrigger; // signals App to enter DM mode
+  // Her reply to a message. It belongs in the COMMS channel tab, not the terminal output; a
+  // favor offer's yes/no prompt stays in `lines` because the terminal must answer it.
+  ariaReply?: string;
 }

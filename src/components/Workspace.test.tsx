@@ -60,6 +60,7 @@ const setup = (over: Partial<Parameters<typeof Workspace>[0]> = {}) => {
       onTerminalFocused={onTerminalFocused}
       comms={<div>comms-content</div>}
       commsAlert={false}
+      commsActivity={0}
       onCommsFocused={onCommsFocused}
       {...over}
     />,
@@ -134,6 +135,7 @@ describe('Workspace — game starting and ending', () => {
       onTerminalFocused={vi.fn()}
       comms={<div>comms-content</div>}
       commsAlert={false}
+      commsActivity={0}
       onCommsFocused={vi.fn()}
     />
   );
@@ -166,6 +168,7 @@ describe('Workspace — game starting and ending', () => {
         onTerminalFocused={vi.fn()}
         comms={<div>comms-content</div>}
         commsAlert={false}
+        commsActivity={0}
         onCommsFocused={vi.fn()}
       />
     );
@@ -436,6 +439,7 @@ describe('Workspace — comms focus during the first-contact interruption', () =
         />
       }
       commsAlert={established}
+      commsActivity={0}
       onCommsFocused={vi.fn()}
     />
   );
@@ -463,5 +467,47 @@ describe('Workspace — comms focus during the first-contact interruption', () =
       vi.advanceTimersByTime(INTERRUPT_MS);
     });
     expect(document.activeElement).toBe(screen.getByTestId('comms-input'));
+  });
+});
+
+describe('Workspace — unread comms marker', () => {
+  const marked = () => section('comms').getAttribute('data-unread') === 'true';
+
+  it('a new game starts with the opening message unread, and focusing comms reads it', () => {
+    setup({ commsActivity: 1 });
+    expect(marked()).toBe(true);
+    expect(screen.getByText('5:comms!')).toBeTruthy();
+    alt('Digit5');
+    expect(marked()).toBe(false);
+  });
+
+  it('a resumed game starts read, and new traffic while elsewhere marks comms', () => {
+    const resumed = produce(withFile(), s => {
+      s.turnCount = 12;
+    });
+    const view = setup({ commsActivity: 2, gameState: resumed });
+    expect(marked()).toBe(false);
+    view.rerender(
+      <Workspace
+        ref={view.ref}
+        terminal={<input aria-label="term-input" />}
+        gameState={resumed}
+        nodeIp="10.0.0.1"
+        trace={14}
+        map={<div>map-content</div>}
+        notes={<div>notes-content</div>}
+        help={<div>help-content</div>}
+        briefing={<div>briefing-content</div>}
+        dossier={<div>dossier-content</div>}
+        explorerDisabled={false}
+        onRunCommand={view.onRunCommand}
+        onTerminalFocused={view.onTerminalFocused}
+        comms={<div>comms-content</div>}
+        commsAlert={false}
+        commsActivity={3}
+        onCommsFocused={view.onCommsFocused}
+      />,
+    );
+    expect(marked()).toBe(true);
   });
 });

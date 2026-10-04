@@ -1,5 +1,7 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import type { TerminalLine } from '../types/terminal';
+import type { NexusMessage } from '../data/nexusMessages';
+import { TraceMeter } from './TraceMeter';
 import { TerminalOutput } from './TerminalOutput';
 import { TerminalInput } from './TerminalInput';
 
@@ -17,14 +19,35 @@ interface Props {
   sentinelBusy: boolean;
   // Increments each time Sentinel first cuts into the line; drives the interruption.
   interruptKey: number;
+  // The scripted Nexus line: every message received so far, oldest first.
+  nexusMessages?: NexusMessage[];
+  // Her conversation (derived from the saved history); the tab exists once she has spoken.
+  ariaLines?: TerminalLine[];
+  ariaLabel?: string;
+  trace?: number;
   onSend: (text: string) => void;
 }
 
-type Tab = 'nexus' | 'sentinel';
+type Tab = 'nexus' | 'sentinel' | 'aria';
+
+// The line is cut about halfway, mid-sentence, as the channel is taken over.
+const cutLine = (text: string): string =>
+  `${text.slice(0, Math.max(8, Math.floor(text.length / 2))).trimEnd()} ▒▒▒ signal lost ▒▒▒`;
 
 export const CommsPane = forwardRef<CommsHandle, Props>(
   (
-    { sentinelEstablished, sentinelOpen, sentinelLines, sentinelBusy, interruptKey, onSend },
+    {
+      sentinelEstablished,
+      sentinelOpen,
+      sentinelLines,
+      sentinelBusy,
+      interruptKey,
+      nexusMessages = [],
+      ariaLines = [],
+      ariaLabel = 'CASSANDRA',
+      trace = 0,
+      onSend,
+    },
     ref,
   ) => {
     const [tab, setTab] = useState<Tab>('nexus');
@@ -33,6 +56,7 @@ export const CommsPane = forwardRef<CommsHandle, Props>(
     const interruptingRef = useRef(false);
     const inputRef = useRef<HTMLInputElement>(null);
     const rootRef = useRef<HTMLDivElement>(null);
+    const nexusRef = useRef<HTMLDivElement>(null);
 
     useImperativeHandle(ref, () => ({
       focus: () => {
@@ -71,14 +95,36 @@ export const CommsPane = forwardRef<CommsHandle, Props>(
       if (sentinelOpen && !interruptingRef.current) setTab('sentinel');
     }, [sentinelOpen]);
 
-    // A new run clears the channel: back to the bare Nexus line.
+    // A new run clears the channels: back to the bare Nexus line.
+    const hasAria = ariaLines.length > 0;
     useEffect(() => {
       if (!sentinelEstablished) {
         interruptingRef.current = false;
         setInterrupting(false);
-        setTab('nexus');
+        setTab(prev => (prev === 'sentinel' ? 'nexus' : prev));
       }
     }, [sentinelEstablished]);
+    useEffect(() => {
+      if (!hasAria) setTab(prev => (prev === 'aria' ? 'nexus' : prev));
+    }, [hasAria]);
+
+    // Her tab appears at her first reply and shows each new one, without taking keyboard focus
+    // (the player may be typing in the terminal). A resumed game does not switch on mount.
+    // Keyed on the newest line's id, not the line count: the conversation is trimmed, so the
+    // count stops growing once it is full while the id still changes with every reply.
+    const lastAriaId = ariaLines.at(-1)?.id;
+    const seenLastAriaId = useRef(lastAriaId);
+    useEffect(() => {
+      if (lastAriaId !== undefined && lastAriaId !== seenLastAriaId.current) setTab('aria');
+      seenLastAriaId.current = lastAriaId;
+    }, [lastAriaId]);
+
+    // Keep the newest Nexus message in view.
+    const messageCount = nexusMessages.length;
+    useEffect(() => {
+      const el = nexusRef.current;
+      if (el) el.scrollTop = el.scrollHeight;
+    }, [messageCount, tab, interrupting]);
 
     const nexusText = interrupting
       ? '▒▒▒ signal lost ▒▒▒'
@@ -88,7 +134,8 @@ export const CommsPane = forwardRef<CommsHandle, Props>(
 
     return (
       <div className="comms" ref={rootRef}>
-        {sentinelEstablished && (
+        <TraceMeter trace={trace} />
+        {(sentinelEstablished || hasAria) && (
           <div role="tablist" className="comms-tabs">
             <button
               type="button"
@@ -100,23 +147,71 @@ export const CommsPane = forwardRef<CommsHandle, Props>(
               }}>
               NEXUS
             </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={tab === 'sentinel'}
-              data-closed={!sentinelOpen}
-              className={interrupting ? 'comms-tab comms-flicker' : 'comms-tab'}
-              onClick={() => {
-                setTab('sentinel');
-              }}>
-              SENTINEL
-            </button>
+            {sentinelEstablished && (
+              <button
+                type="button"
+                role="tab"
+                aria-selected={tab === 'sentinel'}
+                data-closed={!sentinelOpen}
+                className={interrupting ? 'comms-tab comms-flicker' : 'comms-tab'}
+                onClick={() => {
+                  setTab('sentinel');
+                }}>
+                SENTINEL
+              </button>
+            )}
+            {hasAria && (
+              <button
+                type="button"
+                role="tab"
+                aria-selected={tab === 'aria'}
+                className="comms-tab"
+                onClick={() => {
+                  setTab('aria');
+                }}>
+                {ariaLabel}
+              </button>
+            )}
           </div>
         )}
-        {tab === 'nexus' || !sentinelEstablished ? (
-          <div className="comms-nexus">
+        {tab === 'aria' && hasAria ? (
+          <div className="comms-channel comms-aria">
+            <TerminalOutput lines={ariaLines} />
+            <div className="comms-readonly">[read-only — answer from the terminal]</div>
+          </div>
+        ) : tab === 'nexus' || !sentinelEstablished ? (
+          <div className="comms-nexus" ref={nexusRef}>
             <div className="comms-line">NEXUS // ENCRYPTED LINE</div>
-            <div className="comms-empty">{nexusText}</div>
+            {nexusMessages.length === 0 ? (
+              <div className="comms-empty">{nexusText}</div>
+            ) : (
+              <>
+                {nexusMessages.map((message, index) => {
+                  const isLast = index === nexusMessages.length - 1;
+                  // An interruption breaks the newest message off mid-sentence.
+                  if (interrupting && isLast) {
+                    return (
+                      <div key={message.id} className="comms-msg">
+                        <div className="comms-msg-line">{cutLine(message.lines[0] ?? '')}</div>
+                      </div>
+                    );
+                  }
+                  return (
+                    <div key={message.id} className="comms-msg">
+                      {message.lines.map(text => (
+                        <div key={text} className="comms-msg-line">
+                          {text}
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })}
+                {sentinelEstablished && !interrupting && (
+                  <div className="comms-empty">line quiet</div>
+                )}
+              </>
+            )}
+            <div className="comms-readonly">[ENCRYPTED LINE — RECEIVE ONLY]</div>
           </div>
         ) : (
           <div className="comms-channel">

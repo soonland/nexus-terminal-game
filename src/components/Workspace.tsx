@@ -5,6 +5,7 @@ import { cyclePreset, focusPane, setRatio, toggleZoom } from '../layout/layoutTr
 import type { LayoutState, PaneId, TreePath } from '../layout/layoutTree';
 import { loadLayout, saveLayout } from '../layout/layoutPersistence';
 import { useLayoutShortcuts } from '../layout/useLayoutShortcuts';
+import { useUnread } from '../layout/useUnread';
 import { NARROW_WIDTH, useViewportWidth } from '../layout/useViewportWidth';
 import { LayoutRoot } from '../layout/LayoutRoot';
 import { StatusBar } from '../layout/StatusBar';
@@ -39,6 +40,8 @@ interface Props {
   // The comms pane is injected: App owns the channel state.
   comms: ReactNode;
   commsAlert: boolean;
+  // Running count of things that have arrived in COMMS; drives the unread marker.
+  commsActivity: number;
   onCommsFocused: () => void;
 }
 
@@ -69,6 +72,7 @@ export const Workspace = forwardRef<WorkspaceHandle, Props>(
       onTerminalFocused,
       comms,
       commsAlert,
+      commsActivity,
       onCommsFocused,
     },
     ref,
@@ -79,6 +83,12 @@ export const Workspace = forwardRef<WorkspaceHandle, Props>(
     const [selection, setSelection] = useState<Selection | null>(null);
     const narrow = useViewportWidth() < NARROW_WIDTH;
     const noGame = gameState === null;
+    const commsUnread = useUnread(
+      commsActivity,
+      layout.focused === 'comms',
+      gameState?.runId ?? null,
+      (gameState?.turnCount ?? 0) > 0,
+    );
 
     const onTerminalFocusedRef = useRef(onTerminalFocused);
     useEffect(() => {
@@ -227,6 +237,7 @@ export const Workspace = forwardRef<WorkspaceHandle, Props>(
           narrow={narrow && !noGame}
           bare={noGame}
           alerts={{ comms: commsAlert }}
+          unread={{ comms: commsUnread }}
           onFocusPane={focus}
           onRatio={(path: TreePath, ratio: number) => {
             setLayout(prev => setRatio(prev, path, ratio));
@@ -239,6 +250,7 @@ export const Workspace = forwardRef<WorkspaceHandle, Props>(
             zoomed={layout.zoomed}
             nodeIp={nodeIp}
             trace={trace}
+            unread={commsUnread ? ['comms'] : []}
           />
         )}
         {overlay && !noGame && (

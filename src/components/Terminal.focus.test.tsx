@@ -10,9 +10,7 @@ beforeAll(() => {
 const TerminalUnderTest = ({ show }: { show: boolean }) => (
   <>
     <button type="button">other</button>
-    {show && (
-      <Terminal lines={[]} nodeIp="10.0.0.1" trace={0} suggestions={[]} onSubmit={vi.fn()} />
-    )}
+    {show && <Terminal lines={[]} nodeIp="10.0.0.1" suggestions={[]} onSubmit={vi.fn()} />}
   </>
 );
 

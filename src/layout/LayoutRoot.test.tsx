@@ -248,3 +248,36 @@ describe('LayoutRoot — alerts', () => {
     for (const id of PANE_IDS) expect(section(id).dataset.alert).toBe('false');
   });
 });
+
+describe('LayoutRoot — unread markers', () => {
+  const withUnread = (unread: Partial<Record<PaneId, boolean>>, narrow = false) =>
+    render(
+      <LayoutRoot
+        state={createDefaultLayout()}
+        panes={panes}
+        narrow={narrow}
+        unread={unread}
+        onFocusPane={vi.fn()}
+        onRatio={vi.fn()}
+      />,
+    );
+
+  it('marks the pane title of an unread pane', () => {
+    withUnread({ comms: true });
+    expect(section('comms').getAttribute('data-unread')).toBe('true');
+    expect(section('comms').querySelector('.pane-title')?.textContent).toContain('●');
+    expect(section('term').getAttribute('data-unread')).toBe('false');
+    expect(section('term').querySelector('.pane-title')?.textContent).not.toContain('●');
+  });
+
+  it('shows no marker when nothing is unread', () => {
+    withUnread({});
+    expect(document.querySelectorAll('[data-unread="true"]')).toHaveLength(0);
+  });
+
+  it('marks the tab in the narrow one-pane-at-a-time view', () => {
+    withUnread({ comms: true }, true);
+    expect(screen.getByRole('tab', { name: /5:comms/ }).textContent).toContain('●');
+    expect(screen.getByRole('tab', { name: /1:term/ }).textContent).not.toContain('●');
+  });
+});

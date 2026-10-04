@@ -208,9 +208,23 @@ No change to `SAVE_VERSION`.
   behaviour tests and the screenshot pass.
 - **Small screens:** the tile layout is dense; the narrow fallback is mandatory in PR 1, not later.
 
+## PR 3 delivered (#229)
+
+Plan: `docs/superpowers/plans/2026-10-03-tiled-ui-pr3.md`. Rulings made while building it:
+
+- Nexus messages are derived state in definition order (flags carry no sequence); `mission_start`
+  is always received; thresholds latch so a burn never repeats or removes a message; the layer
+  messages fire from the current node's layer.
+- The ARIA tab is read-only and rebuilt from the saved conversation; her reply is
+  `CommandOutput.ariaReply` and a favor offer's prompt stays in the terminal. The first reply
+  prints a one-line pointer in the terminal.
+- Unread: a resumed run starts read, a new run starts with the opening message unread.
+- The terminal header lost its trace readout (the meter replaces it) and now uses the flat pane
+  title colours.
+
 ## Open questions
 
 - Exact default pane ratios per preset, and the narrow-width threshold (900px proposed) — settled
   in PR 1 with screenshots.
 - Final visual tuning (phosphor glow vs flat) — PR 3.
-- Whether the closed SENTINEL tab should remain visible after `exit` (proposed: yes, dimmed).
+- Whether the closed SENTINEL tab should remain visible after `exit`: **yes, dimmed** (resolved in PR 2, kept in PR 3).

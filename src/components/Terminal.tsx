@@ -8,7 +8,6 @@ import { SuggestionBar } from './SuggestionBar';
 interface Props {
   lines: TerminalLine[];
   nodeIp: string;
-  trace: number;
   suggestions: string[];
   onSubmit: (command: string) => void;
   inputDisabled?: boolean;
@@ -26,7 +25,6 @@ export const Terminal = forwardRef<TerminalHandle, Props>(
     {
       lines,
       nodeIp,
-      trace,
       suggestions,
       onSubmit,
       inputDisabled = false,
@@ -46,7 +44,7 @@ export const Terminal = forwardRef<TerminalHandle, Props>(
       <div
         onClick={() => inputRef.current?.focus()}
         style={{ display: 'flex', flexDirection: 'column', height: '100%', cursor: 'text' }}>
-        <TerminalHeader nodeIp={nodeIp} trace={trace} />
+        <TerminalHeader nodeIp={nodeIp} />
 
         <TerminalOutput lines={lines} />
 

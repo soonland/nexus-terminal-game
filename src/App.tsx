@@ -10,6 +10,8 @@ import { HelpModal } from './components/HelpModal';
 import { NotesModal } from './components/NotesModal';
 import { DossierWindow } from './components/DossierWindow';
 import { CommsPane } from './components/CommsPane';
+import { receivedNexusMessages } from './engine/nexusLine';
+import { ariaChannelLines, ariaReplyCount, ariaTabLabel } from './engine/ariaChannel';
 import type { CommsHandle } from './components/CommsPane';
 import { Workspace } from './components/Workspace';
 import type { WorkspaceHandle } from './components/Workspace';
@@ -609,6 +611,11 @@ export const App = () => {
       stopSpinner();
 
       const out = result.lines.map(l => makeLine(l.type, l.content));
+      // Her replies live in the COMMS tab. The first one gets a pointer here, so a reply that
+      // arrives while the terminal is focused is not silently missed.
+      if (result.ariaReply !== undefined && gameState.aria.messageHistory.length === 0) {
+        out.push(makeLine('aria', `// reply received on COMMS (${ariaTabLabel(gameState)})`));
+      }
 
       if (result.nextState) {
         const next = result.nextState as GameState;
@@ -793,6 +800,8 @@ export const App = () => {
   const node = gameState ? currentNode(gameState) : null;
   const nodeIp = node?.ip ?? '---';
   const trace = gameState?.player.trace ?? 0;
+  const nexusMessages = gameState ? receivedNexusMessages(gameState) : [];
+  const ariaLines = gameState ? ariaChannelLines(gameState) : [];
 
   const allLines: TerminalLine[] = [
     ...sessionLines,
@@ -861,12 +870,17 @@ export const App = () => {
           sentinelLines={sentinelLines}
           sentinelBusy={sentinelBusy}
           interruptKey={interruptKey}
+          nexusMessages={nexusMessages}
+          trace={trace}
+          ariaLines={ariaLines}
+          ariaLabel={gameState ? ariaTabLabel(gameState) : 'CASSANDRA'}
           onSend={text => {
             void handleSentinelSubmit(text);
           }}
         />
       }
       commsAlert={sentinelOpen}
+      commsActivity={nexusMessages.length + (gameState ? ariaReplyCount(gameState) : 0)}
       onCommsFocused={() => {
         commsRef.current?.focus();
       }}
@@ -875,7 +889,6 @@ export const App = () => {
           ref={terminalRef}
           lines={allLines}
           nodeIp={nodeIp}
-          trace={trace}
           suggestions={
             appPhase === 'playing' || appPhase === 'aria'
               ? aiSuggestions.length > 0

@@ -5,7 +5,15 @@ import { StatusBar } from './StatusBar';
 
 const setup = (over: Partial<Parameters<typeof StatusBar>[0]> = {}) =>
   render(
-    <StatusBar preset="hunt" focused="term" zoomed={null} nodeIp="10.0.0.1" trace={14} {...over} />,
+    <StatusBar
+      preset="hunt"
+      focused="term"
+      zoomed={null}
+      nodeIp="10.0.0.1"
+      trace={14}
+      unread={[]}
+      {...over}
+    />,
   );
 
 describe('StatusBar', () => {
@@ -28,5 +36,13 @@ describe('StatusBar', () => {
     setup({ focused: 'aux' });
     expect(screen.getByText('4:aux*')).toBeTruthy();
     expect(screen.getByText('1:term')).toBeTruthy();
+  });
+});
+
+describe('StatusBar — unread', () => {
+  it('flags an unread pane', () => {
+    setup({ unread: ['comms'] });
+    expect(screen.getByText('5:comms!')).toBeTruthy();
+    expect(screen.getByText('1:term*')).toBeTruthy();
   });
 });
