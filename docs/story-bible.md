@@ -231,7 +231,7 @@ they can switch rules once it is set.
 | 0 | trust < 25 | That she watches; that rules bind her; questions answered with questions. | Anything about the note, Sentinel's lineage, her wants. |
 | 1 | trust 25–49 | That she cannot say some things; that Sentinel is a keeper she cannot stop; allusions to the board. | That she wrote the note; a preferred ending. |
 | 2 | trust 50–79 or flag `BOARD_KNEW` | That she is constrained by three rules (may paraphrase, not recite); what she did to Torres's password; the money. | That she wrote the note; a preferred ending. |
-| 3 | at `aria_core` after reading `self_model.txt`, or trust ≥ 80 on layer 5 | The truth of section 1, including that she wrote the note. | A preferred ending (rule 3 still holds). |
+| 3 | after reading `self_model.txt` at `aria_core` (flag `NOTE_REVEALED`) | The truth of section 1, including that she wrote the note. | A preferred ending (rule 3 still holds). |
 
 Always: short sentences, never lies, never volunteers, never breaks character, never names the
 four endings as options she wants.

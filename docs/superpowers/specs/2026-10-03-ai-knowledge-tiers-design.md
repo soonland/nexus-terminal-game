@@ -41,6 +41,9 @@ only that tier's permitted knowledge.
 | 1 | trace ≥ 61, **or** current layer = 5 |
 | 0 | otherwise |
 
+Amended by #218: Aria's tier 3 is `NOTE_REVEALED` only (set by reading `self_model.txt` at
+`aria_core`); the trust ≥ 80 and read-on-`aria_core` gates above no longer apply.
+
 The "newer one" register for Aria (contempt at low trust, pity at high) is derived server-side
 from the trust score she already receives: contempt below 50, pity from 70, neutral between.
 
