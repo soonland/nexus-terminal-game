@@ -15,7 +15,7 @@ pnpm test:coverage # Vitest with v8 coverage — 75% threshold per file (stateme
 pnpm test:ui       # Vitest browser UI
 pnpm analyze       # production build + open bundle treemap
 pnpm knip          # find unused exports, files, and dependencies
-node playwright-playthrough.mjs [--headless] [--ending=1-4] [--url=...]  # full login-to-ending run against a running `pnpm dev`; records playthrough.webm, checks milestones (exit 1 on failure), prints the trace balance
+node playwright-playthrough.mjs [--headless] [--ending=1-4] [--url=...]  # full login-to-ending run against a running `pnpm dev`; records playthrough.webm, checks milestones (exit 1 on failure), opens every camera feed at layers 1, 3, 4 and 5 and saves a screenshot of each to playthrough-cameras/, prints the trace balance
 ```
 
 Build (`pnpm build`) is the primary correctness check — it runs `tsc -b` before Vite, so TypeScript errors will fail the build.
