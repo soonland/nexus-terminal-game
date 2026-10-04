@@ -5,6 +5,9 @@ interface Props {
   onAgree: () => void;
 }
 
+// Two steps below the global size: the welcome text was a bit large for the column it sits in.
+const WELCOME_FONT_SIZE = 'calc(var(--font-size) - 2px)';
+
 const divider = {
   borderBottom: '1px solid var(--color-separator)',
   marginBottom: '0.5rem',
@@ -40,7 +43,7 @@ export const WelcomeScreen = ({ onAgree }: Props) => {
         display: 'flex',
         flexDirection: 'column',
         fontFamily: 'var(--font-mono)',
-        fontSize: 'var(--font-size)',
+        fontSize: WELCOME_FONT_SIZE,
         lineHeight: 'var(--line-height)',
         cursor: 'text',
         overflow: 'hidden',
@@ -188,7 +191,7 @@ export const WelcomeScreen = ({ onAgree }: Props) => {
                 outline: 'none',
                 color: 'var(--color-output)',
                 fontFamily: 'var(--font-mono)',
-                fontSize: 'var(--font-size)',
+                fontSize: WELCOME_FONT_SIZE,
                 lineHeight: 'var(--line-height)',
                 caretColor: 'var(--color-output)',
               }}

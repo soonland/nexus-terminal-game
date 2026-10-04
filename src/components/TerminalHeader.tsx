@@ -6,6 +6,7 @@ interface Props {
 export const TerminalHeader = ({ nodeIp }: Props) => {
   return (
     <header
+      className="terminal-header"
       style={{
         display: 'grid',
         gridTemplateColumns: '1fr auto 1fr',
@@ -13,7 +14,6 @@ export const TerminalHeader = ({ nodeIp }: Props) => {
         padding: '3px 1.5rem',
         // Same flat title strip as the other panes (one palette across the workspace).
         borderBottom: '1px solid var(--win-border)',
-        background: 'var(--win-titlebar-bg)',
         flexShrink: 0,
         fontFamily: 'var(--font-mono)',
         fontSize: '13px',

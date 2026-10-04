@@ -164,21 +164,24 @@ body {
   --win-title-color: #c9d4e6;
   --win-body-color: #c9d4e6;
   --win-desktop-bg: #0b0e14;
+
+  /* The photo backdrop shared by every pre-game screen: welcome, prologue, and the bare terminal
+     (login, boot, resume). A dark tint over a circuit-board photo (free Unsplash License, no
+     attribution required) keeps text readable against a busy photo.
+     Photo: "Closeup photo of circuit board" by Tim Käbel (@dokawastaken),
+     https://unsplash.com/photos/closeup-photo-of-circuit-board-FCrYdP8gohg */
+  --desktop-backdrop:
+    linear-gradient(rgba(11, 14, 20, 0.82), rgba(11, 14, 20, 0.88)),
+    url('https://images.unsplash.com/photo-1524234107056-1c1f48f64ab8?auto=format&fit=crop&w=1920&q=70')
+      center / cover no-repeat,
+    var(--win-desktop-bg);
 }
 
 .desktop {
   position: relative;
   width: 100%;
   height: 100%;
-  /* Dark tint over a circuit-board photo (free Unsplash License, no attribution
-     required) — keeps windows/text readable against a busy photo background.
-     Photo: "Closeup photo of circuit board" by Tim Käbel (@dokawastaken),
-     https://unsplash.com/photos/closeup-photo-of-circuit-board-FCrYdP8gohg */
-  background:
-    linear-gradient(rgba(11, 14, 20, 0.82), rgba(11, 14, 20, 0.88)),
-    url('https://images.unsplash.com/photo-1524234107056-1c1f48f64ab8?auto=format&fit=crop&w=1920&q=70')
-      center / cover no-repeat,
-    var(--win-desktop-bg);
+  background: var(--desktop-backdrop);
   overflow: hidden;
 }
 
@@ -296,7 +299,7 @@ body {
 }
 
 .workspace-solo {
-  background: var(--color-bg);
+  background: var(--desktop-backdrop);
 }
 
 .layout {
@@ -502,6 +505,16 @@ body {
 /* Single-terminal view before a game exists: no pane chrome. */
 .layout-bare .pane {
   border: none;
+  background: transparent;
+}
+
+.terminal-header {
+  background: var(--win-titlebar-bg);
+}
+
+/* Before a game exists the photo shows through the terminal; keep the header strip legible. */
+.layout-bare .terminal-header {
+  background: rgba(22, 26, 34, 0.55);
 }
 
 .layout-bare .pane-title {
