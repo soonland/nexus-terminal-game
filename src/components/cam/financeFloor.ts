@@ -1,5 +1,5 @@
 import { PerspectiveCamera } from 'three';
-import type { Mesh, MeshBasicMaterial, Scene } from 'three';
+import type { Mesh, Scene } from 'three';
 import { aimCamera, pickMount } from './pan';
 import type { Mount } from './pan';
 import { floorAccent } from '../../data/cameras';
@@ -28,8 +28,8 @@ const MOUNTS: readonly [Mount, ...Mount[]] = [
   { position: [0, 2.8, 6.5], heading: 0, range: 0.5, sweep: 9, hold: 3, offset: 2 },
 ];
 
-// White walls with green trim, a tiled floor and a ceiling with light panels (one stutters).
-const addShell = (scene: Scene): MeshBasicMaterial => {
+// White walls with green trim, a tiled floor and a ceiling with light panels.
+const addShell = (scene: Scene): void => {
   tiledFloor(scene, 16, 16, 0, -1, ACCENT);
   scene.add(wall(16, 4.4, 0.2, WALL_WHITE, 0, 2.2, -9));
   scene.add(wall(16, 4.4, 0.2, WALL_WHITE, 0, 2.2, 7));
@@ -42,15 +42,12 @@ const addShell = (scene: Scene): MeshBasicMaterial => {
   ceiling.rotation.x = Math.PI / 2;
   ceiling.position.set(0, 4.4, -1);
   scene.add(ceiling);
-  let flicker: Mesh | null = null;
   for (const x of [-4, 0, 4]) {
     for (const z of [-6, -2, 2]) {
       const panel = glow(1.8, 0.04, 0.5, 0xffffff, x, 4.36, z);
       scene.add(panel);
-      if (x === 0 && z === -2) flicker = panel;
     }
   }
-  return (flicker as Mesh).material as MeshBasicMaterial;
 };
 
 // Three rows of five desks with paired dormant monitors and chairs, and glass partitions.
@@ -92,9 +89,9 @@ const addTickerWall = (scene: Scene): Bar[] => {
 export const buildFinanceFloor = (mountIndex: number): FeedScene => {
   const mount = pickMount(MOUNTS, mountIndex);
   const scene = litBase(12, 70);
-  const light = litRoom(scene);
+  litRoom(scene);
 
-  const flickerMaterial = addShell(scene);
+  addShell(scene);
   addDesks(scene);
   const bars = addTickerWall(scene);
 
@@ -107,9 +104,6 @@ export const buildFinanceFloor = (mountIndex: number): FeedScene => {
       bar.mesh.scale.y = height;
       bar.mesh.position.y = 1.0 + height / 2;
     }
-    const stutter = Math.sin(t * 21) * Math.sin(t * 2.9) > 0.94;
-    flickerMaterial.color.setHex(stutter ? 0x9aa5ad : 0xffffff);
-    light.intensity = stutter ? 0.55 : 1.1;
   };
   update(0);
   return { scene, camera, update };

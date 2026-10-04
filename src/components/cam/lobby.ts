@@ -1,5 +1,5 @@
 import { PerspectiveCamera } from 'three';
-import type { Mesh, MeshBasicMaterial, Scene } from 'three';
+import type { Scene } from 'three';
 import { floorAccent } from '../../data/cameras';
 import { aimCamera, pickMount } from './pan';
 import type { Mount } from './pan';
@@ -151,21 +151,18 @@ const addDecor = (scene: Scene): void => {
   scene.add(cylinder(0.2, 0.6, 0x7d8a93, -7.3, 0.3, 4.2)); // umbrella stand
 };
 
-// The ceiling with recessed light panels; one of them flickers.
-const addCeiling = (scene: Scene): MeshBasicMaterial => {
+// The ceiling with recessed light panels.
+const addCeiling = (scene: Scene): void => {
   const ceiling = floor(16, 16, CEILING_WHITE);
   ceiling.rotation.x = Math.PI / 2;
   ceiling.position.y = 4.4;
   scene.add(ceiling);
-  let flicker: Mesh | null = null;
   for (const x of [-4, 0, 4]) {
     for (const z of [-5, -1, 3]) {
       const panel = glow(1.6, 0.04, 0.5, 0xffffff, x, 4.36, z);
       scene.add(panel);
-      if (x === 0 && z === -1) flicker = panel;
     }
   }
-  return (flicker as Mesh).material as MeshBasicMaterial;
 };
 
 const MOUNTS: readonly [Mount, ...Mount[]] = [
@@ -175,11 +172,11 @@ const MOUNTS: readonly [Mount, ...Mount[]] = [
   { position: [-7, 2.6, 6], heading: 0.7, range: 0.45, sweep: 8, hold: 3, offset: 2 },
 ];
 
-// The lobby after hours: lit and empty, with a camera panning on its mount and one tired fixture.
+// The lobby after hours: lit and empty, with a camera panning on its mount.
 export const buildLobby = (mountIndex: number): FeedScene => {
   const mount = pickMount(MOUNTS, mountIndex);
   const scene = litBase(14, 70);
-  const light = litRoom(scene);
+  litRoom(scene);
 
   tiledFloor(scene, 16, 16, 0, 0, ACCENT);
   addWalls(scene);
@@ -189,17 +186,13 @@ export const buildLobby = (mountIndex: number): FeedScene => {
   addEntrance(scene);
   addSeating(scene);
   addDecor(scene);
-  const flickerMaterial = addCeiling(scene);
+  addCeiling(scene);
 
   const camera = new PerspectiveCamera(60, ASPECT, 0.1, 44);
   camera.position.set(...mount.position);
   const update = (t: number) => {
     // The camera stays on its mount and turns, holding for a moment at each end.
     aimCamera(camera, t, mount);
-    // Mostly steady, with an occasional stutter in one fixture.
-    const stutter = Math.sin(t * 23) * Math.sin(t * 3.1) > 0.92;
-    light.intensity = stutter ? 0.55 : 1.1;
-    flickerMaterial.color.setHex(stutter ? 0x9aa5ad : 0xffffff);
   };
   update(0);
   return { scene, camera, update };

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { MeshBasicMaterial, MeshStandardMaterial } from 'three';
-import { Box3, Mesh, PointLight, Raycaster, Scene, Vector3 } from 'three';
+import { Box3, DirectionalLight, Mesh, PointLight, Raycaster, Scene, Vector3 } from 'three';
 import { CAMERA_FEEDS, FLOORS } from '../../data/cameras';
 import { buildScene, disposeScene } from './scenes';
 import { WALL_WHITE, tiledFloor, wallTrim } from './shapes';
@@ -238,4 +238,31 @@ describe('the vault approach', () => {
       );
     }
   });
+});
+
+describe('no flicker', () => {
+  // Lights and fixtures hold steady; only meshes tagged `blink` (server LEDs, standby strips) pulse,
+  // slowly, on purpose.
+  it.each(CAMERA_FEEDS.map(f => [f.id, f] as const))(
+    '%s: lights and surfaces do not change over time, except the tagged blinkers',
+    (_id, feed) => {
+      const built = buildScene(feed);
+      const snapshot = (): string => {
+        const parts: string[] = [];
+        built.scene.traverse(o => {
+          if (o instanceof DirectionalLight) parts.push(`light:${String(o.intensity)}`);
+          if (o instanceof Mesh && o.name !== 'blink') parts.push(`c:${String(colourOf(o))}`);
+        });
+        return parts.join('|');
+      };
+      built.update(0);
+      const first = snapshot();
+      const changed: number[] = [];
+      for (let t = 0.37; t < 120; t += 0.37) {
+        built.update(t);
+        if (snapshot() !== first) changed.push(Math.round(t * 100) / 100);
+      }
+      expect(changed).toEqual([]);
+    },
+  );
 });

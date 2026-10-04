@@ -45,6 +45,7 @@ const addCabinets = (scene: Scene): Standby[] => {
       const z = -1 - i * 2;
       scene.add(box(1.2, 2.8, 1.4, 0x4a5560, x, 1.4, z));
       const strip = glow(0.04, 2.2, 0.2, BRIGHT_CYAN, x + facing * 0.62, 1.4, z);
+      strip.name = 'blink';
       scene.add(strip);
       standby.push({ material: strip.material as MeshBasicMaterial, phase: n });
       scene.add(box(0.02, 0.5, 0.9, 0x20282e, x + facing * 0.62, 0.6, z));
@@ -103,7 +104,7 @@ const addVault = (scene: Scene): void => {
 export const buildDataHall = (mountIndex: number): FeedScene => {
   const mount = pickMount(MOUNTS, mountIndex);
   const scene = litBase(14, 80);
-  const light = litRoom(scene);
+  litRoom(scene);
 
   addShell(scene);
   addVault(scene);
@@ -116,8 +117,6 @@ export const buildDataHall = (mountIndex: number): FeedScene => {
     for (const s of standby) {
       s.material.color.setHex(Math.sin(t * 0.8 + s.phase) > 0 ? BRIGHT_CYAN : DIM_CYAN);
     }
-    const stutter = Math.sin(t * 13) * Math.sin(t * 1.7) > 0.95;
-    light.intensity = stutter ? 0.55 : 1.1;
   };
   update(0);
   return { scene, camera, update };

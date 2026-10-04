@@ -5,7 +5,7 @@ import {
   PerspectiveCamera,
   TorusGeometry,
 } from 'three';
-import type { MeshBasicMaterial, Scene } from 'three';
+import type { Scene } from 'three';
 import { floorAccent } from '../../data/cameras';
 import { aimCamera, pickMount } from './pan';
 import type { Mount } from './pan';
@@ -59,7 +59,7 @@ const disc = (radius: number, depth: number, color: number, z: number): Mesh => 
 };
 
 // The corridor: white walls with cyan trim, a tiled floor, a ceiling with light panels and pipe runs.
-const addCorridor = (scene: Scene): MeshBasicMaterial => {
+const addCorridor = (scene: Scene): void => {
   tiledFloor(scene, 5, 16, 0, 0, ACCENT);
   for (const x of [-2.5, 2.5]) {
     scene.add(wall(0.2, 4.2, 16, WALL_WHITE, x, 2.1, 0));
@@ -72,18 +72,15 @@ const addCorridor = (scene: Scene): MeshBasicMaterial => {
   ceiling.rotation.x = Math.PI / 2;
   ceiling.position.y = 4.2;
   scene.add(ceiling);
-  let flicker: Mesh | null = null;
   for (const z of [5, 1, -3]) {
     const panel = glow(1.4, 0.04, 0.5, 0xffffff, 0, 4.16, z);
     scene.add(panel);
-    if (z === 1) flicker = panel;
   }
   for (const x of [-1.8, 1.8]) {
     const pipe = cylinder(0.12, 15, 0xc2cad0, x, 3.7, 0);
     pipe.rotation.x = Math.PI / 2;
     scene.add(pipe);
   }
-  return (flicker as Mesh).material as MeshBasicMaterial;
 };
 
 // The door: a thick frame, the circular leaf, a ring of bolts, a wheel with spokes, hinges, a keypad,
@@ -126,18 +123,15 @@ const addDoor = (scene: Scene): void => {
 export const buildVaultApproach = (mountIndex: number): FeedScene => {
   const mount = pickMount(MOUNTS, mountIndex);
   const scene = litBase(14, 60);
-  const light = litRoom(scene);
+  litRoom(scene);
 
-  const flickerMaterial = addCorridor(scene);
+  addCorridor(scene);
   addDoor(scene);
 
   const camera = new PerspectiveCamera(58, ASPECT, 0.1, 44);
   camera.position.set(...mount.position);
   const update = (t: number) => {
     aimCamera(camera, t, mount);
-    const stutter = Math.sin(t * 17) * Math.sin(t * 2.3) > 0.94;
-    flickerMaterial.color.setHex(stutter ? 0x9aa5ad : 0xffffff);
-    light.intensity = stutter ? 0.55 : 1.1;
   };
   update(0);
   return { scene, camera, update };

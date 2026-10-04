@@ -185,13 +185,11 @@ export const wallTrim = (
   place(0.28, 1.15, 0.08);
 };
 
-// Light for a lit room: soft sky/ground fill plus one directional light for shading. No point lights:
-// near a white ceiling they burn bright pools into it. Returns the directional light, which the
-// room dims for its flicker.
-export const litRoom = (scene: Scene): DirectionalLight => {
+// Light for a lit room: soft sky/ground fill plus one directional light for shading. No point lights
+// (near a white ceiling they burn bright pools into it) and no flicker: the light never changes.
+export const litRoom = (scene: Scene): void => {
   scene.add(new HemisphereLight(0xffffff, 0xe6ebee, 1.0));
   const sun = new DirectionalLight(0xffffff, 1.1);
   sun.position.set(4, 8, 6);
   scene.add(sun);
-  return sun;
 };

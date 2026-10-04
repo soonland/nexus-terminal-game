@@ -62,7 +62,7 @@ their number as an **alias** that `view-cam` still accepts; nothing else uses nu
   none.
 - **Text:** names, floor names, descriptions and offline reasons are player-visible before the
   reveal and never contain the secret name (guard tests cover all of them). New scenes are empty and
-  clue-free, with the same night-vision look, pan and one flickering light.
+  clue-free, with the same night-vision look, pan and steady lighting.
 - **New scenes:** security office (a monitor wall with one screen in static, empty console desks, a
   cold mug); finance floor (rows of dormant desks behind glass, a ticker wall of rising and falling
   bars); executive floor (a corridor of closed doors, a corner office with a dark lamp and a city
@@ -158,8 +158,8 @@ and a stripe inlaid in the floor tiles; the floor menu shows it as a swatch besi
 - **Walls** are white; the **floor** is light tiles with visible grout lines; the **ceiling** is white
   with light panels. Props keep their own colours.
 - **Lit, not dark:** the fluorescents stay on around the clock and the rooms are empty after hours.
-  Scenes use a light haze (fog and background) instead of black, brighter lighting, and the flicker
-  stays as one tired fixture per room. Descriptions are reworded from "emergency lighting only" to
+  Scenes use a light haze (fog and background) instead of black, brighter lighting, and no flicker: the
+  lights hold steady (only the server LEDs and the data hall's standby strips pulse, slowly). Descriptions are reworded from "emergency lighting only" to
   lit-but-empty.
 - **Night vision is off by default** (still a remembered toggle), so the colours show; with it on the
   rooms go green and monochrome as before.

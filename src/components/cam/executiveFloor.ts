@@ -1,5 +1,5 @@
 import { PerspectiveCamera } from 'three';
-import type { Mesh, MeshBasicMaterial, Scene } from 'three';
+import type { Scene } from 'three';
 import { floorAccent } from '../../data/cameras';
 import { aimCamera, pickMount } from './pan';
 import type { Mount } from './pan';
@@ -35,8 +35,8 @@ const MOUNTS: readonly [Mount, ...Mount[]] = [
 ];
 
 // A long corridor: white walls with gold trim, a tiled floor with a gold runner, and a ceiling with
-// light panels (one stutters).
-const addCorridor = (scene: Scene): MeshBasicMaterial => {
+// light panels.
+const addCorridor = (scene: Scene): void => {
   tiledFloor(scene, 5, 22, 0, -5, ACCENT);
   scene.add(wall(5, 3.6, 0.2, WALL_WHITE, 0, 1.8, 6)); // the elevator-end wall, behind the camera
   wallTrim(scene, ACCENT, 'x', 5, 5.9, 0, -1);
@@ -48,13 +48,10 @@ const addCorridor = (scene: Scene): MeshBasicMaterial => {
   ceiling.rotation.x = Math.PI / 2;
   ceiling.position.set(0, 3.6, -5);
   scene.add(ceiling);
-  let flicker: Mesh | null = null;
   for (const z of [4, 0, -4, -8, -12]) {
     const panel = glow(1.2, 0.04, 0.4, 0xffffff, 0, 3.56, z);
     scene.add(panel);
-    if (z === -8) flicker = panel;
   }
-  return (flicker as Mesh).material as MeshBasicMaterial;
 };
 
 // Closed wooden doors in gold frames, with handles and nameplates, paintings, and side tables with
@@ -108,9 +105,9 @@ const addOffice = (scene: Scene): void => {
 export const buildExecutiveFloor = (mountIndex: number): FeedScene => {
   const mount = pickMount(MOUNTS, mountIndex);
   const scene = litBase(14, 70);
-  const light = litRoom(scene);
+  litRoom(scene);
 
-  const flickerMaterial = addCorridor(scene);
+  addCorridor(scene);
   addDoors(scene);
   addOffice(scene);
 
@@ -118,9 +115,6 @@ export const buildExecutiveFloor = (mountIndex: number): FeedScene => {
   camera.position.set(...mount.position);
   const update = (t: number) => {
     aimCamera(camera, t, mount);
-    const stutter = Math.sin(t * 15) * Math.sin(t * 2.1) > 0.94;
-    flickerMaterial.color.setHex(stutter ? 0x9aa5ad : 0xffffff);
-    light.intensity = stutter ? 0.55 : 1.1;
   };
   update(0);
   return { scene, camera, update };

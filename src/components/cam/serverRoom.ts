@@ -1,5 +1,5 @@
 import { PerspectiveCamera } from 'three';
-import type { Mesh, MeshBasicMaterial, Scene } from 'three';
+import type { MeshBasicMaterial, Scene } from 'three';
 import { aimCamera, pickMount } from './pan';
 import type { Mount } from './pan';
 import { floorAccent } from '../../data/cameras';
@@ -53,6 +53,7 @@ const addRack = (
     for (let k = 0; k < 2; k += 1) {
       const color = (u + k + seed) % 3 === 0 ? 0xff3a2a : 0x34ff7a;
       const led = glow(0.03, 0.05, 0.05, color, x + facing * 0.56, y + 0.06, z - 0.32 + k * 0.1);
+      led.name = 'blink';
       scene.add(led);
       leds.push({
         material: led.material as MeshBasicMaterial,
@@ -93,19 +94,16 @@ const addTrays = (scene: Scene): void => {
   }
 };
 
-// Ceiling with light strips along the aisle; the central one stutters.
-const addCeiling = (scene: Scene): MeshBasicMaterial => {
+// Ceiling with light strips along the aisle.
+const addCeiling = (scene: Scene): void => {
   const ceiling = floor(14, 16, CEILING_WHITE);
   ceiling.rotation.x = Math.PI / 2;
   ceiling.position.y = 3.9;
   scene.add(ceiling);
-  let flicker: Mesh | null = null;
   for (const x of [-3.6, 0, 3.6]) {
     const strip = glow(0.3, 0.04, 12, 0xffffff, x, 3.86, -5);
     scene.add(strip);
-    if (x === 0) flicker = strip;
   }
-  return (flicker as Mesh).material as MeshBasicMaterial;
 };
 
 // An orange door frame: a top bar and two posts around a door `w` wide and `h` tall.
@@ -177,7 +175,7 @@ const MOUNTS: readonly [Mount, ...Mount[]] = [
 export const buildServerRoom = (mountIndex: number): FeedScene => {
   const mount = pickMount(MOUNTS, mountIndex);
   const scene = litBase(14, 80);
-  const light = litRoom(scene);
+  litRoom(scene);
 
   const leds: Led[] = [];
   addFloor(scene);
@@ -185,7 +183,7 @@ export const buildServerRoom = (mountIndex: number): FeedScene => {
   addTrays(scene);
   addBackWall(scene);
   addFixtures(scene);
-  const flickerMaterial = addCeiling(scene);
+  addCeiling(scene);
 
   const camera = new PerspectiveCamera(65, ASPECT, 0.1, 40);
   camera.position.set(...mount.position);
@@ -195,9 +193,6 @@ export const buildServerRoom = (mountIndex: number): FeedScene => {
       const on = Math.sin(t * led.rate + led.phase) > -0.2;
       led.material.color.setHex(on ? led.color : 0x101010);
     }
-    const stutter = Math.sin(t * 17) * Math.sin(t * 2.3) > 0.93;
-    flickerMaterial.color.setHex(stutter ? 0x9aa5ad : 0xffffff);
-    light.intensity = stutter ? 0.55 : 1.1;
   };
   update(0);
   return { scene, camera, update };
