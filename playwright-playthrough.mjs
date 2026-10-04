@@ -168,6 +168,15 @@ try {
   await cmd('connect 10.1.0.1');
   await cmd('exploit http', SLOW_PAUSE);
   await cmd('cat camera_config.ini'); // ops.admin in plain text
+  // The CAM tab exists while connected to the controller, and its feed renders (or reports NO SIGNAL).
+  await page.getByRole('button', { name: 'CAM', exact: true }).click();
+  await page.waitForTimeout(1500);
+  check(
+    'the CAM tab shows a live camera feed',
+    (await page.locator('[data-testid="cam-canvas"]').count()) === 1 &&
+      (await page.locator('[data-testid="cam-nosignal"]').count()) === 0,
+  );
+  await page.getByRole('button', { name: 'MAP', exact: true }).click();
   await cmd('connect 10.1.0.2');
   await cmd('login ops.admin IronG8te#Ops');
   await cmd('cat employee_roster.csv');

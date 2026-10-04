@@ -4,6 +4,7 @@ import { SENTINEL_VOTE_PATH } from '../../engine/ariaName';
 import { FIRST_NAMES } from '../employeeData';
 import { NEXUS_MESSAGES } from '../nexusMessages';
 import { CASE_FACTS, CASE_PEOPLE } from '../casebook';
+import { CAMERA_FEEDS } from '../cameras';
 import { buildCasebook } from '../../engine/casebook';
 import { createInitialState } from '../../engine/state';
 import { fileReadKey } from '../../types/game';
@@ -41,6 +42,11 @@ describe('pre-reveal data never contains the name Aria', () => {
 
   it('the scripted Nexus line never says it (it plays before the reveal)', () => {
     expect(NEXUS_MESSAGES.flatMap(m => m.lines).filter(line => ARIA.test(line))).toEqual([]);
+  });
+
+  it('the camera feeds (view-cam and the CAM tab) never say it', () => {
+    const text = CAMERA_FEEDS.flatMap(f => [f.label, f.description, f.offlineReason ?? '']);
+    expect(text.filter(t => ARIA.test(t))).toEqual([]);
   });
 
   it('the casebook never says it, however much the player has read and obtained', () => {

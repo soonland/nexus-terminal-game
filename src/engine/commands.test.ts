@@ -3722,10 +3722,17 @@ describe('view-cam command', () => {
     expect(traceAfter).toBe(traceBefore + 1);
   });
 
-  it('should render fallback line gracefully when API returns fallback text', async () => {
+  it('prints the same authored description the CAM viewer is built around', async () => {
     const s = cctvState();
-    const result = await resolveCommand('view-cam cam_02', s);
-    expect(result.lines.some(l => l.type === 'aria')).toBe(true);
+    const result = await resolveCommand('view-cam cam_01', s);
+    const text = result.lines.map(l => l.content).join('\n');
+    expect(text).toContain('Main lobby, night');
+    expect(text).toContain('The hall is empty');
+  });
+
+  it('reports the executive-floor feed as disabled, as the viewer does', async () => {
+    const result = await resolveCommand('view-cam cam_03', cctvState());
+    expect(result.lines.map(l => l.content).join('\n')).toContain('FEED DISABLED — CEO OFFICE');
   });
 
   it('should show usage hint when no camera ID provided', async () => {
