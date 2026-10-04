@@ -55,8 +55,8 @@ const box = (
 // An empty lobby at night: a slow camera sweep and one tired ceiling light.
 const buildLobby = (): FeedScene => {
   const scene = base(0x05080a, 6, 22);
-  scene.add(new AmbientLight(0x6688aa, 0.35));
-  const light = new PointLight(0xcfe8ff, 18, 16);
+  scene.add(new AmbientLight(0x88aacc, 1.6));
+  const light = new PointLight(0xcfe8ff, 60, 18);
   light.position.set(0, 3.2, -3);
   scene.add(light);
 
@@ -73,7 +73,7 @@ const buildLobby = (): FeedScene => {
     camera.lookAt(0, 1.2, -5);
     // Mostly steady, with an occasional stutter.
     const stutter = Math.sin(t * 23) * Math.sin(t * 3.1) > 0.92 ? 0.3 : 1;
-    light.intensity = 18 * stutter;
+    light.intensity = 60 * stutter;
   };
   update(0);
   return { scene, camera, update };
@@ -89,8 +89,8 @@ interface Led {
 // Two rows of racks; every status LED blinks on its own rhythm.
 const buildServerRoom = (): FeedScene => {
   const scene = base(0x020407, 4, 18);
-  scene.add(new AmbientLight(0x334466, 0.4));
-  const light = new PointLight(0x88aaff, 10, 14);
+  scene.add(new AmbientLight(0x5577aa, 1.2));
+  const light = new PointLight(0x88aaff, 35, 16);
   light.position.set(0, 3, 0);
   scene.add(light);
 
