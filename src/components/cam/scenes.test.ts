@@ -91,3 +91,30 @@ describe('second mounts', () => {
     },
   );
 });
+
+describe.each([
+  ['securityOffice', 80, 8, -8],
+  ['financeFloor', 80, 9, -10],
+] as const)('scene %s', (scene, minMeshes, maxX, minZ) => {
+  it('is dressed, inside its room, and pans in place', () => {
+    const built = buildScene({ scene, mount: 0 })!;
+    expect(built).not.toBeNull();
+    expect(meshCount(built.scene)).toBeGreaterThan(minMeshes);
+    built.scene.updateMatrixWorld(true);
+    const bounds = new Box3().setFromObject(built.scene);
+    expect(bounds.min.x).toBeGreaterThanOrEqual(-maxX);
+    expect(bounds.max.x).toBeLessThanOrEqual(maxX);
+    expect(bounds.max.y).toBeLessThanOrEqual(5);
+    expect(bounds.min.z).toBeGreaterThanOrEqual(minZ - 0.5);
+
+    built.update(0);
+    const from = built.camera.getWorldDirection(new Vector3()).x;
+    const position = built.camera.position.clone();
+    built.update(10);
+    expect(built.camera.getWorldDirection(new Vector3()).x).not.toBeCloseTo(from);
+    expect(built.camera.position.equals(position)).toBe(true);
+    expect(() => {
+      disposeScene(built.scene);
+    }).not.toThrow();
+  });
+});

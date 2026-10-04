@@ -1,7 +1,9 @@
 import type { Mesh } from 'three';
 import type { Object3D, PerspectiveCamera, Scene } from 'three';
 import type { CameraFeed } from '../../data/cameras';
+import { buildFinanceFloor } from './financeFloor';
 import { buildLobby } from './lobby';
+import { buildSecurityOffice } from './securityOffice';
 import { buildServerRoom } from './serverRoom';
 
 export interface FeedScene {
@@ -14,6 +16,8 @@ export interface FeedScene {
 export const buildScene = (feed: Pick<CameraFeed, 'scene' | 'mount'>): FeedScene | null => {
   if (feed.scene === 'lobby') return buildLobby(feed.mount);
   if (feed.scene === 'serverRoom') return buildServerRoom(feed.mount);
+  if (feed.scene === 'securityOffice') return buildSecurityOffice(feed.mount);
+  if (feed.scene === 'financeFloor') return buildFinanceFloor(feed.mount);
   return null;
 };
 
