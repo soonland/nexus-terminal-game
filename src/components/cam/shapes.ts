@@ -104,3 +104,81 @@ export const glass = (w: number, h: number, d: number, x: number, y: number, z: 
   mesh.position.set(x, y, z);
   return mesh;
 };
+
+// IronGate's rooms: white walls, light tiles, one accent colour per floor, lit around the clock.
+export const WALL_WHITE = 0xeef1f3;
+export const TILE_LIGHT = 0xdde3e7;
+export const GROUT = 0xaab4bb;
+export const CEILING_WHITE = 0xf5f7f8;
+export const HAZE = 0xe3e8ec;
+
+// A lit, hazy room: a light fog and background instead of black.
+export const litBase = (fogNear: number, fogFar: number): Scene => base(HAZE, fogNear, fogFar);
+
+const named = (mesh: Mesh, name: string): Mesh => {
+  mesh.name = name;
+  return mesh;
+};
+
+// Accent trim: a box tagged `trim` so tests can check a room wears its floor's colour.
+export const trim = (
+  w: number,
+  h: number,
+  d: number,
+  accent: number,
+  x: number,
+  y: number,
+  z: number,
+): Mesh => named(box(w, h, d, accent, x, y, z), 'trim');
+
+// A tiled floor: light tiles with grout lines every metre (tagged `grout`) and an accent stripe down
+// the middle (tagged `trim`).
+export const tiledFloor = (
+  scene: Scene,
+  width: number,
+  depth: number,
+  cx: number,
+  cz: number,
+  accent: number,
+): void => {
+  const tiles = floor(width, depth, TILE_LIGHT);
+  tiles.position.set(cx, 0, cz);
+  scene.add(tiles);
+  for (let x = Math.ceil(cx - width / 2); x <= cx + width / 2; x += 1) {
+    const line = named(floor(0.04, depth, GROUT), 'grout');
+    line.position.set(x, 0.01, cz);
+    scene.add(line);
+  }
+  for (let z = Math.ceil(cz - depth / 2); z <= cz + depth / 2; z += 1) {
+    const line = named(floor(width, 0.04, GROUT), 'grout');
+    line.position.set(cx, 0.01, z);
+    scene.add(line);
+  }
+  const stripe = named(floor(0.5, depth, accent), 'trim');
+  stripe.position.set(cx, 0.02, cz);
+  scene.add(stripe);
+};
+
+// A baseboard and an eye-level band along a wall, in the accent colour. `axis 'x'` is a wall running
+// along x at z = `fixed`; `'z'` one running along z at x = `fixed`. `inward` is the sign pointing into
+// the room, so the trim sits on the room's side of the wall.
+export const wallTrim = (
+  scene: Scene,
+  accent: number,
+  axis: 'x' | 'z',
+  length: number,
+  fixed: number,
+  center: number,
+  inward: 1 | -1,
+): void => {
+  const place = (height: number, y: number, depth: number) => {
+    const offset = fixed + (inward * depth) / 2;
+    scene.add(
+      axis === 'x'
+        ? trim(length, height, depth, accent, center, y, offset)
+        : trim(depth, height, length, accent, offset, y, center),
+    );
+  };
+  place(0.18, 0.09, 0.08);
+  place(0.14, 1.1, 0.06);
+};

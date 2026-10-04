@@ -1,7 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { Box3, Mesh, Raycaster, Vector3 } from 'three';
-import { CAMERA_FEEDS } from '../../data/cameras';
+import type { MeshBasicMaterial, MeshStandardMaterial } from 'three';
+import { Box3, Mesh, Raycaster, Scene, Vector3 } from 'three';
+import { CAMERA_FEEDS, FLOORS } from '../../data/cameras';
 import { buildScene, disposeScene } from './scenes';
+import { WALL_WHITE, tiledFloor, wallTrim } from './shapes';
 
 const meshCount = (root: { traverse: (cb: (o: object) => void) => void }): number => {
   let n = 0;
@@ -149,6 +151,45 @@ describe('every room is closed', () => {
         if (!hits.some(h => h.object.name === 'wall')) missed.push(i);
       }
       expect(missed).toEqual([]);
+    },
+  );
+});
+
+// Rooms that have been given the building's look; each recolour task adds its feeds here.
+const BUILDING_FEEDS: string[] = [];
+
+const colourOf = (mesh: Mesh): number =>
+  (mesh.material as MeshStandardMaterial | MeshBasicMaterial).color.getHex();
+
+describe('the building look', () => {
+  it('has helpers that tag their meshes', () => {
+    const scene = new Scene();
+    tiledFloor(scene, 6, 6, 0, 0, 0x2b6cb0);
+    wallTrim(scene, 0x2b6cb0, 'x', 6, -3, 0, 1);
+    const names = scene.children.map(c => c.name);
+    expect(names.filter(n => n === 'grout').length).toBeGreaterThan(10);
+    expect(names.filter(n => n === 'trim').length).toBeGreaterThanOrEqual(3);
+  });
+
+  it.each(BUILDING_FEEDS.map(id => [id] as const))(
+    "%s: white walls, a tiled floor and trim in the floor's accent colour",
+    id => {
+      const feed = CAMERA_FEEDS.find(f => f.id === id)!;
+      const built = buildScene(feed);
+      const accent = FLOORS.find(f => f.id === feed.floor)!.accent;
+      const walls: number[] = [];
+      const trims: number[] = [];
+      let grout = 0;
+      built.scene.traverse(o => {
+        if (!(o instanceof Mesh)) return;
+        if (o.name === 'wall') walls.push(colourOf(o));
+        if (o.name === 'trim') trims.push(colourOf(o));
+        if (o.name === 'grout') grout += 1;
+      });
+      expect(walls.length).toBeGreaterThan(3);
+      expect(walls.every(c => c === WALL_WHITE)).toBe(true);
+      expect(trims.filter(c => c === accent).length).toBeGreaterThan(6);
+      expect(grout).toBeGreaterThan(20);
     },
   );
 });
