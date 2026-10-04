@@ -14,7 +14,7 @@ vi.mock('./cam/render', () => ({
 
 const FEEDS = CAMERA_FEEDS.filter(f =>
   ['lobby-reception', 'server-aisle', 'executive-corridor'].includes(f.id),
-).map(f => ({ ...f, live: f.offlineReason === null }));
+).map(f => ({ ...f, live: f.offlineReason === null, locked: false }));
 
 beforeEach(() => {
   stop.mockReset();
@@ -140,17 +140,26 @@ describe('CamPane', () => {
     expect(container.textContent).not.toMatch(/aria/i);
   });
 
-  it('has night vision on by default and toggles it off and on', () => {
+  it('has night vision off by default and toggles it on and off', () => {
     setup();
     const toggle = screen.getByRole('button', { name: 'NIGHT VISION' });
     const stage = screen.getByTestId('cam-stage');
-    expect(toggle.getAttribute('aria-pressed')).toBe('true');
-    expect(stage.className).toContain('cam-nv');
-    fireEvent.click(toggle);
     expect(toggle.getAttribute('aria-pressed')).toBe('false');
     expect(stage.className).not.toContain('cam-nv');
     fireEvent.click(toggle);
+    expect(toggle.getAttribute('aria-pressed')).toBe('true');
     expect(stage.className).toContain('cam-nv');
+    fireEvent.click(toggle);
+    expect(stage.className).not.toContain('cam-nv');
+  });
+
+  it('lets a stored night-vision choice win over the default', () => {
+    localStorage.setItem('irongate_cam_night_vision', 'on');
+    setup();
+    expect(screen.getByRole('button', { name: 'NIGHT VISION' }).getAttribute('aria-pressed')).toBe(
+      'true',
+    );
+    expect(screen.getByTestId('cam-stage').className).toContain('cam-nv');
   });
 
   it('remembers the night-vision choice when the tab is reopened', () => {
@@ -159,7 +168,21 @@ describe('CamPane', () => {
     first.unmount();
     setup();
     expect(screen.getByRole('button', { name: 'NIGHT VISION' }).getAttribute('aria-pressed')).toBe(
-      'false',
+      'true',
+    );
+  });
+
+  it('shows a locked feed as FEED LOCKED, with no renderer', () => {
+    const feeds = FEEDS.map(f =>
+      f.id === 'server-aisle' ? { ...f, live: false, locked: true } : f,
+    );
+    render(<CamPane feeds={feeds} visible fullscreen={false} onToggleFullscreen={vi.fn()} />);
+    pick(/OPERATIONS/, 'Server room \\(aisle\\)');
+    expect(screen.getByTestId('cam-offline').textContent).toBe('FEED LOCKED');
+    expect(startFeed).not.toHaveBeenCalledWith(
+      expect.anything(),
+      { scene: 'serverRoom', mount: 0 },
+      expect.anything(),
     );
   });
 

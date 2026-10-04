@@ -14,12 +14,12 @@ interface Props {
 const STORY_DATE = '2024-11-27';
 const NIGHT_VISION_KEY = 'irongate_cam_night_vision';
 
-// A per-viewer convenience: on by default, remembered when the tab is closed and reopened.
+// A per-viewer convenience: off by default (the colours show), remembered once the player chooses.
 const readNightVision = (): boolean => {
   try {
-    return localStorage.getItem(NIGHT_VISION_KEY) !== 'off';
+    return localStorage.getItem(NIGHT_VISION_KEY) === 'on';
   } catch {
-    return true;
+    return false;
   }
 };
 
@@ -127,7 +127,7 @@ export const CamPane = ({ feeds, visible, fullscreen, onToggleFullscreen }: Prop
           <Canvas key={feed.id} feed={feed} visible={visible} />
         ) : (
           <div className="cam-card cam-static" data-testid="cam-offline">
-            {feed.offlineReason ?? 'NO SIGNAL'}
+            {feed.offlineReason ?? 'FEED LOCKED'}
           </div>
         )}
         <div className="cam-overlay" aria-hidden="true">

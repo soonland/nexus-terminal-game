@@ -3726,8 +3726,8 @@ describe('view-cam command', () => {
     const s = cctvState();
     const result = await resolveCommand('view-cam cam_01', s);
     const text = result.lines.map(l => l.content).join('\n');
-    expect(text).toContain('Main lobby, night');
-    expect(text).toContain('The hall is empty');
+    expect(text).toContain('Main lobby, after hours');
+    expect(text).toContain('reception desk unattended');
   });
 
   it('reports the executive-floor feed as disabled, as the viewer does', async () => {
@@ -3746,7 +3746,7 @@ describe('view-cam command', () => {
     const s = deepState(['ops_cctv_ctrl', 'ops_hr_db'], 'ops_hr_db');
     const result = await resolveCommand('view-cam lobby-reception', s);
     expect(result.lines.some(l => l.type === 'error')).toBe(false);
-    expect(text(result.lines)).toContain('Main lobby, night');
+    expect(text(result.lines)).toContain('Main lobby, after hours');
     expect(text(result.lines)).toContain('GROUND FLOOR — LOBBY (RECEPTION)');
   });
 
@@ -3764,14 +3764,24 @@ describe('view-cam command', () => {
     expect(text(result.lines)).toContain('Security operations office');
   });
 
-  it('does not reveal a camera that is not unlocked yet', async () => {
+  it('says a not-yet-unlocked camera is locked, without a hint of what opens it', async () => {
     const s = deepState(['ops_cctv_ctrl'], 'ops_cctv_ctrl');
     const result = await resolveCommand('view-cam finance-floor', s);
+    expect(result.lines.some(l => l.type === 'error')).toBe(false);
+    expect(text(result.lines)).toContain('FINANCE — FINANCE FLOOR');
+    expect(text(result.lines)).toContain('FEED LOCKED');
+    expect(text(result.lines)).not.toMatch(/layer/i);
+    expect((result.nextState as GameState | undefined)?.player.trace ?? s.player.trace).toBe(
+      s.player.trace,
+    );
+  });
+
+  it('still rejects a camera that does not exist, and names all of them', async () => {
+    const s = deepState(['ops_cctv_ctrl'], 'ops_cctv_ctrl');
+    const result = await resolveCommand('view-cam boiler-room', s);
     expect(result.lines.some(l => l.type === 'error')).toBe(true);
-    expect(text(result.lines)).toContain('Unknown camera: finance-floor');
-    expect(text(result.lines)).toContain('lobby-reception');
-    expect(text(result.lines)).not.toContain('security-office');
-    expect(text(result.lines)).not.toContain('finance floor');
+    expect(text(result.lines)).toContain('Unknown camera: boiler-room');
+    expect(text(result.lines)).toContain('vault-door');
   });
 
   it('shows the live executive cameras once layer 4 is held, still at +1 trace', async () => {

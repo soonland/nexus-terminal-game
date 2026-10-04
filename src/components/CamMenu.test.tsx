@@ -7,7 +7,7 @@ import { CAMERA_FEEDS } from '../data/cameras';
 const feedsUpTo = (layer: number) =>
   CAMERA_FEEDS.flatMap(f => {
     const live = layer >= f.unlockLayer;
-    return live || f.offlineReason !== null ? [{ ...f, live }] : [];
+    return live || f.offlineReason !== null ? [{ ...f, live, locked: false }] : [];
   });
 
 const setup = (layer = 1, selectedId = 'lobby-reception') => {

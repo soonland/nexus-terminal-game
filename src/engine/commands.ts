@@ -2051,7 +2051,7 @@ const cmdViewCam = (args: string[], state: GameState): CommandOutput => {
   const lines: Out = [
     sep(),
     line(`// CCTV — ${floorName(cam.floor).toUpperCase()} — ${cam.name.toUpperCase()}`, 'aria'),
-    ...(cam.live ? cam.description : (cam.offlineReason ?? ''))
+    ...(cam.live ? cam.description : (cam.offlineReason ?? 'FEED LOCKED'))
       .split('\n')
       .map(l => line(l, 'aria')),
     sep(),

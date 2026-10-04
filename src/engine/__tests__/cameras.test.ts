@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { cameraFeeds, deepestLayer } from '../cameras';
-import { CAMERA_FEEDS, FLOORS, floorName } from '../../data/cameras';
+import { CAMERA_FEEDS, FLOORS, floorAccent, floorName } from '../../data/cameras';
 import { createInitialState } from '../state';
 import produce from '../produce';
 import type { GameState } from '../../types/game';
@@ -51,27 +51,17 @@ describe('cameraFeeds', () => {
     expect(cameraFeeds(held([L2, L3, L4]))).toEqual([]);
   });
 
-  it('lists the layer-1 cameras, with the executive floor offline', () => {
+  it('lists every camera once the controller is held, and marks what is not live', () => {
     const feeds = cameraFeeds(held([L1], L1));
-    expect(feeds.map(f => f.id)).toEqual([
-      'lobby-reception',
-      'lobby-entrance',
-      'server-aisle',
-      'server-airlock',
-      'executive-corridor',
-      'executive-office',
-    ]);
-    expect(feeds.filter(f => !f.live).map(f => f.id)).toEqual([
-      'executive-corridor',
-      'executive-office',
-    ]);
+    expect(feeds.map(f => f.id)).toEqual(CAMERA_FEEDS.map(f => f.id));
+    const byId = Object.fromEntries(feeds.map(f => [f.id, f]));
+    expect(byId['lobby-reception']).toMatchObject({ live: true, locked: false });
+    expect(byId['executive-corridor']).toMatchObject({ live: false, locked: false });
+    expect(byId['security-office']).toMatchObject({ live: false, locked: true });
+    expect(byId['vault-door']).toMatchObject({ live: false, locked: true });
   });
 
-  it('keeps the feeds after leaving the controller, from any node', () => {
-    expect(ids(held([L1, 'ops_hr_db'], 'ops_hr_db'))).toContain('lobby-reception');
-  });
-
-  it('adds cameras with each layer, and the executive floor goes live at layer 4', () => {
+  it('turns cameras live with each layer, and the executive floor at layer 4', () => {
     expect(liveIds(held([L1, L2]))).toContain('security-office');
     expect(liveIds(held([L1, L2]))).not.toContain('finance-floor');
     expect(liveIds(held([L1, L2, L3]))).toContain('finance-floor');
@@ -79,21 +69,28 @@ describe('cameraFeeds', () => {
     const four = liveIds(held([L1, L2, L3, L4]));
     expect(four).toEqual(expect.arrayContaining(['executive-corridor', 'executive-office']));
     expect(four).not.toContain('data-hall-b');
-    expect(liveIds(held([L1, L2, L3, L4, L5]))).toContain('data-hall-b');
+    expect(liveIds(held([L1, L2, L3, L4, L5]))).toEqual(
+      expect.arrayContaining(['data-hall-b', 'vault-door']),
+    );
   });
 
-  it('never lists a camera before its layer', () => {
-    expect(ids(held([L1, L2]))).not.toContain('finance-floor');
-    expect(ids(held([L1, L2, L3, L4]))).not.toContain('data-hall-b');
-  });
-
-  it('lists every camera once, in data order', () => {
-    const all = ids(held([L1, L2, L3, L4, L5]));
-    expect(all).toEqual(CAMERA_FEEDS.map(f => f.id));
+  it('keeps the feeds after leaving the controller, from any node', () => {
+    expect(ids(held([L1, 'ops_hr_db'], 'ops_hr_db'))).toContain('lobby-reception');
   });
 });
 
 describe('camera data', () => {
+  it('gives every floor a distinct accent colour', () => {
+    const accents = FLOORS.map(f => f.accent);
+    expect(new Set(accents).size).toBe(FLOORS.length);
+    expect(floorAccent('ground')).toBe(0x2b6cb0);
+  });
+
+  it('has the vault door on Sub-level B, unlocked with the data hall', () => {
+    const vault = CAMERA_FEEDS.find(f => f.id === 'vault-door');
+    expect(vault).toMatchObject({ floor: 'sublevel', scene: 'vaultApproach', unlockLayer: 5 });
+  });
+
   it('has unique ids, and aliases that never collide with ids or each other', () => {
     const names = CAMERA_FEEDS.flatMap(f => [f.id, ...f.aliases]);
     expect(new Set(names).size).toBe(names.length);

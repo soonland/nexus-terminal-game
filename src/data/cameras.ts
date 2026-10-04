@@ -2,20 +2,29 @@ export const CCTV_NODE_ID = 'ops_cctv_ctrl';
 
 // The building's floors, in the order the menu shows them.
 export const FLOORS = [
-  { id: 'ground', name: 'Ground floor' },
-  { id: 'operations', name: 'Operations' },
-  { id: 'security', name: 'Security' },
-  { id: 'finance', name: 'Finance' },
-  { id: 'executive', name: 'Executive' },
-  { id: 'sublevel', name: 'Sub-level B' },
+  { id: 'ground', name: 'Ground floor', accent: 0x2b6cb0 },
+  { id: 'operations', name: 'Operations', accent: 0xed8936 },
+  { id: 'security', name: 'Security', accent: 0xe53e3e },
+  { id: 'finance', name: 'Finance', accent: 0x38a169 },
+  { id: 'executive', name: 'Executive', accent: 0xd69e2e },
+  { id: 'sublevel', name: 'Sub-level B', accent: 0x00b5d8 },
 ] as const;
 
 export type FloorId = (typeof FLOORS)[number]['id'];
 
 export const floorName = (id: FloorId): string => FLOORS.find(f => f.id === id)?.name ?? id;
 
+export const floorAccent = (id: FloorId): number =>
+  FLOORS.find(f => f.id === id)?.accent ?? 0xffffff;
+
 type SceneId =
-  'lobby' | 'serverRoom' | 'securityOffice' | 'financeFloor' | 'executiveFloor' | 'dataHall';
+  | 'lobby'
+  | 'serverRoom'
+  | 'securityOffice'
+  | 'financeFloor'
+  | 'executiveFloor'
+  | 'dataHall'
+  | 'vaultApproach';
 
 export interface CameraFeed {
   // A readable slug: what the menu shows and what `view-cam` takes.
@@ -50,7 +59,7 @@ export const CAMERA_FEEDS: readonly CameraFeed[] = [
     unlockLayer: 1,
     offlineReason: null,
     description:
-      'Main lobby, night. Emergency lighting only, and one ceiling fixture flickers over the reception desk. The hall is empty and the camera pans slowly from left to right.',
+      'Main lobby, after hours. The lights are on over an empty hall: white walls, a blue band at eye level, the reception desk unattended. The camera pans slowly from left to right.',
     traceCost: 0,
   },
   {
@@ -63,7 +72,7 @@ export const CAMERA_FEEDS: readonly CameraFeed[] = [
     unlockLayer: 1,
     offlineReason: null,
     description:
-      'Lobby, seen from the street entrance. The glass doors are dark and locked, and beyond the turnstiles the elevator indicators sit idle. The hall is empty.',
+      'Lobby, seen from the street entrance. The glass doors are locked, the turnstiles idle and the elevator indicators dark. The hall is empty and brightly lit.',
     traceCost: 0,
   },
   {
@@ -76,7 +85,7 @@ export const CAMERA_FEEDS: readonly CameraFeed[] = [
     unlockLayer: 1,
     offlineReason: null,
     description:
-      'Server room. Two rows of racks, status lights blinking red and green in no particular order. Nothing moves; the cooling units hold a steady note.',
+      'Server room. Two rows of racks under white light, status lights blinking red and green in no particular order. Nothing moves; the cooling units hold a steady note.',
     traceCost: 0,
   },
   {
@@ -89,7 +98,7 @@ export const CAMERA_FEEDS: readonly CameraFeed[] = [
     unlockLayer: 1,
     offlineReason: null,
     description:
-      'Server room, from the airlock door. The aisle runs away between the racks, lights winking in the dark. Nothing moves.',
+      'Server room, from the airlock door. The aisle runs away between the racks, an orange band along the walls. Nothing moves.',
     traceCost: 0,
   },
   {
@@ -102,7 +111,7 @@ export const CAMERA_FEEDS: readonly CameraFeed[] = [
     unlockLayer: 2,
     offlineReason: null,
     description:
-      'Security operations office. A wall of monitors, all dark but one that shows only static. Chairs pushed back from the desks, a cold mug beside a keyboard. Nothing moves.',
+      'Security operations office. A wall of monitors, all dark but one that shows only static, under a red band on white walls. Chairs pushed back from the desks, a cold mug beside a keyboard.',
     traceCost: 0,
   },
   {
@@ -115,7 +124,7 @@ export const CAMERA_FEEDS: readonly CameraFeed[] = [
     unlockLayer: 3,
     offlineReason: null,
     description:
-      'Finance floor, after hours. Rows of desks with paired monitors asleep behind glass partitions, and a ticker wall still sliding bars of light across the far wall. No one is at a desk.',
+      'Finance floor, after hours. Rows of desks with paired monitors asleep behind glass partitions, a green band along the walls, and a ticker wall still sliding bars of light. No one is at a desk.',
     traceCost: 0,
   },
   {
@@ -128,7 +137,7 @@ export const CAMERA_FEEDS: readonly CameraFeed[] = [
     unlockLayer: 4,
     offlineReason: DISABLED,
     description:
-      'Executive floor corridor, night. Closed doors on either side and a runner down the middle; at the far end, the corner office. Nobody is here.',
+      'Executive floor corridor, after hours. Closed doors on either side, a gold band along white walls and a runner down the middle; at the far end, the corner office. Nobody is here.',
     traceCost: 1,
   },
   {
@@ -141,7 +150,7 @@ export const CAMERA_FEEDS: readonly CameraFeed[] = [
     unlockLayer: 4,
     offlineReason: DISABLED,
     description:
-      'Corner office, night. The desk lamp is off and the city glows through the window behind an empty chair. Nothing has been touched.',
+      'Corner office, after hours. The desk lamp is off and the city glows through the window behind an empty chair. Nothing has been touched.',
     traceCost: 1,
   },
   {
@@ -154,7 +163,20 @@ export const CAMERA_FEEDS: readonly CameraFeed[] = [
     unlockLayer: 5,
     offlineReason: null,
     description:
-      'Data hall B. Sealed cold-storage arrays and accelerator racks stand in long rows under blue standby light, and a vault door closes the far end. The air is still.',
+      'Data hall B. Sealed cold-storage arrays and accelerator racks stand in long rows under white light with a cyan band along the walls, and a vault door closes the far end. The air is still.',
+    traceCost: 0,
+  },
+  {
+    id: 'vault-door',
+    aliases: [],
+    floor: 'sublevel',
+    name: 'Vault door',
+    scene: 'vaultApproach',
+    mount: 0,
+    unlockLayer: 5,
+    offlineReason: null,
+    description:
+      'Sub-level B, the vault door. A circular steel door fills the end of a white corridor, sealed, its indicator red. A faint cyan light spills from the gap beneath it, and the floor hums.',
     traceCost: 0,
   },
 ];
