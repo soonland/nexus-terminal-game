@@ -61,18 +61,19 @@ is open (session state): **PEOPLE** (open by default), **TIMELINE**, **ACCOUNTS*
 
 - **PEOPLE:** story characters first (in the order the player learned them), then account
   holders alphabetically. A card shows name and role, then each unlocked fact with its source,
-  then the person's credential if obtained (`user / password`, access level, where it works).
+  then the person's credential if obtained (`username / password` and access level).
 - **TIMELINE:** unlocked dated facts in chronological order: `date  subject  title`. It never
   repeats a fact's text; selecting a line scrolls to the person's card.
 - **ACCOUNTS:** obtained credentials that belong to nobody (`contractor`, `ops.admin`,
-  `sec.root`, `fin.dba`, ...), with the password.
+  `sec.root`, `fin.dba`, ...), with the password and access level, and nothing about where they work.
 - **NODES / FILES:** today's discovered-nodes and exfiltrated-files lists, unchanged.
 - **Sources** are links when the file can be reached (it is on the current node, or the player
   has exfiltrated it): selecting it selects the file in the FILES and DOC panes. Otherwise the
   source shows as plain text with the node's name.
-- **Passwords are shown** for obtained credentials. Today's NOTES lists only the username and
-  access level, so players had to write passwords down themselves, which is the problem this
-  change exists to fix. (Flagged for review.)
+- **Passwords are shown** for obtained credentials (confirmed). Today's NOTES lists only the
+  username and access level, so players had to write passwords down themselves, which is the
+  problem this change fixes. **It never says where a credential works** (`validOnNodes`) or where
+  it was found (`source`): which password to try on which node stays the player's puzzle.
 - **Commands:** `case` focuses the tab. `notes` stays as an alias. `map` is unchanged.
 - **Unread:** a ● on the aux pane's title when new entries arrive while the CASE tab is not
   showing (reuses the `useUnread` mechanism; a resumed run starts read).
@@ -94,6 +95,7 @@ is open (session state): **PEOPLE** (open by default), **TIMELINE**, **ACCOUNTS*
   a save and load rebuild the same casebook; account holders derive only from obtained
   credentials and expose no `traits`; each credential appears once (on a card or in ACCOUNTS);
   timeline order, including same-day entries.
+- **No hints:** no rendered credential line contains a node id, IP, label or `source` text.
 - **Component:** sections render and remember open state; a source is a link only when the file
   is reachable, and selecting it sets the explorer selection; the unread dot.
 - **Browser:** a short Playwright pass: read a few documents, check the cards, timeline and links.
