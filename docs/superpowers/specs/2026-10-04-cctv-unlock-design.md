@@ -1,100 +1,119 @@
-# CCTV feeds that unlock with progress — design
+# CCTV feeds: floors, names and unlocks — design
 
 Extends `2026-10-04-cctv-feeds-design.md` (shipped in #240). Read that first.
 
 ## Intent
 
 Said by the user: the cameras should be reachable from anywhere once the player controls the CCTV
-controller, and the controller should **enable more cameras as the player progresses**. The unlock
-rule is the deepest layer reached. Footage stays atmospheric: empty, clue-free, no effect on story,
-casebook, flags, saves or trace.
+controller; the controller should **enable more cameras as the player progresses** (rule: the
+deepest layer reached); the camera switcher should be **a menu of floors whose submenus list the
+cameras**; **cameras have names, not numbers**; extra cameras only where a floor has a natural
+second view. Footage stays atmospheric: empty, clue-free, no effect on story, casebook, flags,
+saves or trace.
 
-Success: take the controller at layer 1 and see the lobby and server room; the CAM tab stays with
-you as you go deeper; each new layer brings a new camera, and the executive-floor feed that read
-"FEED DISABLED — CEO OFFICE" comes alive at layer 4. A reload rebuilds all of it.
+Success: take the controller at layer 1 and the CAM tab shows a floor menu with the first floors;
+the tab stays with you as you go deeper; each layer brings a floor or a camera; the executive
+floor, listed as disabled from the start, comes alive at layer 4. A reload rebuilds all of it.
 
 ## Access (changes from #240)
 
-`cameraFeeds(state)` no longer requires standing on the controller. It returns feeds when the
-player **holds a session on `ops_cctv_ctrl`** (`accessLevel !== 'none'`). The CAM tab therefore
-stays open as the player moves; it disappears only if the session is lost (the existing
-`resolveAuxTab` fallback to MAP still applies). `view-cam` follows the same rule: the
-"No camera feed available from this node" error goes away; "Permission denied — not authenticated"
-stays for no session.
+`cameraFeeds(state)` no longer requires standing on the controller. It returns feeds while the
+player **holds a session on `ops_cctv_ctrl`** (`accessLevel !== 'none'`), from any node. The CAM
+tab stays open as the player moves; it disappears only if the session is lost (the existing
+`resolveAuxTab` fallback to MAP applies). `view-cam` follows the same rule: "No camera feed
+available from this node" is replaced by a message naming the missing session, and "Permission
+denied — not authenticated" stays on the controller itself.
 
 ## Unlock rule
 
-`deepestLayer(state)`, in `src/engine/cameras.ts`: the highest `layer` among nodes where the player
-holds a session (`accessLevel !== 'none'`). Derived from saved node state, so no new flag and no
-save change (`SAVE_VERSION` stays 6).
+`deepestLayer(state)` in `src/engine/cameras.ts`: the highest `layer` among nodes where the player
+holds a session (`accessLevel !== 'none'`). Derived from saved node state: no flag, no save change
+(`SAVE_VERSION` stays 6).
 
-Each feed in `src/data/cameras.ts` gains `unlockLayer`. A feed is **live** when
-`deepestLayer >= unlockLayer`. A feed with an `offlineReason` is always listed, and shows its
-offline card until it is live; every other feed is listed only once live. Cameras that are not
-listed do not exist for the player: `view-cam cam_05` answers "Unknown camera", naming only the
-listed ids. List order is by id; the list only ever grows at the end except `cam_03`, which is
-present from the start.
+Each feed has `unlockLayer`. A feed is **live** when `deepestLayer >= unlockLayer`. A feed with an
+`offlineReason` is always listed and shows its card until live; every other feed is listed only
+once live. Unlisted cameras do not exist for the player: `view-cam` answers "Unknown camera" and
+names only listed ids.
 
-## Lineup
+## Floors and cameras
 
-| id       | label           | unlockLayer | notes                                                                 |
-| -------- | --------------- | ----------- | --------------------------------------------------------------------- |
-| `cam_01` | lobby           | 1           | existing scene                                                        |
-| `cam_02` | server room     | 1           | existing scene                                                        |
-| `cam_03` | executive floor | 4           | listed from the start, offline "FEED DISABLED — CEO OFFICE" until live |
-| `cam_04` | security office | 2           | new scene                                                             |
-| `cam_05` | finance floor   | 3           | new scene                                                             |
-| `cam_06` | data hall b     | 5           | new scene, the sealed hall from the Cayman vendor summary             |
+A camera's id is a readable slug, the player-facing identifier in the menu and in `view-cam`.
+`camera_config.ini` and the 2024-09-14 incident report use the old numbers, so three cameras keep
+their number as an **alias** that `view-cam` still accepts; nothing else uses numbers.
 
-Labels and descriptions are player-visible before the reveal, so they never contain the secret
-name (guard tests cover every label, description and offline reason). `cam_03` keeps its +1 trace
-whether offline or live; the others cost none. New scenes are empty and clue-free, with the same
-night-vision look, pan and flicker as the existing two:
+| Floor        | id (alias)                    | Name                | Scene / mount        | Unlock | Notes |
+| ------------ | ----------------------------- | ------------------- | -------------------- | ------ | ----- |
+| Ground floor | `lobby-reception` (`cam_01`)  | Lobby (reception)   | lobby / 0            | 1      | the existing view |
+| Ground floor | `lobby-entrance`              | Lobby (entrance)    | lobby / 1            | 1      | from the glass doors, across to the desk and elevators |
+| Operations   | `server-aisle` (`cam_02`)     | Server room (aisle) | serverRoom / 0       | 1      | the existing view |
+| Operations   | `server-airlock`              | Server room (airlock) | serverRoom / 1     | 1      | from the vault door, back down the aisle |
+| Security     | `security-office`             | Security office     | securityOffice / 0   | 2      | |
+| Finance      | `finance-floor`               | Finance floor       | financeFloor / 0     | 3      | |
+| Executive    | `executive-corridor` (`cam_03`) | Executive corridor | executiveFloor / 0  | 4      | listed from the start, offline "FEED DISABLED — CEO OFFICE" until live |
+| Executive    | `executive-office`            | Corner office       | executiveFloor / 1   | 4      | listed from the start, offline until live |
+| Sub-level B  | `data-hall-b`                 | Data hall B         | dataHall / 0         | 5      | the sealed hall from the Cayman vendor summary |
 
-- **security office:** a wall of dark monitors with one screen in static, empty chairs, a desk
-  with a cold coffee ring.
-- **finance floor:** rows of desks with dual monitors, glass partitions, a glowing ticker wall.
-- **executive floor:** a corridor with closed doors, a large office with a desk and a city glow
-  through the window.
-- **data hall b:** sealed cold-storage arrays and GPU racks behind a glass wall.
+- **Floor order** is fixed: Ground floor, Operations, Security, Finance, Executive, Sub-level B. A
+  floor is shown when at least one of its cameras is listed. Camera order within a floor is the
+  table order.
+- **Scenes and mounts:** a camera is a scene plus a **mount**, the camera's position, heading and pan
+  (`range`, `sweep`, `hold`, `offset`). Two cameras on one floor share a scene, so a second
+  camera costs a mount, not a new room. Scene builders take the mount index.
+- **Trace:** both executive cameras cost +1 trace (restricted feed), live or offline; the rest cost
+  none.
+- **Text:** names, floor names, descriptions and offline reasons are player-visible before the
+  reveal and never contain the secret name (guard tests cover all of them). New scenes are empty and
+  clue-free, with the same night-vision look, pan and one flickering light.
+- **New scenes:** security office (a monitor wall with one screen in static, empty console desks, a
+  cold mug); finance floor (rows of dormant desks behind glass, a ticker wall of rising and falling
+  bars); executive floor (a corridor of closed doors, a corner office with a dark lamp and a city
+  glow); data hall B (rows of sealed cabinets under blue standby light, a vault door at the end).
 
-`camera_config.ini` is unchanged: it lists the three original cameras, and the controller enabling
-more later is the discovery.
+## Menu
+
+The camera bar's `CAM 01 … CAM 0n` buttons are replaced by one **menu button** that shows where the
+player is (`GROUND FLOOR › LOBBY (RECEPTION) ▾`). It opens a two-level popover: a heading per floor
+that expands to its cameras. The current floor starts expanded. Offline cameras are listed, dimmed
+and marked. NIGHT VISION and FULL SCREEN stay on the bar.
+
+Behaviour: click or Enter opens; Arrow Up/Down move through the visible items; Enter or click on a
+camera selects it and closes the menu; Esc or a click outside closes it; floor headings toggle
+(`aria-expanded`), cameras are `menuitemradio` items (`aria-checked`). The popover must fit the
+small aux pane (about 550×290 px) and scroll if it is longer. The overlay on the footage reads
+`FLOOR — CAMERA NAME`.
 
 ## Unread marker
 
-When a camera goes live while the CAM tab is not on screen, the aux pane is marked unread, the same
-way the CASE tab already is (`useUnread` over the number of live feeds; a resumed run starts read).
-Opening the CAM tab reads it.
+A camera going live while the CAM tab is not on screen marks the aux pane unread, the same way the
+CASE tab does (`useUnread` over the number of live feeds; a resumed run starts read).
 
-## Viewer
+## `view-cam`
 
-`CamPane` is unchanged apart from taking the longer feed list. The switcher shows one button per
-listed feed; an offline feed shows its card. A feed that goes live while it is selected swaps its
-card for the scene without a remount of the switcher.
-
-## Scenes
-
-New scene builders live beside the existing ones (`securityOffice.ts`, `financeFloor.ts`,
-`executiveFloor.ts`, `dataHall.ts`), reusing `shapes.ts` and `pan.ts`. `buildScene` maps the new
-ids. Each builder returns the same `FeedScene` and is bounded to its room (a bounds test, like the
-lobby and server room).
+It takes a camera id or an alias (`view-cam lobby-entrance`, `view-cam cam_02`), prints
+`// CCTV — FLOOR — NAME` and the authored description (or the offline reason), and applies the
+trace cost. Unknown or unlisted ids: "Unknown camera: X. Known cameras: …" listing only listed ids.
 
 ## Testing
 
 - `deepestLayer`: none held → 0; a held layer-2 session → 2; a lost session lowers it.
-- `cameraFeeds`: empty without a session on the controller; with a session from any node, the
-  listed set grows with `deepestLayer` (1: `cam_01–03`, `cam_03` offline; 2: + `cam_04`; … 4:
-  `cam_03` live; 5: + `cam_06`).
-- `view-cam`: works from another node when a session is held; unknown/unlisted ids are rejected;
-  `cam_03` prints the disabled line before layer 4 and its description after; trace unchanged.
-- Workspace: the CAM tab stays after pivoting away from the controller; the aux pane is marked
-  unread when a camera unlocks off-screen.
-- Guard tests: every new label, description and offline reason is free of the secret name.
-- Scenes: each new builder is complex enough, bounded, and pans in place.
-- Playthrough: one check that a later layer exposes more cameras than layer 1.
+- `cameraFeeds`: empty without a session on the controller (even with deeper sessions); with one,
+  any node; the listed set grows with `deepestLayer`; the executive cameras are listed offline until
+  layer 4; ids are unique and aliases never collide with ids.
+- Data: every feed's scene and mount exist; floors referenced exist; floor and camera text is free of
+  the secret name; `camera_config.ini` still matches the three aliased cameras.
+- `view-cam`: works from another node; accepts aliases; rejects unlisted ids without revealing them;
+  executive cameras print the disabled line before layer 4 and the description after; trace
+  unchanged.
+- Menu: lists only floors with listed cameras; expands/collapses; selecting calls back and closes;
+  offline cameras are marked; Esc and outside click close; Arrow keys move through items.
+- Workspace: the CAM tab stays after pivoting; the aux pane is unread when a camera unlocks
+  off-screen and starts read.
+- Scenes: each builder is complex enough, bounded, pans in place; a second mount differs from the
+  first and still pans.
+- Playthrough: the floor menu shows more floors at deeper layers; the executive floor is disabled
+  at layer 3 and live at layer 4.
 
 ## Out of scope
 
 People or events in the footage, an archive of past footage, sound, cameras affecting trace or
-Sentinel, a command other than `view-cam`.
+Sentinel, a sidebar tree, any command other than `view-cam`.
