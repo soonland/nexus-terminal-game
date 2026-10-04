@@ -323,4 +323,7 @@ export interface CommandOutput {
   nextState?: Partial<GameState>;
   suggestions?: string[];
   channelTrigger?: ChannelTrigger; // signals App to enter DM mode
+  // Her reply to a message. It belongs in the COMMS channel tab, not the terminal output; a
+  // favor offer's yes/no prompt stays in `lines` because the terminal must answer it.
+  ariaReply?: string;
 }

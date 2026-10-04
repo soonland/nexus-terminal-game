@@ -720,7 +720,7 @@ const cmdAriaAI = async (
     !isAriaNameKnown(state) && aiResponse !== ARIA_AI_FALLBACK && /\baria\b/i.test(safeReply);
   const finalState = introduced ? markAriaNameKnown(next) : next;
 
-  const lines: CommandOutput['lines'] = [line(displayReply, 'aria')];
+  const lines: CommandOutput['lines'] = [];
 
   if (safeOffer) {
     lines.push(
@@ -732,7 +732,7 @@ const cmdAriaAI = async (
     );
   }
 
-  return withTurn({ lines, nextState: finalState }, raw, state);
+  return withTurn({ lines, nextState: finalState, ariaReply: displayReply }, raw, state);
 };
 
 // ── Favor confirmation ────────────────────────────────────

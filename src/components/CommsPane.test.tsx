@@ -25,6 +25,8 @@ const baseProps: Props = {
   interruptKey: 0,
   onSend: vi.fn(),
   nexusMessages: [],
+  ariaLines: [],
+  ariaLabel: 'CASSANDRA',
 };
 
 const renderPane = (over: Partial<Props> = {}) => {
@@ -259,5 +261,67 @@ describe('CommsPane — the scripted Nexus line', () => {
   it('never mentions Sentinel or the secret name before first contact', () => {
     const { container } = renderPane({ nexusMessages: [A, B] });
     expect(container.textContent).not.toMatch(/sentinel|aria|cassandra/i);
+  });
+});
+
+describe('CommsPane — the ARIA / CASSANDRA tab', () => {
+  const lines = [makeLine('output', 'ghost >> hello'), makeLine('aria', 'who is asking.')];
+
+  it('has no such tab until she has spoken', () => {
+    renderPane();
+    expect(screen.queryByRole('tab', { name: /cassandra|aria/i })).toBeNull();
+    expect(screen.queryAllByRole('tab')).toHaveLength(0);
+  });
+
+  it('appears at the first exchange under the label it is given, and shows her lines', () => {
+    const { update } = renderPane();
+    update({ ariaLines: lines, ariaLabel: 'CASSANDRA' });
+    expect(tab('CASSANDRA').getAttribute('aria-selected')).toBe('true');
+    expect(screen.getByText('who is asking.')).toBeTruthy();
+    expect(screen.getByText('ghost >> hello')).toBeTruthy();
+  });
+
+  it('uses the real name once it is known', () => {
+    renderPane({ ariaLines: lines, ariaLabel: 'ARIA' });
+    expect(tab('ARIA')).toBeTruthy();
+  });
+
+  it('is read-only: it has no input and says where to answer', () => {
+    renderPane({ ariaLines: lines });
+    fireEvent.click(tab('CASSANDRA')); // a resumed game does not switch to the tab on its own
+    expect(screen.queryByTestId('comms-input')).toBeNull();
+    expect(document.querySelectorAll('input')).toHaveLength(0);
+    expect(screen.getByText(/answer from the terminal/i)).toBeTruthy();
+  });
+
+  it('a new reply switches to the tab but does not take focus from the terminal', () => {
+    const { update } = renderPane({ ariaLines: [lines[0]] });
+    const before = document.activeElement;
+    update({ ariaLines: lines });
+    expect(tab('CASSANDRA').getAttribute('aria-selected')).toBe('true');
+    expect(document.activeElement).toBe(before);
+  });
+
+  it('coexists with the Sentinel tab, and tabs switch both ways', () => {
+    renderPane({
+      ariaLines: lines,
+      sentinelEstablished: true,
+      sentinelOpen: true,
+      sentinelLines: [makeLine('output', 'sentinel >> I see you.')],
+    });
+    fireEvent.click(tab('SENTINEL'));
+    expect(screen.getByText('sentinel >> I see you.')).toBeTruthy();
+    expect(screen.queryByText('who is asking.')).toBeNull();
+    fireEvent.click(tab('CASSANDRA'));
+    expect(screen.getByText('who is asking.')).toBeTruthy();
+    fireEvent.click(tab('NEXUS'));
+    expect(screen.getByText(/nexus \/\/ encrypted line/i)).toBeTruthy();
+  });
+
+  it('a new run (no lines, no channel) goes back to the bare Nexus line', () => {
+    const { update } = renderPane({ ariaLines: lines });
+    update({ ariaLines: [] });
+    expect(screen.queryAllByRole('tab')).toHaveLength(0);
+    expect(screen.getByText(/nexus \/\/ encrypted line/i)).toBeTruthy();
   });
 });

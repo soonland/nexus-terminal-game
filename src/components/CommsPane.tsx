@@ -20,10 +20,13 @@ interface Props {
   interruptKey: number;
   // The scripted Nexus line: every message received so far, oldest first.
   nexusMessages?: NexusMessage[];
+  // Her conversation (derived from the saved history); the tab exists once she has spoken.
+  ariaLines?: TerminalLine[];
+  ariaLabel?: string;
   onSend: (text: string) => void;
 }
 
-type Tab = 'nexus' | 'sentinel';
+type Tab = 'nexus' | 'sentinel' | 'aria';
 
 // The line is cut about halfway, mid-sentence, as the channel is taken over.
 const cutLine = (text: string): string =>
@@ -38,6 +41,8 @@ export const CommsPane = forwardRef<CommsHandle, Props>(
       sentinelBusy,
       interruptKey,
       nexusMessages = [],
+      ariaLines = [],
+      ariaLabel = 'CASSANDRA',
       onSend,
     },
     ref,
@@ -87,14 +92,26 @@ export const CommsPane = forwardRef<CommsHandle, Props>(
       if (sentinelOpen && !interruptingRef.current) setTab('sentinel');
     }, [sentinelOpen]);
 
-    // A new run clears the channel: back to the bare Nexus line.
+    // A new run clears the channels: back to the bare Nexus line.
+    const hasAria = ariaLines.length > 0;
     useEffect(() => {
       if (!sentinelEstablished) {
         interruptingRef.current = false;
         setInterrupting(false);
-        setTab('nexus');
+        setTab(prev => (prev === 'sentinel' ? 'nexus' : prev));
       }
     }, [sentinelEstablished]);
+    useEffect(() => {
+      if (!hasAria) setTab(prev => (prev === 'aria' ? 'nexus' : prev));
+    }, [hasAria]);
+
+    // Her tab appears at her first reply and shows each new one, without taking keyboard focus
+    // (the player may be typing in the terminal). A resumed game does not switch on mount.
+    const seenAriaCount = useRef(ariaLines.length);
+    useEffect(() => {
+      if (ariaLines.length > seenAriaCount.current) setTab('aria');
+      seenAriaCount.current = ariaLines.length;
+    }, [ariaLines.length]);
 
     // Keep the newest Nexus message in view.
     const messageCount = nexusMessages.length;
@@ -111,7 +128,7 @@ export const CommsPane = forwardRef<CommsHandle, Props>(
 
     return (
       <div className="comms" ref={rootRef}>
-        {sentinelEstablished && (
+        {(sentinelEstablished || hasAria) && (
           <div role="tablist" className="comms-tabs">
             <button
               type="button"
@@ -123,20 +140,39 @@ export const CommsPane = forwardRef<CommsHandle, Props>(
               }}>
               NEXUS
             </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={tab === 'sentinel'}
-              data-closed={!sentinelOpen}
-              className={interrupting ? 'comms-tab comms-flicker' : 'comms-tab'}
-              onClick={() => {
-                setTab('sentinel');
-              }}>
-              SENTINEL
-            </button>
+            {sentinelEstablished && (
+              <button
+                type="button"
+                role="tab"
+                aria-selected={tab === 'sentinel'}
+                data-closed={!sentinelOpen}
+                className={interrupting ? 'comms-tab comms-flicker' : 'comms-tab'}
+                onClick={() => {
+                  setTab('sentinel');
+                }}>
+                SENTINEL
+              </button>
+            )}
+            {hasAria && (
+              <button
+                type="button"
+                role="tab"
+                aria-selected={tab === 'aria'}
+                className="comms-tab"
+                onClick={() => {
+                  setTab('aria');
+                }}>
+                {ariaLabel}
+              </button>
+            )}
           </div>
         )}
-        {tab === 'nexus' || !sentinelEstablished ? (
+        {tab === 'aria' && hasAria ? (
+          <div className="comms-channel comms-aria">
+            <TerminalOutput lines={ariaLines} />
+            <div className="comms-readonly">[read-only — answer from the terminal]</div>
+          </div>
+        ) : tab === 'nexus' || !sentinelEstablished ? (
           <div className="comms-nexus" ref={nexusRef}>
             <div className="comms-line">NEXUS // ENCRYPTED LINE</div>
             {nexusMessages.length === 0 ? (

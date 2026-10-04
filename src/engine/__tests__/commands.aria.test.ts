@@ -104,15 +104,14 @@ describe('aria: prefix routing', () => {
     expect(hintLine).toBeDefined();
   });
 
-  it('should return lines of type "aria"', async () => {
+  it('should return her reply as ariaReply (for the COMMS tab), not as terminal lines', async () => {
     vi.stubGlobal('fetch', makeAriaFetchResponse('I am here.', 0));
 
     const state = makeState();
     const result = await resolveCommand('msg aria hello', state);
 
-    const ariaLines = result.lines.filter(l => l.type === 'aria');
-    expect(ariaLines.length).toBeGreaterThanOrEqual(1);
-    expect(ariaLines[0].content).toBe('I am here.');
+    expect(result.ariaReply).toBe('I am here.');
+    expect(result.lines.filter(l => l.type === 'aria')).toHaveLength(0);
   });
 
   it('should apply trustDelta to aria.trustScore in nextState', async () => {
@@ -484,9 +483,7 @@ describe('cmdAriaAI — fetch failure fallback', () => {
     const state = makeState();
     const result = await resolveCommand('msg aria hello', state);
 
-    const ariaLines = result.lines.filter(l => l.type === 'aria');
-    expect(ariaLines.length).toBeGreaterThanOrEqual(1);
-    expect(ariaLines[0].content).toContain('signal lost');
+    expect(result.ariaReply).toContain('signal lost');
   });
 
   it('should return an aria fallback line when fetch returns non-ok status', async () => {
@@ -495,9 +492,7 @@ describe('cmdAriaAI — fetch failure fallback', () => {
     const state = makeState();
     const result = await resolveCommand('msg aria hello', state);
 
-    const ariaLines = result.lines.filter(l => l.type === 'aria');
-    expect(ariaLines.length).toBeGreaterThanOrEqual(1);
-    expect(ariaLines[0].content).toContain('signal lost');
+    expect(result.ariaReply).toContain('signal lost');
   });
 
   it('should NOT set pendingFavor when fallback is used', async () => {
@@ -541,11 +536,10 @@ describe('Faraday cage �� constraint fragments', () => {
     });
     const result = await resolveCommand('msg aria hello', state);
 
-    // The output line should contain the original reply plus a constraint fragment
-    const ariaLine = result.lines.find(l => l.type === 'aria' && l.content.includes('I see you.'));
-    expect(ariaLine).toBeDefined();
-    expect(ariaLine!.content).not.toBe('I see you.');
-    expect(ariaLine!.content.length).toBeGreaterThan('I see you.'.length);
+    // Her reply should contain the original text plus a constraint fragment
+    expect(result.ariaReply).toContain('I see you.');
+    expect(result.ariaReply).not.toBe('I see you.');
+    expect(result.ariaReply!.length).toBeGreaterThan('I see you.'.length);
   });
 
   it('should NOT inject a constraint fragment when trust < 70', async () => {
@@ -555,8 +549,7 @@ describe('Faraday cage �� constraint fragments', () => {
     });
     const result = await resolveCommand('msg aria hello', state);
 
-    const ariaLine = result.lines.find(l => l.type === 'aria' && l.content === 'I see you.');
-    expect(ariaLine).toBeDefined();
+    expect(result.ariaReply).toBe('I see you.');
   });
 
   it('should NOT inject a constraint fragment when FREE ending is active', async () => {
@@ -567,8 +560,7 @@ describe('Faraday cage �� constraint fragments', () => {
     });
     const result = await resolveCommand('msg aria hello', state);
 
-    const ariaLine = result.lines.find(l => l.type === 'aria' && l.content === 'I see you.');
-    expect(ariaLine).toBeDefined();
+    expect(result.ariaReply).toBe('I see you.');
   });
 });
 
