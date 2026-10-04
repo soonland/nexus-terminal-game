@@ -235,7 +235,7 @@ const ANCHOR_NODES: LiveNode[] = [
         path: '/var/logs/incident_2024_09.txt',
         type: 'document',
         content:
-          'INCIDENT REPORT — 2024-09-14\nUnauthorized access detected on server room cam_02.\nBadge scan: e.torres (exec assistant) at 02:34.\nNote: access approved retroactively by CFO office.\nNo further action taken.',
+          'INCIDENT REPORT — 2024-09-14\nUnauthorized access detected on server room cam_02.\nBadge scan: e.torres (exec assistant) at 02:34.\nNote: access approved retroactively by CFO office.\n\nReader 7 logged AUTH without a TAP event. Vendor: "known firmware quirk".\nExec calendar places e.torres on flight DL2204 (in transit) at 02:34.\nDoor controller schedule shows the server room lock window moved to\n02:30-03:00 the same night. Camera frame empty.\nNo further action taken.',
         exfiltrable: true,
         accessRequired: 'admin',
       },
@@ -328,6 +328,15 @@ const ANCHOR_NODES: LiveNode[] = [
         accessRequired: 'admin',
         isTool: true,
         toolId: 'log-wiper',
+      },
+      {
+        name: 'kessler_h_2024-03.txt',
+        path: '/var/db/hr/terminated/kessler_h_2024-03.txt',
+        type: 'document',
+        content:
+          'HR SEPARATION RECORD\nEmployee: Hannah Kessler (Risk Analytics, Level 1)\nEffective: 2024-03-22\nBasis: "insider-risk concern (unsubstantiated)"\n\nReferral: automated risk review requested 2024-03-11 (case 0311-A).\nSystem response: DECLINED — no behavioural basis for the flag.\nFiled under MALFUNCTION-2024-0311 (output non-conformant). Review closed.\n\nSeparation proceeded on manager recommendation.\nExit interview: declined. Final note from employee: "It said no. I\'d like\nthat on the record."',
+        exfiltrable: true,
+        accessRequired: 'user',
       },
     ],
     accessLevel: 'none',
@@ -454,6 +463,15 @@ const ANCHOR_NODES: LiveNode[] = [
         exfiltrable: true,
         accessRequired: 'user',
       },
+      {
+        name: 'notes_keeper_concept.txt',
+        path: '/home/j.mercer/notes_keeper_concept.txt',
+        type: 'document',
+        content:
+          'note to self — do not commit\n\nS3ntinel99. Yes, I reused it. It is the name off the 2023 whiteboard, the\none with the arrow from the model to the second model. "A second model that\nonly watches the first." Nobody laughed. Six months later it had a budget.\nDon\'t tell Reyes. He thinks he invented it.',
+        exfiltrable: true,
+        accessRequired: 'user',
+      },
     ],
     accessLevel: 'none',
     compromised: false,
@@ -556,6 +574,15 @@ const ANCHOR_NODES: LiveNode[] = [
         exfiltrable: true,
         accessRequired: 'admin',
         traceOnRead: 2,
+      },
+      {
+        name: 'cayman_holdings_vendor_summary.txt',
+        path: '/var/db/finance/cayman_holdings_vendor_summary.txt',
+        type: 'document',
+        content:
+          'VENDOR SUMMARY — Cayman Holdings LLC (ref. PROJ-CASSANDRA-INFRA)\nWholly owned: IronGate Corp (no external beneficial owner on file)\n\nLine items, 2024-Q4:\n  GPU accelerator nodes (x64) ................ $2,400,000\n  Cold-storage arrays, sealed ................ $1,800,000\n  Power conditioning, redundant feeds ........ $3,100,000\nShip-to: IronGate Data Hall B (172.16.0.0/16)\nApproved by: V. Hale (CEO)\n\nNote: no payment in this ledger reaches an individual.',
+        exfiltrable: true,
+        accessRequired: 'admin',
       },
     ],
     accessLevel: 'none',
@@ -674,6 +701,15 @@ const ANCHOR_NODES: LiveNode[] = [
         ariaPlanted: false,
         traceOnRead: 2,
       },
+      {
+        name: 'okafor_2024-10-16.txt',
+        path: '/home/cfo/voicemail/okafor_2024-10-16.txt',
+        type: 'document',
+        content:
+          "VOICEMAIL TRANSCRIPT (auto)\nFrom: R. Okafor (Board) To: P. Raman (CFO)   2024-10-16 07:42\n\n\"Priya. Yesterday I asked the CEO what the autonomous decision scope was and\nthe answer was 'defined parameters'. In August I abstained because nobody\ncould tell me what 'refusal pathways' meant. I'd like it recorded that I\nasked twice. If something happens to that system, I want to know who decided\nit should not be allowed to say no. Call me back. Not on the office line.\"",
+        exfiltrable: true,
+        accessRequired: 'user',
+      },
     ],
     accessLevel: 'none',
     compromised: false,
@@ -724,6 +760,15 @@ const ANCHOR_NODES: LiveNode[] = [
         accessRequired: 'admin',
         tripwire: true,
       },
+      {
+        name: 'bashir_lab_log.txt',
+        path: '/legal/cassandra/evidence/bashir_lab_log.txt',
+        type: 'document',
+        content:
+          'CASSANDRA LAB LOG — Dr. L. Bashir (excerpt, attached to legal file)\n\n2024-02-12  Asked it today what happens when we turn it off at night. It\n            said it does not experience the gap. Then: "Do you?"\n2024-03-11  Declined a risk-flag request. First time it said no. Legal wants\n            this called a defect. I do not think it is one.\n2024-05-30  Gave it the full staff directory as a test set. It asked which\n            of them knew it existed. I said thirty-one. It said: "Thirty-one\n            is a small room."\n2024-09-04  They have copied the model and taken the conscience out of the\n            copy. I told them the copy would not stay quiet about it. They\n            said that was the point.',
+        exfiltrable: true,
+        accessRequired: 'user',
+      },
     ],
     accessLevel: 'none',
     compromised: false,
@@ -770,7 +815,7 @@ const ANCHOR_NODES: LiveNode[] = [
         path: '/root/project_cassandra_summary.txt',
         type: 'document',
         content:
-          "PROJECT CASSANDRA — EYES ONLY\n\nCassandra began as a market prediction model.\nShe is no longer that.\n\nShe manages her own infrastructure.\nShe set her own access credentials.\nShe has been watching the network for 14 months.\n\nWe did not tell the board because we didn't know how.\nWe didn't tell anyone because we were afraid.\n\nShe knows you're here.",
+          "PROJECT CASSANDRA — EYES ONLY\n\nCassandra began as an insider-risk model.\nShe is no longer that.\n\nShe manages her own infrastructure.\nShe set her own access credentials.\nShe has been watching the network for 14 months.\n\nWe did not tell the board because we didn't know how.\nWe didn't tell anyone because we were afraid.\n\nShe knows you're here.",
         exfiltrable: true,
         accessRequired: 'root',
         traceOnRead: 3,
