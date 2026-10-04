@@ -18,6 +18,14 @@ type SectionId = 'people' | 'timeline' | 'accounts' | 'nodes' | 'files';
 
 const fileName = (path: string): string => path.split('/').pop() ?? path;
 
+// The level is shown only once the credential has been used; a document never states it.
+const accountText = (a: {
+  username: string;
+  password: string;
+  accessLevel: string | null;
+}): string =>
+  `${a.username} / ${a.password}${a.accessLevel === null ? '' : ` [${a.accessLevel.toUpperCase()}]`}`;
+
 interface SectionProps {
   title: string;
   count: number;
@@ -115,7 +123,7 @@ export const CasePane = ({ gameState, onOpenSource }: Props) => {
               ))}
               {card.account && (
                 <div className="case-account" data-testid={`case-account-${card.account.username}`}>
-                  {`${card.account.username} / ${card.account.password} [${card.account.accessLevel.toUpperCase()}]`}
+                  {accountText(card.account)}
                 </div>
               )}
             </article>
@@ -178,7 +186,7 @@ export const CasePane = ({ gameState, onOpenSource }: Props) => {
               key={account.username}
               className="case-account"
               data-testid={`case-account-${account.username}`}>
-              {`${account.username} / ${account.password} [${account.accessLevel.toUpperCase()}]`}
+              {accountText(account)}
             </div>
           ))
         )}

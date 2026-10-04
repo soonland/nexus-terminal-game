@@ -175,3 +175,29 @@ describe('CasePane — timeline, nodes and files', () => {
     for (const trait of employee.traits) expect(container.textContent).not.toContain(trait);
   });
 });
+
+describe('CasePane — a credential found in a document', () => {
+  const read = (): GameState =>
+    atHr(s => {
+      s.filesRead.push(fileReadKey('ops_cctv_ctrl', '/etc/cctv/camera_config.ini'));
+    });
+
+  it('shows the password but no access level until it has been used', () => {
+    setup(read());
+    fireEvent.click(section('ACCOUNTS'));
+    const line = screen.getByTestId('case-account-ops.admin');
+    expect(line.textContent).toContain('ops.admin');
+    expect(line.textContent).toContain('IronG8te#Ops');
+    expect(line.textContent).not.toMatch(/\[/);
+  });
+
+  it('shows the level once the credential is obtained', () => {
+    setup(
+      produce(read(), s => {
+        for (const c of s.player.credentials) if (c.id === 'cred_ops_admin') c.obtained = true;
+      }),
+    );
+    fireEvent.click(section('ACCOUNTS'));
+    expect(screen.getByTestId('case-account-ops.admin').textContent).toContain('[ADMIN]');
+  });
+});

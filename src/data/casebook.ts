@@ -27,6 +27,46 @@ export interface CaseFact {
   quote: string;
 }
 
+// Documents that show a credential in plain text. Reading one makes the credential known to the
+// casebook before the player has tried it. Authored, not scanned for: the encrypted archive also
+// contains passwords, but those only become known through `decrypt`, so it is deliberately absent.
+// A test checks that each document really shows the password.
+export interface CaseCredentialSource {
+  credentialId: string;
+  source: { nodeId: string; path: string };
+}
+
+export const CASE_CREDENTIAL_SOURCES: readonly CaseCredentialSource[] = [
+  {
+    credentialId: 'cred_contractor',
+    source: { nodeId: 'contractor_portal', path: '/var/www/contractor/welcome.txt' },
+  },
+  {
+    credentialId: 'cred_ops_admin',
+    source: { nodeId: 'ops_cctv_ctrl', path: '/etc/cctv/camera_config.ini' },
+  },
+  {
+    credentialId: 'cred_sec_analyst',
+    source: { nodeId: 'ops_hr_db', path: '/var/db/hr/tickets/sec_ticket_2023_0601.txt' },
+  },
+  {
+    credentialId: 'cred_sec_analyst',
+    source: { nodeId: 'sec_access_ctrl', path: '/home/j.mercer/notes_keeper_concept.txt' },
+  },
+  {
+    credentialId: 'cred_sec_admin',
+    source: { nodeId: 'sec_firewall', path: '/backup/fw_backup_2024.cfg' },
+  },
+  {
+    credentialId: 'cred_fin_admin',
+    source: { nodeId: 'fin_payments_db', path: '/etc/postgres/db_admin.conf' },
+  },
+  {
+    credentialId: 'cred_exec_assistant',
+    source: { nodeId: 'fin_exec_accounts', path: '/etc/exec/calendar_access.cfg' },
+  },
+];
+
 export const CASE_PEOPLE: readonly CasePerson[] = [
   { id: 'hale', name: 'V. Hale', role: 'CEO', credentialIds: ['cred_ceo_root'] },
   { id: 'raman', name: 'P. Raman', role: 'CFO' },

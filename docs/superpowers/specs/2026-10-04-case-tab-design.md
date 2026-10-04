@@ -53,6 +53,16 @@ interface CaseFact {
 - **No new saved state.** Everything derives from `filesRead`, obtained credentials and the
   nodes. `SAVE_VERSION` is unchanged.
 
+### Credentials found in documents
+
+A credential counts as **known** once the player has read a document that shows it in plain
+text, not only once they have used it (`CASE_CREDENTIAL_SOURCES`: the camera config, the
+contractor welcome page, the Mercer ticket and note, the firewall backup, the Postgres admin
+config, the calendar access config). The list is authored rather than scanned for, because the
+encrypted archive also contains passwords that must stay behind `decrypt`. A test checks that
+each listed document really shows the password. The **access level appears only once the
+credential has been obtained**: documents never state it, so showing it earlier would be a hint.
+
 ## The CASE tab
 
 Aux pane tabs: **MAP | CASE**. Collapsible sections, in this order, each remembering whether it

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { buildCasebook } from './casebook';
+import { buildCasebook, casebookActivity } from './casebook';
 import { createInitialState } from './state';
 import { saveGame, loadGame } from './persistence';
 import produce from './produce';
@@ -10,6 +10,9 @@ const KESSLER = fileReadKey('ops_hr_db', '/var/db/hr/terminated/kessler_h_2024-0
 const VOTE = fileReadKey('exec_cfo', '/home/cfo/documents/PROJ_SENTINEL_BOARD_VOTE.pdf');
 const INCIDENT = fileReadKey('ops_cctv_ctrl', '/var/logs/incident_2024_09.txt');
 const RESET = fileReadKey('sec_firewall', '/var/log/sentinel/reset_log.txt');
+const CAMERA = fileReadKey('ops_cctv_ctrl', '/etc/cctv/camera_config.ini');
+const TICKET = fileReadKey('ops_hr_db', '/var/db/hr/tickets/sec_ticket_2023_0601.txt');
+const ENCRYPTED = fileReadKey('sec_access_ctrl', '/home/j.mercer/encrypted_creds.gpg');
 
 const withReads = (...keys: string[]): GameState =>
   produce(createInitialState(), s => {
@@ -186,5 +189,64 @@ describe('buildCasebook — persistence', () => {
     const loaded = loadGame();
     expect(loaded).not.toBeNull();
     expect(buildCasebook(loaded as GameState)).toEqual(buildCasebook(state));
+  });
+});
+
+describe('buildCasebook — a credential found in a document counts before it is used', () => {
+  it('reading the camera config adds ops.admin and its password, with no access level yet', () => {
+    const book = buildCasebook(withReads(CAMERA));
+    expect(book.accounts).toEqual([
+      { username: 'ops.admin', password: 'IronG8te#Ops', accessLevel: null },
+    ]);
+  });
+
+  it('the access level appears only once the credential is actually obtained', () => {
+    const used = buildCasebook(obtain(withReads(CAMERA), 'cred_ops_admin'));
+    expect(used.accounts).toEqual([
+      { username: 'ops.admin', password: 'IronG8te#Ops', accessLevel: 'admin' },
+    ]);
+  });
+
+  it('shows it once, not twice, when it is both read and obtained', () => {
+    const book = buildCasebook(obtain(withReads(CAMERA), 'cred_ops_admin'));
+    expect(book.accounts).toHaveLength(1);
+  });
+
+  it("puts a person's credential on their card when a document shows it", () => {
+    const book = buildCasebook(withReads(TICKET));
+    const mercer = book.people.find(p => p.id === 'mercer');
+    expect(mercer?.account).toEqual({
+      username: 'j.mercer',
+      password: 'S3ntinel99',
+      accessLevel: null,
+    });
+    expect(book.accounts).toEqual([]);
+  });
+
+  it('does not count the encrypted archive: only a decrypt (an obtained credential) reveals those', () => {
+    const book = buildCasebook(withReads(ENCRYPTED));
+    expect(book.accounts).toEqual([]);
+    expect(book.people).toEqual([]);
+  });
+
+  it('a read of an exfiltrated copy alone shows nothing', () => {
+    const state = produce(createInitialState(), s => {
+      const file = s.network.nodes['ops_cctv_ctrl']!.files.find(f =>
+        f.path.endsWith('camera_config.ini'),
+      )!;
+      s.player.exfiltrated.push({ ...file });
+    });
+    expect(buildCasebook(state).accounts).toEqual([]);
+  });
+
+  it('counts a document-found credential as casebook activity (the unread dot)', () => {
+    const before = withReads();
+    expect(casebookActivity(withReads(CAMERA))).toBe(casebookActivity(before) + 1);
+  });
+
+  it('still never says where it works or where it was found', () => {
+    const json = JSON.stringify(buildCasebook(withReads(CAMERA, TICKET)));
+    expect(json).not.toContain('ops_cctv_ctrl');
+    expect(json).not.toContain('Found in plaintext config');
   });
 });

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { ANCHOR_CREDENTIALS, buildNodeMap } from '../anchorNodes';
-import { CASE_FACTS, CASE_PEOPLE } from '../casebook';
+import { CASE_CREDENTIAL_SOURCES, CASE_FACTS, CASE_PEOPLE } from '../casebook';
 import type { LiveNode } from '../../types/game';
 
 const nodes = buildNodeMap();
@@ -66,5 +66,33 @@ describe('the authored casebook data', () => {
     for (const credential of ANCHOR_CREDENTIALS) {
       expect(allStrings.filter(s => s.includes(credential.password))).toEqual([]);
     }
+  });
+});
+
+describe('the documents that show a credential in plain text', () => {
+  it('each names a real credential, cites a real document, and that document shows the password', () => {
+    const real = new Map(ANCHOR_CREDENTIALS.map(c => [c.id, c]));
+    for (const entry of CASE_CREDENTIAL_SOURCES) {
+      const credential = real.get(entry.credentialId);
+      expect(credential, entry.credentialId).toBeDefined();
+      const file = fileAt(entry.source.nodeId, entry.source.path);
+      expect(file, `${entry.credentialId}: ${entry.source.path}`).toBeDefined();
+      expect(typeof file?.content, `${entry.credentialId} source must be authored`).toBe('string');
+      expect(file?.content, `${entry.credentialId}: password not in source`).toContain(
+        credential?.password ?? '',
+      );
+    }
+  });
+
+  it('never counts the encrypted archive: its credentials come from decrypt, not from reading it', () => {
+    const paths = CASE_CREDENTIAL_SOURCES.map(e => e.source.path);
+    expect(paths).not.toContain('/home/j.mercer/encrypted_creds.gpg');
+    const ids = CASE_CREDENTIAL_SOURCES.map(e => e.credentialId);
+    expect(ids).not.toContain('cred_fin_analyst');
+  });
+
+  it('has no duplicate (credential, document) pairs', () => {
+    const keys = CASE_CREDENTIAL_SOURCES.map(e => `${e.credentialId}|${e.source.path}`);
+    expect(new Set(keys).size).toBe(keys.length);
   });
 });
