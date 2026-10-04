@@ -61,6 +61,7 @@ All game state is a single `GameState` object (`src/types/game.ts`). It is clone
 - **16 anchor nodes** are defined in `src/data/anchorNodes.ts` with hardcoded content, services, files, credentials, and connections.
 - Nodes are organized in 6 layers (0=entry, 1=ops, 2=security, 3=finance, 4=executive, 5=aria).
 - Phase 4 added procedural filler nodes around the anchors (seeded per run).
+- `connect <ip>` needs a direct route, **or** a session you already hold on the target (`accessLevel !== 'none'`): holding one lets you pivot back to it from any node and layer, with no layer gating. Pivots set `previousNodeId` like any connect, so `disconnect` returns.
 - `GameFile.content = null` means the file needs AI generation via `/api/file-content` (Phase 3).
 
 ### Terminal rendering
