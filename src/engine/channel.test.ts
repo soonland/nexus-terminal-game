@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { layerReachedFlag, isChannelBlocked, detectChannelTrigger } from './channel';
 import { thresholdFlag } from './state';
+import { markNoteRevealed } from './noteReveal';
 import { makeState, makeNode } from './__tests__/testHelpers';
 import type { GameState } from '../types/game';
 
@@ -400,5 +401,39 @@ describe('detectChannelTrigger — returned trigger shape', () => {
     expect(trigger?.context.currentNodeId).toBe('ctx_node');
     expect(trigger?.context.currentLayer).toBe(3);
     expect(trigger?.context.recentCommands).toEqual(['scan', 'connect ctx_node']);
+  });
+});
+
+describe('detectChannelTrigger — note_revealed (#218)', () => {
+  const atCore = (): GameState =>
+    makeState({
+      network: {
+        currentNodeId: 'aria_core',
+        previousNodeId: null,
+        nodes: { aria_core: makeNode({ id: 'aria_core', layer: 5 }) },
+      },
+    });
+
+  it('fires on the turn the flag flips', () => {
+    const prev = atCore();
+    const next = markNoteRevealed(prev);
+    expect(detectChannelTrigger(prev, next, 'cat /aria/core/self_model.txt')?.triggerType).toBe(
+      'note_revealed',
+    );
+  });
+
+  it('does not fire again once the flag is already set', () => {
+    const revealed = markNoteRevealed(atCore());
+    expect(detectChannelTrigger(revealed, revealed, 'cat /aria/core/self_model.txt')).toBeNull();
+  });
+
+  it('wins over a trace threshold crossed on the same turn', () => {
+    const prev = atCore();
+    const next = markNoteRevealed({
+      ...prev,
+      player: { ...prev.player, trace: 62 },
+      flags: { ...prev.flags, [thresholdFlag(61)]: true },
+    });
+    expect(detectChannelTrigger(prev, next, 'cat x')?.triggerType).toBe('note_revealed');
   });
 });

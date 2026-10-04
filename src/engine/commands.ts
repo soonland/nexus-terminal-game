@@ -11,6 +11,7 @@ import { loadDossier, recordEnding, addLoreFragment } from './dossierPersistence
 import type { EndingName } from '../types/dossier';
 import { shouldSuppressMutation, injectConstraintFragment } from './faradayCage';
 import { ariaTier } from './aiTiers';
+import { ARIA_CORE_NODE_ID, SELF_MODEL_PATH, markNoteRevealed } from './noteReveal';
 import { ARIA_NAME_FLAG, SENTINEL_VOTE_PATH, isAriaNameKnown, markAriaNameKnown } from './ariaName';
 import { detectChannelTrigger, isChannelBlocked, layerReachedFlag } from './channel';
 
@@ -1057,9 +1058,19 @@ const cmdConnect = async (args: string[], state: GameState): Promise<CommandOutp
     }
   }
 
+  // The Restricted Subnet Key is the authentication token for the subnet: with it, connecting to
+  // a layer-5 node grants user access (nothing else can authenticate there).
+  const keyAuthenticates =
+    target.layer === 5 &&
+    target.accessLevel === 'none' &&
+    state.player.tools.some(t => t.id === 'subnet-key');
   let next = produce(state, s => {
     s.network.previousNodeId = s.network.currentNodeId;
     s.network.currentNodeId = target.id;
+    if (keyAuthenticates) {
+      const entered = s.network.nodes[target.id];
+      if (entered) entered.accessLevel = 'user';
+    }
   });
   // First contact with the restricted subnet: she introduces herself (fallback reveal).
   if (target.layer === 5) next = markAriaNameKnown(next);
@@ -1368,6 +1379,15 @@ const cmdCat = async (args: string[], state: GameState): Promise<CommandOutput> 
   // Reading the board vote is how the player learns Sentinel's parent has a name.
   if (content !== FILE_CONTENT_FALLBACK && file.path === SENTINEL_VOTE_PATH) {
     next = markAriaNameKnown(next);
+  }
+
+  // Reading the self-model at the core is the reveal: she wrote the note (#218).
+  if (
+    content !== FILE_CONTENT_FALLBACK &&
+    file.path === SELF_MODEL_PATH &&
+    node.id === ARIA_CORE_NODE_ID
+  ) {
+    next = markNoteRevealed(next);
   }
 
   // Track ariaPlanted files the player reads
@@ -1691,6 +1711,7 @@ const cmdExfil = (args: string[], state: GameState): CommandOutput => {
       sep(),
       line('// RESTRICTED SUBNET KEY ACQUIRED', 'aria'),
       line('// Restricted subnetwork 172.16.0.0/16 is now reachable.', 'aria'),
+      line('// Run scan from this node to find its entry point.', 'aria'),
       line('// Tool added: Restricted Subnet Key', 'aria'),
       sep(),
     );

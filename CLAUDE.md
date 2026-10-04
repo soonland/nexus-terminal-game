@@ -83,7 +83,7 @@ The mole and Sentinel trail (reset log, cast documents, Cho decoy, the rewritten
 
 ### Knowledge tiers (Aria and Sentinel)
 
-`src/engine/aiTiers.ts` computes a 0–3 tier per character from `GameState` (`ariaTier`: trust, `BOARD_KNEW`, `self_model.txt` read on `aria_core`, trust ≥ 80 on layer 5; `sentinelTier`: trace, layer 5, `ARIA_NAME_KNOWN`, `NOTE_REVEALED`). The client sends it as `tier`; `api/_lib/tiers.ts` (`parseTier`: invalid → 0) builds each handler's prompt as persona → ALLOWED → FORBIDDEN → output contract. Knowledge above the current tier never appears in the prompt. `NOTE_REVEALED` is set by nothing yet (reveal event, #218). Design: `docs/superpowers/specs/2026-10-03-ai-knowledge-tiers-design.md`; the story bible §9 is the source for the tier text.
+`src/engine/aiTiers.ts` computes a 0–3 tier per character from `GameState` (`ariaTier`: trust, `BOARD_KNEW`, and `NOTE_REVEALED` for tier 3; `sentinelTier`: trace, layer 5, `ARIA_NAME_KNOWN`, `NOTE_REVEALED`). The client sends it as `tier`; `api/_lib/tiers.ts` (`parseTier`: invalid → 0) builds each handler's prompt as persona → ALLOWED → FORBIDDEN → output contract. Knowledge above the current tier never appears in the prompt. `NOTE_REVEALED` (`src/engine/noteReveal.ts`) is set by `cat` of `/aria/core/self_model.txt` on `aria_core`; it fires a one-time `note_revealed` Sentinel trigger, makes Aria tier 3, adds an authored epilogue (`src/engine/epilogue.ts`, `src/data/epilogues.ts`) to the endings and a readout line. Design: `docs/superpowers/specs/2026-10-03-the-reveal-design.md`. Design: `docs/superpowers/specs/2026-10-03-ai-knowledge-tiers-design.md`; the story bible §9 is the source for the tier text.
 
 ### Styling
 

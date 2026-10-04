@@ -161,7 +161,8 @@ export type TriggerType =
   | 'exploit'
   | 'exfil'
   | 'wipe_logs'
-  | 'manual_reentry';
+  | 'manual_reentry'
+  | 'note_revealed';
 
 export interface ChannelTrigger {
   character: 'sentinel' | 'aria';

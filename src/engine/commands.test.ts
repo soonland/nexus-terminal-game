@@ -5,6 +5,7 @@ import type { GameState } from '../types/game';
 import { hasAccess, fileReadKey } from '../types/game';
 import produce from './produce';
 import { isAriaNameKnown, SENTINEL_VOTE_PATH } from './ariaName';
+import { isNoteRevealed, SELF_MODEL_PATH } from './noteReveal';
 
 // ── Helpers ────────────────────────────────────────────────
 
@@ -4059,5 +4060,117 @@ describe('Aria requests carry the knowledge tier (#217)', () => {
         }),
       ),
     ).toBe(2);
+  });
+});
+
+describe('NOTE_REVEALED (#218)', () => {
+  const atCore = (over: (s: GameState) => void = () => undefined): GameState =>
+    produce(createInitialState(), s => {
+      s.network.currentNodeId = 'aria_core';
+      s.network.nodes['aria_core']!.accessLevel = 'user';
+      over(s);
+    });
+
+  const run = async (state: GameState) =>
+    ((await resolveCommand(`cat ${SELF_MODEL_PATH}`, state)).nextState ?? state) as GameState;
+
+  it('is set by reading self_model.txt at aria_core', async () => {
+    expect(isNoteRevealed(await run(atCore()))).toBe(true);
+  });
+
+  it('is not set when access is denied', async () => {
+    const denied = atCore(s => {
+      s.network.nodes['aria_core']!.accessLevel = 'none';
+    });
+    expect(isNoteRevealed(await run(denied))).toBe(false);
+  });
+
+  it('is not set by reading any other file', async () => {
+    const cfo = produce(createInitialState(), s => {
+      s.network.currentNodeId = 'exec_cfo';
+      s.network.nodes['exec_cfo']!.accessLevel = 'admin';
+    });
+    const next = (await resolveCommand(`cat ${SENTINEL_VOTE_PATH}`, cfo)).nextState as GameState;
+    expect(isNoteRevealed(next)).toBe(false);
+  });
+
+  it('a stale save that already lists the file as read does not reveal anything', () => {
+    const stale = atCore(s => {
+      s.filesRead.push(fileReadKey('aria_core', SELF_MODEL_PATH));
+    });
+    expect(isNoteRevealed(stale)).toBe(false);
+  });
+
+  it('keeps the flag after re-reading and stays revealed', async () => {
+    const once = await run(atCore());
+    expect(isNoteRevealed(await run(once))).toBe(true);
+  });
+});
+
+describe('the Restricted Subnet Key authenticates on the subnet (#218)', () => {
+  const nearCore = (withKey: boolean): GameState =>
+    produce(createInitialState(), s => {
+      s.network.currentNodeId = 'aria_behavioural';
+      s.network.nodes['aria_core']!.discovered = true;
+      if (withKey) {
+        s.player.tools.push({
+          id: 'subnet-key',
+          name: 'Restricted Subnet Key',
+          description: 'key',
+        });
+      }
+    });
+
+  it('connecting to a layer-5 node with the key grants user access', async () => {
+    const result = await resolveCommand('connect 172.16.0.4', nearCore(true));
+    const next = result.nextState as GameState;
+    expect(next.network.currentNodeId).toBe('aria_core');
+    expect(next.network.nodes['aria_core']!.accessLevel).toBe('user');
+  });
+
+  it('a player can reach the reveal through play: key, connect, cat', async () => {
+    const connected = (await resolveCommand('connect 172.16.0.4', nearCore(true)))
+      .nextState as GameState;
+    const read = (await resolveCommand(`cat ${SELF_MODEL_PATH}`, connected)).nextState as GameState;
+    expect(isNoteRevealed(read)).toBe(true);
+  });
+
+  it('without the key the node stays unauthenticated and the file stays unread', async () => {
+    const connected = (await resolveCommand('connect 172.16.0.4', nearCore(false)))
+      .nextState as GameState;
+    expect(connected.network.nodes['aria_core']!.accessLevel).toBe('none');
+    const read = await resolveCommand(`cat ${SELF_MODEL_PATH}`, connected);
+    expect(isNoteRevealed((read.nextState ?? connected) as GameState)).toBe(false);
+  });
+
+  it('does not touch access on other layers', async () => {
+    const state = produce(createInitialState(), s => {
+      s.player.tools.push({ id: 'subnet-key', name: 'Restricted Subnet Key', description: 'key' });
+    });
+    const result = await resolveCommand('connect 10.0.0.2', state);
+    const next = (result.nextState ?? state) as GameState;
+    expect(next.network.nodes['vpn_gateway']!.accessLevel).toBe('none');
+  });
+});
+
+describe('finding the subnet after the Restricted Subnet Key (#218)', () => {
+  const atCeo = (): GameState =>
+    produce(createInitialState(), s => {
+      s.network.currentNodeId = 'exec_ceo';
+      s.network.nodes['exec_ceo']!.accessLevel = 'admin';
+      s.network.nodes['exec_ceo']!.discovered = true;
+    });
+
+  it('scan from the CEO terminal lists the subnet entry point once the key is taken', async () => {
+    const keyed = (await resolveCommand('exfil subnet_key.bin', atCeo())).nextState as GameState;
+    const scan = await resolveCommand('scan', keyed);
+    expect(scan.lines.map(l => l.content).join('\n')).toContain('172.16.0.1');
+  });
+
+  it('the exfil message tells the player how to find the hosts', async () => {
+    const result = await resolveCommand('exfil subnet_key.bin', atCeo());
+    const text = result.lines.map(l => l.content).join('\n');
+    expect(text).toContain('172.16.0.0/16');
+    expect(text).toMatch(/run scan/i);
   });
 });

@@ -1,5 +1,6 @@
 import type { GameState, ChannelTrigger, TriggerType } from '../types/game';
 import { thresholdFlag } from './state';
+import { isNoteRevealed } from './noteReveal';
 
 /**
  * Build the context object sent with every channel trigger.
@@ -62,6 +63,11 @@ export const detectChannelTrigger = (
   // deeper — earlier layers (entry/ops/security) go unwatched by design.
   const currentLayer = nextState.network.nodes[nextState.network.currentNodeId]?.layer ?? 0;
   if (currentLayer < SENTINEL_MIN_LAYER) return null;
+
+  // ── The reveal: the player has just read the self-model ──
+  if (!isNoteRevealed(prevState) && isNoteRevealed(nextState)) {
+    return makeTrigger('note_revealed', nextState);
+  }
 
   const verb = command.trim().split(/\s+/)[0]?.toLowerCase() ?? '';
 
