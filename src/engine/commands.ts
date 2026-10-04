@@ -14,6 +14,7 @@ import { ariaTier } from './aiTiers';
 import { latchNexusMessages } from './nexusLine';
 import { appendAriaExchange } from './ariaChannel';
 import { ARIA_CORE_NODE_ID, SELF_MODEL_PATH, markNoteRevealed } from './noteReveal';
+import { CAMERA_FEEDS } from '../data/cameras';
 import { ARIA_NAME_FLAG, SENTINEL_VOTE_PATH, isAriaNameKnown, markAriaNameKnown } from './ariaName';
 import { detectChannelTrigger, isChannelBlocked, layerReachedFlag } from './channel';
 
@@ -316,7 +317,7 @@ export const resolveCommand = async (raw: string, state: GameState): Promise<Com
       return withTurn(unlockResult, raw, state);
     }
     case 'view-cam':
-      return withTurn(await cmdViewCam(args, state), raw, state);
+      return withTurn(cmdViewCam(args, state), raw, state);
   }
   if (result) return withTurn(result, raw, state);
 
@@ -2016,15 +2017,8 @@ const cmdUnlock = (args: string[], state: GameState): UnlockResult => {
 };
 
 // ── view-cam ─────────────────────────────────────────────
-const CAMERA_MAP: Record<string, { location: string; traceCost: number } | undefined> = {
-  cam_01: { location: 'lobby', traceCost: 0 },
-  cam_02: { location: 'server_room', traceCost: 0 },
-  cam_03: { location: 'executive_floor', traceCost: 1 },
-};
-
-const CAMERA_FEED_FALLBACK = 'FEED DEGRADED — signal lost';
-
-const cmdViewCam = async (args: string[], state: GameState): Promise<CommandOutput> => {
+// Authored, like the CAM tab's footage: both read the same feed data, so they cannot disagree.
+const cmdViewCam = (args: string[], state: GameState): CommandOutput => {
   if (!args[0]) return { lines: [err('Usage: view-cam [cam_01|cam_02|cam_03]')] };
 
   const node = currentNode(state);
@@ -2035,45 +2029,18 @@ const cmdViewCam = async (args: string[], state: GameState): Promise<CommandOutp
     return { lines: [err('Permission denied — not authenticated')] };
   }
 
-  const cam = CAMERA_MAP[args[0]];
+  const cam = CAMERA_FEEDS.find(f => f.id === args[0]);
   if (!cam) {
     return { lines: [err(`Unknown camera: ${args[0]}. Known cameras: cam_01, cam_02, cam_03`)] };
   }
 
-  // Apply trace before fetch — registers even on network failure
-  let nextState: GameState | undefined;
-  if (cam.traceCost > 0) {
-    nextState = addTrace(state, cam.traceCost, `view-cam:${args[0]}`);
-  }
-
-  let description = CAMERA_FEED_FALLBACK;
-  try {
-    const res = await fetch('/api/camera-feed', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        cameraId: args[0],
-        location: cam.location,
-        ariaNameKnown: isAriaNameKnown(state),
-      }),
-    });
-    if (res.ok) {
-      const data = (await res.json()) as { description?: string };
-      if (typeof data.description === 'string' && data.description.length > 0) {
-        description = data.description;
-      }
-    }
-  } catch {
-    // fallback already set
-  }
+  const nextState =
+    cam.traceCost > 0 ? addTrace(state, cam.traceCost, `view-cam:${cam.id}`) : undefined;
 
   const lines: Out = [
     sep(),
-    line(
-      `// CCTV — ${args[0].toUpperCase()} — ${cam.location.replaceAll('_', ' ').toUpperCase()}`,
-      'aria',
-    ),
-    ...description.split('\n').map(l => line(l, 'aria')),
+    line(`// CCTV — ${cam.id.toUpperCase()} — ${cam.label.toUpperCase()}`, 'aria'),
+    ...(cam.offlineReason ?? cam.description).split('\n').map(l => line(l, 'aria')),
     sep(),
   ];
 
