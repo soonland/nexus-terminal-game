@@ -871,6 +871,7 @@ export const App = () => {
           sentinelBusy={sentinelBusy}
           interruptKey={interruptKey}
           nexusMessages={nexusMessages}
+          trace={trace}
           ariaLines={ariaLines}
           ariaLabel={gameState ? ariaTabLabel(gameState) : 'CASSANDRA'}
           onSend={text => {
@@ -888,7 +889,6 @@ export const App = () => {
           ref={terminalRef}
           lines={allLines}
           nodeIp={nodeIp}
-          trace={trace}
           suggestions={
             appPhase === 'playing' || appPhase === 'aria'
               ? aiSuggestions.length > 0

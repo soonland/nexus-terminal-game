@@ -645,3 +645,20 @@ body {
 .comms-tab[aria-selected='true'][data-closed='true'] {
   opacity: 0.75;
 }
+
+/* ── Trace meter: a thin bar along the top edge of the comms pane ───────────── */
+.trace-meter {
+  flex-shrink: 0;
+  height: 3px;
+  background: var(--win-border);
+}
+
+.trace-meter-fill {
+  height: 100%;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .trace-meter-fill {
+    transition: width 300ms ease-out;
+  }
+}

@@ -1,6 +1,7 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import type { TerminalLine } from '../types/terminal';
 import type { NexusMessage } from '../data/nexusMessages';
+import { TraceMeter } from './TraceMeter';
 import { TerminalOutput } from './TerminalOutput';
 import { TerminalInput } from './TerminalInput';
 
@@ -23,6 +24,7 @@ interface Props {
   // Her conversation (derived from the saved history); the tab exists once she has spoken.
   ariaLines?: TerminalLine[];
   ariaLabel?: string;
+  trace?: number;
   onSend: (text: string) => void;
 }
 
@@ -43,6 +45,7 @@ export const CommsPane = forwardRef<CommsHandle, Props>(
       nexusMessages = [],
       ariaLines = [],
       ariaLabel = 'CASSANDRA',
+      trace = 0,
       onSend,
     },
     ref,
@@ -128,6 +131,7 @@ export const CommsPane = forwardRef<CommsHandle, Props>(
 
     return (
       <div className="comms" ref={rootRef}>
+        <TraceMeter trace={trace} />
         {(sentinelEstablished || hasAria) && (
           <div role="tablist" className="comms-tabs">
             <button

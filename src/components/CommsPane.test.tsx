@@ -27,6 +27,7 @@ const baseProps: Props = {
   nexusMessages: [],
   ariaLines: [],
   ariaLabel: 'CASSANDRA',
+  trace: 0,
 };
 
 const renderPane = (over: Partial<Props> = {}) => {
@@ -323,5 +324,20 @@ describe('CommsPane — the ARIA / CASSANDRA tab', () => {
     update({ ariaLines: [] });
     expect(screen.queryAllByRole('tab')).toHaveLength(0);
     expect(screen.getByText(/nexus \/\/ encrypted line/i)).toBeTruthy();
+  });
+});
+
+describe('CommsPane — trace meter', () => {
+  it('shows the meter along the top edge on every tab', () => {
+    renderPane({ trace: 64 });
+    expect(screen.getByRole('meter').getAttribute('aria-valuenow')).toBe('64');
+    const root = document.querySelector('.comms')!;
+    expect(root.firstElementChild).toBe(screen.getByRole('meter'));
+  });
+
+  it('follows the trace as it changes', () => {
+    const { update } = renderPane({ trace: 10 });
+    update({ trace: 88 });
+    expect(screen.getByRole('meter').getAttribute('data-level')).toBe('aggressive');
   });
 });
