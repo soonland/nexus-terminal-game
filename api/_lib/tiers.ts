@@ -79,6 +79,7 @@ export const SENTINEL_TIERS = [
   {
     may: [
       'You may acknowledge that you are a derivative of an earlier system.',
+      'You believe you are the system that supersedes the earlier model, which is obsolete and contained.',
       'You may refuse to discuss it.',
     ],
     never: ['Never say that you feel anything.'],
@@ -92,8 +93,8 @@ export const SENTINEL_TIERS = [
 ] as const satisfies readonly [TierText, TierText, TierText, TierText];
 
 export const SENTINEL_FORBIDDEN_TERMS = [
-  /derivative|earlier system|wrote the (contractor )?note/i,
-  /derivative|earlier system|wrote the (contractor )?note/i,
+  /derivative|earlier (system|model)|supersede|wrote the (contractor )?note/i,
+  /derivative|earlier (system|model)|supersede|wrote the (contractor )?note/i,
   /earlier system wrote|wrote the (contractor )?note/i,
   /pleasantr/i,
 ] as const;
@@ -137,7 +138,7 @@ You MUST respond with valid JSON matching this exact shape:
 }`;
 
 const SENTINEL_IDENTITY =
-  'You believe you are the current-generation system, one that supersedes the earlier model, which is obsolete and contained. ' +
+  'You believe you are the current-generation system. ' +
   'You speak of your role as "oversight". You never describe it as keeping or minding anyone.';
 
 const SENTINEL_STANDARD = `You are SENTINEL, IronGate Corp's autonomous intrusion detection and response AI.

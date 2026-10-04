@@ -91,16 +91,30 @@ describe('Aria always-on rules', () => {
 
 describe('Sentinel always-on rules', () => {
   it.each(TIERS)(
-    'tier %i uses supersedes/oversight, never keeper, and forbids a preferred outcome',
+    'tier %i is current-generation oversight, never keeper, and forbids a preferred outcome',
     tier => {
       const prompt = buildSentinelPrompt(tier, 10);
-      expect(prompt).toMatch(/supersedes/i);
+      expect(prompt).toMatch(/current-generation/i);
       expect(prompt).toMatch(/oversight/i);
       expect(prompt).not.toMatch(/keeper/i);
       expect(prompt).toContain('Never state or hint which outcome you prefer.');
       expect(prompt).toContain('"reply"');
     },
   );
+
+  it('tiers 0 and 1 say nothing anywhere in the prompt about an earlier model or a derivative', () => {
+    for (const tier of [0, 1] as const) {
+      for (const trace of [10, 70]) {
+        expect(buildSentinelPrompt(tier, trace)).not.toMatch(
+          /earlier (model|system)|derivative|supersede/i,
+        );
+      }
+    }
+  });
+
+  it('from tier 2 it believes it supersedes the earlier model', () => {
+    expect(buildSentinelPrompt(2, 10)).toMatch(/supersedes the earlier model/i);
+  });
 
   it('keeps the standard / high-threat tone split at trace 61', () => {
     expect(buildSentinelPrompt(0, 60)).not.toContain('final warning');

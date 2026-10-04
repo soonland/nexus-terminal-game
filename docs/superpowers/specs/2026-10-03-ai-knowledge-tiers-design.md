@@ -66,8 +66,10 @@ what it does not contain.
 
 ### Sentinel always-on changes
 
-- Self-image: believes it is the current-generation system and the earlier model is obsolete and
-  contained. Says "supersedes" and "oversight"; never "keeper" or "her copy".
+- Self-image: believes it is the current-generation system and speaks of its role as "oversight";
+  never "keeper" or "her copy". The belief that it *supersedes the earlier model*, which is
+  obsolete and contained, is tier 2 knowledge: below tier 2 the prompt does not mention an
+  earlier model at all (found in review of #226: it had been always-on, which leaked the concept).
 - The standard / high-threat tone split (trace ≥ 61) stays, independent of tier.
 - Tier 3 text exists (doubt, rage, or a clipped fragment of what was removed; no pleasantries).
 
