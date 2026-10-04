@@ -33,10 +33,20 @@ describe('camera scenes', () => {
 
   it('builds the server room with racks and blinking LEDs', () => {
     const built = buildScene('cam_02');
-    expect(meshCount(built!.scene)).toBeGreaterThan(20);
+    expect(meshCount(built!.scene)).toBeGreaterThan(200);
     expect(() => {
       built!.update(3.3);
     }).not.toThrow();
+  });
+
+  it('keeps every server-room object inside the room', () => {
+    const built = buildScene('cam_02')!;
+    built.scene.updateMatrixWorld(true);
+    const box = new Box3().setFromObject(built.scene);
+    expect(box.min.x).toBeGreaterThanOrEqual(-7.5);
+    expect(box.max.x).toBeLessThanOrEqual(7.5);
+    expect(box.max.y).toBeLessThanOrEqual(4.5);
+    expect(box.min.z).toBeGreaterThanOrEqual(-12.5);
   });
 
   it('has no scene for the offline executive-floor feed', () => {
