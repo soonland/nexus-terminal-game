@@ -2,6 +2,11 @@ import { CAMERA_FEEDS, CCTV_NODE_ID } from '../data/cameras';
 import type { CameraFeed } from '../data/cameras';
 import type { GameState } from '../types/game';
 
+// The flag `view-cam` sets the first time a restricted camera is watched live, so its trace is charged
+// once per camera per run (flags are saved, so a reload does not charge again). The CAM tab never
+// charges trace and never sets it.
+export const cameraViewedFlag = (id: string): string => `CAM_VIEWED_${id}`;
+
 export interface ListedFeed extends CameraFeed {
   live: boolean;
   // Not live and no reason given: a camera the controller has not enabled yet.

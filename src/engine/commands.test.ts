@@ -3714,12 +3714,14 @@ describe('view-cam command', () => {
     expect(traceAfter).toBe(traceBefore);
   });
 
-  it('should apply +1 trace for cam_03 regardless of feed outcome', async () => {
+  it('charges no trace for a disabled executive feed: nothing was accessed', async () => {
     const s = cctvState();
-    const traceBefore = s.player.trace;
     const result = await resolveCommand('view-cam cam_03', s);
-    const traceAfter = (result.nextState as GameState).player.trace;
-    expect(traceAfter).toBe(traceBefore + 1);
+    const after = (result.nextState as GameState | undefined)?.player.trace ?? s.player.trace;
+    expect(after).toBe(s.player.trace);
+    const out = result.lines.map(l => l.content).join('\n');
+    expect(out).toContain('FEED DISABLED');
+    expect(out).not.toContain('restricted feed accessed');
   });
 
   it('prints the same authored description the CAM viewer is built around', async () => {
@@ -3792,6 +3794,55 @@ describe('view-cam command', () => {
     expect((corridor.nextState as GameState).player.trace).toBe(s.player.trace + 1);
     const office = await resolveCommand('view-cam executive-office', s);
     expect(text(office.lines)).toContain('Corner office');
+  });
+
+  it('charges the restricted-feed trace only the first time each camera is viewed', async () => {
+    const s = deepState(['ops_cctv_ctrl', 'exec_cfo'], 'exec_cfo');
+    const first = await resolveCommand('view-cam executive-corridor', s);
+    const afterFirst = first.nextState as GameState;
+    expect(afterFirst.player.trace).toBe(s.player.trace + 1);
+    expect(text(first.lines)).toContain('restricted feed accessed');
+
+    const again = await resolveCommand('view-cam executive-corridor', afterFirst);
+    const afterAgain = (again.nextState as GameState | undefined)?.player.trace;
+    expect(afterAgain ?? afterFirst.player.trace).toBe(afterFirst.player.trace);
+    expect(text(again.lines)).not.toContain('restricted feed accessed');
+    expect(text(again.lines)).toContain('Executive floor corridor');
+  });
+
+  it('counts an alias as the same camera, and the other executive camera as its own first view', async () => {
+    const s = deepState(['ops_cctv_ctrl', 'exec_cfo'], 'exec_cfo');
+    const first = await resolveCommand('view-cam cam_03', s);
+    const afterFirst = first.nextState as GameState;
+    expect(afterFirst.player.trace).toBe(s.player.trace + 1);
+
+    const byId = await resolveCommand('view-cam executive-corridor', afterFirst);
+    expect((byId.nextState as GameState | undefined)?.player.trace ?? afterFirst.player.trace).toBe(
+      afterFirst.player.trace,
+    );
+
+    const office = await resolveCommand('view-cam executive-office', afterFirst);
+    expect((office.nextState as GameState).player.trace).toBe(afterFirst.player.trace + 1);
+  });
+
+  it('records the first view in the saved flags, so a reload does not charge again', async () => {
+    const s = deepState(['ops_cctv_ctrl', 'exec_cfo'], 'exec_cfo');
+    const first = await resolveCommand('view-cam executive-corridor', s);
+    const flags = (first.nextState as GameState).flags;
+    expect(Object.keys(flags).filter(k => k.startsWith('CAM_VIEWED_'))).toEqual([
+      'CAM_VIEWED_executive-corridor',
+    ]);
+  });
+
+  it('charges nothing for a locked camera or an unrestricted live one, however often it is viewed', async () => {
+    const s = deepState(['ops_cctv_ctrl'], 'ops_cctv_ctrl');
+    for (const id of ['security-office', 'lobby-reception', 'lobby-reception']) {
+      const result = await resolveCommand(`view-cam ${id}`, s);
+      expect((result.nextState as GameState | undefined)?.player.trace ?? s.player.trace).toBe(
+        s.player.trace,
+      );
+      expect(text(result.lines)).not.toContain('restricted feed accessed');
+    }
   });
 
   it('refuses when no session is held on the controller, wherever the player is', async () => {

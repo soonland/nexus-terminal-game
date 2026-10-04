@@ -58,8 +58,9 @@ their number as an **alias** that `view-cam` still accepts; nothing else uses nu
 - **Scenes and mounts:** a camera is a scene plus a **mount**, the camera's position, heading and pan
   (`range`, `sweep`, `hold`, `offset`). Two cameras on one floor share a scene, so a second
   camera costs a mount, not a new room. Scene builders take the mount index.
-- **Trace:** both executive cameras cost +1 trace (restricted feed), live or offline; the rest cost
-  none.
+- **Trace:** the two executive cameras are restricted: `view-cam` charges +1 trace the first time each
+  is watched **live**, once per camera per run (a flag in the saved flags map); a disabled or locked
+  feed costs nothing, and the CAM tab never charges. The other cameras cost none.
 - **Text:** names, floor names, descriptions and offline reasons are player-visible before the
   reveal and never contain the secret name (guard tests cover all of them). New scenes are empty and
   clue-free, with the same night-vision look, pan and steady lighting.
@@ -132,7 +133,7 @@ The floor menu lists all cameras, live or not. A camera has one of three states:
 "FEED LOCKED" and says nothing about which layer opens it). Locked and disabled entries are dimmed in
 the menu and marked "— locked" / "— offline". Every floor is listed from the start. `view-cam <id>` knows every
 id: a locked camera prints its header and "FEED LOCKED" and costs no trace (the executive cameras
-keep +1 trace, live or disabled); "Known cameras" names them all. The unread marker still fires only
+charge +1 trace on their first live view only); "Known cameras" names them all. The unread marker still fires only
 when a camera goes live. Because every name is visible from layer 1, every camera and floor name stays
 neutral (the naming guard test covers them all).
 

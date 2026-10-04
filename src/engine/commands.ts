@@ -15,7 +15,7 @@ import { latchNexusMessages } from './nexusLine';
 import { appendAriaExchange } from './ariaChannel';
 import { ARIA_CORE_NODE_ID, SELF_MODEL_PATH, markNoteRevealed } from './noteReveal';
 import { CCTV_NODE_ID, floorName } from '../data/cameras';
-import { cameraFeeds } from './cameras';
+import { cameraFeeds, cameraViewedFlag } from './cameras';
 import { ARIA_NAME_FLAG, SENTINEL_VOTE_PATH, isAriaNameKnown, markAriaNameKnown } from './ariaName';
 import { detectChannelTrigger, isChannelBlocked, layerReachedFlag } from './channel';
 
@@ -2045,8 +2045,16 @@ const cmdViewCam = (args: string[], state: GameState): CommandOutput => {
     return { lines: [err(`Unknown camera: ${wanted}. Known cameras: ${known}`)] };
   }
 
-  const nextState =
-    cam.traceCost > 0 ? addTrace(state, cam.traceCost, `view-cam:${cam.id}`) : undefined;
+  // A restricted feed costs trace only when something is actually accessed (it is live) and only the
+  // first time: a disabled or locked feed shows a card and costs nothing, and watching the same
+  // camera again is free.
+  const viewedFlag = cameraViewedFlag(cam.id);
+  const charged = cam.live && cam.traceCost > 0 && !state.flags[viewedFlag];
+  let nextState: GameState | undefined;
+  if (charged) {
+    const traced = addTrace(state, cam.traceCost, `view-cam:${cam.id}`);
+    nextState = { ...traced, flags: { ...traced.flags, [viewedFlag]: true } };
+  }
 
   const lines: Out = [
     sep(),
@@ -2057,7 +2065,7 @@ const cmdViewCam = (args: string[], state: GameState): CommandOutput => {
     sep(),
   ];
 
-  if (cam.traceCost > 0) {
+  if (charged) {
     lines.push(line(`  +${String(cam.traceCost)} trace (restricted feed accessed)`, 'system'));
   }
 
