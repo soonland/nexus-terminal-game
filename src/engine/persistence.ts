@@ -24,6 +24,7 @@ interface NodeDelta {
   discovered: boolean;
   accessLevel: AccessLevel;
   compromised: boolean;
+  connections?: string[]; // routes change during play; optional so older saves still load
   compromisedAtTurn?: number;
   sentinelPatched?: boolean;
   locked?: boolean;
@@ -97,6 +98,7 @@ const toSaveState = (state: GameState): SaveState => {
       discovered: node.discovered,
       accessLevel: node.accessLevel,
       compromised: node.compromised,
+      connections: [...node.connections],
       cachedFileContents,
     };
     if (node.compromisedAtTurn !== undefined) delta.compromisedAtTurn = node.compromisedAtTurn;
@@ -196,6 +198,9 @@ const fromSaveState = (save: SaveState): GameState => {
     node.discovered = delta.discovered;
     node.accessLevel = delta.accessLevel;
     node.compromised = delta.compromised;
+    // Routes added or removed during play (whistleblower, Aria shortcuts, ...). Older saves have
+    // none stored and keep the static routes.
+    if (delta.connections) node.connections = [...delta.connections];
     if (delta.compromisedAtTurn !== undefined) node.compromisedAtTurn = delta.compromisedAtTurn;
     if (delta.sentinelPatched) node.sentinelPatched = delta.sentinelPatched;
     if (delta.locked !== undefined) node.locked = delta.locked;
@@ -222,6 +227,17 @@ const fromSaveState = (save: SaveState): GameState => {
   // Re-add sentinel-spawned nodes (not in seed-generated static map)
   for (const sentinelNode of save.network.sentinelNodes) {
     state.network.nodes[sentinelNode.id] = sentinelNode;
+  }
+  // Sentinel wires a route from each security node to the node it spawns; those nodes may never
+  // have been visited (so no delta was saved for them). Rebuild the back-edges from the spawned
+  // node's own connections.
+  for (const sentinelNode of save.network.sentinelNodes) {
+    for (const id of sentinelNode.connections) {
+      const target = state.network.nodes[id];
+      if (target && !target.connections.includes(sentinelNode.id)) {
+        target.connections = [...target.connections, sentinelNode.id];
+      }
+    }
   }
 
   // Reconstruct exfiltrated files from the now-updated node definitions
