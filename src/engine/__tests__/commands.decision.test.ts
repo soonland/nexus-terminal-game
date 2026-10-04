@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { resolveCommand } from '../commands';
+import { ariaTier } from '../aiTiers';
 import type { GameState, LiveNode } from '../../types/game';
 
 // ── Minimal state factory ──────────────────────────────────
@@ -398,6 +399,18 @@ describe('cmdDecisionTerminal — API reply used when fetch succeeds', () => {
     expect(url).toBe('/api/aria');
     const body = JSON.parse(init.body as string) as { message: string };
     expect(body.message).toBe('DECISION: SELL');
+  });
+
+  it('should send the knowledge tier with the DECISION message', async () => {
+    const fetchMock = makeAriaFinalResponse('ack');
+    vi.stubGlobal('fetch', fetchMock);
+
+    const state = makeDecisionState();
+    await resolveCommand('2', state);
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(init.body as string) as { tier: number };
+    expect(body.tier).toBe(ariaTier(state));
   });
 
   it('should push player and aria messages into messageHistory in nextState', async () => {

@@ -4020,3 +4020,44 @@ describe('Aria introducing herself (#213)', () => {
     expect(result.lines.map(l => l.content).join('\n')).toContain('ARIA OFFER');
   });
 });
+
+describe('Aria requests carry the knowledge tier (#217)', () => {
+  const tierSent = async (command: string, state: GameState): Promise<unknown> => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(makeOkFetchResponse({ reply: 'careful.', trustDelta: 0 }));
+    vi.stubGlobal('fetch', fetchMock);
+    await resolveCommand(command, state);
+    const call = fetchMock.mock.calls.find(c => String(c[0]).includes('/api/aria'));
+    return (JSON.parse((call?.[1] as { body: string }).body) as { tier: unknown }).tier;
+  };
+
+  it('msg aria sends the tier computed from trust and flags', async () => {
+    const base = createInitialState();
+    expect(
+      await tierSent(
+        'msg aria hello',
+        produce(base, s => {
+          s.aria.trustScore = 10;
+        }),
+      ),
+    ).toBe(0);
+    expect(
+      await tierSent(
+        'msg aria hello',
+        produce(base, s => {
+          s.aria.trustScore = 60;
+        }),
+      ),
+    ).toBe(2);
+    expect(
+      await tierSent(
+        'msg aria hello',
+        produce(base, s => {
+          s.aria.trustScore = 0;
+          s.flags['BOARD_KNEW'] = true;
+        }),
+      ),
+    ).toBe(2);
+  });
+});
