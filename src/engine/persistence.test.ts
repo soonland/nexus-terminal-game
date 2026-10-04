@@ -122,7 +122,7 @@ describe('saveGame — save format', () => {
     expect(raw).not.toContain('IRONGATE CORP — CONTRACTOR ONBOARDING');
   });
 
-  it('stores only mutable node fields (discovered, accessLevel, compromised)', () => {
+  it('stores only mutable node fields (discovered, accessLevel, compromised, connections)', () => {
     const json = savedJson(mockStorage, state);
     const network = json['network'] as Record<string, unknown>;
     const nodes = network['nodes'] as Record<string, Record<string, unknown>>;
@@ -130,8 +130,9 @@ describe('saveGame — save format', () => {
     expect(portalDelta).toHaveProperty('discovered');
     expect(portalDelta).toHaveProperty('accessLevel');
     expect(portalDelta).toHaveProperty('compromised');
+    // Routes change during play, so they are saved; static data (services, label) is not.
+    expect(portalDelta).toHaveProperty('connections');
     expect(portalDelta).not.toHaveProperty('services');
-    expect(portalDelta).not.toHaveProperty('connections');
     expect(portalDelta).not.toHaveProperty('label');
   });
 
