@@ -273,10 +273,9 @@ portal IP, which gameplay needs):
 
 ```
 Portal first: 10.0.0.1. Then the gateway: 10.0.0.2.
-The contractor account has not been rotated since onboarding: 381 days.
+Contractor account not rotated since onboarding: 381 days.
 contractor / Welcome1!
-They are not expecting anyone.
-You will need this.
+They are not expecting anyone. You will need this.
 ```
 (The existing "ORIGIN UNCONFIRMED. DO NOT ASSUME FRIENDLY SOURCE." warning stays.)
 

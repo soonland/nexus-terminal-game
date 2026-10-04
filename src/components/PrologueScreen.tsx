@@ -72,17 +72,16 @@ const LINES: Array<{ text: string; color: string; margin?: string }> = [
     margin: '0.25rem',
   },
   {
-    text: '    The contractor account has not been rotated since onboarding: 381 days.',
+    text: '    Contractor account not rotated since onboarding: 381 days.',
     color: 'var(--color-system)',
     margin: '0.25rem',
   },
   { text: '    contractor / Welcome1!', color: 'var(--color-output)', margin: '0.25rem' },
   {
-    text: '    They are not expecting anyone.',
+    text: '    They are not expecting anyone. You will need this.',
     color: 'var(--color-system)',
     margin: '0.75rem',
   },
-  { text: '    You will need this.', color: 'var(--color-system)', margin: '0.75rem' },
   {
     text: '  ORIGIN UNCONFIRMED. DO NOT ASSUME FRIENDLY SOURCE.',
     color: 'var(--color-error)',
