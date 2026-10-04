@@ -30,10 +30,9 @@ denied — not authenticated" stays on the controller itself.
 holds a session (`accessLevel !== 'none'`). Derived from saved node state: no flag, no save change
 (`SAVE_VERSION` stays 6).
 
-Each feed has `unlockLayer`. A feed is **live** when `deepestLayer >= unlockLayer`. A feed with an
-`offlineReason` is always listed and shows its card until live; every other feed is listed only
-once live. Unlisted cameras do not exist for the player: `view-cam` answers "Unknown camera" and
-names only listed ids.
+Each feed has `unlockLayer`. A feed is **live** when `deepestLayer >= unlockLayer`. Every camera is
+**listed** from the start (see the amendment below); one that is not live shows a card: its
+`offlineReason` ("FEED DISABLED — CEO OFFICE") if it has one, otherwise "FEED LOCKED".
 
 ## Floors and cameras
 
@@ -121,3 +120,53 @@ trace cost. Unknown or unlisted ids: "Unknown camera: X. Known cameras: …" lis
 
 People or events in the footage, an archive of past footage, sound, cameras affecting trace or
 Sentinel, a persistent sidebar tree, any command other than `view-cam`.
+
+## Amendment — locked cameras, the vault door, and the building's look
+
+Requested after the first review; it overrides anything above that contradicts it.
+
+### The menu and `view-cam` list every camera
+
+The floor menu lists all cameras, live or not. A camera has one of three states: **live**, **disabled**
+(it has an `offlineReason`, shown on its card) or **locked** (not live, no reason: its card reads
+"FEED LOCKED" and says nothing about which layer opens it). Locked and disabled entries are dimmed in
+the menu and marked "— locked" / "— offline". Every floor is listed from the start. `view-cam <id>` knows every
+id: a locked camera prints its header and "FEED LOCKED" and costs no trace (the executive cameras
+keep +1 trace, live or disabled); "Known cameras" names them all. The unread marker still fires only
+when a camera goes live. Because every name is visible from layer 1, every camera and floor name stays
+neutral (the naming guard test covers them all).
+
+### A vault-door camera
+
+A tenth camera: `vault-door`, name "Vault door", floor Sub-level B, unlock layer 5, scene
+`vaultApproach`, one mount. The room is a short sealed corridor ending in a large circular vault door;
+the camera sits at the far end pointing straight at the door and only drifts a few degrees. The door
+has a thick frame, a wheel, a ring of bolts, hinges, a keypad, pressure gauges, a red status light,
+hazard stripes on the floor and a faint cyan glow under it. The description says only that it is
+sealed, the light is red and the floor hums; it never names what is behind it, and the room behind is
+not viewable.
+
+### The building's look
+
+IronGate's floors share one look: **white walls, a tiled floor, and one accent colour per floor**.
+The accent is data (`FLOORS[].accent`), so the scenes and the menu use one source: Ground floor
+`0x2b6cb0` (blue), Operations `0xed8936` (orange), Security `0xe53e3e` (red), Finance `0x38a169`
+(green), Executive `0xd69e2e` (gold), Sub-level B `0x00b5d8` (cyan, with yellow-black hazard stripes at
+the vault). In a scene the accent colours a trim band at eye level, the baseboard, door frames, signs
+and a stripe inlaid in the floor tiles; the floor menu shows it as a swatch beside the floor name.
+
+- **Walls** are white; the **floor** is light tiles with visible grout lines; the **ceiling** is white
+  with light panels. Props keep their own colours.
+- **Lit, not dark:** the fluorescents stay on around the clock and the rooms are empty after hours.
+  Scenes use a light haze (fog and background) instead of black, brighter lighting, and the flicker
+  stays as one tired fixture per room. Descriptions are reworded from "emergency lighting only" to
+  lit-but-empty.
+- **Night vision is off by default** (still a remembered toggle), so the colours show; with it on the
+  rooms go green and monochrome as before.
+
+### Testing (additions)
+
+Every `wall` mesh in every scene is white; every scene has accent-coloured `trim` meshes in its floor's
+accent and `grout` meshes for the tiled floor; the menu lists every camera and marks locked ones;
+`view-cam` answers "FEED LOCKED" for a locked camera and still rejects an id that does not exist;
+the vault scene is bounded, closed and pans in place; night vision is off by default.
