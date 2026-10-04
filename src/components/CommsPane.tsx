@@ -1,5 +1,6 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import type { TerminalLine } from '../types/terminal';
+import type { NexusMessage } from '../data/nexusMessages';
 import { TerminalOutput } from './TerminalOutput';
 import { TerminalInput } from './TerminalInput';
 
@@ -17,14 +18,28 @@ interface Props {
   sentinelBusy: boolean;
   // Increments each time Sentinel first cuts into the line; drives the interruption.
   interruptKey: number;
+  // The scripted Nexus line: every message received so far, oldest first.
+  nexusMessages?: NexusMessage[];
   onSend: (text: string) => void;
 }
 
 type Tab = 'nexus' | 'sentinel';
 
+// The line is cut about halfway, mid-sentence, as the channel is taken over.
+const cutLine = (text: string): string =>
+  `${text.slice(0, Math.max(8, Math.floor(text.length / 2))).trimEnd()} ▒▒▒ signal lost ▒▒▒`;
+
 export const CommsPane = forwardRef<CommsHandle, Props>(
   (
-    { sentinelEstablished, sentinelOpen, sentinelLines, sentinelBusy, interruptKey, onSend },
+    {
+      sentinelEstablished,
+      sentinelOpen,
+      sentinelLines,
+      sentinelBusy,
+      interruptKey,
+      nexusMessages = [],
+      onSend,
+    },
     ref,
   ) => {
     const [tab, setTab] = useState<Tab>('nexus');
@@ -33,6 +48,7 @@ export const CommsPane = forwardRef<CommsHandle, Props>(
     const interruptingRef = useRef(false);
     const inputRef = useRef<HTMLInputElement>(null);
     const rootRef = useRef<HTMLDivElement>(null);
+    const nexusRef = useRef<HTMLDivElement>(null);
 
     useImperativeHandle(ref, () => ({
       focus: () => {
@@ -80,6 +96,13 @@ export const CommsPane = forwardRef<CommsHandle, Props>(
       }
     }, [sentinelEstablished]);
 
+    // Keep the newest Nexus message in view.
+    const messageCount = nexusMessages.length;
+    useEffect(() => {
+      const el = nexusRef.current;
+      if (el) el.scrollTop = el.scrollHeight;
+    }, [messageCount, tab, interrupting]);
+
     const nexusText = interrupting
       ? '▒▒▒ signal lost ▒▒▒'
       : sentinelEstablished
@@ -114,9 +137,38 @@ export const CommsPane = forwardRef<CommsHandle, Props>(
           </div>
         )}
         {tab === 'nexus' || !sentinelEstablished ? (
-          <div className="comms-nexus">
+          <div className="comms-nexus" ref={nexusRef}>
             <div className="comms-line">NEXUS // ENCRYPTED LINE</div>
-            <div className="comms-empty">{nexusText}</div>
+            {nexusMessages.length === 0 ? (
+              <div className="comms-empty">{nexusText}</div>
+            ) : (
+              <>
+                {nexusMessages.map((message, index) => {
+                  const isLast = index === nexusMessages.length - 1;
+                  // An interruption breaks the newest message off mid-sentence.
+                  if (interrupting && isLast) {
+                    return (
+                      <div key={message.id} className="comms-msg">
+                        <div className="comms-msg-line">{cutLine(message.lines[0] ?? '')}</div>
+                      </div>
+                    );
+                  }
+                  return (
+                    <div key={message.id} className="comms-msg">
+                      {message.lines.map(text => (
+                        <div key={text} className="comms-msg-line">
+                          {text}
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })}
+                {sentinelEstablished && !interrupting && (
+                  <div className="comms-empty">line quiet</div>
+                )}
+              </>
+            )}
+            <div className="comms-readonly">[ENCRYPTED LINE — RECEIVE ONLY]</div>
           </div>
         ) : (
           <div className="comms-channel">

@@ -5,6 +5,7 @@ import { render, screen, fireEvent, act } from '@testing-library/react';
 import { CommsPane, INTERRUPT_MS } from './CommsPane';
 import type { CommsHandle } from './CommsPane';
 import { makeLine } from '../types/terminal';
+import type { NexusMessage } from '../data/nexusMessages';
 
 beforeAll(() => {
   Element.prototype.scrollIntoView = vi.fn();
@@ -23,6 +24,7 @@ const baseProps: Props = {
   sentinelBusy: false,
   interruptKey: 0,
   onSend: vi.fn(),
+  nexusMessages: [],
 };
 
 const renderPane = (over: Partial<Props> = {}) => {
@@ -195,5 +197,67 @@ describe('CommsPane — Sentinel channel view', () => {
     const input = screen.getByTestId('comms-input');
     input.focus();
     expect(document.activeElement).toBe(input);
+  });
+});
+
+const A: NexusMessage = {
+  id: 'a',
+  trigger: 'mission_start',
+  lines: ['Uplink verified, ghost.', '— O.R.'],
+};
+const B: NexusMessage = {
+  id: 'b',
+  trigger: 'trace_31',
+  lines: ['You are on a watchlist now. That is normal.', 'Slow down anyway.', '— O.R.'],
+};
+
+describe('CommsPane — the scripted Nexus line', () => {
+  it('shows every received message and the receive-only note, not the empty-line text', () => {
+    renderPane({ nexusMessages: [A, B] });
+    expect(screen.getByText('Uplink verified, ghost.')).toBeTruthy();
+    expect(screen.getByText('Slow down anyway.')).toBeTruthy();
+    expect(screen.getAllByText('— O.R.')).toHaveLength(2);
+    expect(screen.getByText(/\[ENCRYPTED LINE — RECEIVE ONLY\]/)).toBeTruthy();
+    expect(screen.queryByText(/line open — no traffic/i)).toBeNull();
+  });
+
+  it('keeps the empty-line text when nothing has arrived', () => {
+    renderPane();
+    expect(screen.getByText(/line open — no traffic/i)).toBeTruthy();
+    expect(screen.getByText(/\[ENCRYPTED LINE — RECEIVE ONLY\]/)).toBeTruthy();
+  });
+
+  it('the receive-only line has no input to type in', () => {
+    renderPane({ nexusMessages: [A] });
+    expect(screen.queryByTestId('comms-input')).toBeNull();
+    expect(document.querySelectorAll('input')).toHaveLength(0);
+  });
+
+  it('a Sentinel interruption breaks the last message off mid-sentence', () => {
+    vi.useFakeTimers();
+    const { update } = renderPane({ nexusMessages: [A, B] });
+    update({ sentinelEstablished: true, sentinelOpen: true, interruptKey: 1 });
+    expect(screen.getByText('Uplink verified, ghost.')).toBeTruthy(); // earlier messages intact
+    expect(screen.getByText(/signal lost/i)).toBeTruthy();
+    expect(screen.queryByText('Slow down anyway.')).toBeNull(); // the rest of the cut message is gone
+    expect(screen.queryByText('You are on a watchlist now. That is normal.')).toBeNull(); // cut short
+    expect(document.body.textContent).toContain('You are on a');
+  });
+
+  it('after the interruption the Nexus tab keeps its history and goes quiet', () => {
+    vi.useFakeTimers();
+    const { update } = renderPane({ nexusMessages: [A, B] });
+    update({ sentinelEstablished: true, sentinelOpen: true, interruptKey: 1 });
+    act(() => {
+      vi.advanceTimersByTime(INTERRUPT_MS);
+    });
+    fireEvent.click(tab('NEXUS'));
+    expect(screen.getByText('Slow down anyway.')).toBeTruthy();
+    expect(screen.getByText(/line quiet/i)).toBeTruthy();
+  });
+
+  it('never mentions Sentinel or the secret name before first contact', () => {
+    const { container } = renderPane({ nexusMessages: [A, B] });
+    expect(container.textContent).not.toMatch(/sentinel|aria|cassandra/i);
   });
 });

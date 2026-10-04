@@ -10,6 +10,7 @@ import { HelpModal } from './components/HelpModal';
 import { NotesModal } from './components/NotesModal';
 import { DossierWindow } from './components/DossierWindow';
 import { CommsPane } from './components/CommsPane';
+import { receivedNexusMessages } from './engine/nexusLine';
 import type { CommsHandle } from './components/CommsPane';
 import { Workspace } from './components/Workspace';
 import type { WorkspaceHandle } from './components/Workspace';
@@ -793,6 +794,7 @@ export const App = () => {
   const node = gameState ? currentNode(gameState) : null;
   const nodeIp = node?.ip ?? '---';
   const trace = gameState?.player.trace ?? 0;
+  const nexusMessages = gameState ? receivedNexusMessages(gameState) : [];
 
   const allLines: TerminalLine[] = [
     ...sessionLines,
@@ -861,12 +863,14 @@ export const App = () => {
           sentinelLines={sentinelLines}
           sentinelBusy={sentinelBusy}
           interruptKey={interruptKey}
+          nexusMessages={nexusMessages}
           onSend={text => {
             void handleSentinelSubmit(text);
           }}
         />
       }
       commsAlert={sentinelOpen}
+      commsActivity={nexusMessages.length}
       onCommsFocused={() => {
         commsRef.current?.focus();
       }}

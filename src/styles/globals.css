@@ -556,7 +556,54 @@ body {
 }
 
 .comms-nexus {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
   padding: 8px;
+}
+
+/* The scripted Nexus line: each message is a short block signed O.R. */
+.comms-msg {
+  margin-top: 10px;
+  padding-left: 8px;
+  border-left: 2px solid var(--win-border);
+}
+
+.comms-msg-line {
+  color: var(--win-body-color);
+}
+
+.comms-msg-line:last-child {
+  opacity: 0.6;
+}
+
+/* Receive-only: a note in place of an input. */
+.comms-readonly {
+  position: sticky;
+  bottom: -8px;
+  margin-top: 12px;
+  padding: 4px 0;
+  border-top: 1px dashed var(--win-border);
+  background: var(--win-bg);
+  color: var(--win-title-color);
+  font-size: 11px;
+  opacity: 0.6;
+}
+
+/* Unread traffic: a dot on the title and an accent border until the pane is focused. */
+.pane-unread {
+  margin-left: auto;
+  color: var(--color-system);
+}
+
+.pane[data-unread='true'] {
+  border-color: var(--color-system);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .pane-unread {
+    animation: comms-flicker 600ms steps(2, end) 4;
+  }
 }
 
 .comms-channel {
