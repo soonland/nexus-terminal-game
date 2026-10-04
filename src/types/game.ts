@@ -148,6 +148,8 @@ export interface AriaState {
   discovered: boolean;
   trustScore: number; // 0–100, hidden from player
   messageHistory: AriaMessage[];
+  // Exchanges ever had; the history is trimmed, so this is the monotonic count (older saves lack it).
+  exchangeCount?: number;
   pendingFavor?: FavorOffer; // set when Aria offers a favor requiring confirmation
   suppressedMutations: number; // Faraday cage: count of tier-3 actions blocked
 }

@@ -110,11 +110,14 @@ export const CommsPane = forwardRef<CommsHandle, Props>(
 
     // Her tab appears at her first reply and shows each new one, without taking keyboard focus
     // (the player may be typing in the terminal). A resumed game does not switch on mount.
-    const seenAriaCount = useRef(ariaLines.length);
+    // Keyed on the newest line's id, not the line count: the conversation is trimmed, so the
+    // count stops growing once it is full while the id still changes with every reply.
+    const lastAriaId = ariaLines.at(-1)?.id;
+    const seenLastAriaId = useRef(lastAriaId);
     useEffect(() => {
-      if (ariaLines.length > seenAriaCount.current) setTab('aria');
-      seenAriaCount.current = ariaLines.length;
-    }, [ariaLines.length]);
+      if (lastAriaId !== undefined && lastAriaId !== seenLastAriaId.current) setTab('aria');
+      seenLastAriaId.current = lastAriaId;
+    }, [lastAriaId]);
 
     // Keep the newest Nexus message in view.
     const messageCount = nexusMessages.length;

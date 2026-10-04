@@ -341,3 +341,18 @@ describe('CommsPane — trace meter', () => {
     expect(screen.getByRole('meter').getAttribute('data-level')).toBe('aggressive');
   });
 });
+
+describe('CommsPane — her tab at the history cap', () => {
+  const at = (n: number) => [
+    { ...makeLine('output', `ghost >> q${String(n)}`), id: `aria-${String(n)}-player` },
+    { ...makeLine('aria', `a${String(n)}`), id: `aria-${String(n)}-aria` },
+  ];
+
+  it('a new reply switches to her tab even when the number of lines has not changed', () => {
+    const { update } = renderPane({ ariaLines: at(40) });
+    fireEvent.click(tab('NEXUS'));
+    expect(tab('NEXUS').getAttribute('aria-selected')).toBe('true');
+    update({ ariaLines: at(41) }); // same length, a newer reply
+    expect(tab('CASSANDRA').getAttribute('aria-selected')).toBe('true');
+  });
+});

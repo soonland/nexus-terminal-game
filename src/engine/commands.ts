@@ -12,6 +12,7 @@ import type { EndingName } from '../types/dossier';
 import { shouldSuppressMutation, injectConstraintFragment } from './faradayCage';
 import { ariaTier } from './aiTiers';
 import { latchNexusMessages } from './nexusLine';
+import { appendAriaExchange } from './ariaChannel';
 import { ARIA_CORE_NODE_ID, SELF_MODEL_PATH, markNoteRevealed } from './noteReveal';
 import { ARIA_NAME_FLAG, SENTINEL_VOTE_PATH, isAriaNameKnown, markAriaNameKnown } from './ariaName';
 import { detectChannelTrigger, isChannelBlocked, layerReachedFlag } from './channel';
@@ -699,12 +700,8 @@ const cmdAriaAI = async (
   );
 
   const next = produce(state, s => {
-    s.aria.messageHistory.push({ role: 'player', content: message });
-    s.aria.messageHistory.push({ role: 'aria', content: displayReply });
-    // Cap at 50 entries (~25 exchanges) to prevent unbounded localStorage growth
-    if (s.aria.messageHistory.length > 50) {
-      s.aria.messageHistory = s.aria.messageHistory.slice(-50);
-    }
+    // Capped at 50 entries (~25 exchanges) to prevent unbounded localStorage growth
+    s.aria = appendAriaExchange(s.aria, message, displayReply);
     s.aria.trustScore = Math.max(0, Math.min(100, s.aria.trustScore + safeTrustDelta));
     // Faraday cage: track suppressed tier-3 mutations
     if (shouldSuppressMutation(s.aria.trustScore, cageActive)) {
@@ -832,11 +829,7 @@ const cmdDecisionTerminal = async (choice: string, state: GameState): Promise<Co
     s.phase = 'ended';
     s.flags['endingChoice'] = true;
     s.flags[`ending_${endingChoice.toLowerCase()}`] = true;
-    s.aria.messageHistory.push({ role: 'player', content: message });
-    s.aria.messageHistory.push({ role: 'aria', content: ariaFinalMessage });
-    if (s.aria.messageHistory.length > 50) {
-      s.aria.messageHistory = s.aria.messageHistory.slice(-50);
-    }
+    s.aria = appendAriaExchange(s.aria, message, ariaFinalMessage);
   });
 
   // Do NOT route through withTurn — the run is over. Sentinel must not fire on an ended state,
