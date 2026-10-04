@@ -15,7 +15,7 @@ import {
 
 export const ASPECT = 16 / 9;
 
-export const base = (background: number, fogNear: number, fogFar: number): Scene => {
+const base = (background: number, fogNear: number, fogFar: number): Scene => {
   const scene = new Scene();
   scene.background = new Color(background);
   scene.fog = new Fog(background, fogNear, fogFar);
@@ -109,10 +109,10 @@ export const glass = (w: number, h: number, d: number, x: number, y: number, z: 
 
 // IronGate's rooms: white walls, light tiles, one accent colour per floor, lit around the clock.
 export const WALL_WHITE = 0xeef1f3;
-export const TILE_LIGHT = 0xdde3e7;
-export const GROUT = 0xaab4bb;
+const TILE_LIGHT = 0xdde3e7;
+const GROUT = 0xaab4bb;
 export const CEILING_WHITE = 0xf5f7f8;
-export const HAZE = 0xe3e8ec;
+const HAZE = 0xe3e8ec;
 
 // A lit, hazy room: a light fog and background instead of black.
 export const litBase = (fogNear: number, fogFar: number): Scene => base(HAZE, fogNear, fogFar);

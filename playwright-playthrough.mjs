@@ -142,6 +142,16 @@ const pickCamera = async (floor, camera) => {
   await page.waitForTimeout(600);
 };
 
+// The cameras a floor lists right now (opens the CAM tab and the menu, hovers the floor, closes it).
+const camsOnFloor = async floor => {
+  await page.getByRole('button', { name: 'CAM', exact: true }).click();
+  await page.locator('.cam-menu-button').click();
+  await page.getByRole('menuitem', { name: new RegExp(floor, 'i') }).hover();
+  const items = await page.getByRole('menuitemradio').allInnerTexts();
+  await page.keyboard.press('Escape');
+  return items;
+};
+
 // ── Run ──────────────────────────────────────────────────────────────────────
 
 try {
@@ -195,6 +205,13 @@ try {
       (await page.locator('[data-testid="cam-nosignal"]').count()) === 0,
   );
   await page.getByRole('button', { name: 'MAP', exact: true }).click();
+  const lockedFinance = await camsOnFloor('FINANCE');
+  check(
+    'a camera that is not unlocked yet is listed as locked',
+    lockedFinance.length > 0 && lockedFinance.every(c => /locked/.test(c)),
+    lockedFinance.join(', '),
+  );
+  await page.getByRole('button', { name: 'MAP', exact: true }).click();
   await cmd('connect 10.1.0.2');
   await cmd('login ops.admin IronG8te#Ops');
   await cmd('cat employee_roster.csv');
@@ -226,12 +243,14 @@ try {
   await cmd('connect 10.3.0.2');
   await cmd('login fin.dba P@yments2024');
   await cmd('cat calendar_access.cfg'); // e.torres in plain text
-  const floorsAtThree = await camFloors();
-  check(
-    'layer 3 has unlocked the security and finance floors',
-    floorsAtThree.includes('SECURITY') && floorsAtThree.includes('FINANCE'),
-    floorsAtThree.join(', '),
-  );
+  for (const floor of ['SECURITY', 'FINANCE']) {
+    const cams = await camsOnFloor(floor);
+    check(
+      `layer 3 has made the ${floor.toLowerCase()} camera live`,
+      cams.length > 0 && cams.every(c => !/locked|offline/.test(c)),
+      cams.join(', '),
+    );
+  }
   await pickCamera('EXECUTIVE', 'Executive corridor');
   check(
     'the executive floor is still disabled at layer 3',
@@ -287,11 +306,11 @@ try {
   await cmd('connect 172.16.0.4');
   await cmd('scan');
   await cmd('cat /aria/core/self_model.txt', SLOW_PAUSE); // the reveal
-  const floorsAtFive = await camFloors();
+  const sub = await camsOnFloor('SUB-LEVEL B');
   check(
-    'the restricted subnet unlocks the last floor',
-    floorsAtFive.includes('SUB-LEVEL B'),
-    floorsAtFive.join(', '),
+    'the restricted subnet makes the data hall and the vault door live',
+    sub.length === 2 && sub.every(c => !/locked|offline/.test(c)),
+    sub.join(', '),
   );
   await page.getByRole('button', { name: 'MAP', exact: true }).click();
   check('reading the self-model shows the note as draft 7', /draft 7/.test(await paneText('term')));

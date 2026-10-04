@@ -1,5 +1,7 @@
 # CCTV feeds — design
 
+> The unlock rules, floors, the vault door and the building's look are in 2026-10-04-cctv-unlock-design.md.
+
 ## Intent
 
 The player can hold a session on `ops_cctv_ctrl`, whose config lists three cameras. This adds a
