@@ -199,6 +199,15 @@ export const Workspace = forwardRef<WorkspaceHandle, Props>(
     const camVisible = narrow
       ? layout.focused === 'aux'
       : layout.zoomed === null || layout.zoomed === 'aux';
+    // A camera going live is news for the aux pane, like a new case entry: unread until the CAM tab
+    // is actually on screen. A resumed run starts read.
+    const camUnread = useUnread(
+      feeds.filter(f => f.live).length,
+      shownAuxTab === 'cam' && camVisible,
+      gameState?.runId ?? null,
+      true,
+    );
+    const auxUnread = caseUnread || camUnread;
     const camFullscreen = layout.zoomed === 'aux';
     const toggleCamFullscreen = () => {
       setLayout(prev =>
@@ -296,7 +305,7 @@ export const Workspace = forwardRef<WorkspaceHandle, Props>(
           narrow={narrow && !noGame}
           bare={noGame}
           alerts={{ comms: commsAlert }}
-          unread={{ comms: commsUnread, aux: caseUnread }}
+          unread={{ comms: commsUnread, aux: auxUnread }}
           onFocusPane={focus}
           onRatio={(path: TreePath, ratio: number) => {
             setLayout(prev => setRatio(prev, path, ratio));
@@ -310,7 +319,7 @@ export const Workspace = forwardRef<WorkspaceHandle, Props>(
             nodeIp={nodeIp}
             trace={trace}
             unread={[
-              ...(caseUnread ? (['aux'] as const) : []),
+              ...(auxUnread ? (['aux'] as const) : []),
               ...(commsUnread ? (['comms'] as const) : []),
             ]}
           />
