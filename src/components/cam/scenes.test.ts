@@ -100,6 +100,7 @@ describe.each([
   ['financeFloor', 80, 9, -10],
   ['executiveFloor', 80, 3, -16],
   ['dataHall', 80, 9, -14],
+  ['vaultApproach', 60, 3, -9],
 ] as const)('scene %s', (scene, minMeshes, maxX, minZ) => {
   it('is dressed, inside its room, and pans in place', () => {
     const built = buildScene({ scene, mount: 0 });
@@ -126,9 +127,7 @@ describe.each([
 
 describe('every camera has a scene', () => {
   it('builds each feed in the data, and the two executive cameras differ', () => {
-    for (const feed of CAMERA_FEEDS.filter(f => f.scene !== 'vaultApproach')) {
-      expect(buildScene(feed)).not.toBeNull();
-    }
+    for (const feed of CAMERA_FEEDS) expect(buildScene(feed)).not.toBeNull();
     const corridor = buildScene({ scene: 'executiveFloor', mount: 0 });
     const office = buildScene({ scene: 'executiveFloor', mount: 1 });
     expect(office.camera.position.equals(corridor.camera.position)).toBe(false);
@@ -137,7 +136,7 @@ describe('every camera has a scene', () => {
 
 describe('every room is closed', () => {
   // Walls are tagged by the builders; a ray looking in any direction from a camera must hit one.
-  it.each(CAMERA_FEEDS.filter(f => f.scene !== 'vaultApproach').map(f => [f.id, f] as const))(
+  it.each(CAMERA_FEEDS.map(f => [f.id, f] as const))(
     '%s: no direction from the camera looks out of the room',
     (_id, feed) => {
       const built = buildScene(feed);
@@ -166,6 +165,7 @@ const BUILDING_FEEDS: string[] = [
   'executive-corridor',
   'executive-office',
   'data-hall-b',
+  'vault-door',
 ];
 
 const colourOf = (mesh: Mesh): number =>
@@ -213,4 +213,29 @@ describe('the building look', () => {
       expect(grout).toBeGreaterThan(20);
     },
   );
+});
+
+describe('the vault approach', () => {
+  it('has a door that faces the camera, straight ahead', () => {
+    const built = buildScene({ scene: 'vaultApproach', mount: 0 });
+    built.scene.updateMatrixWorld(true);
+    built.update(0);
+    const raycaster = new Raycaster();
+    raycaster.set(built.camera.position, built.camera.getWorldDirection(new Vector3()));
+    const first = raycaster.intersectObjects(built.scene.children, true).at(0);
+    expect(first?.object.name).toBe('vault');
+  });
+
+  it('keeps the door in view across the whole drift', () => {
+    const built = buildScene({ scene: 'vaultApproach', mount: 0 });
+    built.scene.updateMatrixWorld(true);
+    const raycaster = new Raycaster();
+    for (const t of [0, 4, 8, 14, 20]) {
+      built.update(t);
+      raycaster.set(built.camera.position, built.camera.getWorldDirection(new Vector3()));
+      expect(raycaster.intersectObjects(built.scene.children, true).at(0)?.object.name).toBe(
+        'vault',
+      );
+    }
+  });
 });

@@ -6,6 +6,7 @@ import { buildExecutiveFloor } from './executiveFloor';
 import { buildFinanceFloor } from './financeFloor';
 import { buildLobby } from './lobby';
 import { buildSecurityOffice } from './securityOffice';
+import { buildVaultApproach } from './vaultApproach';
 import { buildServerRoom } from './serverRoom';
 
 export interface FeedScene {
@@ -21,7 +22,8 @@ export const buildScene = (feed: Pick<CameraFeed, 'scene' | 'mount'>): FeedScene
   if (feed.scene === 'securityOffice') return buildSecurityOffice(feed.mount);
   if (feed.scene === 'financeFloor') return buildFinanceFloor(feed.mount);
   if (feed.scene === 'executiveFloor') return buildExecutiveFloor(feed.mount);
-  return buildDataHall(feed.mount);
+  if (feed.scene === 'dataHall') return buildDataHall(feed.mount);
+  return buildVaultApproach(feed.mount);
 };
 
 const isMesh = (object: Object3D): object is Mesh => 'isMesh' in object && object.isMesh === true;
