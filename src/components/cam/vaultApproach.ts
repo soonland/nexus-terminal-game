@@ -103,13 +103,13 @@ const addDoor = (scene: Scene): void => {
     scene.add(spoke);
   }
   for (const y of [0.9, 1.9, 2.9]) scene.add(tag(box(0.2, 0.4, 0.3, 0x3a444c, -2.0, y, z + 0.25)));
-  scene.add(box(0.5, 0.7, 0.12, 0x2a3238, 2.7, 1.6, z + 0.5)); // keypad
-  scene.add(glow(0.3, 0.12, 0.04, 0x34ff7a, 2.7, 1.8, z + 0.57));
+  scene.add(box(0.4, 0.7, 0.12, 0x2a3238, 1.98, 1.6, z + 0.32)); // keypad, on the door frame
+  scene.add(glow(0.3, 0.12, 0.04, 0x34ff7a, 1.98, 1.8, z + 0.39));
   for (const y of [2.4, 2.9]) {
-    const gauge = cylinder(0.16, 0.08, 0xe8edf0, 2.7, y, z + 0.5);
+    const gauge = cylinder(0.16, 0.08, 0xe8edf0, 1.98, y, z + 0.32);
     gauge.rotation.x = Math.PI / 2;
     scene.add(gauge);
-    scene.add(glow(0.1, 0.1, 0.04, 0xff3a2a, 2.7, y, z + 0.56));
+    scene.add(glow(0.1, 0.1, 0.04, 0xff3a2a, 1.98, y, z + 0.38));
   }
   scene.add(glow(1.0, 0.1, 0.05, 0xff3a2a, 0, 3.95, z + 0.28)); // sealed: the status light
   scene.add(glow(3.2, 0.04, 0.4, ACCENT, 0, 0.04, z + 0.6)); // light spilling from under the door

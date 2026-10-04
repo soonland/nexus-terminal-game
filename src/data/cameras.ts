@@ -59,7 +59,7 @@ export const CAMERA_FEEDS: readonly CameraFeed[] = [
     unlockLayer: 1,
     offlineReason: null,
     description:
-      'Main lobby, after hours. The lights are on over an empty hall: white walls, a blue band at eye level, the reception desk unattended. The camera pans slowly from left to right.',
+      'Main lobby, after hours. The lights are on over an empty hall: white walls, a blue band along the walls, the reception desk unattended. The camera pans slowly from left to right.',
     traceCost: 0,
   },
   {
@@ -111,7 +111,7 @@ export const CAMERA_FEEDS: readonly CameraFeed[] = [
     unlockLayer: 2,
     offlineReason: null,
     description:
-      'Security operations office. A wall of monitors, all dark but one that shows only static, under a red band on white walls. Chairs pushed back from the desks, a cold mug beside a keyboard.',
+      'Security operations office. A wall of monitors, all dark but one that shows only static, with a red band along the white walls. Chairs pushed back from the desks, a cold mug beside a keyboard.',
     traceCost: 0,
   },
   {

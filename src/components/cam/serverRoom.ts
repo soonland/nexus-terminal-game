@@ -117,12 +117,12 @@ const doorFrame = (scene: Scene, z: number, w: number, h: number): void => {
 // lit abstract sign.
 const addBackWall = (scene: Scene): void => {
   scene.add(wall(14, 4, 0.2, WALL_WHITE, 0, 2, -11.6));
-  wallTrim(scene, ACCENT, 'x', 14, -11.5, 0, 1);
-  scene.add(box(2, 2.7, 0.1, 0xb9c3ca, 0, 1.35, -11.45));
-  doorFrame(scene, -11.44, 2, 2.7);
-  scene.add(box(0.05, 2.6, 0.03, 0x7d8a93, 0, 1.35, -11.38)); // door seam
-  scene.add(glow(1.2, 0.08, 0.04, 0xff3a2a, 0, 3.05, -11.45)); // locked indicator
-  scene.add(glow(0.12, 0.2, 0.04, 0x34ff7a, 1.3, 1.3, -11.45)); // keypad
+  wallTrim(scene, ACCENT, 'x', 13.8, -11.5, 0, 1);
+  scene.add(box(2, 2.7, 0.1, 0xb9c3ca, 0, 1.35, -11.43));
+  doorFrame(scene, -11.42, 2, 2.7);
+  scene.add(box(0.05, 2.6, 0.03, 0x7d8a93, 0, 1.35, -11.34)); // door seam
+  scene.add(glow(1.2, 0.08, 0.04, 0xff3a2a, 0, 3.05, -11.41)); // locked indicator
+  scene.add(glow(0.12, 0.2, 0.04, 0x34ff7a, 1.3, 1.3, -11.41)); // keypad
   const widths = [0.4, 0.3, 0.45, 0.3, 0.4, 0.3, 0.35];
   let x = -1.4;
   for (const w of widths) {
@@ -138,16 +138,16 @@ const addFixtures = (scene: Scene): void => {
   wallTrim(scene, ACCENT, 'z', 16, -6.9, -4, 1);
   wallTrim(scene, ACCENT, 'z', 16, 6.9, -4, -1);
   scene.add(wall(14, 4, 0.2, WALL_WHITE, 0, 2, 4.1)); // the front wall, behind the aisle camera
-  wallTrim(scene, ACCENT, 'x', 14, 4.0, 0, -1);
+  wallTrim(scene, ACCENT, 'x', 13.8, 4.0, 0, -1);
   // The front wall, as the airlock camera sees it: a door in an orange frame, its status lights and
   // two wall washers.
-  scene.add(box(2, 2.7, 0.1, 0xb9c3ca, 0, 1.35, 3.95));
-  doorFrame(scene, 3.96, 2, 2.7);
-  scene.add(glow(1.2, 0.08, 0.04, 0x34ff7a, 0, 3.05, 3.95));
-  scene.add(glow(0.12, 0.2, 0.04, 0xff3a2a, 1.3, 1.3, 3.95));
+  scene.add(box(2, 2.7, 0.1, 0xb9c3ca, 0, 1.35, 3.87));
+  doorFrame(scene, 3.88, 2, 2.7);
+  scene.add(glow(1.2, 0.08, 0.04, 0x34ff7a, 0, 3.05, 3.83));
+  scene.add(glow(0.12, 0.2, 0.04, 0xff3a2a, 1.3, 1.3, 3.87));
   for (const x of [-4, 4]) scene.add(glow(0.2, 1.6, 0.04, 0xffffff, x, 2.2, 3.98));
-  scene.add(box(0.1, 0.6, 0.4, 0xc23030, -6.85, 1.5, -6)); // fire panel
-  scene.add(glow(0.04, 0.08, 0.08, 0xff3a2a, -6.78, 1.65, -6));
+  scene.add(box(0.1, 0.6, 0.4, 0xc23030, -6.82, 1.5, -6)); // fire panel
+  scene.add(glow(0.04, 0.08, 0.08, 0xff3a2a, -6.75, 1.65, -6));
   for (let i = 0; i < 4; i += 1) scene.add(box(0.08, 0.1, 1.2, 0xaab4bb, 6.88, 2.4 - i * 0.18, -2));
   for (const x of [-5.6, 5.6]) {
     scene.add(box(1.6, 2.2, 1.2, 0xe6ebee, x, 1.1, -10.8));

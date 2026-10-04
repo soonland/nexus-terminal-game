@@ -49,7 +49,7 @@ const addCabinets = (scene: Scene): Standby[] => {
       scene.add(strip);
       standby.push({ material: strip.material as MeshBasicMaterial, phase: n });
       scene.add(box(0.02, 0.5, 0.9, 0x20282e, x + facing * 0.62, 0.6, z));
-      scene.add(glow(0.04, 0.08, 1.2, 0xff3a2a, x + facing * 0.62, 2.0, z));
+      scene.add(glow(0.04, 0.08, 1.2, 0xff3a2a, x + facing * 0.64, 2.0, z));
       n += 1;
     }
   }
@@ -78,7 +78,7 @@ const addShell = (scene: Scene): void => {
 
 // The vault door at the far end, locked: white-grey steel with a cyan ring and a hazard frame.
 const addVault = (scene: Scene): void => {
-  scene.add(box(3.4, 3.4, 0.3, 0xc2cad0, 0, 1.7, -13.75));
+  scene.add(box(3.4, 3.4, 0.3, 0xc2cad0, 0, 1.7, -13.72));
   for (let i = 0; i < 9; i += 1) {
     const stripe = trim(
       0.3,

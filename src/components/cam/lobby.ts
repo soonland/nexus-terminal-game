@@ -49,7 +49,9 @@ const addWalls = (scene: Scene): void => {
   wallTrim(scene, ACCENT, 'x', 16, -7.9, 0, 1);
   wallTrim(scene, ACCENT, 'x', 16, 7.9, 0, -1);
   wallTrim(scene, ACCENT, 'z', 16, 7.9, 0, -1);
-  wallTrim(scene, ACCENT, 'z', 16, -7.9, 0, 1);
+  // The entrance wall: trim on either side of the glass doors, not across them.
+  wallTrim(scene, ACCENT, 'z', 8.3, -7.9, -3.85, 1);
+  wallTrim(scene, ACCENT, 'z', 4.3, -7.9, 5.85, 1);
 
   for (let i = 0; i < 15; i += 1) scene.add(box(0.1, 4.2, 0.05, 0xdde3e7, -7 + i, 2.2, -7.86));
   const letters = [0.5, 0.3, 0.45, 0.3, 0.5, 0.35, 0.4, 0.3, 0.45];

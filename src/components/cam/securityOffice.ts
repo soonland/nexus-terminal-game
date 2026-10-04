@@ -65,9 +65,9 @@ const addMonitorWall = (scene: Scene): void => {
 // Two console desks with small monitors, keyboards and chairs pushed back; one cold mug.
 const addDesks = (scene: Scene): void => {
   for (const z of [-2.2, 0.8]) {
-    scene.add(box(8, 0.08, 1.1, 0xdde3e7, 0, 0.75, z));
-    scene.add(box(8, 0.7, 0.1, 0xc9d0d5, 0, 0.4, z - 0.5));
-    scene.add(trim(8, 0.06, 0.04, ACCENT, 0, 0.78, z + 0.56)); // red front edge
+    scene.add(box(8.02, 0.08, 1.1, 0xdde3e7, 0, 0.75, z));
+    scene.add(box(8, 0.7, 0.1, 0xc9d0d5, 0, 0.4, z - 0.52));
+    scene.add(trim(8.04, 0.06, 0.04, ACCENT, 0, 0.78, z + 0.56)); // red front edge
     for (const x of [-3.5, -1.2, 1.2, 3.5]) {
       scene.add(glow(0.6, 0.38, 0.04, 0x143846, x, 1.15, z - 0.3));
       scene.add(box(0.45, 0.03, 0.18, 0x3a444c, x, 0.8, z + 0.1));

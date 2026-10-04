@@ -1,6 +1,15 @@
 import { describe, it, expect } from 'vitest';
 import type { MeshBasicMaterial, MeshStandardMaterial } from 'three';
-import { Box3, DirectionalLight, Mesh, PointLight, Raycaster, Scene, Vector3 } from 'three';
+import {
+  Box3,
+  BoxGeometry,
+  DirectionalLight,
+  Mesh,
+  PointLight,
+  Raycaster,
+  Scene,
+  Vector3,
+} from 'three';
 import { CAMERA_FEEDS, FLOORS } from '../../data/cameras';
 import { buildScene, disposeScene } from './scenes';
 import { WALL_WHITE, tiledFloor, wallTrim } from './shapes';
@@ -100,7 +109,7 @@ describe.each([
   ['financeFloor', 80, 9, -10],
   ['executiveFloor', 80, 3, -16],
   ['dataHall', 80, 9, -14],
-  ['vaultApproach', 60, 3, -9],
+  ['vaultApproach', 60, 2.65, -9],
 ] as const)('scene %s', (scene, minMeshes, maxX, minZ) => {
   it('is dressed, inside its room, and pans in place', () => {
     const built = buildScene({ scene, mount: 0 });
@@ -265,4 +274,81 @@ describe('no flicker', () => {
       expect(changed).toEqual([]);
     },
   );
+});
+
+describe('no z-fighting', () => {
+  // Two solid boxes that overlap in volume and share a face plane draw that face twice at the same
+  // depth, and the GPU flickers between them. Opaque boxes only, and vertical faces only: shared floor
+  // and ceiling planes at the room corners are hidden by the floor and ceiling, and surfaces of the
+  // same colour cannot visibly fight.
+  it.each(CAMERA_FEEDS.map(f => [f.id, f] as const))(
+    '%s: no two opaque boxes share a face plane while overlapping',
+    (_id, feed) => {
+      const built = buildScene(feed);
+      built.scene.updateMatrixWorld(true);
+      const boxes: { box: Box3; name: string; colour: number }[] = [];
+      built.scene.traverse(o => {
+        if (!(o instanceof Mesh) || !(o.geometry instanceof BoxGeometry)) return;
+        const material = o.material as MeshStandardMaterial | MeshBasicMaterial;
+        if (material.transparent) return;
+        boxes.push({
+          box: new Box3().setFromObject(o),
+          name: o.name || 'box',
+          colour: colourOf(o),
+        });
+      });
+      const eps = 1e-4;
+      const overlap = (a: number, b: number, c: number, d: number) =>
+        Math.min(b, d) - Math.max(a, c) > 0.005;
+      const clashes: string[] = [];
+      for (let i = 0; i < boxes.length; i += 1) {
+        for (let j = i + 1; j < boxes.length; j += 1) {
+          const a = boxes[i].box;
+          const b = boxes[j].box;
+          const ox = overlap(a.min.x, a.max.x, b.min.x, b.max.x);
+          const oy = overlap(a.min.y, a.max.y, b.min.y, b.max.y);
+          const oz = overlap(a.min.z, a.max.z, b.min.z, b.max.z);
+          if (!(ox && oy && oz)) continue;
+          // Flicker between two surfaces of the same colour cannot be seen.
+          if (boxes[i].colour === boxes[j].colour) continue;
+          const shared =
+            Math.abs(a.min.x - b.min.x) < eps ||
+            Math.abs(a.max.x - b.max.x) < eps ||
+            Math.abs(a.min.z - b.min.z) < eps ||
+            Math.abs(a.max.z - b.max.z) < eps;
+          if (shared) {
+            clashes.push(
+              `${boxes[i].name}@${a.min
+                .toArray()
+                .map(n => n.toFixed(2))
+                .join(',')} / ${boxes[j].name}@${b.min
+                .toArray()
+                .map(n => n.toFixed(2))
+                .join(',')}`,
+            );
+          }
+        }
+      }
+      expect(clashes.slice(0, 6)).toEqual([]);
+    },
+  );
+});
+
+describe('the lobby entrance', () => {
+  it('keeps the wall trim off the glass doors', () => {
+    for (const mount of [0, 1]) {
+      const built = buildScene({ scene: 'lobby', mount });
+      built.scene.updateMatrixWorld(true);
+      const across: string[] = [];
+      built.scene.traverse(o => {
+        if (!(o instanceof Mesh) || o.name !== 'trim') return;
+        const b = new Box3().setFromObject(o);
+        const onLeftWall = b.min.x < -7.8 && b.max.x < -7.7;
+        const band = b.max.y < 1.5 && b.max.y - b.min.y < 0.35 && b.max.z - b.min.z > 1;
+        if (onLeftWall && band && b.max.z > 0.45 && b.min.z < 3.55)
+          across.push(`${String(b.min.z)}..${String(b.max.z)}`);
+      });
+      expect(across).toEqual([]);
+    }
+  });
 });

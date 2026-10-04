@@ -54,9 +54,9 @@ const addShell = (scene: Scene): void => {
 const addDesks = (scene: Scene): void => {
   for (const z of [-6.5, -3.5, -0.5]) {
     for (const x of [-6, -3, 0, 3, 6]) {
-      scene.add(box(2, 0.06, 0.9, 0xeef1f3, x, 0.74, z));
+      scene.add(box(2.02, 0.06, 0.9, 0xeef1f3, x, 0.74, z));
       scene.add(box(2, 0.7, 0.06, 0xc9d0d5, x, 0.38, z - 0.4));
-      scene.add(trim(2, 0.05, 0.04, ACCENT, x, 0.76, z + 0.46)); // green front edge
+      scene.add(trim(2.04, 0.05, 0.04, ACCENT, x, 0.76, z + 0.46)); // green front edge
       scene.add(glow(0.55, 0.34, 0.03, 0x14303f, x - 0.5, 1.1, z - 0.2));
       scene.add(glow(0.55, 0.34, 0.03, 0x14303f, x + 0.5, 1.1, z - 0.2));
       scene.add(cylinder(0.25, 0.08, 0x2b333a, x, 0.5, z + 0.9));

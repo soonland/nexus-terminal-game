@@ -152,7 +152,7 @@ IronGate's floors share one look: **white walls, a tiled floor, and one accent c
 The accent is data (`FLOORS[].accent`), so the scenes and the menu use one source: Ground floor
 `0x2b6cb0` (blue), Operations `0xed8936` (orange), Security `0xe53e3e` (red), Finance `0x38a169`
 (green), Executive `0xd69e2e` (gold), Sub-level B `0x00b5d8` (cyan, with yellow-black hazard stripes at
-the vault). In a scene the accent colours a trim band at eye level, the baseboard, door frames, signs
+the vault). In a scene the accent colours a trim band at waist height, the baseboard, door frames, signs
 and a stripe inlaid in the floor tiles; the floor menu shows it as a swatch beside the floor name.
 
 - **Walls** are white; the **floor** is light tiles with visible grout lines; the **ceiling** is white

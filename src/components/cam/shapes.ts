@@ -161,7 +161,7 @@ export const tiledFloor = (
   scene.add(stripe);
 };
 
-// A baseboard and an eye-level band along a wall, in the accent colour. `axis 'x'` is a wall running
+// A baseboard and a waist-high band along a wall, in the accent colour. `axis 'x'` is a wall running
 // along x at z = `fixed`; `'z'` one running along z at x = `fixed`. `inward` is the sign pointing into
 // the room, so the trim sits on the room's side of the wall.
 export const wallTrim = (

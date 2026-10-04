@@ -59,17 +59,17 @@ const addCorridor = (scene: Scene): void => {
 const addDoors = (scene: Scene): void => {
   for (const side of [-1, 1]) {
     for (const z of [2, -1, -4, -7, -10]) {
-      scene.add(box(0.08, 2.4, 1.1, WOOD, side * 2.36, 1.2, z));
-      scene.add(trim(0.1, 0.14, 1.4, ACCENT, side * 2.34, 2.47, z));
+      scene.add(box(0.08, 2.4, 1.1, WOOD, side * 2.33, 1.2, z));
+      scene.add(trim(0.1, 0.14, 1.4, ACCENT, side * 2.31, 2.47, z));
       for (const dz of [-0.62, 0.62])
-        scene.add(trim(0.1, 2.4, 0.12, ACCENT, side * 2.34, 1.2, z + dz));
-      scene.add(box(0.05, 0.05, 0.18, 0xc9a24a, side * 2.3, 1.1, z + 0.4));
-      scene.add(glow(0.02, 0.1, 0.3, ACCENT, side * 2.3, 1.75, z));
+        scene.add(trim(0.1, 2.4, 0.12, ACCENT, side * 2.31, 1.2, z + dz));
+      scene.add(box(0.05, 0.05, 0.18, 0xc9a24a, side * 2.27, 1.1, z + 0.4));
+      scene.add(glow(0.02, 0.1, 0.3, ACCENT, side * 2.285, 1.75, z));
     }
     for (const z of [0.5, -2.5, -5.5, -8.5]) {
       scene.add(box(0.04, 0.8, 0.6, 0x3a2c22, side * 2.4, 1.9, z - 0.2));
-      scene.add(box(0.4, 0.8, 0.9, 0xf2f4f5, side * 2.2, 0.4, z - 1.2));
-      scene.add(cylinder(0.08, 0.3, 0x405060, side * 2.2, 0.95, z - 1.2));
+      scene.add(box(0.4, 0.8, 0.9, 0xf2f4f5, side * 2.15, 0.4, z - 1.2));
+      scene.add(cylinder(0.08, 0.3, 0x405060, side * 2.15, 0.95, z - 1.2));
     }
   }
 };
@@ -86,7 +86,7 @@ const addOffice = (scene: Scene): void => {
     scene.add(box(0.3, h, 0.02, 0x3a4f66, -1.5 + i * 0.33, 1.1 + h / 2, -15.82));
   }
   scene.add(box(2.4, 0.08, 1.1, WOOD, 0, 0.78, -13.5));
-  scene.add(box(2.4, 0.7, 1.0, DARK_WOOD, 0, 0.4, -13.5));
+  scene.add(box(2.36, 0.7, 0.96, DARK_WOOD, 0, 0.4, -13.5));
   scene.add(trim(2.4, 0.05, 0.04, ACCENT, 0, 0.84, -12.97)); // gold edge on the desk
   scene.add(cylinder(0.27, 0.08, 0x2b333a, 0, 0.55, -14.6));
   scene.add(cylinder(0.04, 0.5, 0x2b333a, 0, 0.28, -14.6));
