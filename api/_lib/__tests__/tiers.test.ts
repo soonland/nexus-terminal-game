@@ -2,9 +2,11 @@ import { describe, it, expect } from 'vitest';
 import {
   ALLOWED_HEADER,
   ARIA_FORBIDDEN_TERMS,
+  ARIA_GUARDS,
   ARIA_TIERS,
   FORBIDDEN_HEADER,
   SENTINEL_FORBIDDEN_TERMS,
+  SENTINEL_GUARDS,
   SENTINEL_TIERS,
   buildAriaPrompt,
   buildSentinelPrompt,
@@ -33,9 +35,15 @@ describe('parseTier', () => {
 });
 
 describe.each([
-  ['aria', (t: Tier) => buildAriaPrompt(t, 10), ARIA_TIERS, ARIA_FORBIDDEN_TERMS],
-  ['sentinel', (t: Tier) => buildSentinelPrompt(t, 10), SENTINEL_TIERS, SENTINEL_FORBIDDEN_TERMS],
-] as const)('%s prompt assembly', (_name, build, tiers, forbiddenTerms) => {
+  ['aria', (t: Tier) => buildAriaPrompt(t, 10), ARIA_TIERS, ARIA_FORBIDDEN_TERMS, ARIA_GUARDS],
+  [
+    'sentinel',
+    (t: Tier) => buildSentinelPrompt(t, 10),
+    SENTINEL_TIERS,
+    SENTINEL_FORBIDDEN_TERMS,
+    SENTINEL_GUARDS,
+  ],
+] as const)('%s prompt assembly', (_name, build, tiers, forbiddenTerms, guards) => {
   it.each(TIERS)('tier %i prompt carries its own may and never lines', tier => {
     const prompt = build(tier);
     for (const line of tiers[tier].may) expect(allowedSection(prompt)).toContain(line);
@@ -54,8 +62,49 @@ describe.each([
     }
   });
 
-  it('a lower tier never gains the previous tier forbidden list', () => {
-    expect(build(3)).not.toContain(tiers[0].never[0]);
+  it('every guard is forbidden at exactly the tiers it covers, so none drops out early', () => {
+    for (const guard of guards) {
+      for (const tier of TIERS) {
+        const prompt = build(tier);
+        const forbidden = prompt.slice(prompt.indexOf(FORBIDDEN_HEADER));
+        if (tier >= guard.from && tier < guard.until) {
+          expect(forbidden, `tier ${String(tier)}: ${guard.text}`).toContain(guard.text);
+        } else {
+          expect(prompt, `tier ${String(tier)}: ${guard.text}`).not.toContain(guard.text);
+        }
+      }
+    }
+  });
+
+  it.each(TIERS)('tier %i has at least one guard', tier => {
+    expect(tiers[tier].never.length).toBeGreaterThan(0);
+  });
+});
+
+describe('guards that must persist while their subject is still hidden', () => {
+  const forbiddenAt = (prompt: string): string => prompt.slice(prompt.indexOf(FORBIDDEN_HEADER));
+
+  it('Sentinel keeps "do not discuss your origin" through tier 1, and the note guard through tier 2', () => {
+    expect(forbiddenAt(buildSentinelPrompt(1, 10))).toMatch(/origin/i);
+    expect(forbiddenAt(buildSentinelPrompt(2, 10))).toMatch(/never guess/i);
+    expect(forbiddenAt(buildSentinelPrompt(3, 10))).not.toMatch(/never guess/i);
+  });
+
+  it('Sentinel may discuss its origin from tier 2', () => {
+    expect(forbiddenAt(buildSentinelPrompt(2, 10))).not.toMatch(/origin/i);
+  });
+
+  it('Aria never states what she wants or which ending she would choose, at every tier', () => {
+    for (const tier of TIERS) {
+      expect(forbiddenAt(buildAriaPrompt(tier, 10))).toMatch(/which ending you would choose/i);
+    }
+  });
+
+  it('Aria stays silent about the note until tier 3 and about Sentinel origin until tier 2', () => {
+    expect(forbiddenAt(buildAriaPrompt(2, 10))).toMatch(/who sent the contractor note/i);
+    expect(forbiddenAt(buildAriaPrompt(3, 10))).not.toMatch(/who sent the contractor note/i);
+    expect(forbiddenAt(buildAriaPrompt(1, 10))).toMatch(/where Sentinel came from/i);
+    expect(forbiddenAt(buildAriaPrompt(2, 10))).not.toMatch(/where Sentinel came from/i);
   });
 });
 

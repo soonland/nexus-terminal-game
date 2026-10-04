@@ -51,7 +51,10 @@ Each prompt has three parts:
 1. **Always-on block**: voice rules, JSON output contract, and the hard rule that the model never
    states a preferred ending (Aria's rule 3 applies to Sentinel too).
 2. **ALLOWED**: the "may say" excerpts for tiers up to and including the current one.
-3. **FORBIDDEN**: the current tier's "must never say" list.
+3. **FORBIDDEN**: every guard whose subject is still hidden at this tier. A guard is a
+   `{ text, from, until }` range, so a restriction cannot drop out early just because the tier
+   rose (found in review of #226: per-tier lists had replaced each other). The bible's per-tier
+   "must never say" column says what is newly forbidden; the guards carry it forward.
 
 Knowledge above the current tier appears **nowhere** in the prompt, not even as "do not say X".
 Lower tiers carry only generic rules ("never reveal who wrote the note"). A prompt cannot leak

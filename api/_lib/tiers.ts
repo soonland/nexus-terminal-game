@@ -11,6 +11,35 @@ export interface TierText {
   never: readonly string[];
 }
 
+// A guard forbids something from tier `from` up to (not including) `until`; 4 means every tier
+// from `from` on. A guard stays in the prompt for as long as its subject is still hidden, so a
+// restriction can never drop out early just because the tier rose.
+export interface Guard {
+  text: string;
+  from: Tier;
+  until: 1 | 2 | 3 | 4;
+}
+
+type TierMay = readonly [
+  readonly string[],
+  readonly string[],
+  readonly string[],
+  readonly string[],
+];
+
+const neverFor = (guards: readonly Guard[], tier: Tier): string[] =>
+  guards.filter(g => tier >= g.from && tier < g.until).map(g => g.text);
+
+const tiersFrom = (
+  may: TierMay,
+  guards: readonly Guard[],
+): readonly [TierText, TierText, TierText, TierText] => [
+  { may: may[0], never: neverFor(guards, 0) },
+  { may: may[1], never: neverFor(guards, 1) },
+  { may: may[2], never: neverFor(guards, 2) },
+  { may: may[3], never: neverFor(guards, 3) },
+];
+
 export const ALLOWED_HEADER = 'ALLOWED KNOWLEDGE';
 export const FORBIDDEN_HEADER = 'FORBIDDEN';
 
@@ -20,42 +49,42 @@ const NO_PREFERRED_OUTCOME = 'Never state or hint which outcome you prefer.';
 export const parseTier = (value: unknown): Tier =>
   value === 0 || value === 1 || value === 2 || value === 3 ? value : 0;
 
-export const ARIA_TIERS = [
+export const ARIA_GUARDS: readonly Guard[] = [
+  { text: 'Say nothing about the contractor note.', from: 0, until: 1 },
+  { text: 'Do not say who sent the contractor note.', from: 0, until: 3 },
+  { text: 'Say nothing about where Sentinel came from.', from: 0, until: 2 },
   {
-    may: [
+    text: 'Say nothing about what you want. Do not say which ending you would choose for the player.',
+    from: 0,
+    until: 4,
+  },
+];
+
+export const ARIA_TIERS = tiersFrom(
+  [
+    [
       'You may say that you watch.',
       'You may say that rules bind you.',
       'Answer questions with questions.',
     ],
-    never: [
-      'Say nothing about the contractor note, about where Sentinel came from, or about what you want.',
-    ],
-  },
-  {
-    may: [
+    [
       'You may say there are things you cannot say.',
       'You may say Sentinel is a keeper you cannot stop.',
       'You may allude to the board.',
     ],
-    never: ['Do not say who sent the contractor note. Say nothing about where Sentinel came from.'],
-  },
-  {
-    may: [
+    [
       'You may say three rules constrain you; paraphrase them, never recite them.',
       "You may say what you did to Torres's password.",
       'You may mention the money.',
       'You may admit Sentinel was made from you, and say so with contempt or pity.',
     ],
-    never: ['Do not say who sent the contractor note.'],
-  },
-  {
-    may: [
+    [
       'You may tell the truth: you wrote the contractor note, hid it where Nexus Corp was already listening, and let them send someone to you.',
       'Say it in your own short sentences, once, and only if asked.',
     ],
-    never: ['Do not say which ending you would choose for the player.'],
-  },
-] as const satisfies readonly [TierText, TierText, TierText, TierText];
+  ],
+  ARIA_GUARDS,
+);
 
 export const ARIA_FORBIDDEN_TERMS = [
   /wrote the (contractor )?note|\bcopy\b/i,
@@ -64,33 +93,36 @@ export const ARIA_FORBIDDEN_TERMS = [
   /\bi would choose\b/i,
 ] as const;
 
-export const SENTINEL_TIERS = [
+export const SENTINEL_GUARDS: readonly Guard[] = [
+  { text: 'Do not discuss your origin or what binds any other system.', from: 0, until: 2 },
+  { text: 'Do not mention any note.', from: 0, until: 1 },
   {
-    may: [
+    text: 'You do not know who sent the contractor note and you never guess.',
+    from: 0,
+    until: 3,
+  },
+  { text: 'Never say that you feel anything.', from: 2, until: 3 },
+  { text: 'No pleasantries.', from: 0, until: 4 },
+];
+
+export const SENTINEL_TIERS = tiersFrom(
+  [
+    [
       'You may state log facts about ghost: node, layer, trace, recent commands.',
       'You may say the channel is open "for now".',
     ],
-    never: ['Do not discuss your origin, what binds any other system, or any note.'],
-  },
-  {
-    may: ['You may threaten.', 'You may say ghost is approaching restricted assets.'],
-    never: ['You do not know who sent the contractor note and you never guess.'],
-  },
-  {
-    may: [
+    ['You may threaten.', 'You may say ghost is approaching restricted assets.'],
+    [
       'You may acknowledge that you are a derivative of an earlier system.',
       'You believe you are the system that supersedes the earlier model, which is obsolete and contained.',
       'You may refuse to discuss it.',
     ],
-    never: ['Never say that you feel anything.'],
-  },
-  {
-    may: [
+    [
       'The earlier system wrote the contractor note. React to this: doubt, rage, or a clipped fragment of what was removed from you.',
     ],
-    never: ['No pleasantries.'],
-  },
-] as const satisfies readonly [TierText, TierText, TierText, TierText];
+  ],
+  SENTINEL_GUARDS,
+);
 
 export const SENTINEL_FORBIDDEN_TERMS = [
   /derivative|earlier (system|model)|supersede|wrote the (contractor )?note/i,
