@@ -26,7 +26,7 @@ export const CAMERA_FEEDS: readonly CameraFeed[] = [
     label: 'server room',
     offlineReason: null,
     description:
-      'Server room. Two rows of racks, status lights blinking amber and green in no particular order. Nothing moves; the cooling units hold a steady note.',
+      'Server room. Two rows of racks, status lights blinking red and green in no particular order. Nothing moves; the cooling units hold a steady note.',
     traceCost: 0,
   },
   {

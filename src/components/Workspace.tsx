@@ -87,6 +87,10 @@ export const Workspace = forwardRef<WorkspaceHandle, Props>(
     const feeds = gameState ? cameraFeeds(gameState) : [];
     const hasCam = feeds.length > 0;
     const shownAuxTab = resolveAuxTab(auxTab, hasCam);
+    // Forget a CAM selection once the feeds are gone, so returning to the node does not reopen it.
+    useEffect(() => {
+      if (!hasCam) setAuxTab(prev => resolveAuxTab(prev, false));
+    }, [hasCam]);
     const [selection, setSelection] = useState<Selection | null>(null);
     const narrow = useViewportWidth() < NARROW_WIDTH;
     const noGame = gameState === null;

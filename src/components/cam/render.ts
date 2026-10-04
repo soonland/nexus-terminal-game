@@ -21,17 +21,6 @@ export const startFeed = (
   const renderer = new WebGLRenderer({ canvas, antialias: false });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, MAX_PIXEL_RATIO));
 
-  const resize = () => {
-    const width = Math.max(canvas.clientWidth, 1);
-    const height = Math.max(canvas.clientHeight, 1);
-    renderer.setSize(width, height, false);
-    built.camera.aspect = width / height;
-    built.camera.updateProjectionMatrix();
-  };
-  const observer = new ResizeObserver(resize);
-  observer.observe(canvas);
-  resize();
-
   const start = performance.now();
   let frame = 0;
   let paused = false;
@@ -41,6 +30,24 @@ export const startFeed = (
     built.update((performance.now() - start) / 1000);
     renderer.render(built.scene, built.camera);
   };
+
+  const size = () => {
+    const width = Math.max(canvas.clientWidth, 1);
+    const height = Math.max(canvas.clientHeight, 1);
+    renderer.setSize(width, height, false);
+    built.camera.aspect = width / height;
+    built.camera.updateProjectionMatrix();
+  };
+  // Resizing clears the canvas; with no loop running (a still frame, or paused) nothing else
+  // would repaint it.
+  const onResize = () => {
+    size();
+    if (reducedMotion || paused) draw();
+  };
+  const observer = new ResizeObserver(onResize);
+  observer.observe(canvas);
+  size();
+
   const loop = () => {
     if (stopped || paused || document.hidden) return;
     draw();

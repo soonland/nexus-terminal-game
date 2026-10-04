@@ -41,3 +41,10 @@ describe('cameraFeeds', () => {
     }
   });
 });
+
+describe('camera text matches the footage', () => {
+  it('describes the server-room lights as red and green, like the scene', () => {
+    const cam = CAMERA_FEEDS.find(f => f.id === 'cam_02');
+    expect(cam?.description).toMatch(/red and green/);
+  });
+});
