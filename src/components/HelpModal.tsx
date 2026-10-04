@@ -23,7 +23,10 @@ const BODY: HelpLine[] = [
     color: 'var(--color-system)',
   },
   { text: r('  briefing      -re-read mission briefing'), color: 'var(--color-system)' },
-  { text: r('  notes         -intel log (creds, nodes, exfils)'), color: 'var(--color-system)' },
+  {
+    text: r('  case          -casebook: people, timeline, accounts (alias: notes)'),
+    color: 'var(--color-system)',
+  },
   { text: r('  dossier       -cross-run dossier'), color: 'var(--color-system)' },
   { text: r('  explorer      -file explorer (alias: files)'), color: 'var(--color-system)' },
   { text: r('  status        -session overview'), color: 'var(--color-system)' },
@@ -60,7 +63,7 @@ const BODY: HelpLine[] = [
     color: 'var(--color-system)',
   },
   {
-    text: r('  exfil [filepath]    -exfiltrate a file (+3 trace, notes)'),
+    text: r('  exfil [filepath]    -exfiltrate a file (+3 trace)'),
     color: 'var(--color-system)',
   },
   {

@@ -107,6 +107,11 @@ the CASE component replacing `NotesModal`, the rename and `case` command, the gu
 `CLAUDE.md`. The authored facts (about 40, drawn from the story documents) are listed in the
 implementation plan for review before they are committed.
 
+## Delivered
+
+Implemented in #235 on `feat/case-tab` (plan: `docs/superpowers/plans/2026-10-04-case-tab.md`).
+37 authored facts across 10 people, every quote verified against its document.
+
 ## Out of scope
 
 Player-written notes, search, filtering, employees from rosters, a relationship graph,

@@ -35,7 +35,7 @@ export const CASE_PEOPLE: readonly CasePerson[] = [
   { id: 'reyes', name: 'T. Reyes', role: 'Security Engineering' },
   { id: 'mercer', name: 'James Mercer', role: 'Security', credentialIds: ['cred_sec_analyst'] },
   { id: 'bashir', name: 'Dr. L. Bashir', role: 'Researcher' },
-  { id: 'kessler', name: 'Hannah Kessler', role: 'Risk Analytics (Level 1), separated 2024-03-22' },
+  { id: 'kessler', name: 'Hannah Kessler', role: 'Risk Analytics (Level 1)' },
   {
     id: 'torres',
     name: 'Elena Torres',
