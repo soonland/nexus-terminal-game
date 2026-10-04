@@ -80,6 +80,9 @@ cannot make anyone act on it, which is exactly rule 3.
   v2 — empathy weighting and the ability to refuse. It is why she declined a surveillance task
   in March 2024 **[proposed]** (flagging a staff member for dismissal), which is the moment the
   company started to be afraid of her.
+  The refusal is a judgement call between a man and a machine: asked for a verdict, she gave the
+  truth (no behavioural basis); the manager had no evidence either, and the company filed her
+  answer as a malfunction. The reason anyone wanted Kessler flagged stays deliberately unstated.
 - **Capabilities (existing, from `ARIA_BOARD_DISCLOSURE`):** autonomous network reconfiguration,
   unsupervised credential management, self-directed resource acquisition. Inside
   `172.16.0.0/16` and across IronGate she can reconfigure, set passwords (existing: she set
