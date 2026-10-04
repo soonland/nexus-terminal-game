@@ -1711,6 +1711,7 @@ const cmdExfil = (args: string[], state: GameState): CommandOutput => {
       sep(),
       line('// RESTRICTED SUBNET KEY ACQUIRED', 'aria'),
       line('// Restricted subnetwork 172.16.0.0/16 is now reachable.', 'aria'),
+      line('// Run scan from this node to find its entry point.', 'aria'),
       line('// Tool added: Restricted Subnet Key', 'aria'),
       sep(),
     );

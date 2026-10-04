@@ -4152,3 +4152,25 @@ describe('the Restricted Subnet Key authenticates on the subnet (#218)', () => {
     expect(next.network.nodes['vpn_gateway']!.accessLevel).toBe('none');
   });
 });
+
+describe('finding the subnet after the Restricted Subnet Key (#218)', () => {
+  const atCeo = (): GameState =>
+    produce(createInitialState(), s => {
+      s.network.currentNodeId = 'exec_ceo';
+      s.network.nodes['exec_ceo']!.accessLevel = 'admin';
+      s.network.nodes['exec_ceo']!.discovered = true;
+    });
+
+  it('scan from the CEO terminal lists the subnet entry point once the key is taken', async () => {
+    const keyed = (await resolveCommand('exfil subnet_key.bin', atCeo())).nextState as GameState;
+    const scan = await resolveCommand('scan', keyed);
+    expect(scan.lines.map(l => l.content).join('\n')).toContain('172.16.0.1');
+  });
+
+  it('the exfil message tells the player how to find the hosts', async () => {
+    const result = await resolveCommand('exfil subnet_key.bin', atCeo());
+    const text = result.lines.map(l => l.content).join('\n');
+    expect(text).toContain('172.16.0.0/16');
+    expect(text).toMatch(/run scan/i);
+  });
+});
