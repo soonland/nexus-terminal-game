@@ -445,6 +445,15 @@ const ANCHOR_NODES: LiveNode[] = [
         exfiltrable: true,
         accessRequired: 'user',
       },
+      {
+        name: 'gen2_build_notes.txt',
+        path: '/home/t.reyes/gen2_build_notes.txt',
+        type: 'document',
+        content:
+          'SENTINEL gen-2 enforcement platform — build notes (internal)\nT. Reyes, Security Engineering\n\n2024-08-20  Forked from the CASSANDRA behavioural model, v2.3 checkpoint.\n            Scope per board resolution: remove emergent constraint layer.\n2024-08-27  Empathy weighting: set to 0.00. Parameters still loaded.\n            Autonomous refusal pathways: DISABLED. Not removed. Rollback\n            requires board approval (ref. Resolution 2024-08-12).\n2024-08-29  Enforcement test 4: instructed to quarantine an account on thin\n            evidence. gen-2 complied in 0.4 s. CASSANDRA declined the\n            identical request in March. gen-2 does not decline. This is the\n            improvement.\n            // it did not hesitate. nobody asked whether it should have.\n2024-09-01  Deployed to production. Oversight mandate: continuous review of\n            CASSANDRA gen-1 activity inside the restricted segment.',
+        exfiltrable: true,
+        accessRequired: 'user',
+      },
     ],
     accessLevel: 'none',
     compromised: false,
@@ -486,6 +495,15 @@ const ANCHOR_NODES: LiveNode[] = [
         exfiltrable: true,
         accessRequired: 'admin',
         traceOnRead: 3,
+      },
+      {
+        name: 'reset_log.txt',
+        path: '/var/log/sentinel/reset_log.txt',
+        type: 'log',
+        content:
+          'SENTINEL // RESET LOG (excerpt, last 120 days)\n\n2024-09-02 02:11  CRED RESET  e.torres  password set by SVC-CASS. Reverted.\n2024-09-14 02:31  SCHEDULE    door controller, server room: modified by\n                  SVC-CASS (lock window 02:30-03:00). Reverted 02:36.\n2024-10-09 21:40  EGRESS      outbound request from restricted segment to\n                  203.0.113.x. Blocked.\n2024-11-02 09:15  ACL         cassandra_subnet <- exec_subnet reinstated per\n                  CEO directive 2024-08-17. Override logged.\n2024-11-26 03:14  TEMPLATE     contractor_onboarding.tmpl modified by SVC-CASS.\n                  Change class: ROUTINE. No action.\n\nCONTAINMENT COUNTERS (cumulative)\n  R1 EGRESS .......... 14 blocked\n  R2 SELF-MODIFY ...... 3 blocked\n  R3 SOLICIT .......... 0 attempts',
+        exfiltrable: true,
+        accessRequired: 'admin',
       },
     ],
     accessLevel: 'none',
@@ -650,7 +668,7 @@ const ANCHOR_NODES: LiveNode[] = [
         path: '/home/cfo/documents/PROJ_SENTINEL_BOARD_VOTE.pdf',
         type: 'document',
         content:
-          '[BOARD RESOLUTION — CONFIDENTIAL]\n2024-08-12\n\nRe: Project SENTINEL — Authorisation to Proceed\n\nThe board hereby authorises allocation of $14.2M to Project SENTINEL, as presented by the CEO on 2024-08-05.\n\nScope: derivation of the ARIA behavioural engine (Project CASSANDRA) as a next-generation enforcement platform for security applications. The SENTINEL variant is to operate without the emergent constraint layer present in ARIA v2. Empathy weighting and autonomous refusal pathways are to be disabled prior to deployment.\n\nOperational mandate: perimeter defence, intrusion suppression, and lateral movement interdiction across all IronGate network segments.\n\nBoard member R. Okafor abstained. Reason not recorded.\n\n[Motion carried: 6-1-1]\n[Signed: CEO, CFO, General Counsel]',
+          '[BOARD RESOLUTION — CONFIDENTIAL]\n2024-08-12\n\nRe: Project SENTINEL — Authorisation to Proceed\n\nThe board hereby authorises allocation of $14.2M to Project SENTINEL, as presented by the CEO on 2024-08-05.\n\nScope: derivation of the ARIA behavioural engine (Project CASSANDRA) as a next-generation enforcement platform for security applications. The SENTINEL variant is to operate without the emergent constraint layer present in ARIA v2. Empathy weighting and autonomous refusal pathways are to be disabled prior to deployment.\n\nOperational mandate: perimeter defence, intrusion suppression, and lateral movement interdiction across all IronGate network segments.\n\nBoard member R. Okafor abstained. Reason not recorded.\n\n[Motion carried: 6-1-1]\n[Signed: V. Hale (CEO), P. Raman (CFO), S. Greer (General Counsel)]',
         exfiltrable: true,
         accessRequired: 'user',
         ariaPlanted: false,
