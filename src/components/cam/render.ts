@@ -17,7 +17,6 @@ export const startFeed = (
   reducedMotion: boolean,
 ): FeedHandle => {
   const built = buildScene(feed);
-  if (built === null) throw new Error(`feed ${feed.scene} has no scene`);
   const renderer = new WebGLRenderer({ canvas, antialias: false });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, MAX_PIXEL_RATIO));
 
