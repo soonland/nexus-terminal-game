@@ -11,6 +11,7 @@ import { loadDossier, recordEnding, addLoreFragment } from './dossierPersistence
 import type { EndingName } from '../types/dossier';
 import { shouldSuppressMutation, injectConstraintFragment } from './faradayCage';
 import { ariaTier } from './aiTiers';
+import { ARIA_CORE_NODE_ID, SELF_MODEL_PATH, markNoteRevealed } from './noteReveal';
 import { ARIA_NAME_FLAG, SENTINEL_VOTE_PATH, isAriaNameKnown, markAriaNameKnown } from './ariaName';
 import { detectChannelTrigger, isChannelBlocked, layerReachedFlag } from './channel';
 
@@ -1368,6 +1369,15 @@ const cmdCat = async (args: string[], state: GameState): Promise<CommandOutput> 
   // Reading the board vote is how the player learns Sentinel's parent has a name.
   if (content !== FILE_CONTENT_FALLBACK && file.path === SENTINEL_VOTE_PATH) {
     next = markAriaNameKnown(next);
+  }
+
+  // Reading the self-model at the core is the reveal: she wrote the note (#218).
+  if (
+    content !== FILE_CONTENT_FALLBACK &&
+    file.path === SELF_MODEL_PATH &&
+    node.id === ARIA_CORE_NODE_ID
+  ) {
+    next = markNoteRevealed(next);
   }
 
   // Track ariaPlanted files the player reads

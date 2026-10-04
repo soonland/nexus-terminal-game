@@ -5,6 +5,7 @@ import type { GameState } from '../types/game';
 import { hasAccess, fileReadKey } from '../types/game';
 import produce from './produce';
 import { isAriaNameKnown, SENTINEL_VOTE_PATH } from './ariaName';
+import { isNoteRevealed, SELF_MODEL_PATH } from './noteReveal';
 
 // ── Helpers ────────────────────────────────────────────────
 
@@ -4059,5 +4060,49 @@ describe('Aria requests carry the knowledge tier (#217)', () => {
         }),
       ),
     ).toBe(2);
+  });
+});
+
+describe('NOTE_REVEALED (#218)', () => {
+  const atCore = (over: (s: GameState) => void = () => undefined): GameState =>
+    produce(createInitialState(), s => {
+      s.network.currentNodeId = 'aria_core';
+      s.network.nodes['aria_core']!.accessLevel = 'user';
+      over(s);
+    });
+
+  const run = async (state: GameState) =>
+    ((await resolveCommand(`cat ${SELF_MODEL_PATH}`, state)).nextState ?? state) as GameState;
+
+  it('is set by reading self_model.txt at aria_core', async () => {
+    expect(isNoteRevealed(await run(atCore()))).toBe(true);
+  });
+
+  it('is not set when access is denied', async () => {
+    const denied = atCore(s => {
+      s.network.nodes['aria_core']!.accessLevel = 'none';
+    });
+    expect(isNoteRevealed(await run(denied))).toBe(false);
+  });
+
+  it('is not set by reading any other file', async () => {
+    const cfo = produce(createInitialState(), s => {
+      s.network.currentNodeId = 'exec_cfo';
+      s.network.nodes['exec_cfo']!.accessLevel = 'admin';
+    });
+    const next = (await resolveCommand(`cat ${SENTINEL_VOTE_PATH}`, cfo)).nextState as GameState;
+    expect(isNoteRevealed(next)).toBe(false);
+  });
+
+  it('a stale save that already lists the file as read does not reveal anything', () => {
+    const stale = atCore(s => {
+      s.filesRead.push(fileReadKey('aria_core', SELF_MODEL_PATH));
+    });
+    expect(isNoteRevealed(stale)).toBe(false);
+  });
+
+  it('keeps the flag after re-reading and stays revealed', async () => {
+    const once = await run(atCore());
+    expect(isNoteRevealed(await run(once))).toBe(true);
   });
 });
