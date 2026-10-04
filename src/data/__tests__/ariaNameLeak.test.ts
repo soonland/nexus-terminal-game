@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { ANCHOR_CREDENTIALS, buildNodeMap } from '../anchorNodes';
 import { SENTINEL_VOTE_PATH } from '../../engine/ariaName';
 import { FIRST_NAMES } from '../employeeData';
+import { NEXUS_MESSAGES } from '../nexusMessages';
 
 const ARIA = /aria/i;
 
@@ -32,6 +33,10 @@ describe('pre-reveal data never contains the name Aria', () => {
     for (const c of ANCHOR_CREDENTIALS) check(`credential ${c.id} source`, c.source);
 
     expect(leaks).toEqual([]);
+  });
+
+  it('the scripted Nexus line never says it (it plays before the reveal)', () => {
+    expect(NEXUS_MESSAGES.flatMap(m => m.lines).filter(line => ARIA.test(line))).toEqual([]);
   });
 
   it('the board vote bridges both names', () => {

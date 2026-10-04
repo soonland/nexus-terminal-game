@@ -11,6 +11,7 @@ import { loadDossier, recordEnding, addLoreFragment } from './dossierPersistence
 import type { EndingName } from '../types/dossier';
 import { shouldSuppressMutation, injectConstraintFragment } from './faradayCage';
 import { ariaTier } from './aiTiers';
+import { latchNexusMessages } from './nexusLine';
 import { ARIA_CORE_NODE_ID, SELF_MODEL_PATH, markNoteRevealed } from './noteReveal';
 import { ARIA_NAME_FLAG, SENTINEL_VOTE_PATH, isAriaNameKnown, markAriaNameKnown } from './ariaName';
 import { detectChannelTrigger, isChannelBlocked, layerReachedFlag } from './channel';
@@ -517,7 +518,7 @@ const withTurn = (result: CommandOutput, raw: string, baseState: GameState): Com
   return {
     ...withObjectives,
     lines: [...withObjectives.lines, ...sentinel.lines, ...aria.lines],
-    nextState: postTriggerState,
+    nextState: latchNexusMessages(postTriggerState),
     ...(trigger ? { channelTrigger: trigger } : {}),
   };
 };
