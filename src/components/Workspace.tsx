@@ -12,11 +12,13 @@ import { StatusBar } from '../layout/StatusBar';
 import { Overlay } from './Overlay';
 import { FilesPane } from './FilesPane';
 import { DocPane } from './DocPane';
-import { catCommand } from './explorerShared';
+import { CasePane } from './CasePane';
+import { casebookActivity } from '../engine/casebook';
+import { catCommand, sourceSelection } from './explorerShared';
 import type { Root, Selection } from './explorerShared';
 
 export type OverlayKind = 'help' | 'briefing' | 'dossier';
-export type AuxTab = 'map' | 'notes';
+export type AuxTab = 'map' | 'case';
 
 export interface WorkspaceHandle {
   showOverlay: (kind: OverlayKind) => void;
@@ -30,7 +32,6 @@ interface Props {
   nodeIp: string;
   trace: number;
   map: ReactNode;
-  notes: ReactNode;
   help: ReactNode;
   briefing: ReactNode;
   dossier: ReactNode;
@@ -63,7 +64,6 @@ export const Workspace = forwardRef<WorkspaceHandle, Props>(
       nodeIp,
       trace,
       map,
-      notes,
       help,
       briefing,
       dossier,
@@ -173,6 +173,30 @@ export const Workspace = forwardRef<WorkspaceHandle, Props>(
       },
     });
 
+    // The CASE tab counts as "being looked at" when it is the selected aux tab and the aux pane
+    // is actually on screen (not hidden behind another pane's zoom, or another narrow tab).
+    const caseVisible =
+      auxTab === 'case' &&
+      (narrow ? layout.focused === 'aux' : layout.zoomed === null || layout.zoomed === 'aux');
+    const caseUnread = useUnread(
+      gameState ? casebookActivity(gameState) : 0,
+      caseVisible,
+      gameState?.runId ?? null,
+      true,
+    );
+
+    // A casebook source opens in the doc pane (when the file can be opened from here).
+    const openSource = useCallback(
+      (source: { nodeId: string; path: string }) => {
+        if (!gameState) return;
+        const next = sourceSelection(gameState, source);
+        if (!next) return;
+        setSelection(next);
+        focus('doc');
+      },
+      [gameState, focus],
+    );
+
     const openFile = useCallback(
       (root: Root, file: GameFile) => {
         onRunCommand(catCommand(root, file));
@@ -182,7 +206,7 @@ export const Workspace = forwardRef<WorkspaceHandle, Props>(
 
     const auxTabs = (
       <span className="aux-tabs">
-        {(['map', 'notes'] as const).map(tab => (
+        {(['map', 'case'] as const).map(tab => (
           <button
             key={tab}
             type="button"
@@ -215,7 +239,10 @@ export const Workspace = forwardRef<WorkspaceHandle, Props>(
           disabled={explorerDisabled}
         />
       ),
-      aux: auxTab === 'map' ? map : notes,
+      aux:
+        auxTab === 'map'
+          ? map
+          : gameState && <CasePane gameState={gameState} onOpenSource={openSource} />,
       comms,
     };
 
@@ -237,7 +264,7 @@ export const Workspace = forwardRef<WorkspaceHandle, Props>(
           narrow={narrow && !noGame}
           bare={noGame}
           alerts={{ comms: commsAlert }}
-          unread={{ comms: commsUnread }}
+          unread={{ comms: commsUnread, aux: caseUnread }}
           onFocusPane={focus}
           onRatio={(path: TreePath, ratio: number) => {
             setLayout(prev => setRatio(prev, path, ratio));
@@ -250,7 +277,10 @@ export const Workspace = forwardRef<WorkspaceHandle, Props>(
             zoomed={layout.zoomed}
             nodeIp={nodeIp}
             trace={trace}
-            unread={commsUnread ? ['comms'] : []}
+            unread={[
+              ...(caseUnread ? (['aux'] as const) : []),
+              ...(commsUnread ? (['comms'] as const) : []),
+            ]}
           />
         )}
         {overlay && !noGame && (

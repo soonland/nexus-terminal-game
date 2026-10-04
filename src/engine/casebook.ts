@@ -49,6 +49,14 @@ const toAccount = (c: Credential): CaseAccount => ({
   accessLevel: c.accessLevel,
 });
 
+// How much the casebook holds: unlocked facts plus obtained credentials. It only ever grows
+// within a run, which is what the unread marker needs.
+export const casebookActivity = (state: GameState): number => {
+  const read = new Set(state.filesRead);
+  const facts = CASE_FACTS.filter(f => read.has(fileReadKey(f.source.nodeId, f.source.path)));
+  return facts.length + state.player.credentials.filter(c => c.obtained).length;
+};
+
 // Everything here is derived from what the player has read and obtained, so there is nothing to
 // save and a reload rebuilds the same casebook. A fact unlocks only when its source file is in
 // `filesRead` (a read of the original, not just an exfiltrated copy).

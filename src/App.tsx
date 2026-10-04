@@ -7,7 +7,6 @@ import { ScanDiskScreen } from './components/ScanDiskScreen';
 import { BriefingModal } from './components/BriefingModal';
 import { MapModal } from './components/MapModal';
 import { HelpModal } from './components/HelpModal';
-import { NotesModal } from './components/NotesModal';
 import { DossierWindow } from './components/DossierWindow';
 import { CommsPane } from './components/CommsPane';
 import { receivedNexusMessages } from './engine/nexusLine';
@@ -551,9 +550,9 @@ export const App = () => {
         return;
       }
 
-      if (raw.trim().toLowerCase() === 'notes') {
+      if (raw.trim().toLowerCase() === 'notes' || raw.trim().toLowerCase() === 'case') {
         push([makeLine('input', raw)]);
-        workspaceRef.current?.showAux('notes');
+        workspaceRef.current?.showAux('case');
         return;
       }
 
@@ -908,7 +907,6 @@ export const App = () => {
         />
       }
       map={gameState ? <MapModal gameState={gameState} /> : null}
-      notes={gameState ? <NotesModal gameState={gameState} /> : null}
       help={<HelpModal ariaNameKnown={ariaNameKnown} />}
       briefing={<BriefingModal />}
       dossier={

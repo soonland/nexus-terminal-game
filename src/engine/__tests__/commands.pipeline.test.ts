@@ -49,7 +49,7 @@ describe('local commands — no AI calls', () => {
 // ── Local commands — no state mutation ────────────────────
 
 describe('local commands — do not mutate state', () => {
-  const LOCAL_COMMANDS = ['help', 'status', 'whoami', 'map', 'clear', 'briefing', 'notes'];
+  const LOCAL_COMMANDS = ['help', 'status', 'whoami', 'map', 'clear', 'briefing', 'notes', 'case'];
 
   for (const cmd of LOCAL_COMMANDS) {
     it(`${cmd} does not return a nextState`, async () => {

@@ -253,7 +253,8 @@ export const resolveCommand = async (raw: string, state: GameState): Promise<Com
       result = { lines: [] }; // handled as modal in App
       break;
     case 'notes':
-      result = { lines: [] }; // handled as modal in App
+    case 'case':
+      result = { lines: [] }; // handled in App: focuses the CASE tab
       break;
     case 'dossier':
       result = { lines: [] }; // handled as a window in App
