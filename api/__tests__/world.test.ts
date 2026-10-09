@@ -131,6 +131,7 @@ describe('POST /api/world — no API key', () => {
     const json = res._json as WorldAIResponse;
     expect(json.narrative).toBe(FALLBACK_NARRATIVE);
     expect(json.isUnknown).toBe(true);
+    expect(json.unavailable).toBe(true);
     expect(json.traceChange).toBe(0);
     expect(fetchMock).not.toHaveBeenCalled();
   });

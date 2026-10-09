@@ -56,6 +56,8 @@ All game state is a single `GameState` object (`src/types/game.ts`). It is clone
 2. **Engine commands** — `scan`, `connect`, `login`, `ls`, `cat`, `disconnect`, `exploit`, `exfil`, `wipe-logs` — deterministic, return `CommandOutput` with optional `nextState`
 3. **Unknown commands** — routed to Phase 3 AI (Groq via `/api/world-ai`)
 
+`exploit` also asks the world AI route to narrate the outcome. If that call fails, or the API answers with its own offline fallback (`unavailable: true`, e.g. no AI key on a `vercel dev` server), a local module grants the service's access level, so a charge is never spent for nothing; only a real AI answer can deny access.
+
 `resolveCommand(raw, state)` returns `{ lines, nextState }`. `App.tsx` applies `nextState` and appends `lines` to the session line buffer.
 
 ### Network / nodes
