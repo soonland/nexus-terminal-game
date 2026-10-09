@@ -35,6 +35,8 @@ interface WorldAIResponse {
   nodesUnlocked: string[];
   isUnknown: boolean;
   suggestions?: unknown;
+  // Mirrors api/world.ts: set only on the API's own fallback (it could not reach the AI).
+  unavailable?: boolean;
 }
 
 // Mirrors api/aria.ts#AriaAIResponse — kept in sync manually (src/ cannot import from api/)
@@ -1559,6 +1561,9 @@ const cmdExploit = async (args: string[], state: GameState): Promise<CommandOutp
     });
     if (!res.ok) throw new Error(`World AI returned ${String(res.status)}`);
     aiResponse = (await res.json()) as WorldAIResponse;
+    // A server without a working AI answers 200 with an offline body that denies access: that is not
+    // the AI's verdict, so treat it like a failed request instead of burning the charge for nothing.
+    if (aiResponse.unavailable === true) throw new Error('World AI unavailable');
   } catch {
     // AI unavailable — grant access using the service's configured level so
     // charges are not permanently lost and offline play remains viable.

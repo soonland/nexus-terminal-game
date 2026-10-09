@@ -1420,6 +1420,53 @@ describe('resolveCommand — exploit', () => {
     expect(nextNode.accessLevel).toBe('user');
   });
 
+  it('grants access through the local module when the world API answers with its offline fallback', async () => {
+    // A server with no working AI key answers 200 with an "offline" body that denies access. The
+    // exploit must not burn the player's charge for nothing: it falls back like a failed request.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        makeOkFetchResponse({
+          narrative: '[World AI unavailable — operating in offline mode. Try basic commands.]',
+          traceChange: 0,
+          accessGranted: false,
+          newAccessLevel: null,
+          flagsSet: {},
+          nodesUnlocked: [],
+          isUnknown: true,
+          suggestions: [],
+          unavailable: true,
+        }),
+      ),
+    );
+    const result = await resolveCommand('exploit http', state);
+    const next = result.nextState as GameState;
+    const node = next.network.nodes['contractor_portal']!;
+    expect(node.accessLevel).toBe('user');
+    expect(node.compromised).toBe(true);
+    expect(result.lines.map(l => l.content).join('\n')).toContain('local exploit module');
+  });
+
+  it('still honours a real AI refusal (accessGranted false without the unavailable marker)', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        makeOkFetchResponse({
+          narrative: 'The service shrugs you off.',
+          traceChange: 0,
+          accessGranted: false,
+          newAccessLevel: null,
+          flagsSet: {},
+          nodesUnlocked: [],
+          isUnknown: false,
+        }),
+      ),
+    );
+    const result = await resolveCommand('exploit http', state);
+    const node = (result.nextState as GameState).network.nodes['contractor_portal']!;
+    expect(node.accessLevel).toBe('none');
+  });
+
   it('should deduct exploit charges on success', async () => {
     const result = await resolveCommand('exploit http', state);
     // http costs 1 charge; player starts with 4

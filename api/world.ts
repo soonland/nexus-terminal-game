@@ -65,6 +65,9 @@ export interface WorldAIResponse {
   nodesUnlocked: string[];
   isUnknown: boolean;
   suggestions: string[];
+  // Set only on the fallback below: the AI could not answer (no key, upstream error, bad output).
+  // The client must not treat it as the AI's verdict, e.g. an exploit must not burn its charge.
+  unavailable?: boolean;
 }
 
 const FALLBACK_RESPONSE: WorldAIResponse = {
@@ -76,6 +79,7 @@ const FALLBACK_RESPONSE: WorldAIResponse = {
   nodesUnlocked: [],
   isUnknown: true,
   suggestions: [],
+  unavailable: true,
 };
 
 const SYSTEM_PROMPT = `You are the World AI for a hacking terminal game called NEXUS.
