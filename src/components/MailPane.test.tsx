@@ -2,6 +2,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MailPane } from './MailPane';
+import type { MailView } from './MailPane';
 import { createInitialState } from '../engine/state';
 import produce from '../engine/produce';
 import type { GameState } from '../types/game';
@@ -48,15 +49,21 @@ const withTorres = (opened = true): GameState =>
     }
   });
 
-const setup = (state: GameState) => {
+const NONE: MailView = { ownerId: null, messageId: null };
+
+const setup = (state: GameState, view: MailView = NONE) => {
   const props = {
     onOpenMailbox: vi.fn(),
     onRead: vi.fn(),
     onOpenSource: vi.fn(),
+    onView: vi.fn(),
   };
-  render(<MailPane gameState={state} {...props} />);
+  render(<MailPane gameState={state} view={view} {...props} />);
   return props;
 };
+
+const TORRES: MailView = { ownerId: 'torres', messageId: null };
+const M1: MailView = { ownerId: 'torres', messageId: 'm1' };
 
 describe('MailPane', () => {
   it('says so when no mailbox is unlocked', () => {
@@ -64,9 +71,9 @@ describe('MailPane', () => {
     expect(screen.getByText(/no mailboxes unlocked yet/i)).toBeTruthy();
   });
 
-  it('lists only unlocked mailboxes', () => {
+  it('lists only unlocked mailboxes, with the login name', () => {
     setup(withTorres(false));
-    expect(screen.getByRole('button', { name: /Elena Torres/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Elena Torres (e.torres)' })).toBeTruthy();
     expect(screen.queryByText(/Mercer/)).toBeNull();
   });
 
@@ -74,21 +81,36 @@ describe('MailPane', () => {
     const props = setup(withTorres(false));
     fireEvent.click(screen.getByRole('button', { name: /Elena Torres/ }));
     expect(props.onOpenMailbox).toHaveBeenCalledWith('torres');
+    expect(props.onView).toHaveBeenCalledWith(TORRES);
   });
 
-  it('shows messages with unread ones marked, and reads one on click', () => {
+  it('does not re-request a mailbox that is already stored', () => {
     const props = setup(withTorres());
     fireEvent.click(screen.getByRole('button', { name: /Elena Torres/ }));
+    expect(props.onOpenMailbox).not.toHaveBeenCalled();
+    expect(props.onView).toHaveBeenCalledWith(TORRES);
+  });
+
+  it('shows the mailbox the view names, and reads one on click', () => {
+    const props = setup(withTorres(), TORRES);
     expect(screen.getAllByText(/Badge readers|Enrolment/)).toHaveLength(2);
     fireEvent.click(screen.getByRole('button', { name: /Badge readers/ }));
     expect(props.onRead).toHaveBeenCalledWith('m1');
+    expect(props.onView).toHaveBeenCalledWith(M1);
+  });
+
+  it('shows the message the view names', () => {
+    setup(withTorres(), M1);
     expect(screen.getByText('Serviced Thursday.')).toBeTruthy();
   });
 
+  it('syncs while the viewed mailbox is not stored yet', () => {
+    setup(withTorres(false), TORRES);
+    expect(screen.getByText(/syncing mailbox/i)).toBeTruthy();
+  });
+
   it('turns an attachment into a link that opens its source', () => {
-    const props = setup(withTorres());
-    fireEvent.click(screen.getByRole('button', { name: /Elena Torres/ }));
-    fireEvent.click(screen.getByRole('button', { name: /Badge readers/ }));
+    const props = setup(withTorres(), M1);
     fireEvent.click(screen.getByRole('button', { name: /board_minutes_oct\.pdf/ }));
     expect(props.onOpenSource).toHaveBeenCalledWith({
       nodeId: 'exec_cfo',
@@ -97,10 +119,8 @@ describe('MailPane', () => {
   });
 
   it('goes back from a message to the list', () => {
-    setup(withTorres());
-    fireEvent.click(screen.getByRole('button', { name: /Elena Torres/ }));
-    fireEvent.click(screen.getByRole('button', { name: /Badge readers/ }));
+    const props = setup(withTorres(), M1);
     fireEvent.click(screen.getByRole('button', { name: /back/i }));
-    expect(screen.getAllByText(/Badge readers|Enrolment/)).toHaveLength(2);
+    expect(props.onView).toHaveBeenCalledWith(TORRES);
   });
 });

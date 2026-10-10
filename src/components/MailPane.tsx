@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import type { GameState } from '../types/game';
 import { mailboxOf, unlockedOwners, unreadCount } from '../engine/mail';
 import { sourceSelection } from './explorerShared';
@@ -8,8 +7,16 @@ interface Source {
   path: string;
 }
 
+// What the pane shows: lifted to the workspace so a terminal command can drive it.
+export interface MailView {
+  ownerId: string | null;
+  messageId: string | null;
+}
+
 interface Props {
   gameState: GameState;
+  view: MailView;
+  onView: (view: MailView) => void;
   onOpenMailbox: (ownerId: string) => void;
   onRead: (messageId: string) => void;
   onOpenSource: (source: Source) => void;
@@ -17,9 +24,15 @@ interface Props {
 
 const fileName = (path: string): string => path.split('/').pop() ?? path;
 
-export const MailPane = ({ gameState, onOpenMailbox, onRead, onOpenSource }: Props) => {
-  const [ownerId, setOwnerId] = useState<string | null>(null);
-  const [messageId, setMessageId] = useState<string | null>(null);
+export const MailPane = ({
+  gameState,
+  view,
+  onView,
+  onOpenMailbox,
+  onRead,
+  onOpenSource,
+}: Props) => {
+  const { ownerId, messageId } = view;
   const owners = unlockedOwners(gameState);
   const read = new Set(gameState.mailRead);
   const mailbox = ownerId === null ? undefined : mailboxOf(gameState, ownerId);
@@ -37,8 +50,7 @@ export const MailPane = ({ gameState, onOpenMailbox, onRead, onOpenSource }: Pro
   }
 
   const selectOwner = (id: string) => {
-    setOwnerId(id);
-    setMessageId(null);
+    onView({ ownerId: id, messageId: null });
     if (!mailboxOf(gameState, id)) onOpenMailbox(id);
   };
 
@@ -55,7 +67,7 @@ export const MailPane = ({ gameState, onOpenMailbox, onRead, onOpenSource }: Pro
               onClick={() => {
                 selectOwner(o.id);
               }}>
-              {o.name}
+              {`${o.name} (${o.username})`}
               {unread > 0 ? ` (${String(unread)})` : ''}
             </button>
           );
@@ -72,7 +84,7 @@ export const MailPane = ({ gameState, onOpenMailbox, onRead, onOpenSource }: Pro
                 type="button"
                 data-unread={!read.has(m.id)}
                 onClick={() => {
-                  setMessageId(m.id);
+                  onView({ ownerId, messageId: m.id });
                   onRead(m.id);
                 }}>
                 <span className="mail-date">{m.sentAt}</span>
@@ -89,7 +101,7 @@ export const MailPane = ({ gameState, onOpenMailbox, onRead, onOpenSource }: Pro
           <button
             type="button"
             onClick={() => {
-              setMessageId(null);
+              onView({ ownerId, messageId: null });
             }}>
             ← back
           </button>

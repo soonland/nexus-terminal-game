@@ -1,7 +1,6 @@
 import type { GameState } from '../types/game';
-import type { Mailbox } from '../types/mail';
 import type { LineType } from '../types/terminal';
-import { findUnlockedOwner, unlockedOwners, unreadCount } from './mail';
+import { findUnlockedOwner, mailboxOf, unlockedOwners, unreadCount } from './mail';
 import { ensureMailbox, markMailRead } from './mailClient';
 
 type Line = { type: LineType; content: string };
@@ -11,6 +10,7 @@ export interface MailCommandResult {
   nextState?: GameState;
   showTab: boolean;
   ownerId?: string; // the mailbox that is now open
+  messageId?: string; // the message just read
 }
 
 const line = (content: string, type: LineType = 'output'): Line => ({ type, content });
@@ -19,19 +19,6 @@ const err = (content: string): Line => line(content, 'error');
 export const isMailCommand = (raw: string): boolean => /^mail(\s|$)/i.test(raw.trim());
 
 const READ = /^read\s*(.*)$/i;
-
-const boxOf = (state: GameState, ownerId: string): Mailbox | undefined =>
-  (state.mailboxes as Partial<Record<string, Mailbox>>)[ownerId];
-
-const listLines = (state: GameState, ownerId: string): Line[] => {
-  const read = new Set(state.mailRead);
-  const messages = boxOf(state, ownerId)?.messages ?? [];
-  return messages.map((m, i) =>
-    line(
-      `  ${String(i + 1)}. [${read.has(m.id) ? ' ' : '*'}] ${m.sentAt}  ${m.from}  ${m.subject}`,
-    ),
-  );
-};
 
 const summary = (state: GameState): MailCommandResult => {
   const owners = unlockedOwners(state);
@@ -59,7 +46,7 @@ const readMessage = (
   state: GameState,
   openOwnerId: string | null,
 ): MailCommandResult => {
-  const box = openOwnerId === null ? undefined : boxOf(state, openOwnerId);
+  const box = openOwnerId === null ? undefined : mailboxOf(state, openOwnerId);
   if (openOwnerId === null || !box) {
     return { lines: [err('mail: open a mailbox first (mail <name>)')], showTab: false };
   }
@@ -67,17 +54,11 @@ const readMessage = (
   const message = n >= 1 && n <= box.messages.length ? box.messages[n - 1] : undefined;
   if (!message) return { lines: [err('mail: no such message')], showTab: false };
   return {
-    lines: [
-      line(`From: ${message.from}`),
-      line(`To: ${message.to}`),
-      line(`Date: ${message.sentAt}`),
-      line(`Subject: ${message.subject}`),
-      line(''),
-      ...message.body.split('\n').map(b => line(b)),
-    ],
+    lines: [line(`Read: ${message.subject}`, 'system')],
     nextState: markMailRead(state, [message.id]),
     showTab: false,
     ownerId: openOwnerId,
+    messageId: message.id,
   };
 };
 
@@ -98,12 +79,15 @@ export const runMailCommand = async (
   if (!owner) return { lines: [err('mail: no credentials for that account')], showTab: false };
 
   const next = await ensureMailbox(state, owner);
-  const count = boxOf(next, owner.id)?.messages.length ?? 0;
+  const messages = mailboxOf(next, owner.id)?.messages ?? [];
+  const unread = unreadCount(next, owner.id);
+  const noun = messages.length === 1 ? 'message' : 'messages';
   return {
     lines: [
-      line(`${owner.name} (${owner.role}): ${String(count)} messages`, 'system'),
-      ...listLines(next, owner.id),
-      line('Use "mail read <n>" to read one.', 'system'),
+      line(
+        `${owner.name} (${owner.username}): ${String(messages.length)} ${noun}, ${String(unread)} unread`,
+        'system',
+      ),
     ],
     nextState: next === state ? undefined : next,
     showTab: true,

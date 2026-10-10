@@ -8,6 +8,7 @@ const owner = (over: Partial<MailOwner> = {}): MailOwner => ({
   role: 'Facilities Coordinator',
   division: 'operations',
   credentialId: 'cred_emp_ops_007',
+  username: 'dana.whitfield',
   workstationId: null,
   ...over,
 });

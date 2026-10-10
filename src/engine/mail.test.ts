@@ -45,6 +45,10 @@ describe('mailOwners', () => {
     const owner = owners.find(o => o.id === emp.id);
     expect(owner?.credentialId).toBe(`cred_${emp.id}`);
     expect(owner?.name).toBe(`${emp.firstName} ${emp.lastName}`);
+    expect(owner?.username).toBe(emp.username);
+    expect(owners.find(o => o.id === 'torres')?.username).toBe('e.torres');
+    expect(owners.find(o => o.id === 'mercer')?.username).toBe('j.mercer');
+    expect(owners.find(o => o.id === 'hale')?.username).toBe('ceo.root');
   });
 });
 
@@ -79,6 +83,17 @@ describe('findUnlockedOwner', () => {
     expect(findUnlockedOwner(state, 'torres')?.id).toBe('torres');
     expect(findUnlockedOwner(state, 'TORRES')?.id).toBe('torres');
     expect(findUnlockedOwner(state, 'elena torres')?.id).toBe('torres');
+  });
+
+  it('matches the credential login name, ignoring case', () => {
+    expect(findUnlockedOwner(state, 'e.torres')?.id).toBe('torres');
+    expect(findUnlockedOwner(state, 'E.Torres')?.id).toBe('torres');
+    const all = ['cred_sec_analyst', 'cred_exec_assistant', 'cred_ceo_root'].reduce(
+      withObtained,
+      state,
+    );
+    expect(findUnlockedOwner(all, 'j.mercer')?.id).toBe('mercer');
+    expect(findUnlockedOwner(all, 'ceo.root')?.id).toBe('hale');
   });
 
   it('returns null for an unknown or still-locked name', () => {
@@ -127,5 +142,6 @@ describe('employee credentials promoted by login', () => {
     const full = `${emp.firstName} ${emp.lastName}`;
     expect(findUnlockedOwner(state, full)?.id).toBe(emp.id);
     expect(findUnlockedOwner(state, full.toUpperCase())?.id).toBe(emp.id);
+    expect(findUnlockedOwner(state, emp.username)?.id).toBe(emp.id);
   });
 });

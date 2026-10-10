@@ -10,6 +10,7 @@ const TORRES: MailOwner = {
   role: 'Executive assistant',
   division: null,
   credentialId: 'cred_exec_assistant',
+  username: 'e.torres',
   workstationId: null,
 };
 
@@ -19,6 +20,7 @@ const EMP: MailOwner = {
   role: 'Facilities Coordinator',
   division: 'operations',
   credentialId: 'cred_emp_ops_001',
+  username: 'dana.whitfield',
   workstationId: null,
 };
 

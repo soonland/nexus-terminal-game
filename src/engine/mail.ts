@@ -12,10 +12,14 @@ export interface MailOwner {
   role: string;
   division: DivisionId | null;
   credentialId: string;
+  username: string; // the account's login, e.g. j.mercer
   workstationId: string | null;
 }
 
 export const mailOwners = (state: GameState): MailOwner[] => {
+  const logins = new Map(
+    [...state.player.credentials, ...state.worldCredentials].map(c => [c.id, c.username]),
+  );
   const cast = CASE_PEOPLE.flatMap(p =>
     (p.credentialIds ?? []).slice(0, 1).map(credentialId => ({
       id: p.id,
@@ -23,6 +27,7 @@ export const mailOwners = (state: GameState): MailOwner[] => {
       role: p.role,
       division: null,
       credentialId,
+      username: logins.get(credentialId) ?? p.id,
       workstationId: null,
     })),
   );
@@ -32,6 +37,7 @@ export const mailOwners = (state: GameState): MailOwner[] => {
     role: e.role,
     division: e.divisionId,
     credentialId: `cred_${e.id}`,
+    username: e.username,
     workstationId: e.workstationId,
   }));
   return [...cast, ...staff];
@@ -52,7 +58,7 @@ export const findUnlockedOwner = (state: GameState, query: string): MailOwner | 
       const name = o.name.toLowerCase();
       const last = name.split(' ').pop() ?? name;
       const username = name.replace(/^(dr\.|[a-z]\.)\s*/, '').replace(/\s+/g, '.');
-      return [o.id.toLowerCase(), name, last, username].includes(q);
+      return [o.id.toLowerCase(), name, last, username, o.username.toLowerCase()].includes(q);
     }) ?? null
   );
 };

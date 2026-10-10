@@ -14,6 +14,7 @@ import { FilesPane } from './FilesPane';
 import { DocPane } from './DocPane';
 import { CasePane } from './CasePane';
 import { MailPane } from './MailPane';
+import type { MailView } from './MailPane';
 import { mailActivity } from '../engine/mail';
 import { CamPane } from './CamPane';
 import { cameraFeeds } from '../engine/cameras';
@@ -29,6 +30,8 @@ export type { AuxTab };
 export interface WorkspaceHandle {
   showOverlay: (kind: OverlayKind) => void;
   showAux: (tab: AuxTab) => void;
+  // Selects the MAIL tab and the mailbox/message it shows; focuses aux only if it is off screen.
+  showMail: (ownerId: string, messageId?: string) => void;
   focusPane: (pane: PaneId) => void;
 }
 
@@ -99,6 +102,8 @@ export const Workspace = forwardRef<WorkspaceHandle, Props>(
     }, [hasCam]);
     const [selection, setSelection] = useState<Selection | null>(null);
     const narrow = useViewportWidth() < NARROW_WIDTH;
+    const [mailView, setMailView] = useState<MailView>({ ownerId: null, messageId: null });
+    const auxOnScreenRef = useRef(true);
     const noGame = gameState === null;
     const commsUnread = useUnread(
       commsActivity,
@@ -172,6 +177,11 @@ export const Workspace = forwardRef<WorkspaceHandle, Props>(
           setAuxTab(tab);
           focus('aux');
         },
+        showMail: (ownerId, messageId) => {
+          setAuxTab('mail');
+          setMailView({ ownerId, messageId: messageId ?? null });
+          if (!auxOnScreenRef.current) focus('aux');
+        },
         focusPane: focus,
       }),
       [focus],
@@ -192,6 +202,12 @@ export const Workspace = forwardRef<WorkspaceHandle, Props>(
 
     // The CASE tab counts as "being looked at" when it is the selected aux tab and the aux pane
     // is actually on screen (not hidden behind another pane's zoom, or another narrow tab).
+    const auxOnScreen = narrow
+      ? layout.focused === 'aux'
+      : layout.zoomed === null || layout.zoomed === 'aux';
+    useEffect(() => {
+      auxOnScreenRef.current = auxOnScreen;
+    });
     const caseVisible =
       shownAuxTab === 'case' &&
       (narrow ? layout.focused === 'aux' : layout.zoomed === null || layout.zoomed === 'aux');
@@ -301,6 +317,8 @@ export const Workspace = forwardRef<WorkspaceHandle, Props>(
           gameState && (
             <MailPane
               gameState={gameState}
+              view={mailView}
+              onView={setMailView}
               onOpenMailbox={onOpenMailbox}
               onRead={onReadMail}
               onOpenSource={openSource}

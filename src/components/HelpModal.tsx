@@ -28,7 +28,9 @@ const BODY: HelpLine[] = [
     color: 'var(--color-system)',
   },
   {
-    text: r('  mail [name]   -read mail of accounts you hold; "mail read <n>" opens one'),
+    text: r(
+      '  mail [name]   -open the mailbox of an account you hold; "mail read <n>" opens a message',
+    ),
     color: 'var(--color-system)',
   },
   { text: r('  dossier       -cross-run dossier'), color: 'var(--color-system)' },

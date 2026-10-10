@@ -591,3 +591,72 @@ describe('Workspace — the MAIL tab', () => {
     expect(screen.getByText(/no mailboxes unlocked yet/i)).toBeTruthy();
   });
 });
+
+describe('Workspace — showMail', () => {
+  const mailState = (): GameState =>
+    produce(createInitialState(5), s => {
+      for (const c of s.player.credentials) c.obtained = false;
+      const c = s.player.credentials.find(x => x.id === 'cred_exec_assistant');
+      if (c) c.obtained = true;
+      s.mailboxes['torres'] = {
+        ownerId: 'torres',
+        messages: [
+          {
+            id: 'm1',
+            threadId: 'm1',
+            from: 'Facilities Desk',
+            to: 'Elena Torres',
+            subject: 'Badge readers',
+            body: 'Serviced Thursday.',
+            sentAt: '2024-10-07',
+            source: 'authored',
+          },
+        ],
+      };
+    });
+
+  it('selects the MAIL tab and shows the message', () => {
+    const { ref } = setup({ gameState: mailState() });
+    act(() => {
+      ref.current?.showMail('torres', 'm1');
+    });
+    expect(screen.getByText('Serviced Thursday.')).toBeTruthy();
+  });
+
+  it('shows the mailbox list when no message is given', () => {
+    const { ref } = setup({ gameState: mailState() });
+    act(() => {
+      ref.current?.showMail('torres');
+    });
+    expect(screen.getByRole('button', { name: /Badge readers/ })).toBeTruthy();
+  });
+
+  it('leaves focus alone when the aux pane is already on screen', () => {
+    const { ref } = setup({ gameState: mailState() });
+    expect(section('term').getAttribute('data-focused')).toBe('true');
+    act(() => {
+      ref.current?.showMail('torres', 'm1');
+    });
+    expect(section('term').getAttribute('data-focused')).toBe('true');
+    expect(section('aux').getAttribute('data-focused')).toBe('false');
+  });
+
+  it('focuses aux when another pane is zoomed', () => {
+    const { ref } = setup({ gameState: mailState() });
+    alt('KeyZ');
+    expect(section('term').getAttribute('data-focused')).toBe('true');
+    act(() => {
+      ref.current?.showMail('torres', 'm1');
+    });
+    expect(section('aux').getAttribute('data-focused')).toBe('true');
+  });
+
+  it('focuses aux on a narrow screen showing another pane', () => {
+    vi.stubGlobal('innerWidth', 700);
+    const { ref } = setup({ gameState: mailState() });
+    act(() => {
+      ref.current?.showMail('torres', 'm1');
+    });
+    expect(section('aux').getAttribute('data-focused')).toBe('true');
+  });
+});

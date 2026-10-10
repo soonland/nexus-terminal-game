@@ -86,10 +86,15 @@ no call.
 Commands go through `handleSubmit` and `resolveCommand` as local commands with no trace cost:
 
 - `mail` opens the tab and prints a one-line summary (mailboxes, unread).
-- `mail <name>` switches mailbox (`mail torres`); a locked name prints "no credentials for that
-  account".
-- `mail read <n>` prints the message in the terminal and marks it read. Reading in the pane and
-  in the terminal both mark read.
+- `mail <name>` switches mailbox and prints one line, `<Name> (<username>): <N> messages, <M> unread`;
+  the pane selects that mailbox. A locked name prints "no credentials for that account". The name
+  matches the owner id, full name, last name, derived `first.last` or the credential's login
+  (`mail j.mercer`, `mail e.torres`, `mail ceo.root`), case-insensitively.
+- `mail read <n>` prints one line, `Read: <subject>`, marks the message read and opens it in the
+  pane; the terminal never shows the header or body. Reading in the pane also marks read.
+- The terminal drives the pane through `WorkspaceHandle.showMail(ownerId, messageId?)`, which
+  selects the MAIL tab and the view, and moves focus to the aux pane only when it is off screen.
+  The mailbox selector shows `<Name> (<username>)`.
 
 Unread: a new message in a mailbox the player holds marks the aux title and status bar through
 `useUnread`; a resumed run starts read. `help` gets a `mail` entry; the suggestion bar offers

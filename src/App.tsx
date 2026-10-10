@@ -591,7 +591,8 @@ export const App = () => {
               return merged;
             });
           }
-          if (result.showTab) workspaceRef.current?.showAux('mail');
+          if (result.ownerId) workspaceRef.current?.showMail(result.ownerId, result.messageId);
+          else if (result.showTab) workspaceRef.current?.showAux('mail');
         });
         return;
       }

@@ -55,12 +55,58 @@ describe('mail (summary)', () => {
 });
 
 describe('mail <name>', () => {
-  it('opens an unlocked mailbox, stores it and lists numbered messages', async () => {
+  it('opens an unlocked mailbox, stores it and prints one summary line', async () => {
     const r = await runMailCommand('mail torres', withTorres(), null);
     expect(r.ownerId).toBe('torres');
     expect(r.showTab).toBe(true);
-    expect(r.nextState?.mailboxes['torres']).toBeDefined();
-    expect(text(r)).toMatch(/\s1\. \[\*\] 2024-10-/);
+    const box = r.nextState?.mailboxes['torres'];
+    expect(box).toBeDefined();
+    const n = box?.messages.length ?? 0;
+    expect(r.lines).toHaveLength(1);
+    expect(r.lines[0].type).toBe('system');
+    expect(r.lines[0].content).toBe(
+      `Elena Torres (e.torres): ${String(n)} ${n === 1 ? 'message' : 'messages'}, ${String(n)} unread`,
+    );
+    expect(text(r)).not.toMatch(/2024-10-/);
+  });
+
+  it('says "1 message" in the singular', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ messages: [] }),
+      }),
+    );
+    const state = produce(withTorres(), s => {
+      s.mailboxes['torres'] = {
+        ownerId: 'torres',
+        messages: [
+          {
+            id: 'only',
+            threadId: 'only',
+            from: 'A',
+            to: 'B',
+            subject: 'S',
+            body: 'b',
+            sentAt: '2024-10-01',
+            source: 'generated',
+          },
+        ],
+      };
+    });
+    const r = await runMailCommand('mail torres', state, null);
+    expect(text(r)).toBe('Elena Torres (e.torres): 1 message, 1 unread');
+  });
+
+  it('opens a mailbox by login name', async () => {
+    const state = produce(withTorres(), s => {
+      const c = s.player.credentials.find(x => x.id === 'cred_sec_analyst');
+      if (c) c.obtained = true;
+    });
+    const r = await runMailCommand('mail j.mercer', state, null);
+    expect(r.ownerId).toBe('mercer');
+    expect(text(r)).toContain('(j.mercer)');
   });
 
   it('refuses a locked or unknown name without changing state', async () => {
@@ -79,12 +125,17 @@ describe('mail read <n>', () => {
     expect(text(r)).toContain('mail: open a mailbox first');
   });
 
-  it('prints the message and marks it read', async () => {
+  it('prints one line, returns the message id and marks it read', async () => {
     const opened = await runMailCommand('mail torres', withTorres(), null);
     const state = opened.nextState as GameState;
     const r = await runMailCommand('mail read 1', state, 'torres');
-    expect(text(r)).toContain('Subject:');
     const first = state.mailboxes['torres'].messages[0];
+    expect(r.lines).toHaveLength(1);
+    expect(text(r)).toBe(`Read: ${first.subject}`);
+    expect(text(r)).not.toContain('Subject:');
+    expect(text(r)).not.toContain(first.body);
+    expect(r.messageId).toBe(first.id);
+    expect(r.ownerId).toBe('torres');
     expect(r.nextState?.mailRead).toContain(first.id);
   });
 
@@ -120,8 +171,7 @@ describe('mail <name> opened twice before the first is stored', () => {
     expect(b.nextState?.mailboxes['torres']).toEqual(a.nextState?.mailboxes['torres']);
     const stored = a.nextState as GameState;
     const read = await runMailCommand('mail read 1', stored, 'torres');
-    const listed = text(b).split('\n')[1] ?? '';
-    expect(listed).toContain(stored.mailboxes['torres'].messages[0].subject);
-    expect(text(read)).toContain(`Subject: ${stored.mailboxes['torres'].messages[0].subject}`);
+    expect(text(b)).toContain(`${String(stored.mailboxes['torres'].messages.length)} messages,`);
+    expect(text(read)).toBe(`Read: ${stored.mailboxes['torres'].messages[0].subject}`);
   });
 });
