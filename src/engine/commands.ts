@@ -1,4 +1,12 @@
-import type { GameState, CommandOutput, AccessLevel, FavorOffer, ToolId } from '../types/game';
+import type {
+  GameState,
+  CommandOutput,
+  AccessLevel,
+  FavorOffer,
+  LiveNode,
+  Service,
+  ToolId,
+} from '../types/game';
 import { hasAccess, fileReadKey } from '../types/game';
 import { listAccessibleFiles } from './fileTree';
 import { DIVISION_LAYER } from '../data/divisionSeeds';
@@ -981,9 +989,15 @@ const cmdInventory = (state: GameState): CommandOutput => {
 };
 
 // ── scan ──────────────────────────────────────────────────
+// The trace a scan costs: free while an unused port scanner is held, otherwise 1 or 2.
+export const scanTraceRange = (state: GameState): { min: number; max: number } =>
+  state.player.tools.some(t => t.id === 'port-scanner' && !t.used)
+    ? { min: 0, max: 0 }
+    : { min: 1, max: 2 };
+
 const cmdScan = (args: string[], state: GameState): CommandOutput => {
-  const hasPortScanner = state.player.tools.some(t => t.id === 'port-scanner' && !t.used);
-  const traceDelta = hasPortScanner ? 0 : Math.random() < 0.5 ? 1 : 2;
+  const range = scanTraceRange(state);
+  const traceDelta = range.max === 0 ? 0 : Math.random() < 0.5 ? range.min : range.max;
   let next = addTrace(state, traceDelta, 'scan');
   const lines: Out = [];
 
@@ -997,6 +1011,11 @@ const cmdScan = (args: string[], state: GameState): CommandOutput => {
       next = produce(next, s => {
         const n = s.network.nodes[target.id];
         if (n) n.discovered = true;
+      });
+    }
+    if (!next.scanned.includes(target.id)) {
+      next = produce(next, s => {
+        s.scanned.push(target.id);
       });
     }
     lines.push(out(`Scanning ${target.ip}...`));
@@ -1033,24 +1052,18 @@ const cmdScan = (args: string[], state: GameState): CommandOutput => {
 const NODE_DESCRIPTION_FALLBACK =
   'You have connected to an unidentified host. System metadata is unavailable.';
 
-const cmdConnect = async (args: string[], state: GameState): Promise<CommandOutput> => {
-  if (!args[0]) return { lines: [err('Usage: connect [ip]')] };
-
-  const target = Object.values(state.network.nodes).find(n => n?.ip === args[0]);
-  if (!target) return { lines: [err(`Host not found: ${args[0]}`)] };
-  if (!target.discovered) return { lines: [err(`No route to ${args[0]} — try scanning first`)] };
-
+// Why `connect` to this node is refused from where the player stands, as the exact message the
+// command prints; null when it would go ahead. The map's node menu uses it too, so the two
+// cannot disagree.
+export const connectBlockedMessage = (state: GameState, target: LiveNode): string | null => {
+  if (!target.discovered) return `No route to ${target.ip} — try scanning first`;
   const node = currentNode(state);
-  if (target.id === node.id) return { lines: [err(`Already connected to ${target.ip}`)] };
-
+  if (target.id === node.id) return `Already connected to ${target.ip}`;
   // A node you already hold a session on can be re-entered from anywhere (a pivot): no link and
   // no layer gating needed. Everything else needs a direct route.
   const linked = node.connections.includes(target.id);
   const pivot = !linked && target.accessLevel !== 'none';
-  if (!linked && !pivot) {
-    return { lines: [err(`No direct route from ${node.ip} to ${target.ip}`)] };
-  }
-
+  if (!linked && !pivot) return `No direct route from ${node.ip} to ${target.ip}`;
   // Layer gating: cross-layer connect blocked unless current layer's key anchor is compromised.
   if (linked && target.layer > node.layer) {
     const keyAnchorId = LAYER_KEY_ANCHOR[node.layer];
@@ -1058,10 +1071,24 @@ const cmdConnect = async (args: string[], state: GameState): Promise<CommandOutp
       const keyAnchor = state.network.nodes[keyAnchorId];
       if (!keyAnchor?.compromised) {
         const hint = keyAnchor ? ` — gain a foothold on ${keyAnchor.ip} first` : '';
-        return { lines: [err(`// ACCESS DENIED — current layer incomplete${hint}`)] };
+        return `// ACCESS DENIED — current layer incomplete${hint}`;
       }
     }
   }
+  return null;
+};
+
+const cmdConnect = async (args: string[], state: GameState): Promise<CommandOutput> => {
+  if (!args[0]) return { lines: [err('Usage: connect [ip]')] };
+
+  const target = Object.values(state.network.nodes).find(n => n?.ip === args[0]);
+  if (!target) return { lines: [err(`Host not found: ${args[0]}`)] };
+  const blocked = connectBlockedMessage(state, target);
+  if (blocked) return { lines: [err(blocked)] };
+
+  // Reaching here means a direct link or a held session; no link means this is a pivot.
+  const pivot =
+    !currentNode(state).connections.includes(target.id) && target.accessLevel !== 'none';
 
   // The Restricted Subnet Key is the authentication token for the subnet: with it, connecting to
   // a layer-5 node grants user access (nothing else can authenticate there).
@@ -1476,6 +1503,10 @@ const cmdDisconnect = (state: GameState): CommandOutput => {
 };
 
 // ── exploit ───────────────────────────────────────────────
+// Charges one exploit of this service costs: sentinelPatched nodes cost one more.
+export const exploitChargeCost = (node: LiveNode, svc: Service): number =>
+  svc.exploitCost + (node.sentinelPatched ? 1 : 0);
+
 const cmdExploit = async (args: string[], state: GameState): Promise<CommandOutput> => {
   if (!args[0]) return { lines: [err('Usage: exploit [service]')] };
 
@@ -1489,7 +1520,7 @@ const cmdExploit = async (args: string[], state: GameState): Promise<CommandOutp
   if (!svc) return { lines: [err(`Service not found on ${node.ip}: ${service}`)] };
 
   // sentinelPatched nodes cost +1 charge to exploit
-  const effectiveCost = svc.exploitCost + (node.sentinelPatched ? 1 : 0);
+  const effectiveCost = exploitChargeCost(node, svc);
 
   if (state.player.charges < effectiveCost) {
     return {

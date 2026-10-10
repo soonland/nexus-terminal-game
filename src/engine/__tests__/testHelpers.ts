@@ -74,6 +74,7 @@ export const makeState = (overrides: Partial<GameState> = {}): GameState => {
     unlockAttempts: {},
     mailboxes: {},
     mailRead: [],
+    scanned: [],
     ...overrides,
   };
 };

@@ -133,6 +133,7 @@ export const createInitialState = (sessionSeed?: number, contractId?: string): G
     unlockAttempts: {},
     mailboxes: {},
     mailRead: [],
+    scanned: [],
   };
 };
 

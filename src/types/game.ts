@@ -318,6 +318,7 @@ export interface GameState {
   unlockAttempts: Record<string, number>; // file.path → cumulative individual failure count
   mailboxes: Record<string, Mailbox>; // owner id → mailbox; only mailboxes the player has opened
   mailRead: string[]; // ids of mail messages the player has read
+  scanned: string[]; // ids of nodes the player has scanned by IP (`scan <ip>`); the map menu lists services only for these
 }
 
 // ── Command result ─────────────────────────────────────────
