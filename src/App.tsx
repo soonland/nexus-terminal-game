@@ -179,6 +179,9 @@ export const App = () => {
     disclaimerRequired() ? [] : [makeLine('system', 'nx-field-01 login:')],
   );
   const [username, setUsername] = useState('');
+  // Set only when a saved run is being resumed: that is the one entry into the uplink screen that
+  // may be skipped. A new game always shows the initializer.
+  const [resumingRun, setResumingRun] = useState(false);
   const [spinnerLine, setSpinnerLine] = useState<TerminalLine | null>(null);
   const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
   const [pendingContract, setPendingContract] = useState<ContractDefinition | null>(null);
@@ -210,14 +213,15 @@ export const App = () => {
       node?.id === 'aria_decision' ? 'Choose your ending: type 1–4.' : 'Start with: scan',
     );
     setSessionLines([]);
+    setResumingRun(false);
     setAppPhase('booting');
   }, [gameState]);
 
-  // An uplink that completed less than 8 hours ago is still open: skip the initializer screen
-  // (the login itself is unchanged).
+  // Resuming a saved run while an uplink completed less than 8 hours ago is still open: skip the
+  // initializer screen (the login itself is unchanged). A new game never skips it.
   useEffect(() => {
-    if (appPhase === 'scanning' && uplinkSessionValid()) finishUplink();
-  }, [appPhase, finishUplink]);
+    if (appPhase === 'scanning' && resumingRun && uplinkSessionValid()) finishUplink();
+  }, [appPhase, resumingRun, finishUplink]);
 
   // Advance booting → playing (or → ended if restoring a completed run) once MOTD finishes
   useEffect(() => {
@@ -524,6 +528,7 @@ export const App = () => {
           const saved = loadGame();
           if (saved) {
             setGameState(saved);
+            setResumingRun(true);
             // Start the channel UI clean, but show the saved conversation (if any).
             resetSentinelUi();
             setSentinelLines(sentinelHistoryLines(saved.sentinel.messageHistory, username));
@@ -875,7 +880,7 @@ export const App = () => {
 
   if (appPhase === 'scanning') {
     // The skip effect above moves on within the same tick; show nothing meanwhile.
-    if (uplinkSessionValid()) return null;
+    if (resumingRun && uplinkSessionValid()) return null;
     return (
       <ScanDiskScreen
         onDone={() => {
