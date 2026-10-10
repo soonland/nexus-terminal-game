@@ -1,6 +1,6 @@
 // Where a message came from. Authored mail is hand-written and always present; generated mail
 // came from /api/mail; fallback mail is the local template used when the API could not answer.
-export type MailSource = 'authored' | 'generated' | 'fallback';
+type MailSource = 'authored' | 'generated' | 'fallback';
 
 export interface MailMessage {
   id: string;
