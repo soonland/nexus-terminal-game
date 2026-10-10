@@ -13,6 +13,10 @@ updates:
     ignore:
       - dependency-name: '*'
         update-types: ['version-update:semver-patch']
+      # typescript-eslint does not support TypeScript 7.0 (it errors on load, so lint fails); revisit
+      # when it adds support (tracked in typescript-eslint/typescript-eslint#10940, expected 7.1+).
+      - dependency-name: 'typescript'
+        versions: ['7.0.x']
     groups:
       dev-dependencies:
         dependency-type: 'development'
