@@ -21,6 +21,36 @@ const mono = {
   margin: 0,
 };
 
+// Which levels the player left open, kept for the browser session so switching between the aux
+// tabs (which unmounts the map) does not reset them. A per-viewer convenience, never part of the
+// game save; anything unreadable or malformed is ignored.
+const LEVELS_KEY = 'irongate_map_levels';
+
+const readOpenLevels = (): Record<number, boolean> => {
+  try {
+    const parsed: unknown = JSON.parse(sessionStorage.getItem(LEVELS_KEY) ?? 'null');
+    if (!Array.isArray(parsed)) return {};
+    const open: Record<number, boolean> = {};
+    for (const v of parsed) {
+      if (typeof v === 'number' && Number.isInteger(v) && v >= 0 && v <= 5) open[v] = true;
+    }
+    return open;
+  } catch {
+    return {};
+  }
+};
+
+const writeOpenLevels = (open: Record<number, boolean>) => {
+  try {
+    const layers = Object.keys(open)
+      .map(Number)
+      .filter(l => open[l]);
+    sessionStorage.setItem(LEVELS_KEY, JSON.stringify(layers));
+  } catch {
+    // storage unavailable: the choices simply last as long as the component
+  }
+};
+
 export const MapModal = ({ gameState }: Props) => {
   const { nodes, currentNodeId } = gameState.network;
 
@@ -28,8 +58,11 @@ export const MapModal = ({ gameState }: Props) => {
   // again whenever the player moves onto another level; levels opened by hand stay open.
   const currentLayer = nodes[currentNodeId]?.layer;
   const [open, setOpen] = useState<Record<number, boolean>>(() =>
-    currentLayer === undefined ? {} : { [currentLayer]: true },
+    currentLayer === undefined ? readOpenLevels() : { ...readOpenLevels(), [currentLayer]: true },
   );
+  useEffect(() => {
+    writeOpenLevels(open);
+  }, [open]);
   useEffect(() => {
     if (currentLayer === undefined) return;
     setOpen(prev => ({ ...prev, [currentLayer]: true }));
