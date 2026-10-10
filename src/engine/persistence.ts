@@ -75,6 +75,7 @@ export interface SaveState {
   unlockAttempts?: Record<string, number>; // optional for backwards compat
   mailboxes?: Record<string, Mailbox>; // optional for backwards compat — no SAVE_VERSION bump
   mailRead?: string[];
+  scanned?: string[]; // optional for backwards compat: no SAVE_VERSION bump
 }
 
 // ── Serialisation ──────────────────────────────────────────
@@ -163,6 +164,7 @@ const toSaveState = (state: GameState): SaveState => {
     }),
     ...(Object.keys(state.mailboxes).length > 0 && { mailboxes: state.mailboxes }),
     ...(state.mailRead.length > 0 && { mailRead: state.mailRead }),
+    ...(state.scanned.length > 0 && { scanned: state.scanned }),
   };
 };
 
@@ -271,6 +273,7 @@ const fromSaveState = (save: SaveState): GameState => {
   state.unlockAttempts = save.unlockAttempts ?? {};
   state.mailboxes = save.mailboxes ?? {};
   state.mailRead = save.mailRead ?? [];
+  state.scanned = save.scanned ?? [];
 
   // Restore sentinel state
   state.sentinel = save.sentinel;

@@ -49,7 +49,7 @@ Success: a player can travel and probe the network with the mouse alone; every c
 Entries, by node:
 
 - **A node the player is not on:**
-  - `Connect` → `connect <ip>`. Enabled when `connect` would succeed: a route from the current node (`connections`), or a session already held there (the pivot rule). Otherwise disabled with the reason ("no route from here", "locked").
+  - `Connect` → `connect <ip>`. Enabled when `connect` would succeed: a route from the current node (`connections`), or a session already held there (the pivot rule). Otherwise disabled with the exact message the command would print ("No direct route from ... to ...", "ACCESS DENIED — current layer incomplete — gain a foothold on ... first"). `connect` does not check `locked`, so locked is not a reason.
   - `Scan` → `scan <ip>`.
 - **The current node:**
   - `Scan host` → `scan <ip>`; `Scan subnet` → `scan`.
@@ -57,6 +57,7 @@ Entries, by node:
   - `Exploit <service>` → `exploit <service>`, one entry per service on a **scanned** node with `vulnerable && !patched`. On an unscanned host the menu says "Scan this host to find services". Disabled, with the reason, without the exploit kit or with too few charges.
   - `Disconnect` (labelled "Back to `<previous node>`") → `disconnect`, when there is a previous node.
   - `Wipe logs` → `wipe-logs` and `Spoof` → `spoof`, only when the player holds the tool and it is unused.
+- At the decision terminal (aria_decision), and when the run is burned or ended, the menu offers nothing: the engine rejects all input at the decision terminal except 1 to 4. The `aria` phase (after the subnet key is taken) is ordinary play, so the menu still works there.
 
 Costs and confirmation:
 

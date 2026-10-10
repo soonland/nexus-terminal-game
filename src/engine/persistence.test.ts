@@ -930,3 +930,43 @@ describe('uplink session — recordUplinkSession / uplinkSessionValid', () => {
     }).not.toThrow();
   });
 });
+
+describe('persistence — scanned', () => {
+  let mockStorage: ReturnType<typeof makeMockStorage>;
+
+  beforeEach(() => {
+    mockStorage = makeMockStorage();
+    vi.stubGlobal('localStorage', mockStorage);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('round-trips the scanned list', () => {
+    const state = produce(createInitialState(), s => {
+      s.scanned = ['vpn_gateway', 'ops_hr_db'];
+    });
+    saveGame(state);
+    const [, value] = mockStorage.setItem.mock.calls[0];
+    mockStorage.getItem.mockReturnValue(value);
+    expect(loadGame()?.scanned).toEqual(['vpn_gateway', 'ops_hr_db']);
+  });
+
+  it('defaults to [] when an older save has no scanned field', () => {
+    saveGame(createInitialState());
+    const [, value] = mockStorage.setItem.mock.calls[0];
+    const save = JSON.parse(value) as Record<string, unknown>;
+    delete save['scanned'];
+    mockStorage.getItem.mockReturnValue(JSON.stringify(save));
+    const loaded = loadGame();
+    expect(loaded).not.toBeNull();
+    expect(loaded?.scanned).toEqual([]);
+  });
+
+  it('omits the field from the save while nothing is scanned', () => {
+    saveGame(createInitialState());
+    const [, value] = mockStorage.setItem.mock.calls[0];
+    expect('scanned' in (JSON.parse(value) as Record<string, unknown>)).toBe(false);
+  });
+});

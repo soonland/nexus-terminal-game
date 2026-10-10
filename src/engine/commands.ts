@@ -999,6 +999,11 @@ const cmdScan = (args: string[], state: GameState): CommandOutput => {
         if (n) n.discovered = true;
       });
     }
+    if (!next.scanned.includes(target.id)) {
+      next = produce(next, s => {
+        s.scanned.push(target.id);
+      });
+    }
     lines.push(out(`Scanning ${target.ip}...`));
     lines.push(sys(`  Host    : ${target.label}`));
     lines.push(sys(`  Layer   : ${String(target.layer)}`));
