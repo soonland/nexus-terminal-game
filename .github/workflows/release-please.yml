@@ -12,6 +12,6 @@ jobs:
   release-please:
     runs-on: ubuntu-latest
     steps:
+      # Configured in release-please-config.json (not with `release-type:`): the action only reads
+      # the search-depth options from that file, and the depth must reach back to the last release.
       - uses: googleapis/release-please-action@v4
-        with:
-          release-type: node
