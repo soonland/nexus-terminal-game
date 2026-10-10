@@ -27,6 +27,10 @@ const BODY: HelpLine[] = [
     text: r('  case          -casebook: people, timeline, credentials (alias: notes)'),
     color: 'var(--color-system)',
   },
+  {
+    text: r('  mail [name]   -read mail of accounts you hold; "mail read <n>" opens one'),
+    color: 'var(--color-system)',
+  },
   { text: r('  dossier       -cross-run dossier'), color: 'var(--color-system)' },
   { text: r('  explorer      -file explorer (alias: files)'), color: 'var(--color-system)' },
   { text: r('  status        -session overview'), color: 'var(--color-system)' },

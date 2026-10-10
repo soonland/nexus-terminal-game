@@ -23,6 +23,7 @@ import type { TerminalLine } from './types/terminal';
 import { makeLine } from './types/terminal';
 import type { GameState } from './types/game';
 import { hasAccess } from './types/game';
+import type { Mailbox } from './types/mail';
 import { createInitialState, currentNode, burnRetry } from './engine/state';
 import produce from './engine/produce';
 import { resolveCommand } from './engine/commands';
@@ -47,10 +48,27 @@ import {
 } from './engine/persistence';
 import { loadDossier } from './engine/dossierPersistence';
 import { selectContract } from './data/contracts';
+import { unlockedOwners } from './engine/mail';
+import { isMailCommand, runMailCommand } from './engine/mailCommand';
 import { DIVISION_LAYER } from './data/divisionSeeds';
 import type { ContractDefinition } from './types/game';
 import { THEMES, THEME_LABELS, applyTheme, saveTheme, loadTheme } from './engine/themes';
 import type { Theme } from './engine/themes';
+
+// Applies only what a mail command changed (a new mailbox, newly read ids) onto the latest state,
+// so a slow mailbox request cannot overwrite turns taken meanwhile.
+const mergeMailResult = (prev: GameState, incoming: GameState, ownerId?: string): GameState => {
+  const boxes = prev.mailboxes as Partial<Record<string, Mailbox>>;
+  const fresh = incoming.mailRead.filter(id => !prev.mailRead.includes(id));
+  const box = ownerId === undefined ? undefined : incoming.mailboxes[ownerId];
+  const addBox = ownerId !== undefined && box !== undefined && !boxes[ownerId];
+  if (!addBox && fresh.length === 0) return prev;
+  return {
+    ...prev,
+    mailboxes: addBox ? { ...prev.mailboxes, [ownerId]: box } : prev.mailboxes,
+    mailRead: [...prev.mailRead, ...fresh],
+  };
+};
 
 const computeContextSuggestions = (state: GameState): string[] => {
   const node = state.network.nodes[state.network.currentNodeId];
@@ -87,6 +105,7 @@ const computeContextSuggestions = (state: GameState): string[] => {
   }
 
   if (state.network.previousNodeId) suggestions.push('disconnect');
+  if (unlockedOwners(state).length > 0) suggestions.push('mail');
 
   if (state.player.tools.some(t => t.id === 'log-wiper') && state.player.trace > 20) {
     suggestions.push('wipe-logs');
@@ -185,6 +204,7 @@ export const App = () => {
 
   const terminalRef = useRef<TerminalHandle>(null);
   const workspaceRef = useRef<WorkspaceHandle>(null);
+  const openMailRef = useRef<string | null>(null);
   const bootHandled = useRef(false);
   const spinnerTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const spinnerFrame = useRef(0);
@@ -553,6 +573,25 @@ export const App = () => {
       if (raw.trim().toLowerCase() === 'notes' || raw.trim().toLowerCase() === 'case') {
         push([makeLine('input', raw)]);
         workspaceRef.current?.showAux('case');
+        return;
+      }
+
+      if (isMailCommand(raw)) {
+        push([makeLine('input', raw)]);
+        void runMailCommand(raw, gameState, openMailRef.current).then(result => {
+          if (result.ownerId) openMailRef.current = result.ownerId;
+          push(result.lines.map(l => makeLine(l.type, l.content)));
+          const incoming = result.nextState;
+          if (incoming) {
+            setGameState(prev => {
+              if (!prev) return prev;
+              const merged = mergeMailResult(prev, incoming, result.ownerId);
+              if (merged !== prev) saveGame(merged);
+              return merged;
+            });
+          }
+          if (result.showTab) workspaceRef.current?.showAux('mail');
+        });
         return;
       }
 
