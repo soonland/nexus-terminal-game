@@ -324,7 +324,15 @@ const stateWith = (nodes: LiveNode[], current: string): GameState => {
 };
 
 const ws = (id: string, over: Partial<LiveNode> = {}): LiveNode =>
-  makeNode({ id, label: id, ip: `10.0.0.${String(id.length)}`, layer: 1, template: 'workstation', ...over });
+  makeNode({
+    id,
+    label: id,
+    ip: `10.0.0.${String(id.length)}`,
+    layer: 1,
+    template: 'workstation',
+    accessLevel: 'none', // makeNode defaults to 'user', which would pin every node
+    ...over,
+  });
 
 describe('layoutMap', () => {
   it('shows only discovered nodes plus the current node, in one column per level', () => {
