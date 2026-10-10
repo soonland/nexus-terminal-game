@@ -14,6 +14,7 @@ import { FilesPane } from './FilesPane';
 import { DocPane } from './DocPane';
 import { CasePane } from './CasePane';
 import { MailPane } from './MailPane';
+import { NetworkMap } from './NetworkMap';
 import type { MailView } from './MailPane';
 import { mailActivity } from '../engine/mail';
 import { CamPane } from './CamPane';
@@ -27,7 +28,9 @@ import type { Root, Selection } from './explorerShared';
 export type OverlayKind = 'help' | 'briefing' | 'dossier';
 export type { AuxTab };
 
-type DocTab = 'doc' | 'mail';
+type DocTab = 'doc' | 'mail' | 'map';
+
+const DOC_TAB_LABELS: Record<DocTab, string> = { doc: 'DOC', mail: 'MAIL', map: 'NETWORK MAP' };
 
 export interface WorkspaceHandle {
   showOverlay: (kind: OverlayKind) => void;
@@ -35,6 +38,8 @@ export interface WorkspaceHandle {
   // Selects the doc pane's MAIL tab and the mailbox/message it shows; focuses the doc pane only if
   // it is off screen.
   showMail: (ownerId?: string, messageId?: string) => void;
+  // Selects the doc pane's NETWORK MAP tab; focuses the doc pane only if it is off screen.
+  showNetworkMap: () => void;
   focusPane: (pane: PaneId) => void;
 }
 
@@ -194,6 +199,10 @@ export const Workspace = forwardRef<WorkspaceHandle, Props>(
           if (ownerId !== undefined) setMailView({ ownerId, messageId: messageId ?? null });
           if (!docOnScreenRef.current) focus('doc');
         },
+        showNetworkMap: () => {
+          setDocTab('map');
+          if (!docOnScreenRef.current) focus('doc');
+        },
         focusPane: focus,
       }),
       [focus],
@@ -303,7 +312,7 @@ export const Workspace = forwardRef<WorkspaceHandle, Props>(
 
     const docTabs = (
       <span className="aux-tabs">
-        {(['doc', 'mail'] as const).map(tab => (
+        {(['doc', 'mail', 'map'] as const).map(tab => (
           <button
             key={tab}
             type="button"
@@ -311,7 +320,7 @@ export const Workspace = forwardRef<WorkspaceHandle, Props>(
             onClick={() => {
               setDocTab(tab);
             }}>
-            {tab.toUpperCase()}
+            {DOC_TAB_LABELS[tab]}
           </button>
         ))}
       </span>
@@ -339,6 +348,8 @@ export const Workspace = forwardRef<WorkspaceHandle, Props>(
             onRead={onReadMail}
             onOpenSource={openSource}
           />
+        ) : docTab === 'map' ? (
+          <NetworkMap gameState={gameState} />
         ) : (
           <DocPane
             gameState={gameState}

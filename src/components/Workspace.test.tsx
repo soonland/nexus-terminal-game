@@ -634,6 +634,98 @@ describe('Workspace — the doc pane tabs (DOC | MAIL)', () => {
   });
 });
 
+describe('Workspace — the NETWORK MAP doc tab', () => {
+  const inPane = (id: string, name: string) =>
+    Array.from(section(id).querySelectorAll('button')).some(b => b.textContent === name);
+
+  it('puts NETWORK MAP in the doc pane header and NETWORK LIST in the aux pane', () => {
+    setup();
+    expect(inPane('doc', 'DOC')).toBe(true);
+    expect(inPane('doc', 'MAIL')).toBe(true);
+    expect(inPane('doc', 'NETWORK MAP')).toBe(true);
+    expect(inPane('aux', 'NETWORK LIST')).toBe(true);
+    expect(inPane('aux', 'NETWORK MAP')).toBe(false);
+  });
+
+  it('shows the diagram on NETWORK MAP and the explorer again on DOC', () => {
+    setup();
+    fireEvent.click(screen.getByRole('button', { name: 'NETWORK MAP' }));
+    expect(section('doc').querySelector('[data-testid="network-map"]')).not.toBeNull();
+    expect(screen.queryByText(/select a file in the files pane/i)).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'DOC' }));
+    expect(section('doc').querySelector('[data-testid="network-map"]')).toBeNull();
+    expect(screen.getByText(/select a file in the files pane/i)).toBeTruthy();
+  });
+
+  it('showNetworkMap() selects the tab and leaves focus alone when the doc pane is on screen', () => {
+    const { ref } = setup();
+    expect(section('term').getAttribute('data-focused')).toBe('true');
+    act(() => {
+      ref.current?.showNetworkMap();
+    });
+    expect(section('doc').querySelector('[data-testid="network-map"]')).not.toBeNull();
+    expect(section('term').getAttribute('data-focused')).toBe('true');
+  });
+
+  it('showNetworkMap() focuses the doc pane when another pane is zoomed', () => {
+    const { ref } = setup();
+    alt('KeyZ');
+    act(() => {
+      ref.current?.showNetworkMap();
+    });
+    expect(section('doc').getAttribute('data-focused')).toBe('true');
+  });
+
+  it('selecting a file in the explorer flips NETWORK MAP back to DOC', () => {
+    setup();
+    fireEvent.click(screen.getByRole('button', { name: 'NETWORK MAP' }));
+    fireEvent.click(screen.getByText('vpn.cfg'));
+    expect(screen.getByText('/etc/vpn.cfg')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'DOC' }).getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('keeps the tab when the game state advances', () => {
+    const { ref, rerender } = setup();
+    fireEvent.click(screen.getByRole('button', { name: 'NETWORK MAP' }));
+    const next = produce(withFile(), s => {
+      s.turnCount += 1;
+    });
+    rerender(
+      <Workspace
+        ref={ref}
+        terminal={<input aria-label="term-input" />}
+        gameState={next}
+        nodeIp="10.0.0.1"
+        trace={14}
+        map={<div>map-content</div>}
+        help={<div>help-content</div>}
+        briefing={<div>briefing-content</div>}
+        dossier={<div>dossier-content</div>}
+        explorerDisabled={false}
+        onRunCommand={vi.fn()}
+        onTerminalFocused={vi.fn()}
+        comms={<div>comms-content</div>}
+        commsAlert={false}
+        commsActivity={0}
+        onCommsFocused={vi.fn()}
+        onOpenMailbox={vi.fn()}
+        onReadMail={vi.fn()}
+      />,
+    );
+    expect(section('doc').querySelector('[data-testid="network-map"]')).not.toBeNull();
+  });
+
+  it('showMail() still switches from NETWORK MAP to MAIL', () => {
+    const { ref } = setup();
+    fireEvent.click(screen.getByRole('button', { name: 'NETWORK MAP' }));
+    act(() => {
+      ref.current?.showMail();
+    });
+    expect(screen.getByRole('button', { name: 'MAIL' }).getAttribute('aria-pressed')).toBe('true');
+    expect(section('doc').querySelector('[data-testid="network-map"]')).toBeNull();
+  });
+});
+
 describe('Workspace — showMail', () => {
   const mailState = (): GameState =>
     produce(createInitialState(5), s => {

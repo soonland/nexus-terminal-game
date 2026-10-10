@@ -9,10 +9,10 @@ export const LAYER_LABELS: readonly string[] = [
   'CASSANDRA',
 ];
 
-export const COL_W = 220;
-export const ROW_H = 96;
-export const TOP = 56;
-export const LEFT = 40;
+const COL_W = 220;
+const ROW_H = 96;
+const TOP = 56;
+const LEFT = 40;
 export const GROUP_MIN = 3;
 
 export interface PlacedNode {
@@ -32,13 +32,13 @@ export interface PlacedGroup {
   x: number;
   y: number;
 }
-export type PlacedItem = PlacedNode | PlacedGroup;
-export interface PlacedColumn {
+type PlacedItem = PlacedNode | PlacedGroup;
+interface PlacedColumn {
   layer: number;
   label: string;
   x: number;
 }
-export interface PlacedLink {
+interface PlacedLink {
   id: string;
   from: string;
   to: string;

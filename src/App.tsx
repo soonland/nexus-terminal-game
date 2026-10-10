@@ -583,7 +583,7 @@ export const App = () => {
 
       if (raw.trim().toLowerCase() === 'map') {
         push([makeLine('input', raw)]);
-        workspaceRef.current?.showAux('list');
+        workspaceRef.current?.showNetworkMap();
         return;
       }
 
