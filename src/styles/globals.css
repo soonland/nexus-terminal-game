@@ -1161,3 +1161,155 @@ button.case-source {
     grid-template-columns: 1fr;
   }
 }
+
+/* ── Network map diagram ─────────────────────────────── */
+.network-map {
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
+  outline: none;
+}
+
+.network-map-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  cursor: grab;
+  touch-action: none;
+}
+
+.map-link {
+  stroke: var(--color-dim);
+  stroke-width: 1;
+  opacity: 0.6;
+}
+
+.map-link[data-current='true'] {
+  stroke: var(--color-system);
+  opacity: 1;
+}
+
+.map-link[data-patched='true'] {
+  stroke-dasharray: 4 4;
+}
+
+.map-disc {
+  fill: var(--color-bg);
+  stroke: var(--color-border);
+  stroke-width: 2;
+}
+
+.map-node {
+  color: var(--color-output);
+  cursor: default;
+  outline: none;
+}
+
+.map-node[data-current='true'] .map-disc {
+  stroke: var(--color-output);
+}
+
+.map-node[data-compromised='true'] .map-disc {
+  stroke: var(--color-active);
+}
+
+.map-node[data-patched='true'] .map-disc {
+  fill: url(#map-hatch);
+  stroke: var(--color-aggressive);
+}
+
+.map-node[data-locked='true'] {
+  opacity: 0.6;
+}
+
+.map-lock {
+  fill: none;
+  stroke: var(--color-elevated);
+  stroke-width: 1.5;
+}
+
+.map-badge {
+  fill: var(--color-safe);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: bold;
+}
+
+.map-bang {
+  fill: var(--color-active);
+}
+
+.map-label,
+.map-group text {
+  fill: var(--color-output);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.map-ip {
+  fill: var(--color-dim);
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+
+.map-col {
+  fill: var(--color-system);
+  font-size: 11px;
+  font-family: var(--font-mono);
+}
+
+.map-group {
+  cursor: pointer;
+  outline: none;
+}
+
+.map-group rect {
+  fill: var(--color-bg);
+  stroke: var(--color-border);
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+}
+
+.map-node:focus-visible .map-disc,
+.map-group:focus-visible rect {
+  stroke: var(--color-output);
+  stroke-width: 3;
+}
+
+.network-map-controls {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  display: flex;
+  gap: 4px;
+}
+
+.network-map-controls button {
+  background: transparent;
+  border: 1px solid var(--win-border);
+  color: var(--win-title-color);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 0 6px;
+  cursor: pointer;
+}
+
+.map-ring {
+  fill: none;
+  stroke: var(--color-output);
+  opacity: 0.7;
+}
+
+@keyframes map-pulse {
+  50% {
+    opacity: 0.15;
+  }
+}
+
+/* The pulse only runs for users who have not asked for reduced motion. */
+@media (prefers-reduced-motion: no-preference) {
+  .map-ring {
+    animation: map-pulse 2s ease-in-out infinite;
+  }
+}
