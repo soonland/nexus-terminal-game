@@ -9,7 +9,7 @@ import type { Credential, GameState, LiveNode, Tool } from '../../types/game';
 // precondition the menu should have checked. Failures of the game itself (a wrong exploit, say)
 // are fine; these messages are not.
 const PRECONDITION =
-  /^(Usage:|Host not found|No route|No direct route|Already connected|Service not found|Insufficient charges|exploit-kit tool required|spoof-id tool required|log-wiper tool required|No previous node)|tool depleted|ACCESS DENIED|Authentication failed|CREDENTIAL REVOKED|no known vulnerability|patched — exploit unavailable/;
+  /^(Usage:|Host not found|No route|No direct route|Already connected|Service not found|Insufficient charges|exploit-kit tool required|spoof-id tool required|log-wiper tool required|No previous node)|tool depleted|ACCESS DENIED|CREDENTIAL REVOKED|no known vulnerability|patched — exploit unavailable/;
 
 const node = (s: GameState, id: string): LiveNode => {
   const n = s.network.nodes[id];
@@ -102,6 +102,20 @@ describe('nodeActions contract: an enabled entry is never refused for a precondi
       expect(checked).toBeGreaterThan(0);
     });
   }
+
+  it('offers a credential valid only on another node, and running it is not a precondition error', async () => {
+    const state = produce(createInitialState(), s => {
+      s.player.credentials = [cred({ validOnNodes: ['vpn_gateway'] })];
+    });
+    const entry = nodeActions(state, 'contractor_portal').find(a => a.kind === 'login');
+    expect(entry).toBeDefined();
+    const result = await resolveCommand(entry?.command ?? '', state);
+    const refused = result.lines
+      .filter(l => l.type === 'error')
+      .map(l => l.content)
+      .filter(text => PRECONDITION.test(text));
+    expect(refused).toEqual([]);
+  });
 
   it('and a disabled Connect really is refused by the command, with the same message', async () => {
     const state = samples()['scanned and equipped'];

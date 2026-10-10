@@ -15,7 +15,7 @@ Success: a player can travel and probe the network with the mouse alone; every c
 - **Style:** a 2D graphical topology in SVG, not 3D and not a graph library. Fixed layered layout, left to right. No new dependency.
 - **Interaction:** clicking a node opens an action menu beside it, listing only the actions valid right now with their costs.
 - **Actions:** Connect, Scan (host and subnet), Disconnect, Exploit (per scanned vulnerable service), Login (per held credential), and the one-shot tools (Wipe logs, Spoof).
-- **Mis-click guard:** anything that costs something (scan, exploit, wipe logs, spoof) asks for a second click. Connect, login and disconnect run on the first click.
+- **Mis-click guard:** anything that costs something (scan, exploit, wipe logs, spoof, login) asks for a second click. Only connect and disconnect run on the first click.
 - **No new game rules and no new commands.** Every click runs an existing command string through the existing path.
 
 ## Placement and navigation
@@ -53,16 +53,16 @@ Entries, by node:
   - `Scan` → `scan <ip>`.
 - **The current node:**
   - `Scan host` → `scan <ip>`; `Scan subnet` → `scan`.
-  - `Login as <user>` → `login <user> <password>`, one entry per credential with `obtained && !revoked`, valid on this node (`validOnNodes`) and granting more access than the player has here. The command line echoes in the terminal as typed commands do, so the password appears in the transcript exactly as when typed.
-  - `Exploit <service>` → `exploit <service>`, one entry per service on a **scanned** node with `vulnerable && !patched`. On an unscanned host the menu says "Scan this host to find services". Disabled, with the reason, without the exploit kit or with too few charges.
+  - `Login as <user>` → `login <user> <password>`, one entry per credential with `obtained && !revoked` that would grant more access than the player has here. It is not filtered by `validOnNodes`: where a credential works is the player's puzzle, and the casebook never says it either. A wrong guess is a normal game outcome (a failed login costs trace), so the entry asks to confirm. The command line echoes in the terminal as typed commands do, so the password appears in the transcript exactly as when typed.
+  - `Exploit <service>` → `exploit <service>`, one entry per service on a **scanned** node with `vulnerable && !patched`, skipping any service whose `accessGained` the player already holds here (`hasAccess`, the rule the login entries use), because an exploit can lower access; if every service is skipped nothing is listed (the hint is for unscanned hosts only). On an unscanned host the menu says "Scan this host to find services". Disabled, with the reason, without the exploit kit or with too few charges.
   - `Disconnect` (labelled "Back to `<previous node>`") → `disconnect`, when there is a previous node.
   - `Wipe logs` → `wipe-logs` and `Spoof` → `spoof`, only when the player holds the tool and it is unused.
 - At the decision terminal (aria_decision), and when the run is burned or ended, the menu offers nothing: the engine rejects all input at the decision terminal except 1 to 4. The `aria` phase (after the subnet key is taken) is ordinary play, so the menu still works there.
 
 Costs and confirmation:
 
-- Every costed entry shows its price before the click: scan `+0 trace (port scanner)` or `+1–2 trace`; exploit `N charge(s)` (`exploitCost`, plus 1 on a Sentinel-patched node) and `+T trace` (`traceContribution`), noting that a failure adds `+10`; wipe logs `−15 trace, uses the log wiper`; spoof `uses the spoof tool`.
-- Scan, exploit, wipe logs and spoof turn the entry into an inline confirm (`spends 1 charge, +1 trace — Run / Cancel`); a second click runs it, `Esc` cancels. Connect, login and disconnect run on the first click.
+- Every costed entry shows its price before the click: scan `+0 trace (port scanner)` or `+1–2 trace`; exploit `N charge(s)` (`exploitCost`, plus 1 on a Sentinel-patched node) and `+T–(T+5) trace` (`traceContribution` plus the AI's `traceChange`, clamped 0 to 5; the `+10` of a patched service never applies because the menu does not offer one); wipe logs `−15 trace, uses the log wiper`; spoof `−20 trace, uses the spoof tool`; login `+5 trace if it does not work here`.
+- Scan, exploit, wipe logs, spoof and login turn the entry into an inline confirm (`spends 1 charge, +1 trace — Run / Cancel`); a second click runs it, `Esc` cancels. Only Connect and Disconnect run on the first click.
 
 Behaviour:
 
@@ -78,7 +78,7 @@ The game does not track which nodes the player has scanned, and `connect` does n
 
 ## Shared logic (so the menu cannot drift from the engine)
 
-- `nodeActions(state, nodeId): NodeAction[]` is a pure function in `src/engine/mapActions.ts`: `{ id, label, command, cost?, disabledReason?, confirm }` per entry. The diagram only renders it.
+- `nodeActions(state, nodeId): NodeAction[]` is a pure function in `src/engine/mapActions.ts`: `{ id, kind, label, command, cost: string | null, confirm: boolean, disabledReason: string | null }` per entry. The diagram only renders it.
 - The cost rules come from small helpers exported from `src/engine/commands.ts` and used by both the commands and `nodeActions` (the exploit charge cost including the patched surcharge, the scan trace range given the port scanner). A contract test runs each **enabled** entry's command through `resolveCommand` on the same state and requires that it does not come back as a usage error or "not found".
 - Layout and grouping are pure (`src/engine/mapLayout.ts`); events are pure (`src/engine/mapDiff.ts`); the components render them (`src/components/NetworkMap.tsx`, `NodeMenu.tsx`).
 
@@ -88,7 +88,7 @@ The game does not track which nodes the player has scanned, and `connect` does n
   - Layout is deterministic; turns do not move nodes; a new node shifts only later nodes in its column.
   - Grouping rules: threshold 3; current, accessed, compromised and patched nodes are never hidden in a group.
   - Links need both ends discovered and are drawn once; the layout output never contains an undiscovered node or link.
-  - `nodeActions` per state: route versus pivot, locked, the credential filter, exploit gating on kit and charges, tools, costs.
+  - `nodeActions` per state: route versus pivot, the credential filter, exploit gating on kit and charges, tools, costs.
   - The contract test described above.
   - `diffMap` events.
 - **State.** `scanned` round-trips through a save; an older save loads with `[]`; only a successful `scan <ip>` marks a host.
@@ -112,4 +112,5 @@ Drag-to-connect, right-click, long-press, multi-select, file actions (those stay
 - Positioning the menu over a panned and zoomed SVG: transform the node's bounding box to pane coordinates, flip at the edges.
 - The cost rules drifting from the engine: the shared helpers and the contract test guard it.
 - A short doc pane in the default `hunt` preset: levels flow left to right, `fit` shows everything, `Alt+Z` gives the whole window.
+- While an unlock sequence is pending (`state.unlockSession` set) any command counts as abandoning it and records a failed attempt (three attempts lock the file for good; see the unlock-session handling in `src/engine/commands.ts`), so the menu UI (part 3) must be disabled, or warn, while an unlock is pending.
 - Touch: a tap acts as a click; no long-press.

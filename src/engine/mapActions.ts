@@ -66,7 +66,7 @@ const exploitActions = (state: GameState, node: LiveNode): NodeAction[] => {
   }
   const hasKit = state.player.tools.some(t => t.id === 'exploit-kit');
   return node.services
-    .filter(svc => svc.vulnerable && !svc.patched)
+    .filter(svc => svc.vulnerable && !svc.patched && !hasAccess(node.accessLevel, svc.accessGained))
     .map(svc => {
       const price = exploitChargeCost(node, svc);
       let reason: string | null = null;
@@ -74,12 +74,13 @@ const exploitActions = (state: GameState, node: LiveNode): NodeAction[] => {
       else if (state.player.charges < price) {
         reason = `Insufficient charges (need ${String(price)}, have ${String(state.player.charges)})`;
       }
+      const trace = svc.traceContribution ?? 2;
       return costly(
         `exploit:${svc.name}`,
         'exploit',
         `Exploit ${svc.name}`,
         `exploit ${svc.name}`,
-        `${charges(price)}, ~+${String(svc.traceContribution ?? 2)} trace (+10 if it fails)`,
+        `${charges(price)}, +${String(trace)}–${String(trace + 5)} trace`,
         reason,
       );
     });
@@ -87,15 +88,15 @@ const exploitActions = (state: GameState, node: LiveNode): NodeAction[] => {
 
 const loginActions = (state: GameState, node: LiveNode): NodeAction[] =>
   state.player.credentials
-    .filter(
-      c =>
-        c.obtained &&
-        !c.revoked &&
-        c.validOnNodes.includes(node.id) &&
-        !hasAccess(node.accessLevel, c.accessLevel),
-    )
+    .filter(c => c.obtained && !c.revoked && !hasAccess(node.accessLevel, c.accessLevel))
     .map(c =>
-      free(`login:${c.id}`, 'login', `Login as ${c.username}`, `login ${c.username} ${c.password}`),
+      costly(
+        `login:${c.id}`,
+        'login',
+        `Login as ${c.username}`,
+        `login ${c.username} ${c.password}`,
+        '+5 trace if it does not work here',
+      ),
     );
 
 const currentNodeActions = (state: GameState, node: LiveNode): NodeAction[] => {

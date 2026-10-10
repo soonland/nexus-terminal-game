@@ -128,25 +128,26 @@ describe('nodeActions — the current node', () => {
     const logins = (s: GameState) =>
       nodeActions(s, 'contractor_portal').filter(a => a.kind === 'login');
 
-    it('offers one entry per obtained credential valid here, with the password only in the command', () => {
+    it('offers one confirmed entry per obtained credential, with the password only in the command', () => {
       const [entry] = logins(loginState([cred()]));
       expect(entry).toMatchObject({
         label: 'Login as ops.admin',
         command: 'login ops.admin Hunter2!',
-        cost: null,
-        confirm: false,
+        cost: '+5 trace if it does not work here',
+        confirm: true,
         disabledReason: null,
       });
       expect(entry.label).not.toContain('Hunter2!');
     });
 
-    it('skips revoked, un-obtained and wrong-node credentials', () => {
-      const s = loginState([
-        cred({ id: 'a', revoked: true }),
-        cred({ id: 'b', obtained: false }),
-        cred({ id: 'c', validOnNodes: ['vpn_gateway'] }),
-      ]);
+    it('skips revoked and un-obtained credentials', () => {
+      const s = loginState([cred({ id: 'a', revoked: true }), cred({ id: 'b', obtained: false })]);
       expect(logins(s)).toEqual([]);
+    });
+
+    it('offers a credential that is valid only on another node, so the menu never says where it works', () => {
+      const s = loginState([cred({ id: 'c', validOnNodes: ['vpn_gateway'] })]);
+      expect(logins(s)).toHaveLength(1);
     });
 
     it('skips a credential that would not raise the access the player already has here', () => {
@@ -188,7 +189,7 @@ describe('nodeActions — the current node', () => {
       expect(entries[0]).toMatchObject({
         confirm: true,
         disabledReason: null,
-        cost: `${String(first.exploitCost)} charge${first.exploitCost === 1 ? '' : 's'}, ~+${String(first.traceContribution ?? 2)} trace (+10 if it fails)`,
+        cost: `${String(first.exploitCost)} charge${first.exploitCost === 1 ? '' : 's'}, +${String(first.traceContribution ?? 2)}–${String((first.traceContribution ?? 2) + 5)} trace`,
       });
     });
 
@@ -205,6 +206,25 @@ describe('nodeActions — the current node', () => {
         for (const v of node(st, 'contractor_portal').services) v.patched = true;
       });
       expect(exploits(s)).toEqual([]);
+    });
+
+    it('skips a service that would not raise the access the player already has here', () => {
+      const svc = (st: GameState) =>
+        node(st, 'contractor_portal').services.filter(v => v.vulnerable && !v.patched);
+      const base = withEdit(st => {
+        st.scanned = ['contractor_portal'];
+        for (const v of svc(st)) v.accessGained = 'user';
+      });
+      const admin = produce(base, st => {
+        node(st, 'contractor_portal').accessLevel = 'admin';
+      });
+      expect(exploits(admin)).toEqual([]);
+      expect(exploits(base).length).toBeGreaterThan(0);
+      const asUser = produce(base, st => {
+        node(st, 'contractor_portal').accessLevel = 'user';
+        for (const v of svc(st)) v.accessGained = 'admin';
+      });
+      expect(exploits(asUser).length).toBeGreaterThan(0);
     });
 
     it('adds one charge to the price on a Sentinel-patched node', () => {
@@ -288,7 +308,7 @@ describe('nodeActions — the current node', () => {
       st.network.previousNodeId = 'vpn_gateway';
     });
     for (const action of nodeActions(s, 'contractor_portal')) {
-      const costs = ['scan-host', 'scan-subnet', 'exploit', 'wipe-logs', 'spoof'].includes(
+      const costs = ['scan-host', 'scan-subnet', 'login', 'exploit', 'wipe-logs', 'spoof'].includes(
         action.kind,
       );
       if (action.command === '') continue;
