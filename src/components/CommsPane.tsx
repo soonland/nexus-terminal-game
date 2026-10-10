@@ -1,9 +1,11 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import type { KeyboardEvent } from 'react';
 import type { TerminalLine } from '../types/terminal';
 import type { NexusMessage } from '../data/nexusMessages';
 import { TraceMeter } from './TraceMeter';
 import { TerminalOutput } from './TerminalOutput';
 import { TerminalInput } from './TerminalInput';
+import { StickyScroller } from './StickyScroller';
 
 // How long the Nexus line is cut off before the Sentinel tab takes over.
 export const INTERRUPT_MS = 700;
@@ -67,11 +69,16 @@ export const CommsPane = forwardRef<CommsHandle, Props>(
     const interruptingRef = useRef(false);
     const inputRef = useRef<HTMLInputElement>(null);
     const rootRef = useRef<HTMLDivElement>(null);
-    const nexusRef = useRef<HTMLDivElement>(null);
+
+    // The scrolling log of the tab on screen (NEXUS, SENTINEL or ARIA).
+    const activeLog = () => rootRef.current?.querySelector<HTMLElement>('[data-comms-scroll]');
 
     useImperativeHandle(ref, () => ({
+      // The Sentinel input when its tab shows and the channel is open; otherwise the log itself,
+      // so the arrow and page keys scroll it right after the pane is focused.
       focus: () => {
-        inputRef.current?.focus();
+        if (inputRef.current && !inputRef.current.disabled) inputRef.current.focus();
+        else activeLog()?.focus();
       },
     }));
 
@@ -130,12 +137,27 @@ export const CommsPane = forwardRef<CommsHandle, Props>(
       seenLastAriaId.current = lastAriaId;
     }, [lastAriaId]);
 
-    // Keep the newest Nexus message in view.
     const messageCount = nexusMessages.length;
-    useEffect(() => {
-      const el = nexusRef.current;
-      if (el) el.scrollTop = el.scrollHeight;
-    }, [messageCount, tab, interrupting]);
+
+    // A focused log scrolls natively (arrows, PageUp/PageDown, Home/End). From the Sentinel
+    // input those keys belong to typing, so only the keys the input has no use for scroll the
+    // log: PageUp/PageDown by most of a page, Ctrl+Home / Ctrl+End to the top and the bottom.
+    const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+      if (!(event.target instanceof HTMLInputElement)) return;
+      const log = activeLog();
+      if (!log) return;
+      if (event.key === 'PageDown' || event.key === 'PageUp') {
+        const page = Math.floor(log.clientHeight * 0.9);
+        log.scrollTop += event.key === 'PageDown' ? page : -page;
+      } else if (event.ctrlKey && event.key === 'Home') {
+        log.scrollTop = 0;
+      } else if (event.ctrlKey && event.key === 'End') {
+        log.scrollTop = log.scrollHeight;
+      } else {
+        return;
+      }
+      event.preventDefault();
+    };
 
     useEffect(() => {
       onTabChange?.(tab);
@@ -150,7 +172,7 @@ export const CommsPane = forwardRef<CommsHandle, Props>(
         : 'line open — no traffic';
 
     return (
-      <div className="comms" ref={rootRef}>
+      <div className="comms" ref={rootRef} onKeyDown={onKeyDown}>
         <TraceMeter trace={trace} />
         <div className="comms-view" data-skin={skin}>
           {(sentinelEstablished || hasAria) && (
@@ -193,12 +215,16 @@ export const CommsPane = forwardRef<CommsHandle, Props>(
             </div>
           )}
           {tab === 'aria' && hasAria ? (
-            <div className="comms-channel comms-aria">
-              <TerminalOutput lines={ariaLines} />
+            <div key="aria" className="comms-channel comms-aria">
+              <TerminalOutput lines={ariaLines} followBottom label={`${ariaLabel} channel`} />
               <div className="comms-readonly">[read-only — answer from the terminal]</div>
             </div>
           ) : tab === 'nexus' || !sentinelEstablished ? (
-            <div className="comms-nexus" ref={nexusRef}>
+            <StickyScroller
+              key="nexus"
+              contentKey={messageCount}
+              label="NEXUS messages"
+              className="comms-nexus">
               <div className="comms-line">NEXUS // ENCRYPTED LINE</div>
               {nexusMessages.length === 0 ? (
                 <div className="comms-empty">{nexusText}</div>
@@ -230,10 +256,10 @@ export const CommsPane = forwardRef<CommsHandle, Props>(
                 </>
               )}
               <div className="comms-readonly">[ENCRYPTED LINE — RECEIVE ONLY]</div>
-            </div>
+            </StickyScroller>
           ) : (
-            <div className="comms-channel">
-              <TerminalOutput lines={sentinelLines} />
+            <div key="sentinel" className="comms-channel">
+              <TerminalOutput lines={sentinelLines} followBottom label="SENTINEL channel" />
               {sentinelBusy && <div className="line line--dm">sentinel &gt;&gt; …</div>}
               {!sentinelOpen && (
                 <div className="comms-empty">
