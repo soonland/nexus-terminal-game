@@ -4,7 +4,7 @@
  *
  * Request body:
  *   { ownerName, role, division, workstation: string,
- *     sessionSeed, trace, layer: number, ariaNameKnown: boolean }
+ *     trace, layer: number, ariaNameKnown: boolean }
  *
  * Response:
  *   200 { messages: [{ counterpart, direction: 'in'|'out', subject, body, day }] }
@@ -41,6 +41,7 @@ const MAX_MESSAGES = 8;
 const MAX_COUNTERPART = 60;
 const MAX_SUBJECT = 100;
 const MAX_BODY = 900;
+const MAX_PROMPT_FIELD = 80;
 
 // Mail must never accuse anyone, name the mole, or mention the player's employer.
 const FORBIDDEN = /\b(mole|traitor|culprit|leaker|betray\w*|nexus)\b/i;
@@ -90,6 +91,20 @@ export const parseMessages = (text: string, ariaNameKnown: boolean): MailDraft[]
   return out.length > 0 ? out : null;
 };
 
+// Client-supplied text that is interpolated into the prompt: control characters (newlines
+// included) become spaces so a field cannot start a new instruction, and the length is capped.
+const requirePromptField = (value: unknown, field: string): string => {
+  const flat = requireString(value, field)
+    // eslint-disable-next-line no-control-regex
+    .replace(/[\u0000-\u001f\u007f]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, MAX_PROMPT_FIELD)
+    .trim();
+  if (flat === '') throw new ValidationError(`Missing or empty field: ${field}`);
+  return flat;
+};
+
 export const app = new Hono();
 
 app.post('*', async c => {
@@ -102,11 +117,10 @@ app.post('*', async c => {
   let ariaNameKnown: boolean;
   try {
     const body = requireObject(await c.req.json(), 'Request body');
-    ownerName = requireString(body['ownerName'], 'ownerName');
-    role = requireString(body['role'], 'role');
-    division = requireString(body['division'], 'division');
-    workstation = requireString(body['workstation'], 'workstation');
-    requireNumber(body['sessionSeed'], 'sessionSeed');
+    ownerName = requirePromptField(body['ownerName'], 'ownerName');
+    role = requirePromptField(body['role'], 'role');
+    division = requirePromptField(body['division'], 'division');
+    workstation = requirePromptField(body['workstation'], 'workstation');
     trace = requireNumber(body['trace'], 'trace');
     layer = requireNumber(body['layer'], 'layer');
     ariaNameKnown = requireBoolean(body['ariaNameKnown'], 'ariaNameKnown');

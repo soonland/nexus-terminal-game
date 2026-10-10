@@ -59,7 +59,6 @@ const requestDrafts = async (state: GameState, owner: MailOwner): Promise<MailDr
         division: owner.division ?? 'executive',
         workstation:
           (owner.workstationId && state.network.nodes[owner.workstationId]?.label) ?? 'N/A',
-        sessionSeed: state.sessionSeed,
         trace: state.player.trace,
         layer: currentLayer(state),
         ariaNameKnown: isAriaNameKnown(state),

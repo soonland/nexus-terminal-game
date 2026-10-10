@@ -52,9 +52,11 @@ the depth-content spec.
 
 ## `/api/mail` and the fallback
 
-Request, validated in `api/_lib/validate.ts`: owner id, role, division, workstation label,
-`sessionSeed`, trace level and layer as numbers, and a required `ariaNameKnown` boolean. Employee
-`traits` are internal and are never sent.
+Request, validated in `api/mail.ts` and `api/_lib/validate.ts`: owner name, role, division and
+workstation label (each flattened of control characters and newlines and capped at 80 characters
+before it enters the prompt), trace level and layer as numbers, and a required `ariaNameKnown`
+boolean. The seed is not sent: only the local fallback uses it. Employee `traits` are internal and
+are never sent.
 
 Prompt, built like `api/_lib/tiers.ts`: persona → ALLOWED (routine office mail in the division's
 voice, 4–8 messages, dates inside a stated window) → FORBIDDEN (the secret name while
