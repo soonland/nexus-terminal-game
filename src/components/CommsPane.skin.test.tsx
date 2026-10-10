@@ -62,14 +62,15 @@ describe('CommsPane — the red skin belongs to the SENTINEL tab', () => {
     expect(skin(container)).toBe('calm');
   });
 
-  it('is alert during the first-contact interruption, and stays alert on the SENTINEL tab', () => {
+  it('stays calm during the first-contact interruption, and turns alert on the SENTINEL tab', () => {
     vi.useFakeTimers();
     const { container, rerender } = render(
       <CommsPane {...baseProps} sentinelEstablished={false} sentinelOpen={false} />,
     );
     expect(skin(container)).toBe('calm');
     rerender(<CommsPane {...baseProps} interruptKey={1} />);
-    expect(skin(container)).toBe('alert');
+    // The cut plays on the NEXUS tab: its line breaks off, but it is still drawn as NEXUS.
+    expect(skin(container)).toBe('calm');
     act(() => {
       vi.advanceTimersByTime(INTERRUPT_MS);
     });
@@ -77,6 +78,22 @@ describe('CommsPane — the red skin belongs to the SENTINEL tab', () => {
       'true',
     );
     expect(skin(container)).toBe('alert');
+  });
+
+  it('keeps the Cassandra/Aria tab calm when Sentinel first cuts in while it is selected', () => {
+    vi.useFakeTimers();
+    const ariaLines = [{ ...makeLine('aria', 'hello'), id: 'aria-1-ai' }];
+    const { container, rerender } = render(
+      <CommsPane
+        {...baseProps}
+        ariaLines={ariaLines}
+        sentinelEstablished={false}
+        sentinelOpen={false}
+      />,
+    );
+    fireEvent.click(screen.getByRole('tab', { name: 'CASSANDRA' }));
+    rerender(<CommsPane {...baseProps} ariaLines={ariaLines} interruptKey={1} />);
+    expect(skin(container)).toBe('calm');
   });
 
   it('draws the Cassandra/Aria tab in the calm palette', () => {

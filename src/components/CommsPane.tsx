@@ -126,10 +126,11 @@ export const CommsPane = forwardRef<CommsHandle, Props>(
       if (el) el.scrollTop = el.scrollHeight;
     }, [messageCount, tab, interrupting]);
 
-    // The red palette belongs to the Sentinel view: the SENTINEL tab and the first-contact
-    // interruption, while the channel is open. The pane's frame stays in alert either way, but the
-    // NEXUS and ARIA tabs are drawn calm, so Rhee's messages never look like Sentinel's.
-    const skin = sentinelOpen && (tab === 'sentinel' || interrupting) ? 'alert' : 'calm';
+    // The red palette belongs to the SENTINEL tab alone, while the channel is open. The pane's
+    // frame stays in alert either way, but the NEXUS and ARIA tabs are drawn calm, including
+    // while the first-contact interruption breaks the last Nexus line off (the flicker and the cut
+    // line carry the interruption), so Rhee's messages never look like Sentinel's.
+    const skin = sentinelOpen && tab === 'sentinel' ? 'alert' : 'calm';
 
     const nexusText = interrupting
       ? '▒▒▒ signal lost ▒▒▒'
