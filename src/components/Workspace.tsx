@@ -18,7 +18,7 @@ import type { MailView } from './MailPane';
 import { mailActivity } from '../engine/mail';
 import { CamPane } from './CamPane';
 import { cameraFeeds } from '../engine/cameras';
-import { availableAuxTabs, resolveAuxTab } from '../layout/auxTabs';
+import { AUX_TAB_LABELS, availableAuxTabs, resolveAuxTab } from '../layout/auxTabs';
 import type { AuxTab } from '../layout/auxTabs';
 import { casebookActivity } from '../engine/casebook';
 import { catCommand, sourceSelection } from './explorerShared';
@@ -95,7 +95,7 @@ export const Workspace = forwardRef<WorkspaceHandle, Props>(
   ) => {
     const [layout, setLayout] = useState<LayoutState>(() => loadLayout());
     const [overlay, setOverlay] = useState<OverlayKind | null>(null);
-    const [auxTab, setAuxTab] = useState<AuxTab>('map');
+    const [auxTab, setAuxTab] = useState<AuxTab>('list');
     const feeds = gameState ? cameraFeeds(gameState) : [];
     const hasCam = feeds.length > 0;
     const shownAuxTab = resolveAuxTab(auxTab, hasCam);
@@ -295,7 +295,7 @@ export const Workspace = forwardRef<WorkspaceHandle, Props>(
             onClick={() => {
               setAuxTab(tab);
             }}>
-            {tab.toUpperCase()}
+            {AUX_TAB_LABELS[tab]}
           </button>
         ))}
       </span>
@@ -348,7 +348,7 @@ export const Workspace = forwardRef<WorkspaceHandle, Props>(
           />
         )),
       aux:
-        shownAuxTab === 'map' ? (
+        shownAuxTab === 'list' ? (
           map
         ) : shownAuxTab === 'cam' ? (
           <CamPane

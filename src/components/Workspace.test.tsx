@@ -593,7 +593,7 @@ describe('Workspace — the doc pane tabs (DOC | MAIL)', () => {
     expect(inPane('doc', 'DOC')).toBe(true);
     expect(inPane('doc', 'MAIL')).toBe(true);
     expect(inPane('aux', 'MAIL')).toBe(false);
-    expect(inPane('aux', 'MAP')).toBe(true);
+    expect(inPane('aux', 'NETWORK LIST')).toBe(true);
     expect(inPane('aux', 'CASE')).toBe(true);
   });
 

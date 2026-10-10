@@ -583,7 +583,7 @@ export const App = () => {
 
       if (raw.trim().toLowerCase() === 'map') {
         push([makeLine('input', raw)]);
-        workspaceRef.current?.showAux('map');
+        workspaceRef.current?.showAux('list');
         return;
       }
 
