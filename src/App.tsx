@@ -8,10 +8,10 @@ import { BriefingModal } from './components/BriefingModal';
 import { MapModal } from './components/MapModal';
 import { HelpModal } from './components/HelpModal';
 import { DossierWindow } from './components/DossierWindow';
-import { CommsPane } from './components/CommsPane';
+import { CommsPane, paneAlert } from './components/CommsPane';
 import { receivedNexusMessages } from './engine/nexusLine';
 import { ariaChannelLines, ariaReplyCount, ariaTabLabel } from './engine/ariaChannel';
-import type { CommsHandle } from './components/CommsPane';
+import type { CommsHandle, CommsTab } from './components/CommsPane';
 import { Workspace } from './components/Workspace';
 import type { WorkspaceHandle } from './components/Workspace';
 import { useBootSequence } from './hooks/useBootSequence';
@@ -285,6 +285,8 @@ export const App = () => {
 
   const [sentinelLines, setSentinelLines] = useState<TerminalLine[]>([]);
   const [sentinelOpen, setSentinelOpen] = useState(false);
+  // Which COMMS tab is showing: the pane's red frame follows the SENTINEL tab (see paneAlert).
+  const [commsTab, setCommsTab] = useState<CommsTab>('nexus');
   const [sentinelBusy, setSentinelBusy] = useState(false);
   const [interruptKey, setInterruptKey] = useState(0);
   const commsRef = useRef<CommsHandle>(null);
@@ -920,6 +922,7 @@ export const App = () => {
           ref={commsRef}
           sentinelEstablished={gameState?.sentinel.channelEstablished ?? false}
           sentinelOpen={sentinelOpen}
+          onTabChange={setCommsTab}
           sentinelLines={sentinelLines}
           sentinelBusy={sentinelBusy}
           interruptKey={interruptKey}
@@ -932,7 +935,7 @@ export const App = () => {
           }}
         />
       }
-      commsAlert={sentinelOpen}
+      commsAlert={paneAlert(sentinelOpen, commsTab)}
       commsActivity={nexusMessages.length + (gameState ? ariaReplyCount(gameState) : 0)}
       onCommsFocused={() => {
         commsRef.current?.focus();

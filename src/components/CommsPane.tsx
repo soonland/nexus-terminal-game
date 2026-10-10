@@ -26,9 +26,19 @@ interface Props {
   ariaLabel?: string;
   trace?: number;
   onSend: (text: string) => void;
+  // Which tab is showing, so the parent can colour the pane's frame to match (see paneAlert).
+  onTabChange?: (tab: CommsTab) => void;
 }
 
-type Tab = 'nexus' | 'sentinel' | 'aria';
+export type CommsTab = 'nexus' | 'sentinel' | 'aria';
+type Tab = CommsTab;
+
+// The red alert look (the pane's frame, title strip, glass tint and trace line, and the view's
+// palette) belongs to the SENTINEL tab alone, while the channel is open. NEXUS and ARIA are drawn
+// calm, Rhee's messages never look like Sentinel's, and the cut of a first contact plays on the
+// NEXUS tab: the pane turns red when the SENTINEL tab takes over.
+export const paneAlert = (sentinelOpen: boolean, tab: CommsTab): boolean =>
+  sentinelOpen && tab === 'sentinel';
 
 // The line is cut about halfway, mid-sentence, as the channel is taken over.
 const cutLine = (text: string): string =>
@@ -47,6 +57,7 @@ export const CommsPane = forwardRef<CommsHandle, Props>(
       ariaLabel = 'CASSANDRA',
       trace = 0,
       onSend,
+      onTabChange,
     },
     ref,
   ) => {
@@ -126,11 +137,11 @@ export const CommsPane = forwardRef<CommsHandle, Props>(
       if (el) el.scrollTop = el.scrollHeight;
     }, [messageCount, tab, interrupting]);
 
-    // The red palette belongs to the SENTINEL tab alone, while the channel is open. The pane's
-    // frame stays in alert either way, but the NEXUS and ARIA tabs are drawn calm, including
-    // while the first-contact interruption breaks the last Nexus line off (the flicker and the cut
-    // line carry the interruption), so Rhee's messages never look like Sentinel's.
-    const skin = sentinelOpen && tab === 'sentinel' ? 'alert' : 'calm';
+    useEffect(() => {
+      onTabChange?.(tab);
+    }, [tab, onTabChange]);
+
+    const skin = paneAlert(sentinelOpen, tab) ? 'alert' : 'calm';
 
     const nexusText = interrupting
       ? '▒▒▒ signal lost ▒▒▒'
