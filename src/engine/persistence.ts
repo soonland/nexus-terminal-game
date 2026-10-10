@@ -337,3 +337,29 @@ export const disclaimerRequired = (): boolean => {
   if (!raw) return true;
   return Date.now() - Number(raw) > DISCLAIMER_TTL_MS;
 };
+
+// The uplink initializer screen is skipped while an uplink completed less than 8 hours ago. A
+// fixed window from the last completed uplink (checking it never extends it), kept under its own
+// key like the disclaimer stamp: it is not part of the game save.
+const UPLINK_KEY = 'irongate_uplink_session';
+const UPLINK_TTL_MS = 8 * 60 * 60 * 1000;
+
+export const recordUplinkSession = (): void => {
+  try {
+    localStorage.setItem(UPLINK_KEY, String(Date.now()));
+  } catch (e) {
+    console.warn('[persistence] recordUplinkSession failed', e);
+  }
+};
+
+// A missing, non-numeric or future stamp counts as expired, so the screen shows again.
+export const uplinkSessionValid = (): boolean => {
+  try {
+    const raw = localStorage.getItem(UPLINK_KEY);
+    if (!raw) return false;
+    const age = Date.now() - Number(raw);
+    return Number.isFinite(age) && age >= 0 && age < UPLINK_TTL_MS;
+  } catch {
+    return false;
+  }
+};

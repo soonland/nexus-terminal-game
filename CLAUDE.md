@@ -46,6 +46,8 @@ splash → login_user → login_pass → booting → resume_prompt → playing �
 
 Each phase controls what the input prompt does, whether input is masked, and which line sources are rendered. Boot credentials are hardcoded: `ghost` / `nX-2847`.
 
+The `scanning` phase is the NEXUS SECURE UPLINK INITIALIZER screen (`ScanDiskScreen`). Pressing Enter on it stamps `irongate_uplink_session` (`recordUplinkSession`, its own `localStorage` key, not part of the game save). While that stamp is under 8 hours old (`uplinkSessionValid`, a fixed window that checking never extends; a missing, non-numeric or future stamp counts as expired) **resuming a saved run** (answering `yes` at the resume prompt) skips straight to `booting` through the same `finishUplink` in `App.tsx`. A new game (first run, a run after an ending, an accepted contract, or `no` at the resume prompt) always shows the initializer. The login is unchanged.
+
 ### State
 
 All game state is a single `GameState` object (`src/types/game.ts`). It is cloned immutably via `src/engine/produce.ts` (a `structuredClone`-based helper — no Immer). State is auto-saved to `localStorage` after every mutation and restored on load.
