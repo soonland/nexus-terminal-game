@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.2.0](https://github.com/soonland/nexus-terminal-game/compare/v1.1.0...v1.2.0) (2026-10-10)
+
+
+### Features
+
+* collapsible map levels that keep their state across tab switches ([#259](https://github.com/soonland/nexus-terminal-game/issues/259)) ([e210a93](https://github.com/soonland/nexus-terminal-game/commit/e210a93d9fd95bc0e48f09e2d7111d96ded68689))
+* let the player scroll back through the comms channels ([#262](https://github.com/soonland/nexus-terminal-game/issues/262)) ([e5b3148](https://github.com/soonland/nexus-terminal-game/commit/e5b314828a4fde564ef5cb73c24a68a134d7baad))
+* move the mail view into the doc pane as a DOC | MAIL tab ([#264](https://github.com/soonland/nexus-terminal-game/issues/264)) ([7f3089b](https://github.com/soonland/nexus-terminal-game/commit/7f3089b84a4e59f8151e3a54aadd6b037ff55b72))
+
+
+### Bug Fixes
+
+* draw the whole comms pane calm on the nexus and aria tabs ([#263](https://github.com/soonland/nexus-terminal-game/issues/263)) ([6abfbd7](https://github.com/soonland/nexus-terminal-game/commit/6abfbd77849d4177967ca7a9295ce9a6363425e7))
+* keep the nexus and aria tabs calm during the first-contact interruption ([#260](https://github.com/soonland/nexus-terminal-game/issues/260)) ([8a1dc06](https://github.com/soonland/nexus-terminal-game/commit/8a1dc063b49ef933f9631af8b413ee7b0c2040e8))
+
 ## [1.1.0](https://github.com/soonland/nexus-terminal-game/compare/v1.0.0...v1.1.0) (2026-10-10)
 
 
