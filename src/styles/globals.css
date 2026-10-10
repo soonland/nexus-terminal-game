@@ -872,6 +872,45 @@ body {
   padding: 0 8px;
 }
 
+/* A scrolling log that follows new content only while the reader is at the bottom; the button
+   appears over its lower edge when something arrived while they were reading further up. */
+.sticky-scroll {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.sticky-scroll > [role='log'] {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.sticky-scroll > [role='log']:focus-visible {
+  outline: 1px dotted var(--win-border);
+  outline-offset: -2px;
+}
+
+.comms-log {
+  padding-top: 0.75rem;
+  padding-bottom: 0.5rem;
+}
+
+.sticky-scroll-new {
+  position: absolute;
+  right: 8px;
+  bottom: 6px;
+  padding: 2px 8px;
+  font: inherit;
+  font-size: 11px;
+  color: var(--win-title-color);
+  background: var(--win-bg);
+  border: 1px solid var(--win-border);
+  cursor: pointer;
+}
+
 .comms-tabs {
   display: flex;
   flex-shrink: 0;
