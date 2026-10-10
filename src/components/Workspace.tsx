@@ -27,11 +27,14 @@ import type { Root, Selection } from './explorerShared';
 export type OverlayKind = 'help' | 'briefing' | 'dossier';
 export type { AuxTab };
 
+type DocTab = 'doc' | 'mail';
+
 export interface WorkspaceHandle {
   showOverlay: (kind: OverlayKind) => void;
   showAux: (tab: AuxTab) => void;
-  // Selects the MAIL tab and the mailbox/message it shows; focuses aux only if it is off screen.
-  showMail: (ownerId: string, messageId?: string) => void;
+  // Selects the doc pane's MAIL tab and the mailbox/message it shows; focuses the doc pane only if
+  // it is off screen.
+  showMail: (ownerId?: string, messageId?: string) => void;
   focusPane: (pane: PaneId) => void;
 }
 
@@ -109,7 +112,9 @@ export const Workspace = forwardRef<WorkspaceHandle, Props>(
       setMailRunId(gameState?.runId ?? null);
       setMailView({ ownerId: null, messageId: null });
     }
-    const auxOnScreenRef = useRef(true);
+    // The doc pane has two tabs: the explorer's file detail (DOC) and the mailboxes (MAIL).
+    const [docTab, setDocTab] = useState<DocTab>('doc');
+    const docOnScreenRef = useRef(true);
     const noGame = gameState === null;
     const commsUnread = useUnread(
       commsActivity,
@@ -184,9 +189,10 @@ export const Workspace = forwardRef<WorkspaceHandle, Props>(
           focus('aux');
         },
         showMail: (ownerId, messageId) => {
-          setAuxTab('mail');
-          setMailView({ ownerId, messageId: messageId ?? null });
-          if (!auxOnScreenRef.current) focus('aux');
+          setDocTab('mail');
+          // No mailbox given (a bare `mail`): leave the one that is open as it is.
+          if (ownerId !== undefined) setMailView({ ownerId, messageId: messageId ?? null });
+          if (!docOnScreenRef.current) focus('doc');
         },
         focusPane: focus,
       }),
@@ -206,13 +212,13 @@ export const Workspace = forwardRef<WorkspaceHandle, Props>(
       },
     });
 
-    // The CASE tab counts as "being looked at" when it is the selected aux tab and the aux pane
-    // is actually on screen (not hidden behind another pane's zoom, or another narrow tab).
-    const auxOnScreen = narrow
-      ? layout.focused === 'aux'
-      : layout.zoomed === null || layout.zoomed === 'aux';
+    // The doc pane counts as on screen like the aux pane does: not hidden behind another pane's
+    // zoom, or another narrow tab.
+    const docOnScreen = narrow
+      ? layout.focused === 'doc'
+      : layout.zoomed === null || layout.zoomed === 'doc';
     useEffect(() => {
-      auxOnScreenRef.current = auxOnScreen;
+      docOnScreenRef.current = docOnScreen;
     });
     const caseVisible =
       shownAuxTab === 'case' &&
@@ -224,9 +230,7 @@ export const Workspace = forwardRef<WorkspaceHandle, Props>(
       true,
     );
 
-    const mailVisible =
-      shownAuxTab === 'mail' &&
-      (narrow ? layout.focused === 'aux' : layout.zoomed === null || layout.zoomed === 'aux');
+    const mailVisible = docTab === 'mail' && docOnScreen;
     const mailUnread = useUnread(
       gameState ? mailActivity(gameState) : 0,
       mailVisible,
@@ -245,7 +249,7 @@ export const Workspace = forwardRef<WorkspaceHandle, Props>(
       gameState?.runId ?? null,
       true,
     );
-    const auxUnread = caseUnread || camUnread || mailUnread;
+    const auxUnread = caseUnread || camUnread;
     const camFullscreen = layout.zoomed === 'aux';
     const toggleCamFullscreen = () => {
       setLayout(prev =>
@@ -262,10 +266,17 @@ export const Workspace = forwardRef<WorkspaceHandle, Props>(
         const next = sourceSelection(gameState, source);
         if (!next) return;
         setSelection(next);
+        setDocTab('doc');
         focus('doc');
       },
       [gameState, focus],
     );
+
+    // Picking a file in the explorer means the player wants to read it: show the DOC tab.
+    const selectFile = useCallback((next: Selection | null) => {
+      setSelection(next);
+      if (next) setDocTab('doc');
+    }, []);
 
     const openFile = useCallback(
       (root: Root, file: GameFile) => {
@@ -290,25 +301,52 @@ export const Workspace = forwardRef<WorkspaceHandle, Props>(
       </span>
     );
 
+    const docTabs = (
+      <span className="aux-tabs">
+        {(['doc', 'mail'] as const).map(tab => (
+          <button
+            key={tab}
+            type="button"
+            aria-pressed={docTab === tab}
+            onClick={() => {
+              setDocTab(tab);
+            }}>
+            {tab.toUpperCase()}
+          </button>
+        ))}
+      </span>
+    );
+
     const panes: Record<PaneId, ReactNode> = {
       term: terminal,
       files: gameState && (
         <FilesPane
           gameState={gameState}
           selection={selection}
-          onSelect={setSelection}
+          onSelect={selectFile}
           onOpen={openFile}
           disabled={explorerDisabled}
         />
       ),
-      doc: gameState && (
-        <DocPane
-          gameState={gameState}
-          selection={selection}
-          onRunCommand={onRunCommand}
-          disabled={explorerDisabled}
-        />
-      ),
+      doc:
+        gameState &&
+        (docTab === 'mail' ? (
+          <MailPane
+            gameState={gameState}
+            view={mailView}
+            onView={setMailView}
+            onOpenMailbox={onOpenMailbox}
+            onRead={onReadMail}
+            onOpenSource={openSource}
+          />
+        ) : (
+          <DocPane
+            gameState={gameState}
+            selection={selection}
+            onRunCommand={onRunCommand}
+            disabled={explorerDisabled}
+          />
+        )),
       aux:
         shownAuxTab === 'map' ? (
           map
@@ -319,17 +357,6 @@ export const Workspace = forwardRef<WorkspaceHandle, Props>(
             fullscreen={camFullscreen}
             onToggleFullscreen={toggleCamFullscreen}
           />
-        ) : shownAuxTab === 'mail' ? (
-          gameState && (
-            <MailPane
-              gameState={gameState}
-              view={mailView}
-              onView={setMailView}
-              onOpenMailbox={onOpenMailbox}
-              onRead={onReadMail}
-              onOpenSource={openSource}
-            />
-          )
         ) : (
           gameState && <CasePane gameState={gameState} onOpenSource={openSource} />
         ),
@@ -350,11 +377,11 @@ export const Workspace = forwardRef<WorkspaceHandle, Props>(
         <LayoutRoot
           state={shownLayout}
           panes={panes}
-          headerExtras={{ aux: auxTabs }}
+          headerExtras={{ aux: auxTabs, doc: docTabs }}
           narrow={narrow && !noGame}
           bare={noGame}
           alerts={{ comms: commsAlert }}
-          unread={{ comms: commsUnread, aux: auxUnread }}
+          unread={{ comms: commsUnread, aux: auxUnread, doc: mailUnread }}
           onFocusPane={focus}
           onRatio={(path: TreePath, ratio: number) => {
             setLayout(prev => setRatio(prev, path, ratio));
@@ -368,6 +395,7 @@ export const Workspace = forwardRef<WorkspaceHandle, Props>(
             nodeIp={nodeIp}
             trace={trace}
             unread={[
+              ...(mailUnread ? (['doc'] as const) : []),
               ...(auxUnread ? (['aux'] as const) : []),
               ...(commsUnread ? (['comms'] as const) : []),
             ]}
