@@ -4344,3 +4344,39 @@ describe('finding the subnet after the Restricted Subnet Key (#218)', () => {
     expect(text).toMatch(/run scan/i);
   });
 });
+
+describe('scan <ip> records the scanned hosts', () => {
+  beforeEach(() => {
+    vi.stubGlobal('fetch', vi.fn());
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('marks the host after scan <ip>', async () => {
+    const result = await resolveCommand('scan 10.0.0.2', createInitialState());
+    expect(result.nextState?.scanned).toEqual(['vpn_gateway']);
+  });
+
+  it('does not add a host twice', async () => {
+    const first = await resolveCommand('scan 10.0.0.2', createInitialState());
+    const second = await resolveCommand('scan 10.0.0.2', {
+      ...createInitialState(),
+      ...first.nextState,
+    });
+    expect(second.nextState?.scanned).toEqual(['vpn_gateway']);
+  });
+
+  it('a bare scan marks nothing (it lists peers only)', async () => {
+    const state = createInitialState();
+    const result = await resolveCommand('scan', state);
+    expect((result.nextState ?? state).scanned).toEqual([]);
+  });
+
+  it('an unknown IP marks nothing', async () => {
+    const state = createInitialState();
+    const result = await resolveCommand('scan 9.9.9.9', state);
+    expect((result.nextState ?? state).scanned).toEqual([]);
+  });
+});
