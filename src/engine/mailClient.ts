@@ -86,7 +86,8 @@ const buildMailbox = async (state: GameState, owner: MailOwner): Promise<Mailbox
 const lookup = (state: GameState, id: string): Mailbox | undefined =>
   (state.mailboxes as Partial<Record<string, Mailbox>>)[id];
 
-// One request per run and owner, however many callers ask at once.
+// One request per run and owner, kept after it settles: a caller holding a stale state (the
+// mailbox not stored yet) still gets the very same mailbox, so what is printed is what is stored.
 const inflight = new Map<string, Promise<Mailbox>>();
 
 // Opens a mailbox: returns the same state when it is already stored, otherwise generates it once
@@ -96,9 +97,7 @@ export const ensureMailbox = async (state: GameState, owner: MailOwner): Promise
   const key = `${state.runId}:${owner.id}`;
   let pending = inflight.get(key);
   if (!pending) {
-    pending = buildMailbox(state, owner).finally(() => {
-      inflight.delete(key);
-    });
+    pending = buildMailbox(state, owner);
     inflight.set(key, pending);
   }
   const mailbox = await pending;

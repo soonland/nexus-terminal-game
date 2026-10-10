@@ -95,3 +95,33 @@ describe('mail read <n>', () => {
     expect(r.nextState).toBeUndefined();
   });
 });
+
+describe('mail <name> opened twice before the first is stored', () => {
+  it('prints the stored mailbox both times, even if the API answers differently', async () => {
+    const answer = (subject: string): Response =>
+      ({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            messages: [
+              { counterpart: 'Facilities Desk', direction: 'in', subject, body: 'x', day: 2 },
+            ],
+          }),
+      }) as unknown as Response;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValueOnce(answer('FIRST')).mockResolvedValueOnce(answer('SECOND')),
+    );
+    const state = withTorres();
+    const a = await runMailCommand('mail torres', state, null);
+    // Stale state: the first mailbox is not stored yet.
+    const b = await runMailCommand('mail torres', state, null);
+    expect(text(b)).toBe(text(a));
+    expect(b.nextState?.mailboxes['torres']).toEqual(a.nextState?.mailboxes['torres']);
+    const stored = a.nextState as GameState;
+    const read = await runMailCommand('mail read 1', stored, 'torres');
+    const listed = text(b).split('\n')[1] ?? '';
+    expect(listed).toContain(stored.mailboxes['torres'].messages[0].subject);
+    expect(text(read)).toContain(`Subject: ${stored.mailboxes['torres'].messages[0].subject}`);
+  });
+});
