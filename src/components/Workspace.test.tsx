@@ -584,11 +584,53 @@ describe('Workspace — the casebook', () => {
   });
 });
 
-describe('Workspace — the MAIL tab', () => {
-  it('opens the mail pane from the MAIL tab', () => {
+describe('Workspace — the doc pane tabs (DOC | MAIL)', () => {
+  const inPane = (id: string, name: string) =>
+    Array.from(section(id).querySelectorAll('button')).some(b => b.textContent === name);
+
+  it('puts DOC and MAIL in the doc pane header and keeps MAIL out of the aux pane', () => {
     setup();
+    expect(inPane('doc', 'DOC')).toBe(true);
+    expect(inPane('doc', 'MAIL')).toBe(true);
+    expect(inPane('aux', 'MAIL')).toBe(false);
+    expect(inPane('aux', 'MAP')).toBe(true);
+    expect(inPane('aux', 'CASE')).toBe(true);
+  });
+
+  it('shows the explorer detail on DOC (the default) and the mail pane on MAIL, and swaps back', () => {
+    setup();
+    expect(screen.getByText(/select a file in the files pane/i)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'DOC' }).getAttribute('aria-pressed')).toBe('true');
     fireEvent.click(screen.getByRole('button', { name: 'MAIL' }));
     expect(screen.getByText(/no mailboxes unlocked yet/i)).toBeTruthy();
+    expect(screen.queryByText(/select a file in the files pane/i)).toBeNull();
+    expect(screen.getByRole('button', { name: 'MAIL' }).getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(screen.getByRole('button', { name: 'DOC' }));
+    expect(screen.getByText(/select a file in the files pane/i)).toBeTruthy();
+    expect(screen.queryByText(/no mailboxes unlocked yet/i)).toBeNull();
+  });
+
+  it('selecting a file in the files pane flips a MAIL tab back to DOC', () => {
+    setup();
+    fireEvent.click(screen.getByRole('button', { name: 'MAIL' }));
+    fireEvent.click(screen.getByText('vpn.cfg'));
+    expect(screen.getByText('/etc/vpn.cfg')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'DOC' }).getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('a casebook source flips a MAIL tab back to DOC and shows the file', () => {
+    const state = produce(createInitialState(), s => {
+      s.network.currentNodeId = 'ops_hr_db';
+      s.network.nodes['ops_hr_db']!.accessLevel = 'user';
+      s.network.nodes['ops_hr_db']!.discovered = true;
+      s.filesRead.push(fileReadKey('ops_hr_db', '/var/db/hr/terminated/kessler_h_2024-03.txt'));
+    });
+    setup({ gameState: state });
+    fireEvent.click(screen.getByRole('button', { name: 'MAIL' }));
+    fireEvent.click(screen.getByRole('button', { name: 'CASE' }));
+    fireEvent.click(screen.getAllByRole('button', { name: /kessler_h_2024-03\.txt/ })[0]);
+    expect(screen.getByRole('button', { name: 'DOC' }).getAttribute('aria-pressed')).toBe('true');
+    expect(section('doc').textContent).toContain('HR SEPARATION RECORD');
   });
 });
 
@@ -659,6 +701,19 @@ describe('Workspace — showMail', () => {
     expect(screen.queryByText('Serviced Thursday.')).toBeNull();
   });
 
+  it('a bare showMail() selects the MAIL tab and keeps the open mailbox', () => {
+    const { ref } = setup({ gameState: mailState() });
+    act(() => {
+      ref.current?.showMail('torres', 'm1');
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'DOC' }));
+    act(() => {
+      ref.current?.showMail();
+    });
+    expect(screen.getByRole('button', { name: 'MAIL' }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByText('Serviced Thursday.')).toBeTruthy();
+  });
+
   it('shows the mailbox list when no message is given', () => {
     const { ref } = setup({ gameState: mailState() });
     act(() => {
@@ -667,32 +722,98 @@ describe('Workspace — showMail', () => {
     expect(screen.getByRole('button', { name: /Badge readers/ })).toBeTruthy();
   });
 
-  it('leaves focus alone when the aux pane is already on screen', () => {
+  it('leaves focus alone when the doc pane is already on screen', () => {
     const { ref } = setup({ gameState: mailState() });
     expect(section('term').getAttribute('data-focused')).toBe('true');
     act(() => {
       ref.current?.showMail('torres', 'm1');
     });
     expect(section('term').getAttribute('data-focused')).toBe('true');
-    expect(section('aux').getAttribute('data-focused')).toBe('false');
+    expect(section('doc').getAttribute('data-focused')).toBe('false');
   });
 
-  it('focuses aux when another pane is zoomed', () => {
+  it('focuses doc when another pane is zoomed', () => {
     const { ref } = setup({ gameState: mailState() });
     alt('KeyZ');
     expect(section('term').getAttribute('data-focused')).toBe('true');
     act(() => {
       ref.current?.showMail('torres', 'm1');
     });
-    expect(section('aux').getAttribute('data-focused')).toBe('true');
+    expect(section('doc').getAttribute('data-focused')).toBe('true');
   });
 
-  it('focuses aux on a narrow screen showing another pane', () => {
+  it('focuses doc on a narrow screen showing another pane', () => {
     vi.stubGlobal('innerWidth', 700);
     const { ref } = setup({ gameState: mailState() });
     act(() => {
       ref.current?.showMail('torres', 'm1');
     });
-    expect(section('aux').getAttribute('data-focused')).toBe('true');
+    expect(section('doc').getAttribute('data-focused')).toBe('true');
+  });
+});
+
+describe('Workspace — the mail unread marker lives on the doc pane', () => {
+  const baseMail = (): GameState =>
+    produce(createInitialState(5), s => {
+      for (const c of s.player.credentials) c.obtained = false;
+    });
+  const withMail = (state: GameState): GameState =>
+    produce(state, s => {
+      s.mailboxes['torres'] = {
+        ownerId: 'torres',
+        messages: [
+          {
+            id: 'm1',
+            threadId: 'm1',
+            from: 'Facilities Desk',
+            to: 'Elena Torres',
+            subject: 'Badge readers',
+            body: 'Serviced Thursday.',
+            sentAt: '2024-10-07',
+            source: 'authored',
+          },
+        ],
+      };
+    });
+  const element = (state: GameState) => (
+    <Workspace
+      terminal={<input aria-label="term-input" />}
+      gameState={state}
+      nodeIp="10.0.0.1"
+      trace={0}
+      map={<div>map-content</div>}
+      help={<div>help-content</div>}
+      briefing={<div>briefing-content</div>}
+      dossier={<div>dossier-content</div>}
+      explorerDisabled={false}
+      onRunCommand={vi.fn()}
+      onTerminalFocused={vi.fn()}
+      comms={<div>comms-content</div>}
+      commsAlert={false}
+      commsActivity={0}
+      onCommsFocused={vi.fn()}
+      onOpenMailbox={vi.fn()}
+      onReadMail={vi.fn()}
+    />
+  );
+
+  it('marks the doc pane (and the status bar) when mail arrives while DOC is showing, not aux', () => {
+    const start = baseMail();
+    const view = render(element(start));
+    expect(section('doc').getAttribute('data-unread')).toBe('false');
+    view.rerender(element(withMail(start)));
+    expect(section('doc').getAttribute('data-unread')).toBe('true');
+    expect(section('aux').getAttribute('data-unread')).toBe('false');
+    expect(screen.getByText(/3:doc!/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'MAIL' }));
+    expect(section('doc').getAttribute('data-unread')).toBe('false');
+  });
+
+  it('does not mark the pane for mail that arrives while the MAIL tab is open', () => {
+    const start = baseMail();
+    const view = render(element(start));
+    fireEvent.click(screen.getByRole('button', { name: 'MAIL' }));
+    view.rerender(element(withMail(start)));
+    expect(section('doc').getAttribute('data-unread')).toBe('false');
   });
 });

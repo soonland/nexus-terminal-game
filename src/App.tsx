@@ -610,7 +610,7 @@ export const App = () => {
             });
           }
           if (result.ownerId) workspaceRef.current?.showMail(result.ownerId, result.messageId);
-          else if (result.showTab) workspaceRef.current?.showAux('mail');
+          else if (result.showTab) workspaceRef.current?.showMail();
         });
         return;
       }

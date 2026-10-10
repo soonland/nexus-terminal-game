@@ -356,13 +356,21 @@ try {
     /Torres \(e\.torres\): \d+ messages?, \d+ unread/.test(termAfter),
   );
   check('mail torres lists no messages in the terminal', !/\[[ *]\]/.test(termAfter));
-  const mailTab = page.getByRole('button', { name: /^MAIL/ });
-  check('the MAIL tab exists', (await mailTab.count()) > 0);
+  // The MAIL tab lives in the doc pane (the wide pane), next to DOC; the aux pane has no MAIL tab.
+  check(
+    'the MAIL tab is in the doc pane',
+    (await page.locator('[data-pane="doc"]').getByRole('button', { name: /^MAIL/ }).count()) > 0,
+  );
+  check(
+    'the aux pane has no MAIL tab',
+    (await page.locator('[data-pane="aux"]').getByRole('button', { name: /^MAIL/ }).count()) === 0,
+  );
   await page.waitForTimeout(400);
   // `mail torres` already selected her mailbox: the list shows without clicking the selector.
   check('the mail message list is visible', (await page.locator('.mail-list li').count()) > 0);
   check('mail opens', (await page.locator('.mail-list li').count()) > 0);
-  await page.getByRole('button', { name: 'MAP', exact: true }).click();
+  // Back to the explorer's file detail, so the later steps start from the usual doc pane.
+  await page.getByRole('button', { name: 'DOC', exact: true }).click();
 
   await cmd('cat PROJ_SENTINEL_BOARD_VOTE.pdf');
   await cmd('scan');
