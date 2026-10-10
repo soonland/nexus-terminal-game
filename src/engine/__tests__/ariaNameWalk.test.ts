@@ -4,6 +4,8 @@ import { createInitialState } from '../state';
 import produce from '../produce';
 import { buildNodeMap } from '../../data/anchorNodes';
 import { SENTINEL_VOTE_PATH } from '../ariaName';
+import { runMailCommand } from '../mailCommand';
+import { unlockedOwners } from '../mail';
 import type { GameState } from '../../types/game';
 
 const ARIA = /aria/i;
@@ -65,5 +67,60 @@ describe('engine output never says Aria before the reveal', () => {
       s.flags['ARIA_NAME_KNOWN'] = true;
     });
     expect(textOf(await resolveCommand('msg', known))).toMatch(/aria/i);
+  });
+
+  describe('mail', () => {
+    const unlocked = (): GameState =>
+      produce(createInitialState(5), s => {
+        for (const c of s.player.credentials) c.obtained = true;
+      });
+
+    const responses: [string, () => ReturnType<typeof vi.fn>][] = [
+      ['offline', () => vi.fn().mockRejectedValue(new Error('offline'))],
+      [
+        'unavailable',
+        () =>
+          vi
+            .fn()
+            .mockResolvedValue({ ok: true, json: () => Promise.resolve({ unavailable: true }) }),
+      ],
+      [
+        'a normal answer',
+        () =>
+          vi.fn().mockResolvedValue({
+            ok: true,
+            json: () =>
+              Promise.resolve({
+                messages: [
+                  {
+                    from: 'Ops Desk',
+                    to: 'staff',
+                    sentAt: '2024-11-02 09:00',
+                    subject: 'Maintenance window',
+                    body: 'Routine patching tonight.',
+                  },
+                ],
+              }),
+          }),
+      ],
+    ];
+
+    it.each(responses)('mail, mail <name> and mail read 1 stay clean when %s', async (_n, mk) => {
+      vi.stubGlobal('fetch', mk());
+      const state = unlocked();
+      const owners = unlockedOwners(state).slice(0, 6);
+      expect(owners.length).toBeGreaterThan(0);
+      const out: string[] = [];
+      const summary = await runMailCommand('mail', state, null);
+      out.push(...summary.lines.map(l => l.content));
+      for (const owner of owners) {
+        const opened = await runMailCommand(`mail ${owner.id}`, state, null);
+        out.push(...opened.lines.map(l => l.content));
+        const next = opened.nextState ?? state;
+        const read = await runMailCommand('mail read 1', next, owner.id);
+        out.push(...read.lines.map(l => l.content));
+      }
+      expect(out.join('\n')).not.toMatch(/\baria\b/i);
+    });
   });
 });

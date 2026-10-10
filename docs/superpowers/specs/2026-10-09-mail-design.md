@@ -1,3 +1,5 @@
+Status: implemented (see docs/superpowers/plans/2026-10-09-mail.md)
+
 # Mail — design
 
 Sub-project 1 of 4 in the "world depth" update. The other three (depth content, ambient texture,
