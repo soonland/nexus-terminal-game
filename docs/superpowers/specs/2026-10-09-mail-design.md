@@ -41,7 +41,7 @@ New `src/types/mail.ts`:
 - `mailboxes: Record<ownerId, Mailbox>`: only mailboxes the player has opened.
 - `mailRead: string[]`: ids of messages read.
 
-Old saves get empty defaults in `src/engine/saveMigration.ts`.
+The fields are optional on `SaveState` in `src/engine/persistence.ts` (no `SAVE_VERSION` bump, since a mismatch discards the save); older saves load with empty mail.
 
 Owners are `Employee`s (procedural) or authored cast members. Authored mail lives in
 `src/data/mail.ts`, keyed by owner with fixed ids, and is always merged in ahead of generated
@@ -76,8 +76,7 @@ no call.
 
 `src/components/MailPane.tsx`, a third aux tab. `mail` selects it, as `map` and `case` do.
 
-- Mailbox selector on top: unlocked mailboxes by name and role; locked ones dimmed and marked
-  "no credentials" (as locked feeds in CAM).
+- Mailbox selector on top: unlocked mailboxes by name and role; only unlocked mailboxes are listed, because listing locked ones would reveal every employee before the player meets them; `mail <name>` on a name that is not unlocked prints 'no credentials for that account'.
 - Message list (unread bold, sender, subject, date) and a reading view. In the narrow layout they
   stack, with a back control.
 - An attachment is a link into the explorer only when the file can be opened (the casebook rule).

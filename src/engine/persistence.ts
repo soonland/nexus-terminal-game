@@ -1,3 +1,4 @@
+import type { Mailbox } from '../types/mail';
 import type {
   GameState,
   GamePhase,
@@ -72,6 +73,8 @@ export interface SaveState {
   worldCredentialsAdded: Credential[]; // credentials dynamically added by sentinel P2
   contract: ActiveContract | null;
   unlockAttempts?: Record<string, number>; // optional for backwards compat
+  mailboxes?: Record<string, Mailbox>; // optional for backwards compat — no SAVE_VERSION bump
+  mailRead?: string[];
 }
 
 // ── Serialisation ──────────────────────────────────────────
@@ -158,6 +161,8 @@ const toSaveState = (state: GameState): SaveState => {
     ...(Object.keys(state.unlockAttempts).length > 0 && {
       unlockAttempts: state.unlockAttempts,
     }),
+    ...(Object.keys(state.mailboxes).length > 0 && { mailboxes: state.mailboxes }),
+    ...(state.mailRead.length > 0 && { mailRead: state.mailRead }),
   };
 };
 
@@ -264,6 +269,8 @@ const fromSaveState = (save: SaveState): GameState => {
   state.flags = save.flags;
   state.contract = save.contract ?? null;
   state.unlockAttempts = save.unlockAttempts ?? {};
+  state.mailboxes = save.mailboxes ?? {};
+  state.mailRead = save.mailRead ?? [];
 
   // Restore sentinel state
   state.sentinel = save.sentinel;

@@ -107,6 +107,8 @@ const makeState = (overrides: Partial<GameState> = {}): GameState => {
     },
     unlockSession: null,
     unlockAttempts: {},
+    mailboxes: {},
+    mailRead: [],
     ...overrides,
   };
 };

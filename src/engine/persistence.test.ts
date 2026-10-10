@@ -796,3 +796,66 @@ describe('cached AI content only applies to AI-generated paths', () => {
     expect(restored?.content).toBe('GENERATED TEXT');
   });
 });
+
+describe('persistence — mail', () => {
+  let mockStorage: ReturnType<typeof makeMockStorage>;
+
+  beforeEach(() => {
+    mockStorage = makeMockStorage();
+    vi.stubGlobal('localStorage', mockStorage);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  const MAILBOX = {
+    ownerId: 'torres',
+    messages: [
+      {
+        id: 'gen_torres_0',
+        threadId: 'gen_torres_0',
+        from: 'Facilities',
+        to: 'Elena Torres',
+        subject: 'Parking',
+        body: 'Level 2 is closed on Friday.',
+        sentAt: '2024-10-03',
+        source: 'generated' as const,
+      },
+    ],
+  };
+
+  it('round-trips mailboxes and read ids', () => {
+    const state = produce(createInitialState(), s => {
+      s.mailboxes = { torres: MAILBOX };
+      s.mailRead = ['gen_torres_0'];
+    });
+    saveGame(state);
+    const [, value] = mockStorage.setItem.mock.calls[0];
+    mockStorage.getItem.mockReturnValue(value);
+    const loaded = loadGame();
+    expect(loaded?.mailboxes).toEqual({ torres: MAILBOX });
+    expect(loaded?.mailRead).toEqual(['gen_torres_0']);
+  });
+
+  it('defaults to empty mail when an older save has neither field', () => {
+    saveGame(createInitialState());
+    const [, value] = mockStorage.setItem.mock.calls[0];
+    const save = JSON.parse(value) as Record<string, unknown>;
+    delete save['mailboxes'];
+    delete save['mailRead'];
+    mockStorage.getItem.mockReturnValue(JSON.stringify(save));
+    const loaded = loadGame();
+    expect(loaded).not.toBeNull();
+    expect(loaded?.mailboxes).toEqual({});
+    expect(loaded?.mailRead).toEqual([]);
+  });
+
+  it('omits the fields from the save while there is no mail', () => {
+    saveGame(createInitialState());
+    const [, value] = mockStorage.setItem.mock.calls[0];
+    const save = JSON.parse(value) as Record<string, unknown>;
+    expect('mailboxes' in save).toBe(false);
+    expect('mailRead' in save).toBe(false);
+  });
+});
