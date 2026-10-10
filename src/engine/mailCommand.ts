@@ -18,7 +18,7 @@ const err = (content: string): Line => line(content, 'error');
 
 export const isMailCommand = (raw: string): boolean => /^mail(\s|$)/i.test(raw.trim());
 
-const READ = /^read\s*(.*)$/i;
+const READ = /^read(?:\s+(.*))?$/i;
 
 const summary = (state: GameState): MailCommandResult => {
   const owners = unlockedOwners(state);
@@ -73,7 +73,7 @@ export const runMailCommand = async (
   if (arg === '') return summary(state);
 
   const read = READ.exec(arg);
-  if (read) return readMessage(read[1].trim(), state, openOwnerId);
+  if (read) return readMessage(((read[1] as string | undefined) ?? '').trim(), state, openOwnerId);
 
   const owner = findUnlockedOwner(state, arg);
   if (!owner) return { lines: [err('mail: no credentials for that account')], showTab: false };

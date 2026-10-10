@@ -84,6 +84,12 @@ describe('MailPane', () => {
     expect(props.onView).toHaveBeenCalledWith(TORRES);
   });
 
+  it('re-requests a missing mailbox for the selected owner without a click', () => {
+    const props = setup(withTorres(false), TORRES);
+    expect(screen.getByText(/syncing mailbox/i)).toBeTruthy();
+    expect(props.onOpenMailbox).toHaveBeenCalledWith('torres');
+  });
+
   it('does not re-request a mailbox that is already stored', () => {
     const props = setup(withTorres());
     fireEvent.click(screen.getByRole('button', { name: /Elena Torres/ }));

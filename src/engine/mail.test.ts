@@ -3,6 +3,8 @@ import {
   findUnlockedOwner,
   mailActivity,
   mailOwners,
+  carryMail,
+  mergeMailResult,
   mergeMail,
   unlockedOwners,
   unreadCount,
@@ -143,5 +145,63 @@ describe('employee credentials promoted by login', () => {
     expect(findUnlockedOwner(state, full)?.id).toBe(emp.id);
     expect(findUnlockedOwner(state, full.toUpperCase())?.id).toBe(emp.id);
     expect(findUnlockedOwner(state, emp.username)?.id).toBe(emp.id);
+  });
+});
+
+const box = (ownerId: string) => ({ ownerId, messages: [msg(`${ownerId}_1`, '2024-10-01')] });
+
+describe('mergeMailResult', () => {
+  it('adds a new mailbox and newly read ids', () => {
+    const prev = createInitialState(7);
+    const incoming = produce(prev, s => {
+      s.mailboxes['torres'] = box('torres');
+      s.mailRead.push('x');
+    });
+    const merged = mergeMailResult(prev, incoming, 'torres');
+    expect(merged.mailboxes['torres']).toBeDefined();
+    expect(merged.mailRead).toContain('x');
+  });
+
+  it('drops a result from another run', () => {
+    const prev = createInitialState(7);
+    const stale = produce(createInitialState(8), s => {
+      s.runId = 'other-run';
+      s.mailboxes['torres'] = box('torres');
+      s.mailRead.push('x');
+    });
+    expect(mergeMailResult(prev, stale, 'torres')).toBe(prev);
+  });
+});
+
+describe('carryMail', () => {
+  it('keeps mail that landed while the turn was pending', () => {
+    const start = createInitialState(7);
+    const latest = produce(start, s => {
+      s.mailboxes['torres'] = box('torres');
+      s.mailRead.push('r1');
+    });
+    const turn = produce(start, s => {
+      s.turnCount += 1;
+    });
+    const carried = carryMail(latest, turn);
+    expect(carried.turnCount).toBe(turn.turnCount);
+    expect(carried.mailboxes['torres']).toBeDefined();
+    expect(carried.mailRead).toEqual(['r1']);
+  });
+
+  it('does not carry mail across runs', () => {
+    const latest = produce(createInitialState(7), s => {
+      s.mailboxes['torres'] = box('torres');
+      s.mailRead.push('r1');
+    });
+    const turn = produce(createInitialState(8), s => {
+      s.runId = 'new-run';
+    });
+    expect(carryMail(latest, turn)).toBe(turn);
+  });
+
+  it('returns the turn state when nothing differs', () => {
+    const s0 = createInitialState(7);
+    expect(carryMail(s0, s0)).toBe(s0);
   });
 });

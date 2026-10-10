@@ -103,6 +103,12 @@ export const Workspace = forwardRef<WorkspaceHandle, Props>(
     const [selection, setSelection] = useState<Selection | null>(null);
     const narrow = useViewportWidth() < NARROW_WIDTH;
     const [mailView, setMailView] = useState<MailView>({ ownerId: null, messageId: null });
+    // Workspace outlives a game: forget the open mailbox when a new run starts.
+    const [mailRunId, setMailRunId] = useState(gameState?.runId ?? null);
+    if (mailRunId !== (gameState?.runId ?? null)) {
+      setMailRunId(gameState?.runId ?? null);
+      setMailView({ ownerId: null, messageId: null });
+    }
     const auxOnScreenRef = useRef(true);
     const noGame = gameState === null;
     const commsUnread = useUnread(

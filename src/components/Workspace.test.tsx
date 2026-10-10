@@ -623,6 +623,42 @@ describe('Workspace — showMail', () => {
     expect(screen.getByText('Serviced Thursday.')).toBeTruthy();
   });
 
+  it('forgets the open mailbox when a new run starts', () => {
+    const { ref, rerender } = setup({ gameState: mailState() });
+    act(() => {
+      ref.current?.showMail('torres', 'm1');
+    });
+    expect(screen.getByText('Serviced Thursday.')).toBeTruthy();
+    const next = produce(mailState(), s => {
+      s.runId = 'another-run';
+      s.mailboxes = {};
+    });
+    rerender(
+      <Workspace
+        ref={ref}
+        terminal={<input aria-label="term-input" />}
+        gameState={next}
+        nodeIp="10.0.0.1"
+        trace={14}
+        map={<div>map-content</div>}
+        help={<div>help-content</div>}
+        briefing={<div>briefing-content</div>}
+        dossier={<div>dossier-content</div>}
+        explorerDisabled={false}
+        onRunCommand={vi.fn()}
+        onTerminalFocused={vi.fn()}
+        comms={<div>comms-content</div>}
+        commsAlert={false}
+        commsActivity={0}
+        onCommsFocused={vi.fn()}
+        onOpenMailbox={vi.fn()}
+        onReadMail={vi.fn()}
+      />,
+    );
+    expect(screen.queryByText(/syncing mailbox/i)).toBeNull();
+    expect(screen.queryByText('Serviced Thursday.')).toBeNull();
+  });
+
   it('shows the mailbox list when no message is given', () => {
     const { ref } = setup({ gameState: mailState() });
     act(() => {

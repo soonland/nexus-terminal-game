@@ -23,7 +23,6 @@ import type { TerminalLine } from './types/terminal';
 import { makeLine } from './types/terminal';
 import type { GameState } from './types/game';
 import { hasAccess } from './types/game';
-import type { Mailbox } from './types/mail';
 import { createInitialState, currentNode, burnRetry } from './engine/state';
 import produce from './engine/produce';
 import { resolveCommand } from './engine/commands';
@@ -48,28 +47,13 @@ import {
 } from './engine/persistence';
 import { loadDossier } from './engine/dossierPersistence';
 import { selectContract } from './data/contracts';
-import { unlockedOwners } from './engine/mail';
+import { carryMail, mergeMailResult, unlockedOwners } from './engine/mail';
 import { ensureMailbox, markMailRead } from './engine/mailClient';
 import { isMailCommand, runMailCommand } from './engine/mailCommand';
 import { DIVISION_LAYER } from './data/divisionSeeds';
 import type { ContractDefinition } from './types/game';
 import { THEMES, THEME_LABELS, applyTheme, saveTheme, loadTheme } from './engine/themes';
 import type { Theme } from './engine/themes';
-
-// Applies only what a mail command changed (a new mailbox, newly read ids) onto the latest state,
-// so a slow mailbox request cannot overwrite turns taken meanwhile.
-const mergeMailResult = (prev: GameState, incoming: GameState, ownerId?: string): GameState => {
-  const boxes = prev.mailboxes as Partial<Record<string, Mailbox>>;
-  const fresh = incoming.mailRead.filter(id => !prev.mailRead.includes(id));
-  const box = ownerId === undefined ? undefined : incoming.mailboxes[ownerId];
-  const addBox = ownerId !== undefined && box !== undefined && !boxes[ownerId];
-  if (!addBox && fresh.length === 0) return prev;
-  return {
-    ...prev,
-    mailboxes: addBox ? { ...prev.mailboxes, [ownerId]: box } : prev.mailboxes,
-    mailRead: [...prev.mailRead, ...fresh],
-  };
-};
 
 const computeContextSuggestions = (state: GameState): string[] => {
   const node = state.network.nodes[state.network.currentNodeId];
@@ -206,6 +190,10 @@ export const App = () => {
   const terminalRef = useRef<TerminalHandle>(null);
   const workspaceRef = useRef<WorkspaceHandle>(null);
   const openMailRef = useRef<string | null>(null);
+  const runId = gameState?.runId ?? null;
+  useEffect(() => {
+    openMailRef.current = null;
+  }, [runId]);
   const bootHandled = useRef(false);
   const spinnerTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const spinnerFrame = useRef(0);
@@ -579,7 +567,9 @@ export const App = () => {
 
       if (isMailCommand(raw)) {
         push([makeLine('input', raw)]);
+        const mailToken = runGuard.token();
         void runMailCommand(raw, gameState, openMailRef.current).then(result => {
+          if (!runGuard.isCurrent(mailToken)) return; // the run was reset while waiting
           if (result.ownerId) openMailRef.current = result.ownerId;
           push(result.lines.map(l => makeLine(l.type, l.content)));
           const incoming = result.nextState;
@@ -659,7 +649,8 @@ export const App = () => {
 
       if (result.nextState) {
         const next = result.nextState as GameState;
-        setGameState(next);
+        // Mail that landed while this turn was pending must survive it.
+        setGameState(prev => (prev ? carryMail(prev, next) : next));
         if (next.phase === 'burned') {
           out.push(
             makeLine('separator', ''),
@@ -929,7 +920,9 @@ export const App = () => {
         const owner = unlockedOwners(gameState).find(o => o.id === ownerId);
         if (!owner) return;
         openMailRef.current = ownerId;
+        const token = runGuard.token();
         void ensureMailbox(gameState, owner).then(incoming => {
+          if (!runGuard.isCurrent(token)) return; // the run was reset while waiting
           setGameState(prev => {
             if (!prev) return prev;
             const merged = mergeMailResult(prev, incoming, ownerId);

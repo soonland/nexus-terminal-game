@@ -5,7 +5,7 @@ import produce from '../produce';
 import { buildNodeMap } from '../../data/anchorNodes';
 import { SENTINEL_VOTE_PATH } from '../ariaName';
 import { runMailCommand } from '../mailCommand';
-import { unlockedOwners } from '../mail';
+import { mailboxOf, unlockedOwners } from '../mail';
 import type { GameState } from '../../types/game';
 
 const ARIA = /aria/i;
@@ -93,11 +93,11 @@ describe('engine output never says Aria before the reveal', () => {
               Promise.resolve({
                 messages: [
                   {
-                    from: 'Ops Desk',
-                    to: 'staff',
-                    sentAt: '2024-11-02 09:00',
+                    counterpart: 'Ops Desk',
+                    direction: 'in',
                     subject: 'Maintenance window',
                     body: 'Routine patching tonight.',
+                    day: 12,
                   },
                 ],
               }),
@@ -111,16 +111,24 @@ describe('engine output never says Aria before the reveal', () => {
       const owners = unlockedOwners(state).slice(0, 6);
       expect(owners.length).toBeGreaterThan(0);
       const out: string[] = [];
+      const stored: string[] = [];
+      let generated = 0;
       const summary = await runMailCommand('mail', state, null);
       out.push(...summary.lines.map(l => l.content));
       for (const owner of owners) {
         const opened = await runMailCommand(`mail ${owner.id}`, state, null);
         out.push(...opened.lines.map(l => l.content));
         const next = opened.nextState ?? state;
+        for (const m of mailboxOf(next, owner.id)?.messages ?? []) {
+          stored.push(m.subject, m.body);
+          if (m.source === 'generated') generated += 1;
+        }
         const read = await runMailCommand('mail read 1', next, owner.id);
         out.push(...read.lines.map(l => l.content));
       }
       expect(out.join('\n')).not.toMatch(/\baria\b/i);
+      expect(stored.join('\n')).not.toMatch(/\baria\b/i);
+      if (_n === 'a normal answer') expect(generated).toBeGreaterThan(0);
     });
   });
 });

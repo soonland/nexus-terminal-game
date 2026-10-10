@@ -147,6 +147,19 @@ describe('mail read <n>', () => {
   });
 });
 
+describe('mail read parsing', () => {
+  it('reports a bare "mail read" as no such message', async () => {
+    const opened = await runMailCommand('mail torres', withTorres(), null);
+    const r = await runMailCommand('mail read', opened.nextState as GameState, 'torres');
+    expect(text(r)).toContain('mail: no such message');
+  });
+
+  it.each(['mail readme', 'mail reading'])('treats "%s" as a name, not a read', async raw => {
+    const r = await runMailCommand(raw, withTorres(), 'torres');
+    expect(text(r)).toBe('mail: no credentials for that account');
+  });
+});
+
 describe('mail <name> opened twice before the first is stored', () => {
   it('prints the stored mailbox both times, even if the API answers differently', async () => {
     const answer = (subject: string): Response =>

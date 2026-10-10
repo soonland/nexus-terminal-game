@@ -87,3 +87,35 @@ export const unreadCount = (state: GameState, ownerId: string): number => {
   const box = mailboxOf(state, ownerId);
   return (box?.messages ?? []).filter(m => !read.has(m.id)).length;
 };
+
+// Applies only what a mail action changed (a new mailbox, newly read ids) onto the latest state,
+// so a slow mailbox request cannot overwrite turns taken meanwhile. A result from another run
+// (the game was reset while it was pending) is dropped.
+export const mergeMailResult = (
+  prev: GameState,
+  incoming: GameState,
+  ownerId?: string,
+): GameState => {
+  if (prev.runId !== incoming.runId) return prev;
+  const fresh = incoming.mailRead.filter(id => !prev.mailRead.includes(id));
+  const box = ownerId === undefined ? undefined : incoming.mailboxes[ownerId];
+  const addBox = ownerId !== undefined && box !== undefined && !mailboxOf(prev, ownerId);
+  if (!addBox && fresh.length === 0) return prev;
+  return {
+    ...prev,
+    mailboxes: addBox ? { ...prev.mailboxes, [ownerId]: box } : prev.mailboxes,
+    mailRead: [...prev.mailRead, ...fresh],
+  };
+};
+
+// A finished turn was built from the state at submit time: keep the mailboxes and read marks
+// that landed in `latest` while it was pending. Another run's mail is never carried over.
+export const carryMail = (latest: GameState, next: GameState): GameState => {
+  if (latest.runId !== next.runId) return next;
+  if (latest.mailboxes === next.mailboxes && latest.mailRead === next.mailRead) return next;
+  return {
+    ...next,
+    mailboxes: { ...next.mailboxes, ...latest.mailboxes },
+    mailRead: [...new Set([...next.mailRead, ...latest.mailRead])],
+  };
+};

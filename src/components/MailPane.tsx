@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import type { GameState } from '../types/game';
 import { mailboxOf, unlockedOwners, unreadCount } from '../engine/mail';
 import { sourceSelection } from './explorerShared';
@@ -38,6 +39,17 @@ export const MailPane = ({
   const mailbox = ownerId === null ? undefined : mailboxOf(gameState, ownerId);
   const message = mailbox?.messages.find(m => m.id === messageId);
   const attachment = message?.attachment;
+
+  // A mailbox can vanish under the selection (a state replaced mid-request): ask for it again.
+  // The request is cached per run, so it returns the very same mailbox.
+  const openRef = useRef(onOpenMailbox);
+  useEffect(() => {
+    openRef.current = onOpenMailbox;
+  });
+  const missing = ownerId !== null && !mailbox && owners.some(o => o.id === ownerId);
+  useEffect(() => {
+    if (missing) openRef.current(ownerId);
+  }, [missing, ownerId]);
 
   if (owners.length === 0) {
     return (
@@ -123,7 +135,7 @@ export const MailPane = ({
               onClick={() => {
                 onOpenSource(attachment);
               }}>
-              {`📎 ${fileName(attachment.path)}`}
+              {fileName(attachment.path)}
             </button>
           )}
         </article>

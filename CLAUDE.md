@@ -27,7 +27,7 @@ Build (`pnpm build`) is the primary correctness check — it runs `tsc -b` befor
 - **Husky + lint-staged** — pre-commit runs Prettier then ESLint on staged files only. `commit-msg` runs commitlint.
 - **commitlint** — `commitlint.config.js`, enforces Conventional Commits (`feat`, `fix`, `chore`, `docs`, `refactor`, `test`, `ci`, `build`, `perf`, `revert`).
 - **Knip** — `knip.json`, detects unused exports/files/dependencies. Run before PRs touching exports or deps.
-- **MSW** — `src/mocks/` has Node server + handlers for the 4 API routes (`/api/world`, `/api/file`, `/api/aria`, `/api/mail`). Setup file is registered in `vitest.config.ts`.
+- **MSW** — `src/mocks/` has Node server + handlers for the 5 API routes (`/api/world`, `/api/file`, `/api/node-description`, `/api/aria`, `/api/mail`). Setup file is registered in `vitest.config.ts`.
 - **Dependabot** — `.github/dependabot.yml`, weekly minor/major npm updates, grouped PRs, `chore(deps):` commit prefix.
 - **Claude Code review** — `.github/workflows/claude-code-review.yml`, opt-in: a PR is reviewed only while it carries the `claude-review` label (`gh pr create --label claude-review`, or add the label later; remove it to stop). `@claude` mentions (`claude.yml`) are unaffected.
 - **release-please** — `.github/workflows/release-please.yml`, opens a release PR on every merge to `main` with auto-generated changelog from conventional commits.
