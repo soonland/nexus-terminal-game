@@ -33,6 +33,9 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Logs every tool call and which ones the allow-list below denied. This prints the review's
+          # tool output into the public Actions log, so turn it back off once the denials are known.
+          show_full_output: true
           prompt: |
             Review the changes in this pull request.
             Flag bugs, security issues, and deviations from the project conventions described in CLAUDE.md.
