@@ -72,8 +72,12 @@ export const mergeMail = (authored: MailMessage[], extra: MailMessage[]): MailMe
 export const mailActivity = (state: GameState): number =>
   Object.values(state.mailboxes).reduce((n, b) => n + b.messages.length, 0);
 
+// A mailbox by owner id; undefined until it has been opened.
+export const mailboxOf = (state: GameState, ownerId: string): Mailbox | undefined =>
+  (state.mailboxes as Partial<Record<string, Mailbox>>)[ownerId];
+
 export const unreadCount = (state: GameState, ownerId: string): number => {
   const read = new Set(state.mailRead);
-  const box = (state.mailboxes as Partial<Record<string, Mailbox>>)[ownerId];
+  const box = mailboxOf(state, ownerId);
   return (box?.messages ?? []).filter(m => !read.has(m.id)).length;
 };

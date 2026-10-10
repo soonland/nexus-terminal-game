@@ -62,6 +62,8 @@ const setup = (over: Partial<Parameters<typeof Workspace>[0]> = {}) => {
       commsAlert={false}
       commsActivity={0}
       onCommsFocused={onCommsFocused}
+      onOpenMailbox={vi.fn()}
+      onReadMail={vi.fn()}
       {...over}
     />,
   );
@@ -136,6 +138,8 @@ describe('Workspace — game starting and ending', () => {
       commsAlert={false}
       commsActivity={0}
       onCommsFocused={vi.fn()}
+      onOpenMailbox={vi.fn()}
+      onReadMail={vi.fn()}
     />
   );
 
@@ -168,6 +172,8 @@ describe('Workspace — game starting and ending', () => {
         commsAlert={false}
         commsActivity={0}
         onCommsFocused={vi.fn()}
+        onOpenMailbox={vi.fn()}
+        onReadMail={vi.fn()}
       />
     );
     const { rerender } = render(withRef(withFile()));
@@ -439,6 +445,8 @@ describe('Workspace — comms focus during the first-contact interruption', () =
       commsAlert={established}
       commsActivity={0}
       onCommsFocused={vi.fn()}
+      onOpenMailbox={vi.fn()}
+      onReadMail={vi.fn()}
     />
   );
 
@@ -503,6 +511,8 @@ describe('Workspace — unread comms marker', () => {
         commsAlert={false}
         commsActivity={3}
         onCommsFocused={view.onCommsFocused}
+        onOpenMailbox={vi.fn()}
+        onReadMail={vi.fn()}
       />,
     );
     expect(marked()).toBe(true);
@@ -541,6 +551,8 @@ describe('Workspace — the casebook', () => {
       commsAlert={false}
       commsActivity={0}
       onCommsFocused={vi.fn()}
+      onOpenMailbox={vi.fn()}
+      onReadMail={vi.fn()}
     />
   );
 
@@ -569,5 +581,13 @@ describe('Workspace — the casebook', () => {
     fireEvent.click(screen.getAllByRole('button', { name: /kessler_h_2024-03\.txt/ })[0]);
     expect(section('doc').textContent).toContain('kessler_h_2024-03.txt');
     expect(section('doc').textContent).toContain('HR SEPARATION RECORD');
+  });
+});
+
+describe('Workspace — the MAIL tab', () => {
+  it('opens the mail pane from the MAIL tab', () => {
+    setup();
+    fireEvent.click(screen.getByRole('button', { name: 'MAIL' }));
+    expect(screen.getByText(/no mailboxes unlocked yet/i)).toBeTruthy();
   });
 });

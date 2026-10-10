@@ -13,6 +13,8 @@ import { Overlay } from './Overlay';
 import { FilesPane } from './FilesPane';
 import { DocPane } from './DocPane';
 import { CasePane } from './CasePane';
+import { MailPane } from './MailPane';
+import { mailActivity } from '../engine/mail';
 import { CamPane } from './CamPane';
 import { cameraFeeds } from '../engine/cameras';
 import { availableAuxTabs, resolveAuxTab } from '../layout/auxTabs';
@@ -48,6 +50,8 @@ interface Props {
   // Running count of things that have arrived in COMMS; drives the unread marker.
   commsActivity: number;
   onCommsFocused: () => void;
+  onOpenMailbox: (ownerId: string) => void;
+  onReadMail: (messageId: string) => void;
 }
 
 const OVERLAY_TITLES: Record<OverlayKind, string> = {
@@ -78,6 +82,8 @@ export const Workspace = forwardRef<WorkspaceHandle, Props>(
       commsAlert,
       commsActivity,
       onCommsFocused,
+      onOpenMailbox,
+      onReadMail,
     },
     ref,
   ) => {
@@ -196,6 +202,16 @@ export const Workspace = forwardRef<WorkspaceHandle, Props>(
       true,
     );
 
+    const mailVisible =
+      shownAuxTab === 'mail' &&
+      (narrow ? layout.focused === 'aux' : layout.zoomed === null || layout.zoomed === 'aux');
+    const mailUnread = useUnread(
+      gameState ? mailActivity(gameState) : 0,
+      mailVisible,
+      gameState?.runId ?? null,
+      true,
+    );
+
     const camVisible = narrow
       ? layout.focused === 'aux'
       : layout.zoomed === null || layout.zoomed === 'aux';
@@ -207,7 +223,7 @@ export const Workspace = forwardRef<WorkspaceHandle, Props>(
       gameState?.runId ?? null,
       true,
     );
-    const auxUnread = caseUnread || camUnread;
+    const auxUnread = caseUnread || camUnread || mailUnread;
     const camFullscreen = layout.zoomed === 'aux';
     const toggleCamFullscreen = () => {
       setLayout(prev =>
@@ -281,6 +297,15 @@ export const Workspace = forwardRef<WorkspaceHandle, Props>(
             fullscreen={camFullscreen}
             onToggleFullscreen={toggleCamFullscreen}
           />
+        ) : shownAuxTab === 'mail' ? (
+          gameState && (
+            <MailPane
+              gameState={gameState}
+              onOpenMailbox={onOpenMailbox}
+              onRead={onReadMail}
+              onOpenSource={openSource}
+            />
+          )
         ) : (
           gameState && <CasePane gameState={gameState} onOpenSource={openSource} />
         ),

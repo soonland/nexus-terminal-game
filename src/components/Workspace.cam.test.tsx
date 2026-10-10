@@ -43,6 +43,8 @@ const view = (state: GameState) => (
     commsAlert={false}
     commsActivity={0}
     onCommsFocused={vi.fn()}
+    onOpenMailbox={vi.fn()}
+    onReadMail={vi.fn()}
   />
 );
 

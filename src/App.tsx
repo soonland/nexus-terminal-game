@@ -49,6 +49,7 @@ import {
 import { loadDossier } from './engine/dossierPersistence';
 import { selectContract } from './data/contracts';
 import { unlockedOwners } from './engine/mail';
+import { ensureMailbox, markMailRead } from './engine/mailClient';
 import { isMailCommand, runMailCommand } from './engine/mailCommand';
 import { DIVISION_LAYER } from './data/divisionSeeds';
 import type { ContractDefinition } from './types/game';
@@ -921,6 +922,28 @@ export const App = () => {
       commsActivity={nexusMessages.length + (gameState ? ariaReplyCount(gameState) : 0)}
       onCommsFocused={() => {
         commsRef.current?.focus();
+      }}
+      onOpenMailbox={ownerId => {
+        if (!gameState) return;
+        const owner = unlockedOwners(gameState).find(o => o.id === ownerId);
+        if (!owner) return;
+        openMailRef.current = ownerId;
+        void ensureMailbox(gameState, owner).then(incoming => {
+          setGameState(prev => {
+            if (!prev) return prev;
+            const merged = mergeMailResult(prev, incoming, ownerId);
+            if (merged !== prev) saveGame(merged);
+            return merged;
+          });
+        });
+      }}
+      onReadMail={messageId => {
+        setGameState(prev => {
+          if (!prev) return prev;
+          const next = markMailRead(prev, [messageId]);
+          if (next !== prev) saveGame(next);
+          return next;
+        });
       }}
       terminal={
         <Terminal
