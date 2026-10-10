@@ -22,7 +22,7 @@
 
 ## Review Focus
 
-- At the decision terminal (`aria_decision`) and when the phase is not `playing`, the menu must offer nothing (the engine rejects all input there except `1` to `4`).
+- At the decision terminal (`aria_decision`) and when the phase is `burned` or `ended`, the menu must offer nothing; in the `aria` phase it must still work (the engine rejects all input there except `1` to `4`).
 - A credential that grants no more access than the player already has on the node, a revoked one, and one not yet obtained are never offered, and the password appears only inside the command string.
 - Exploit entries never appear for a node the player has not scanned (no leak of vulnerabilities), and never list a patched or non-vulnerable service.
 - Bare `scan`, a `scan` of an unknown IP, and re-scanning a host must not add or duplicate `scanned` entries; a save from before this change loads with `[]`.
@@ -169,7 +169,7 @@ In `src/engine/commands.ts`, in `cmdScan`, inside `if (args[0]) { ... }`, direct
 
 - [ ] **Step 5: Correct the spec**
 
-In `docs/superpowers/specs/2026-10-10-network-map-design.md`, in "The node menu" replace `Otherwise disabled with the reason ("no route from here", "locked").` with `Otherwise disabled with the exact message the command would print ("No direct route from ... to ...", "ACCESS DENIED — current layer incomplete — gain a foothold on ... first"). \`connect\` does not check \`locked\`, so locked is not a reason.` Also add one bullet to the same section: `At the decision terminal (aria_decision), and whenever the game phase is not playing, the menu offers nothing: the engine rejects all input there except 1 to 4.`
+In `docs/superpowers/specs/2026-10-10-network-map-design.md`, in "The node menu" replace `Otherwise disabled with the reason ("no route from here", "locked").` with `Otherwise disabled with the exact message the command would print ("No direct route from ... to ...", "ACCESS DENIED — current layer incomplete — gain a foothold on ... first"). \`connect\` does not check \`locked\`, so locked is not a reason.` Also add one bullet to the same section: `At the decision terminal (aria_decision), and when the run is burned or ended, the menu offers nothing: the engine rejects all input at the decision terminal except 1 to 4. The `aria` phase (after the subnet key is taken) is ordinary play, so the menu still works there.`
 
 - [ ] **Step 6: Run tests and the type check**
 
@@ -456,7 +456,7 @@ export const nodeActions: (state: GameState, nodeId: string) => NodeAction[];
 
 Behaviour (the tests below pin it):
 
-- `[]` when `state.phase !== 'playing'`, when the player is on `aria_decision`, or when the node is missing or not discovered.
+- `[]` when the phase is neither `playing` nor `aria` (`aria` is the phase after the subnet key is taken, and commands still run in it), when the player is on `aria_decision`, or when the node is missing or not discovered.
 - **A node the player is not on:** `Connect` (`connect <ip>`; disabled with `connectBlockedMessage` when it would be refused; free) and `Scan` (`scan <ip>`; cost `+0 trace (port scanner)` or `+1–2 trace`).
 - **The current node:** `Scan host` (`scan <ip>`), `Scan subnet` (`scan`), both with the scan cost; `Login as <user>` (`login <user> <password>`, free) for each credential with `obtained && !revoked`, valid on this node, granting more access than the node's current `accessLevel`; exploit entries (below); `Back to <label>` (`disconnect`, free) when `previousNodeId` is set; `Wipe logs` (`wipe-logs`, `−15 trace, uses the log wiper`) and `Spoof ID` (`spoof`, `−20 trace, uses the spoof tool`) only while the tool is held and unused.
 - **Exploit entries:** only when the node is known, meaning `state.scanned` includes it or it is compromised. Known: one entry per service with `vulnerable && !patched`, command `exploit <name>`, cost `<N> charge(s), ~+<T> trace (+10 if it fails)` with `N = exploitChargeCost`, `T = traceContribution ?? 2`; disabled with `exploit-kit tool required` when the kit is missing, or `Insufficient charges (need N, have M)`. Not known: a single disabled informational entry (`label: 'Exploit', command: '', disabledReason: 'Scan this host to find services'`).
@@ -512,13 +512,20 @@ describe('nodeActions — when the menu is empty', () => {
     expect(nodeActions(s, 'contractor_portal')).toEqual([]);
   });
 
-  it('offers nothing unless the game is being played', () => {
+  it('offers nothing once the run is burned or ended', () => {
     for (const phase of ['burned', 'ended'] as const) {
       const s = withEdit(st => {
         st.phase = phase;
       });
       expect(nodeActions(s, 'contractor_portal')).toEqual([]);
     }
+  });
+
+  it('still offers actions in the aria phase, which is ordinary play after the subnet key', () => {
+    const s = withEdit(st => {
+      st.phase = 'aria';
+    });
+    expect(nodeActions(s, 'contractor_portal').length).toBeGreaterThan(0);
   });
 });
 
@@ -1035,8 +1042,9 @@ const otherNodeActions = (state: GameState, node: LiveNode): NodeAction[] => [
 
 export const nodeActions = (state: GameState, nodeId: string): NodeAction[] => {
   // The engine rejects all input at the decision terminal except 1 to 4, and none once the run
-  // is over, so there is nothing to offer.
-  if (state.phase !== 'playing') return [];
+  // is over, so there is nothing to offer. The `aria` phase (after the subnet key is taken) is
+  // still ordinary play.
+  if (state.phase !== 'playing' && state.phase !== 'aria') return [];
   const here = currentNode(state);
   if (here.id === 'aria_decision') return [];
   const node = state.network.nodes[nodeId];
@@ -1052,7 +1060,7 @@ Expected: PASS. If a test fails because the real data differs from the "facts ve
 
 - [ ] **Step 6: Document it**
 
-In `CLAUDE.md`, under "Network / nodes", add one paragraph: `**Node actions.** `GameState.scanned` (optional save field, no version bump) lists the node ids the player has scanned by IP (`scan <ip>` only; a bare `scan` lists peers and marks nothing). `nodeActions(state, nodeId)` (`src/engine/mapActions.ts`) is the pure list of what a click on a map node may do (connect, scan, login, exploit, disconnect, wipe-logs, spoof) with each action's exact command line, cost text, whether it needs a confirm, and why it is disabled. It shares its rules with the commands through `connectBlockedMessage`, `exploitChargeCost` and `scanTraceRange` (exported from `src/engine/commands.ts`), and a contract test (`src/engine/__tests__/mapActions.contract.test.ts`) runs every enabled entry through `resolveCommand`. It offers nothing at the decision terminal or when the phase is not `playing`. Design: `docs/superpowers/specs/2026-10-10-network-map-design.md`.`
+In `CLAUDE.md`, under "Network / nodes", add one paragraph: `**Node actions.** `GameState.scanned` (optional save field, no version bump) lists the node ids the player has scanned by IP (`scan <ip>` only; a bare `scan` lists peers and marks nothing). `nodeActions(state, nodeId)` (`src/engine/mapActions.ts`) is the pure list of what a click on a map node may do (connect, scan, login, exploit, disconnect, wipe-logs, spoof) with each action's exact command line, cost text, whether it needs a confirm, and why it is disabled. It shares its rules with the commands through `connectBlockedMessage`, `exploitChargeCost` and `scanTraceRange` (exported from `src/engine/commands.ts`), and a contract test (`src/engine/__tests__/mapActions.contract.test.ts`) runs every enabled entry through `resolveCommand`. It offers nothing at the decision terminal or when the run is burned or ended (the `aria` phase after the subnet key is ordinary play). Design: `docs/superpowers/specs/2026-10-10-network-map-design.md`.`
 
 - [ ] **Step 7: Full gate**
 
