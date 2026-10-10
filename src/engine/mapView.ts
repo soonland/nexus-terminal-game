@@ -26,13 +26,16 @@ export const panBy = (v: View, dx: number, dy: number): View => ({
   y: v.y + dy,
 });
 
+const FIT_MIN_K = 0.8; // labels stay readable; manual zoom can still go down to MIN_K
+
+const fitAxis = (content: number, box: number, k: number, pad: number): number =>
+  content * k <= box - pad * 2 ? (box - content * k) / 2 : pad;
+
 export const fitView = (content: Size, box: Size, pad = 24): View => {
   if (content.w <= 0 || content.h <= 0 || box.w <= 0 || box.h <= 0) return { x: 0, y: 0, k: 1 };
-  const k = clampK(
-    Math.min((box.w - pad * 2) / content.w, (box.h - pad * 2) / content.h),
-    FIT_MAX_K,
-  );
-  return { k, x: (box.w - content.w * k) / 2, y: (box.h - content.h * k) / 2 };
+  const raw = Math.min((box.w - pad * 2) / content.w, (box.h - pad * 2) / content.h);
+  const k = Math.min(FIT_MAX_K, Math.max(FIT_MIN_K, raw));
+  return { k, x: fitAxis(content.w, box.w, k, pad), y: fitAxis(content.h, box.h, k, pad) };
 };
 
 export const isVisible = (

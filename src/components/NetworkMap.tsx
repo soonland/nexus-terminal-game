@@ -165,12 +165,16 @@ export const NetworkMap = ({ gameState }: { gameState: GameState }) => {
   };
   const content = { w: layout.width, h: layout.height };
 
-  const [view, setView] = useState<View>(() => fitView(content, DEFAULT_BOX));
-  const fitted = useRef(false);
+  const currentId = gameState.network.currentNodeId;
+  const fitTo = (box: Size): View => {
+    const v = fitView(content, box);
+    const p = (layout.positions as Partial<Record<string, { x: number; y: number }>>)[currentId];
+    return p && !isVisible(v, p, box) ? centreOn(v, p, box) : v;
+  };
+
+  const [view, setView] = useState<View>(() => fitTo(DEFAULT_BOX));
   useEffect(() => {
-    if (fitted.current) return;
-    fitted.current = true;
-    setView(fitView(content, boxSize()));
+    setView(fitTo(boxSize()));
     // eslint-disable-next-line react-hooks/exhaustive-deps -- fit once on mount
   }, []);
 
@@ -179,8 +183,10 @@ export const NetworkMap = ({ gameState }: { gameState: GameState }) => {
   useEffect(() => {
     latest.current = { layout, view };
   });
-  const currentId = gameState.network.currentNodeId;
+  const lastCurrent = useRef(currentId);
   useEffect(() => {
+    if (lastCurrent.current === currentId) return; // the mount is handled by the fit above
+    lastCurrent.current = currentId;
     const p = (
       latest.current.layout.positions as Partial<Record<string, { x: number; y: number }>>
     )[currentId];
@@ -194,7 +200,7 @@ export const NetworkMap = ({ gameState }: { gameState: GameState }) => {
     setView(v => zoomAt(v, factor, box.w / 2, box.h / 2));
   };
   const fit = () => {
-    setView(fitView(content, boxSize()));
+    setView(fitTo(boxSize()));
   };
   const toggle = (id: string) => {
     setExpanded(prev => {
@@ -229,6 +235,7 @@ export const NetworkMap = ({ gameState }: { gameState: GameState }) => {
   };
 
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
     if ((e.target as Element).closest('button')) return;
     const pans: Partial<Record<string, [number, number]>> = {
       ArrowRight: [PAN_STEP, 0],
@@ -252,6 +259,7 @@ export const NetworkMap = ({ gameState }: { gameState: GameState }) => {
       role="region"
       aria-label="Network map"
       data-testid="network-map"
+      tabIndex={0}
       onKeyDown={onKeyDown}>
       <svg
         className="network-map-svg"

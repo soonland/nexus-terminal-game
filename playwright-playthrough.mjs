@@ -372,6 +372,14 @@ try {
   // Back to the explorer's file detail, so the later steps start from the usual doc pane.
   await page.getByRole('button', { name: 'DOC', exact: true }).click();
 
+  // The `map` command shows the network diagram in the doc pane; return to the file viewer after.
+  await cmd('map');
+  check(
+    'the map command shows the diagram',
+    (await page.locator('[data-testid="network-map"]').count()) === 1,
+  );
+  await page.getByRole('button', { name: 'DOC', exact: true }).click();
+
   await cmd('cat PROJ_SENTINEL_BOARD_VOTE.pdf');
   await cmd('scan');
   await cmd('connect 10.4.0.2');

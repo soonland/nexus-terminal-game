@@ -21,10 +21,24 @@ describe('mapView', () => {
   });
 
   it('fitView shrinks big content into the box and centres it', () => {
-    const v = fitView({ w: 2000, h: 1000 }, { w: 1000, h: 500 }, 0);
-    expect(v.k).toBeCloseTo(0.5);
+    const v = fitView({ w: 2000, h: 1000 }, { w: 1800, h: 900 }, 0);
+    expect(v.k).toBeCloseTo(0.9);
     expect(v.x).toBeCloseTo(0);
     expect(v.y).toBeCloseTo(0);
+  });
+
+  it('fitView keeps overflowing content readable and anchored at the padding', () => {
+    const v = fitView({ w: 2000, h: 2000 }, { w: 500, h: 500 }, 24);
+    expect(v.k).toBe(0.8);
+    expect(v.x).toBe(24);
+    expect(v.y).toBe(24);
+  });
+
+  it('fitView centres only the axis that fits when the other overflows', () => {
+    const v = fitView({ w: 500, h: 1000 }, { w: 1000, h: 500 }, 0);
+    expect(v.k).toBe(0.8);
+    expect(v.x).toBeCloseTo(300);
+    expect(v.y).toBe(0);
   });
 
   it('fitView never zooms in past 1.5 and centres small content', () => {

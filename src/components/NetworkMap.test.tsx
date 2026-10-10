@@ -207,6 +207,62 @@ describe('NetworkMap', () => {
     expect(worldOf(container)).toEqual(start);
   });
 
+  it('ignores keys pressed with a modifier', () => {
+    const { container, getByTestId } = render(<NetworkMap gameState={createInitialState()} />);
+    const start = worldOf(container);
+    const root = getByTestId('network-map');
+    fireEvent.keyDown(root, { key: '+', ctrlKey: true });
+    expect(worldOf(container)).toEqual(start);
+    fireEvent.keyDown(root, { key: 'ArrowRight', altKey: true });
+    expect(worldOf(container)).toEqual(start);
+    fireEvent.keyDown(root, { key: '+' });
+    const zoomed = worldOf(container);
+    fireEvent.keyDown(root, { key: '0', metaKey: true });
+    expect(worldOf(container)).toEqual(zoomed);
+  });
+
+  it('can take keyboard focus', () => {
+    const { getByTestId } = render(<NetworkMap gameState={createInitialState()} />);
+    expect(getByTestId('network-map').tabIndex).toBe(0);
+  });
+
+  it('fits to the real pane size on mount and keeps the current node in view', () => {
+    const w = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientWidth');
+    const h = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientHeight');
+    Object.defineProperty(HTMLElement.prototype, 'clientWidth', {
+      configurable: true,
+      value: 1190,
+    });
+    Object.defineProperty(HTMLElement.prototype, 'clientHeight', {
+      configurable: true,
+      value: 205,
+    });
+    try {
+      const all = discoverAll(createInitialState());
+      const far = Object.values(all.network.nodes).find(n => n?.layer === 5);
+      if (!far) throw new Error('no layer 5 node');
+      const base = produce(all, s => {
+        s.network.currentNodeId = far.id;
+      });
+      const { container } = render(<NetworkMap gameState={base} />);
+      const v = worldOf(container);
+      expect(v.k).toBeGreaterThanOrEqual(0.8);
+      const node = container.querySelector(`[data-node-id="${base.network.currentNodeId}"]`);
+      const placed = /translate\(([-\d.]+) ([-\d.]+)\)/.exec(node?.getAttribute('transform') ?? '');
+      const sx = Number(placed?.[1]) * v.k + v.x;
+      const sy = Number(placed?.[2]) * v.k + v.y;
+      expect(sx).toBeGreaterThanOrEqual(0);
+      expect(sx).toBeLessThanOrEqual(1190);
+      expect(sy).toBeGreaterThanOrEqual(0);
+      expect(sy).toBeLessThanOrEqual(205);
+    } finally {
+      if (w) Object.defineProperty(HTMLElement.prototype, 'clientWidth', w);
+      else Reflect.deleteProperty(HTMLElement.prototype, 'clientWidth');
+      if (h) Object.defineProperty(HTMLElement.prototype, 'clientHeight', h);
+      else Reflect.deleteProperty(HTMLElement.prototype, 'clientHeight');
+    }
+  });
+
   it('pans by dragging the background', () => {
     const { container } = render(<NetworkMap gameState={createInitialState()} />);
     const svg = container.querySelector('svg') as SVGSVGElement;
