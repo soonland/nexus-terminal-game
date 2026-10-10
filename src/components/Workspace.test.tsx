@@ -62,6 +62,8 @@ const setup = (over: Partial<Parameters<typeof Workspace>[0]> = {}) => {
       commsAlert={false}
       commsActivity={0}
       onCommsFocused={onCommsFocused}
+      onOpenMailbox={vi.fn()}
+      onReadMail={vi.fn()}
       {...over}
     />,
   );
@@ -136,6 +138,8 @@ describe('Workspace — game starting and ending', () => {
       commsAlert={false}
       commsActivity={0}
       onCommsFocused={vi.fn()}
+      onOpenMailbox={vi.fn()}
+      onReadMail={vi.fn()}
     />
   );
 
@@ -168,6 +172,8 @@ describe('Workspace — game starting and ending', () => {
         commsAlert={false}
         commsActivity={0}
         onCommsFocused={vi.fn()}
+        onOpenMailbox={vi.fn()}
+        onReadMail={vi.fn()}
       />
     );
     const { rerender } = render(withRef(withFile()));
@@ -439,6 +445,8 @@ describe('Workspace — comms focus during the first-contact interruption', () =
       commsAlert={established}
       commsActivity={0}
       onCommsFocused={vi.fn()}
+      onOpenMailbox={vi.fn()}
+      onReadMail={vi.fn()}
     />
   );
 
@@ -503,6 +511,8 @@ describe('Workspace — unread comms marker', () => {
         commsAlert={false}
         commsActivity={3}
         onCommsFocused={view.onCommsFocused}
+        onOpenMailbox={vi.fn()}
+        onReadMail={vi.fn()}
       />,
     );
     expect(marked()).toBe(true);
@@ -541,6 +551,8 @@ describe('Workspace — the casebook', () => {
       commsAlert={false}
       commsActivity={0}
       onCommsFocused={vi.fn()}
+      onOpenMailbox={vi.fn()}
+      onReadMail={vi.fn()}
     />
   );
 
@@ -569,5 +581,118 @@ describe('Workspace — the casebook', () => {
     fireEvent.click(screen.getAllByRole('button', { name: /kessler_h_2024-03\.txt/ })[0]);
     expect(section('doc').textContent).toContain('kessler_h_2024-03.txt');
     expect(section('doc').textContent).toContain('HR SEPARATION RECORD');
+  });
+});
+
+describe('Workspace — the MAIL tab', () => {
+  it('opens the mail pane from the MAIL tab', () => {
+    setup();
+    fireEvent.click(screen.getByRole('button', { name: 'MAIL' }));
+    expect(screen.getByText(/no mailboxes unlocked yet/i)).toBeTruthy();
+  });
+});
+
+describe('Workspace — showMail', () => {
+  const mailState = (): GameState =>
+    produce(createInitialState(5), s => {
+      for (const c of s.player.credentials) c.obtained = false;
+      const c = s.player.credentials.find(x => x.id === 'cred_exec_assistant');
+      if (c) c.obtained = true;
+      s.mailboxes['torres'] = {
+        ownerId: 'torres',
+        messages: [
+          {
+            id: 'm1',
+            threadId: 'm1',
+            from: 'Facilities Desk',
+            to: 'Elena Torres',
+            subject: 'Badge readers',
+            body: 'Serviced Thursday.',
+            sentAt: '2024-10-07',
+            source: 'authored',
+          },
+        ],
+      };
+    });
+
+  it('selects the MAIL tab and shows the message', () => {
+    const { ref } = setup({ gameState: mailState() });
+    act(() => {
+      ref.current?.showMail('torres', 'm1');
+    });
+    expect(screen.getByText('Serviced Thursday.')).toBeTruthy();
+  });
+
+  it('forgets the open mailbox when a new run starts', () => {
+    const { ref, rerender } = setup({ gameState: mailState() });
+    act(() => {
+      ref.current?.showMail('torres', 'm1');
+    });
+    expect(screen.getByText('Serviced Thursday.')).toBeTruthy();
+    const next = produce(mailState(), s => {
+      s.runId = 'another-run';
+      s.mailboxes = {};
+    });
+    rerender(
+      <Workspace
+        ref={ref}
+        terminal={<input aria-label="term-input" />}
+        gameState={next}
+        nodeIp="10.0.0.1"
+        trace={14}
+        map={<div>map-content</div>}
+        help={<div>help-content</div>}
+        briefing={<div>briefing-content</div>}
+        dossier={<div>dossier-content</div>}
+        explorerDisabled={false}
+        onRunCommand={vi.fn()}
+        onTerminalFocused={vi.fn()}
+        comms={<div>comms-content</div>}
+        commsAlert={false}
+        commsActivity={0}
+        onCommsFocused={vi.fn()}
+        onOpenMailbox={vi.fn()}
+        onReadMail={vi.fn()}
+      />,
+    );
+    expect(screen.queryByText(/syncing mailbox/i)).toBeNull();
+    expect(screen.queryByText('Serviced Thursday.')).toBeNull();
+  });
+
+  it('shows the mailbox list when no message is given', () => {
+    const { ref } = setup({ gameState: mailState() });
+    act(() => {
+      ref.current?.showMail('torres');
+    });
+    expect(screen.getByRole('button', { name: /Badge readers/ })).toBeTruthy();
+  });
+
+  it('leaves focus alone when the aux pane is already on screen', () => {
+    const { ref } = setup({ gameState: mailState() });
+    expect(section('term').getAttribute('data-focused')).toBe('true');
+    act(() => {
+      ref.current?.showMail('torres', 'm1');
+    });
+    expect(section('term').getAttribute('data-focused')).toBe('true');
+    expect(section('aux').getAttribute('data-focused')).toBe('false');
+  });
+
+  it('focuses aux when another pane is zoomed', () => {
+    const { ref } = setup({ gameState: mailState() });
+    alt('KeyZ');
+    expect(section('term').getAttribute('data-focused')).toBe('true');
+    act(() => {
+      ref.current?.showMail('torres', 'm1');
+    });
+    expect(section('aux').getAttribute('data-focused')).toBe('true');
+  });
+
+  it('focuses aux on a narrow screen showing another pane', () => {
+    vi.stubGlobal('innerWidth', 700);
+    const { ref } = setup({ gameState: mailState() });
+    act(() => {
+      ref.current?.showMail('torres', 'm1');
+    });
+    expect(section('aux').getAttribute('data-focused')).toBe('true');
   });
 });

@@ -1,4 +1,5 @@
 import type { DivisionId } from './divisionSeed';
+import type { Mailbox } from './mail';
 
 // ── Access levels ──────────────────────────────────────────
 export type AccessLevel = 'none' | 'user' | 'admin' | 'root';
@@ -315,6 +316,8 @@ export interface GameState {
   sentinel: SentinelState;
   unlockSession: UnlockSession | null; // active bypass mini-game, null when idle
   unlockAttempts: Record<string, number>; // file.path → cumulative individual failure count
+  mailboxes: Record<string, Mailbox>; // owner id → mailbox; only mailboxes the player has opened
+  mailRead: string[]; // ids of mail messages the player has read
 }
 
 // ── Command result ─────────────────────────────────────────

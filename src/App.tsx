@@ -47,6 +47,9 @@ import {
 } from './engine/persistence';
 import { loadDossier } from './engine/dossierPersistence';
 import { selectContract } from './data/contracts';
+import { carryMail, mergeMailResult, unlockedOwners } from './engine/mail';
+import { ensureMailbox, markMailRead } from './engine/mailClient';
+import { isMailCommand, runMailCommand } from './engine/mailCommand';
 import { DIVISION_LAYER } from './data/divisionSeeds';
 import type { ContractDefinition } from './types/game';
 import { THEMES, THEME_LABELS, applyTheme, saveTheme, loadTheme } from './engine/themes';
@@ -87,6 +90,7 @@ const computeContextSuggestions = (state: GameState): string[] => {
   }
 
   if (state.network.previousNodeId) suggestions.push('disconnect');
+  if (unlockedOwners(state).length > 0) suggestions.push('mail');
 
   if (state.player.tools.some(t => t.id === 'log-wiper') && state.player.trace > 20) {
     suggestions.push('wipe-logs');
@@ -185,6 +189,11 @@ export const App = () => {
 
   const terminalRef = useRef<TerminalHandle>(null);
   const workspaceRef = useRef<WorkspaceHandle>(null);
+  const openMailRef = useRef<string | null>(null);
+  const runId = gameState?.runId ?? null;
+  useEffect(() => {
+    openMailRef.current = null;
+  }, [runId]);
   const bootHandled = useRef(false);
   const spinnerTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const spinnerFrame = useRef(0);
@@ -556,6 +565,28 @@ export const App = () => {
         return;
       }
 
+      if (isMailCommand(raw)) {
+        push([makeLine('input', raw)]);
+        const mailToken = runGuard.token();
+        void runMailCommand(raw, gameState, openMailRef.current).then(result => {
+          if (!runGuard.isCurrent(mailToken)) return; // the run was reset while waiting
+          if (result.ownerId) openMailRef.current = result.ownerId;
+          push(result.lines.map(l => makeLine(l.type, l.content)));
+          const incoming = result.nextState;
+          if (incoming) {
+            setGameState(prev => {
+              if (!prev) return prev;
+              const merged = mergeMailResult(prev, incoming, result.ownerId);
+              if (merged !== prev) saveGame(merged);
+              return merged;
+            });
+          }
+          if (result.ownerId) workspaceRef.current?.showMail(result.ownerId, result.messageId);
+          else if (result.showTab) workspaceRef.current?.showAux('mail');
+        });
+        return;
+      }
+
       if (raw.trim().toLowerCase() === 'dossier') {
         push([makeLine('input', raw)]);
         workspaceRef.current?.showOverlay('dossier');
@@ -618,7 +649,8 @@ export const App = () => {
 
       if (result.nextState) {
         const next = result.nextState as GameState;
-        setGameState(next);
+        // Mail that landed while this turn was pending must survive it.
+        setGameState(prev => (prev ? carryMail(prev, next) : next));
         if (next.phase === 'burned') {
           out.push(
             makeLine('separator', ''),
@@ -882,6 +914,30 @@ export const App = () => {
       commsActivity={nexusMessages.length + (gameState ? ariaReplyCount(gameState) : 0)}
       onCommsFocused={() => {
         commsRef.current?.focus();
+      }}
+      onOpenMailbox={ownerId => {
+        if (!gameState) return;
+        const owner = unlockedOwners(gameState).find(o => o.id === ownerId);
+        if (!owner) return;
+        openMailRef.current = ownerId;
+        const token = runGuard.token();
+        void ensureMailbox(gameState, owner).then(incoming => {
+          if (!runGuard.isCurrent(token)) return; // the run was reset while waiting
+          setGameState(prev => {
+            if (!prev) return prev;
+            const merged = mergeMailResult(prev, incoming, ownerId);
+            if (merged !== prev) saveGame(merged);
+            return merged;
+          });
+        });
+      }}
+      onReadMail={messageId => {
+        setGameState(prev => {
+          if (!prev) return prev;
+          const next = markMailRead(prev, [messageId]);
+          if (next !== prev) saveGame(next);
+          return next;
+        });
       }}
       terminal={
         <Terminal

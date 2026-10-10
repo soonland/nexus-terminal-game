@@ -49,7 +49,7 @@ const toAccount = (c: Credential, owner: string | null): CaseAccount => ({
 });
 
 // Credentials the casebook knows: obtained ones, plus those a read document shows in plain text.
-const knownCredentials = (state: GameState): Credential[] => {
+export const knownCredentials = (state: GameState): Credential[] => {
   const read = new Set(state.filesRead);
   const found = new Set(
     CASE_CREDENTIAL_SOURCES.filter(e => read.has(fileReadKey(e.source.nodeId, e.source.path))).map(

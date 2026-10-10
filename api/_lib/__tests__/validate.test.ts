@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { ValidationError, requireBoolean, requireString, requireObject } from '../validate.js';
+import {
+  ValidationError,
+  requireBoolean,
+  requireNumber,
+  requireString,
+  requireObject,
+} from '../validate.js';
 
 describe('ValidationError', () => {
   it('should have name ValidationError', () => {
@@ -109,5 +115,16 @@ describe('requireBoolean', () => {
     expect(() => requireBoolean(value, 'ariaNameKnown')).toThrow(
       'Missing or non-boolean field: ariaNameKnown',
     );
+  });
+});
+
+describe('requireNumber', () => {
+  it('accepts finite numbers', () => {
+    expect(requireNumber(3, 'n')).toBe(3);
+    expect(requireNumber(0, 'n')).toBe(0);
+  });
+
+  it.each(['3', NaN, Infinity, null, undefined])('rejects %j', value => {
+    expect(() => requireNumber(value, 'n')).toThrow('Missing or non-numeric field: n');
   });
 });

@@ -13,6 +13,9 @@ import { Overlay } from './Overlay';
 import { FilesPane } from './FilesPane';
 import { DocPane } from './DocPane';
 import { CasePane } from './CasePane';
+import { MailPane } from './MailPane';
+import type { MailView } from './MailPane';
+import { mailActivity } from '../engine/mail';
 import { CamPane } from './CamPane';
 import { cameraFeeds } from '../engine/cameras';
 import { availableAuxTabs, resolveAuxTab } from '../layout/auxTabs';
@@ -27,6 +30,8 @@ export type { AuxTab };
 export interface WorkspaceHandle {
   showOverlay: (kind: OverlayKind) => void;
   showAux: (tab: AuxTab) => void;
+  // Selects the MAIL tab and the mailbox/message it shows; focuses aux only if it is off screen.
+  showMail: (ownerId: string, messageId?: string) => void;
   focusPane: (pane: PaneId) => void;
 }
 
@@ -48,6 +53,8 @@ interface Props {
   // Running count of things that have arrived in COMMS; drives the unread marker.
   commsActivity: number;
   onCommsFocused: () => void;
+  onOpenMailbox: (ownerId: string) => void;
+  onReadMail: (messageId: string) => void;
 }
 
 const OVERLAY_TITLES: Record<OverlayKind, string> = {
@@ -78,6 +85,8 @@ export const Workspace = forwardRef<WorkspaceHandle, Props>(
       commsAlert,
       commsActivity,
       onCommsFocused,
+      onOpenMailbox,
+      onReadMail,
     },
     ref,
   ) => {
@@ -93,6 +102,14 @@ export const Workspace = forwardRef<WorkspaceHandle, Props>(
     }, [hasCam]);
     const [selection, setSelection] = useState<Selection | null>(null);
     const narrow = useViewportWidth() < NARROW_WIDTH;
+    const [mailView, setMailView] = useState<MailView>({ ownerId: null, messageId: null });
+    // Workspace outlives a game: forget the open mailbox when a new run starts.
+    const [mailRunId, setMailRunId] = useState(gameState?.runId ?? null);
+    if (mailRunId !== (gameState?.runId ?? null)) {
+      setMailRunId(gameState?.runId ?? null);
+      setMailView({ ownerId: null, messageId: null });
+    }
+    const auxOnScreenRef = useRef(true);
     const noGame = gameState === null;
     const commsUnread = useUnread(
       commsActivity,
@@ -166,6 +183,11 @@ export const Workspace = forwardRef<WorkspaceHandle, Props>(
           setAuxTab(tab);
           focus('aux');
         },
+        showMail: (ownerId, messageId) => {
+          setAuxTab('mail');
+          setMailView({ ownerId, messageId: messageId ?? null });
+          if (!auxOnScreenRef.current) focus('aux');
+        },
         focusPane: focus,
       }),
       [focus],
@@ -186,12 +208,28 @@ export const Workspace = forwardRef<WorkspaceHandle, Props>(
 
     // The CASE tab counts as "being looked at" when it is the selected aux tab and the aux pane
     // is actually on screen (not hidden behind another pane's zoom, or another narrow tab).
+    const auxOnScreen = narrow
+      ? layout.focused === 'aux'
+      : layout.zoomed === null || layout.zoomed === 'aux';
+    useEffect(() => {
+      auxOnScreenRef.current = auxOnScreen;
+    });
     const caseVisible =
       shownAuxTab === 'case' &&
       (narrow ? layout.focused === 'aux' : layout.zoomed === null || layout.zoomed === 'aux');
     const caseUnread = useUnread(
       gameState ? casebookActivity(gameState) : 0,
       caseVisible,
+      gameState?.runId ?? null,
+      true,
+    );
+
+    const mailVisible =
+      shownAuxTab === 'mail' &&
+      (narrow ? layout.focused === 'aux' : layout.zoomed === null || layout.zoomed === 'aux');
+    const mailUnread = useUnread(
+      gameState ? mailActivity(gameState) : 0,
+      mailVisible,
       gameState?.runId ?? null,
       true,
     );
@@ -207,7 +245,7 @@ export const Workspace = forwardRef<WorkspaceHandle, Props>(
       gameState?.runId ?? null,
       true,
     );
-    const auxUnread = caseUnread || camUnread;
+    const auxUnread = caseUnread || camUnread || mailUnread;
     const camFullscreen = layout.zoomed === 'aux';
     const toggleCamFullscreen = () => {
       setLayout(prev =>
@@ -281,6 +319,17 @@ export const Workspace = forwardRef<WorkspaceHandle, Props>(
             fullscreen={camFullscreen}
             onToggleFullscreen={toggleCamFullscreen}
           />
+        ) : shownAuxTab === 'mail' ? (
+          gameState && (
+            <MailPane
+              gameState={gameState}
+              view={mailView}
+              onView={setMailView}
+              onOpenMailbox={onOpenMailbox}
+              onRead={onReadMail}
+              onOpenSource={openSource}
+            />
+          )
         ) : (
           gameState && <CasePane gameState={gameState} onOpenSource={openSource} />
         ),

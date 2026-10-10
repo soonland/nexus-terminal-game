@@ -1032,3 +1032,93 @@ button.case-source {
 .case-current {
   color: var(--win-title-color);
 }
+
+.mail-pane {
+  height: 100%;
+  padding: 6px 8px;
+  overflow: auto;
+  font-size: var(--font-size-secondary);
+}
+
+.mail-pane button {
+  border: 1px solid var(--win-border);
+  background: transparent;
+  color: var(--win-title-color);
+  font: inherit;
+  cursor: pointer;
+}
+
+.mail-owners {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.mail-owners button {
+  padding: 0 6px;
+  opacity: 0.55;
+}
+
+.mail-owners button[aria-pressed='true'] {
+  opacity: 1;
+}
+
+.mail-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mail-list button {
+  display: grid;
+  grid-template-columns: 6.5em 12em 1fr;
+  gap: 8px;
+  width: 100%;
+  padding: 2px 0;
+  border: none;
+  border-bottom: 1px solid var(--win-border);
+  text-align: left;
+}
+
+.mail-list button[data-unread='true'] {
+  font-weight: bold;
+}
+
+.mail-date {
+  opacity: 0.6;
+}
+
+.mail-empty {
+  opacity: 0.8;
+}
+
+.mail-message dl {
+  display: grid;
+  grid-template-columns: 5em 1fr;
+  margin: 6px 0;
+}
+
+.mail-message dt {
+  opacity: 0.6;
+}
+
+.mail-message dd {
+  margin: 0;
+}
+
+.mail-body {
+  white-space: pre-wrap;
+}
+
+.mail-attachment {
+  padding: 0 6px;
+  color: var(--color-system);
+  text-decoration: underline;
+}
+
+@media (max-width: 899px) {
+  .mail-list button {
+    grid-template-columns: 1fr;
+  }
+}

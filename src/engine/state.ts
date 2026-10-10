@@ -131,6 +131,8 @@ export const createInitialState = (sessionSeed?: number, contractId?: string): G
     },
     unlockSession: null,
     unlockAttempts: {},
+    mailboxes: {},
+    mailRead: [],
   };
 };
 

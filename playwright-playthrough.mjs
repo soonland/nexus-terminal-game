@@ -344,6 +344,26 @@ try {
   await cmd('scan');
   await cmd('connect 10.4.0.1');
   await cmd('login e.torres Exec@ssist1');
+
+  // Mail: Torres' credential unlocks her mailbox. Against a dev server with no GEMINI_API_KEY
+  // this exercises the deterministic fallback path (or the API's `unavailable` answer).
+  await cmd('mail', SLOW_PAUSE);
+  check('mail reports the unlocked mailboxes', /\d+ mailbox/.test(await paneText('term')));
+  await cmd('mail torres', SLOW_PAUSE);
+  const termAfter = await paneText('term');
+  check(
+    'mail torres prints one summary line',
+    /Torres \(e\.torres\): \d+ messages?, \d+ unread/.test(termAfter),
+  );
+  check('mail torres lists no messages in the terminal', !/\[[ *]\]/.test(termAfter));
+  const mailTab = page.getByRole('button', { name: /^MAIL/ });
+  check('the MAIL tab exists', (await mailTab.count()) > 0);
+  await page.waitForTimeout(400);
+  // `mail torres` already selected her mailbox: the list shows without clicking the selector.
+  check('the mail message list is visible', (await page.locator('.mail-list li').count()) > 0);
+  check('mail opens', (await page.locator('.mail-list li').count()) > 0);
+  await page.getByRole('button', { name: 'MAP', exact: true }).click();
+
   await cmd('cat PROJ_SENTINEL_BOARD_VOTE.pdf');
   await cmd('scan');
   await cmd('connect 10.4.0.2');

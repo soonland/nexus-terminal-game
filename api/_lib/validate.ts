@@ -30,3 +30,10 @@ export const requireBoolean = (value: unknown, field: string): boolean => {
   }
   return value;
 };
+
+export const requireNumber = (value: unknown, field: string): number => {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    throw new ValidationError(`Missing or non-numeric field: ${field}`);
+  }
+  return value;
+};

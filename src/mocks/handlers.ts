@@ -17,6 +17,20 @@ export const handlers = [
     return HttpResponse.json({ content: '[MOCK FILE CONTENT]' });
   }),
 
+  http.post('/api/mail', () => {
+    return HttpResponse.json({
+      messages: [
+        {
+          counterpart: 'IT Operations',
+          direction: 'in',
+          subject: '[MOCK MAIL]',
+          body: 'Mock body.',
+          day: 5,
+        },
+      ],
+    });
+  }),
+
   http.post('/api/node-description', () => {
     return HttpResponse.json({ description: '[MOCK NODE DESCRIPTION]' });
   }),
