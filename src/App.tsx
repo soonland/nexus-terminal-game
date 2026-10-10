@@ -44,6 +44,8 @@ import {
   clearSave,
   disclaimerRequired,
   recordDisclaimerAgreement,
+  recordUplinkSession,
+  uplinkSessionValid,
 } from './engine/persistence';
 import { loadDossier } from './engine/dossierPersistence';
 import { selectContract } from './data/contracts';
@@ -197,6 +199,25 @@ export const App = () => {
   const bootHandled = useRef(false);
   const spinnerTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const spinnerFrame = useRef(0);
+
+  // Leaving the uplink initializer: snapshot the boot node, then boot. Shared by the screen's
+  // Enter key and by the skip below, so both paths set up the boot sequence identically.
+  const finishUplink = useCallback(() => {
+    const node = gameState?.network.nodes[gameState.network.currentNodeId];
+    setBootLabel(node?.label ?? 'CONTRACTOR PORTAL');
+    setBootIp(node?.ip ?? '10.0.0.1');
+    setBootHint(
+      node?.id === 'aria_decision' ? 'Choose your ending: type 1–4.' : 'Start with: scan',
+    );
+    setSessionLines([]);
+    setAppPhase('booting');
+  }, [gameState]);
+
+  // An uplink that completed less than 8 hours ago is still open: skip the initializer screen
+  // (the login itself is unchanged).
+  useEffect(() => {
+    if (appPhase === 'scanning' && uplinkSessionValid()) finishUplink();
+  }, [appPhase, finishUplink]);
 
   // Advance booting → playing (or → ended if restoring a completed run) once MOTD finishes
   useEffect(() => {
@@ -853,17 +874,13 @@ export const App = () => {
   }
 
   if (appPhase === 'scanning') {
+    // The skip effect above moves on within the same tick; show nothing meanwhile.
+    if (uplinkSessionValid()) return null;
     return (
       <ScanDiskScreen
         onDone={() => {
-          const node = gameState?.network.nodes[gameState.network.currentNodeId];
-          setBootLabel(node?.label ?? 'CONTRACTOR PORTAL');
-          setBootIp(node?.ip ?? '10.0.0.1');
-          setBootHint(
-            node?.id === 'aria_decision' ? 'Choose your ending: type 1–4.' : 'Start with: scan',
-          );
-          setSessionLines([]);
-          setAppPhase('booting');
+          recordUplinkSession();
+          finishUplink();
         }}
       />
     );

@@ -6,6 +6,8 @@ import {
   hasSave,
   recordDisclaimerAgreement,
   disclaimerRequired,
+  recordUplinkSession,
+  uplinkSessionValid,
 } from './persistence';
 import { createInitialState } from './state';
 import produce from './produce';
@@ -857,5 +859,74 @@ describe('persistence — mail', () => {
     const save = JSON.parse(value) as Record<string, unknown>;
     expect('mailboxes' in save).toBe(false);
     expect('mailRead' in save).toBe(false);
+  });
+});
+
+describe('uplink session — recordUplinkSession / uplinkSessionValid', () => {
+  const UPLINK_KEY = 'irongate_uplink_session';
+  const HOUR = 60 * 60 * 1000;
+  let mockStorage: ReturnType<typeof makeMockStorage>;
+
+  beforeEach(() => {
+    mockStorage = makeMockStorage();
+    vi.stubGlobal('localStorage', mockStorage);
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-10-10T12:00:00Z'));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  it('is not valid before an uplink has completed', () => {
+    expect(uplinkSessionValid()).toBe(false);
+  });
+
+  it('is valid right after an uplink completes, and stores the time under its own key', () => {
+    recordUplinkSession();
+    expect(mockStorage.setItem).toHaveBeenCalledWith(UPLINK_KEY, String(Date.now()));
+    expect(mockStorage.setItem).not.toHaveBeenCalledWith('irongate_save', expect.anything());
+    expect(uplinkSessionValid()).toBe(true);
+  });
+
+  it('stays valid for 8 hours, and expires at exactly 8 hours (fixed window)', () => {
+    recordUplinkSession();
+    vi.advanceTimersByTime(8 * HOUR - 1);
+    expect(uplinkSessionValid()).toBe(true);
+    vi.advanceTimersByTime(1);
+    expect(uplinkSessionValid()).toBe(false);
+  });
+
+  it('does not extend the window when it is only checked', () => {
+    recordUplinkSession();
+    vi.advanceTimersByTime(7 * HOUR);
+    expect(uplinkSessionValid()).toBe(true);
+    vi.advanceTimersByTime(HOUR);
+    expect(uplinkSessionValid()).toBe(false);
+  });
+
+  it.each([
+    ['empty', ''],
+    ['not a number', 'abc'],
+    ['NaN', 'NaN'],
+    ['Infinity', 'Infinity'],
+    ['a stamp from the future', String(Date.now() + 60_000)],
+  ])('treats %s as expired', (_label, raw) => {
+    mockStorage.setItem(UPLINK_KEY, raw);
+    expect(uplinkSessionValid()).toBe(false);
+  });
+
+  it('is not valid when storage throws, and recording never throws', () => {
+    mockStorage.getItem.mockImplementation(() => {
+      throw new Error('blocked');
+    });
+    mockStorage.setItem.mockImplementation(() => {
+      throw new Error('blocked');
+    });
+    expect(uplinkSessionValid()).toBe(false);
+    expect(() => {
+      recordUplinkSession();
+    }).not.toThrow();
   });
 });
