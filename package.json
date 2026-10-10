@@ -14,7 +14,8 @@
     "format": "prettier --write .",
     "analyze": "vite build --mode analyze",
     "knip": "knip",
-    "test:ui": "vitest --ui"
+    "test:ui": "vitest --ui",
+    "playthrough": "node playwright-playthrough.mjs"
   },
   "lint-staged": {
     "*.{ts,tsx}": [
