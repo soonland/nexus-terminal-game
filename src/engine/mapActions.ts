@@ -158,5 +158,8 @@ export const menuLockReason = (state: GameState, busy: boolean): string | null =
   if (state.unlockSession) {
     return 'An unlock sequence is waiting in the terminal. Any other command abandons it and records a failed attempt.';
   }
+  if (state.aria.pendingFavor) {
+    return 'An offer is waiting for a yes or no in the terminal. Any other command declines it.';
+  }
   return null;
 };

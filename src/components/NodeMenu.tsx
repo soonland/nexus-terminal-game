@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import type { KeyboardEvent } from 'react';
 import type { NodeAction } from '../engine/mapActions';
 
@@ -14,6 +14,7 @@ interface Props {
 export const NodeMenu = ({ actions, lockReason, left, top, onRun, onClose }: Props) => {
   const [confirming, setConfirming] = useState<NodeAction | null>(null);
   const ref = useRef<HTMLDivElement>(null);
+  const confirmId = useId();
 
   const items = (): HTMLElement[] =>
     Array.from(ref.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? []);
@@ -25,7 +26,23 @@ export const NodeMenu = ({ actions, lockReason, left, top, onRun, onClose }: Pro
     (confirming ? all[all.length - 1] : all[0]).focus();
   }, [confirming]);
 
+  // The placement uses an estimate; once laid out, lift the menu so its real height fits in the pane
+  // (entries with a cost or a reason wrap). If it is taller than the pane it sits at 0 and scrolls
+  // (max-height in CSS).
+  useLayoutEffect(() => {
+    const el = ref.current;
+    const pane = el?.parentElement;
+    if (!el || !pane?.clientHeight) return;
+    el.style.top = `${String(Math.max(0, Math.min(top, pane.clientHeight - el.offsetHeight)))}px`;
+  });
+
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    // A held Enter or Space repeats onto whichever entry has focus; only a fresh press activates.
+    if (e.repeat && (e.key === 'Enter' || e.key === ' ')) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
     if (e.key === 'Escape') {
       e.preventDefault();
       e.stopPropagation();
@@ -71,7 +88,7 @@ export const NodeMenu = ({ actions, lockReason, left, top, onRun, onClose }: Pro
       )}
       {confirming ? (
         <>
-          <div className="node-menu-confirm">
+          <div id={confirmId} className="node-menu-confirm">
             {confirming.label}
             {confirming.cost ? ` — ${confirming.cost}` : ''}
           </div>
@@ -79,6 +96,7 @@ export const NodeMenu = ({ actions, lockReason, left, top, onRun, onClose }: Pro
             type="button"
             role="menuitem"
             className="node-menu-item"
+            aria-describedby={confirmId}
             aria-disabled={lockReason !== null}
             onClick={() => {
               if (lockReason === null) onRun(confirming.command);
@@ -89,6 +107,7 @@ export const NodeMenu = ({ actions, lockReason, left, top, onRun, onClose }: Pro
             type="button"
             role="menuitem"
             className="node-menu-item"
+            aria-describedby={confirmId}
             onClick={() => {
               setConfirming(null);
             }}>

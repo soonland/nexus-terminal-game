@@ -307,6 +307,15 @@ try {
     .click();
   const scanMenu = page.locator('.node-menu');
   const beforeScan = await paneText('term');
+  const menuBox = await scanMenu.boundingBox();
+  const mapBox = await scanMap.boundingBox();
+  check(
+    'the node menu fits inside the map pane',
+    !!menuBox &&
+      !!mapBox &&
+      menuBox.y >= mapBox.y - 1 &&
+      menuBox.y + menuBox.height <= mapBox.y + mapBox.height + 1,
+  );
   await scanMenu.getByRole('menuitem', { name: /^Scan subnet/ }).click();
   const runButton = scanMenu.getByRole('menuitem', { name: 'Run', exact: true });
   check(

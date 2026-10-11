@@ -179,4 +179,23 @@ describe('NodeMenu', () => {
     expect(screen.getByRole('menuitem', { name: 'Run' })).toBeTruthy();
     expect(container.innerHTML).not.toContain('IronG8te#Ops');
   });
+
+  it('ignores a held Enter or Space but lets a fresh Enter activate natively', () => {
+    setup([FREE, COSTLY]);
+    const first = screen.getAllByRole('menuitem')[0];
+    expect(fireEvent.keyDown(first, { key: 'Enter', repeat: true })).toBe(false);
+    expect(fireEvent.keyDown(first, { key: ' ', repeat: true })).toBe(false);
+    expect(fireEvent.keyDown(first, { key: 'Enter' })).toBe(true);
+  });
+
+  it('ties the confirm text to Run and Cancel', () => {
+    setup([COSTLY]);
+    fireEvent.click(screen.getByRole('menuitem', { name: /Scan/ }));
+    const text = screen.getByText('Scan — +1–2 trace');
+    for (const name of ['Run', 'Cancel']) {
+      const id = screen.getByRole('menuitem', { name }).getAttribute('aria-describedby');
+      expect(id).toBeTruthy();
+      expect(id).toBe(text.id);
+    }
+  });
 });

@@ -412,13 +412,19 @@ describe('NetworkMap node menu', () => {
     expect(nodeEl(container, b.id).getAttribute('aria-expanded')).toBe('true');
   });
 
-  it('opens with Enter and Space', () => {
+  it('opens with a fresh Enter, and with Space only on release', () => {
     const { state, a } = menuState();
     const { container } = render(mapOf(state));
     fireEvent.keyDown(nodeEl(container, a.id), { key: 'Enter' });
     screen.getByRole('menu');
+    fireEvent.click(nodeEl(container, a.id)); // close
+    expect(screen.queryByRole('menu')).toBeNull();
+    fireEvent.keyDown(nodeEl(container, a.id), { key: 'Enter', repeat: true });
+    expect(screen.queryByRole('menu')).toBeNull();
     fireEvent.keyDown(nodeEl(container, a.id), { key: ' ' });
     expect(screen.queryByRole('menu')).toBeNull();
+    fireEvent.keyUp(nodeEl(container, a.id), { key: ' ' });
+    screen.getByRole('menu');
   });
 
   it('runs Connect on the first click and closes', () => {
@@ -646,20 +652,137 @@ describe('NetworkMap node menu', () => {
     expect(seen.join(' ')).not.toMatch(/\baria\b/i);
   });
 
-  it('keeps the menu inside a small pane', () => {
-    withStubbedBox(1190, 205, () => {
-      const { state, here } = menuState();
-      const { container } = render(mapOf(state));
-      fireEvent.click(nodeEl(container, here.id));
-      const menu = screen.getByRole('menu');
-      const left = parseFloat(menu.style.left);
-      const top = parseFloat(menu.style.top);
-      expect(left).toBeGreaterThanOrEqual(0);
-      expect(left + 240).toBeLessThanOrEqual(1190);
-      expect(top).toBeGreaterThanOrEqual(0);
-      const rows = menu.querySelectorAll('[role="menuitem"]').length;
-      const height = 8 + rows * 34;
-      expect(top + height <= 205 || top === 0).toBe(true);
+  it('keeps the menu inside a small pane once its real height is known', () => {
+    const dh = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetHeight');
+    Object.defineProperty(HTMLElement.prototype, 'offsetHeight', {
+      configurable: true,
+      value: 180,
     });
+    try {
+      withStubbedBox(1190, 205, () => {
+        const { state, here } = menuState();
+        const { container } = render(mapOf(state));
+        fireEvent.click(nodeEl(container, here.id));
+        const menu = screen.getByRole('menu');
+        const left = parseFloat(menu.style.left);
+        const top = parseFloat(menu.style.top);
+        expect(left).toBeGreaterThanOrEqual(0);
+        expect(left + 240).toBeLessThanOrEqual(1190);
+        expect(top).toBeGreaterThanOrEqual(0);
+        expect(top + 180).toBeLessThanOrEqual(205);
+      });
+    } finally {
+      if (dh) Object.defineProperty(HTMLElement.prototype, 'offsetHeight', dh);
+      else Reflect.deleteProperty(HTMLElement.prototype, 'offsetHeight');
+    }
+  });
+
+  describe('when the pane is resized', () => {
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it('stays for an unchanged size and closes for a changed one', () => {
+      let captured: (() => void) | undefined;
+      vi.stubGlobal(
+        'ResizeObserver',
+        class {
+          constructor(cb: () => void) {
+            captured = cb;
+          }
+          observe() {}
+          disconnect() {}
+        },
+      );
+      let h = 205;
+      const dh = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientHeight');
+      const dw = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientWidth');
+      Object.defineProperty(HTMLElement.prototype, 'clientWidth', {
+        configurable: true,
+        value: 1190,
+      });
+      Object.defineProperty(HTMLElement.prototype, 'clientHeight', {
+        configurable: true,
+        get: () => h,
+      });
+      try {
+        const { state, a } = menuState();
+        const { container } = render(mapOf(state));
+        fireEvent.click(nodeEl(container, a.id));
+        screen.getByRole('menu');
+        act(() => {
+          captured?.();
+        });
+        screen.getByRole('menu');
+        h = 300;
+        act(() => {
+          captured?.();
+        });
+        expect(screen.queryByRole('menu')).toBeNull();
+        expect(document.activeElement).not.toBe(document.body);
+      } finally {
+        if (dh) Object.defineProperty(HTMLElement.prototype, 'clientHeight', dh);
+        else Reflect.deleteProperty(HTMLElement.prototype, 'clientHeight');
+        if (dw) Object.defineProperty(HTMLElement.prototype, 'clientWidth', dw);
+        else Reflect.deleteProperty(HTMLElement.prototype, 'clientWidth');
+      }
+    });
+  });
+
+  it('is inert while a favor offer is pending', () => {
+    const { state, a } = menuState();
+    const locked = produce(state, s => {
+      s.aria.pendingFavor = { description: 'x', cost: 3 };
+    });
+    const run = vi.fn();
+    const { container } = render(mapOf(locked, { onRunCommand: run }));
+    fireEvent.click(nodeEl(container, a.id));
+    screen.getByText(/waiting for a yes or no/i);
+    fireEvent.click(screen.getByRole('menuitem', { name: /Connect/ }));
+    expect(run).not.toHaveBeenCalled();
+  });
+
+  it('puts focus back on the node when a new turn closes the menu', () => {
+    const { state, a } = menuState();
+    const { container, rerender } = render(mapOf(state));
+    fireEvent.click(nodeEl(container, a.id));
+    expect(screen.getByRole('menu').contains(document.activeElement)).toBe(true);
+    rerender(mapOf({ ...state, turnCount: state.turnCount + 1 }));
+    expect(document.activeElement).toBe(nodeEl(container, a.id));
+  });
+
+  it('puts focus on the map when the node of the menu is gone', () => {
+    const { container } = render(mapOf(groupState()));
+    fireEvent.click(container.querySelector('[data-group-id]') as Element);
+    fireEvent.click(nodeEl(container, 'f1'));
+    expect(screen.getByRole('menu').contains(document.activeElement)).toBe(true);
+    fireEvent.click(container.querySelector('[data-group-id]') as Element);
+    expect(document.activeElement).toBe(screen.getByTestId('network-map'));
+  });
+
+  it('closes on a pointerdown whose target is not an element', () => {
+    const { state, a } = menuState();
+    const { container } = render(mapOf(state));
+    fireEvent.click(nodeEl(container, a.id));
+    expect(() => {
+      act(() => {
+        document.dispatchEvent(new Event('pointerdown'));
+      });
+    }).not.toThrow();
+    expect(screen.queryByRole('menu')).toBeNull();
+  });
+
+  it('discards a pending confirm without sending anything when the view changes', () => {
+    const { state, a } = menuState();
+    const run = vi.fn();
+    const { container } = render(mapOf(state, { onRunCommand: run }));
+    fireEvent.click(nodeEl(container, a.id));
+    fireEvent.click(screen.getByRole('menuitem', { name: /^Scan/ }));
+    screen.getByRole('menuitem', { name: 'Run' });
+    fireEvent.click(screen.getByRole('button', { name: /zoom in/i }));
+    expect(run).not.toHaveBeenCalled();
+    fireEvent.click(nodeEl(container, a.id));
+    expect(screen.queryByRole('menuitem', { name: 'Run' })).toBeNull();
+    screen.getByRole('menuitem', { name: /^Scan/ });
   });
 });

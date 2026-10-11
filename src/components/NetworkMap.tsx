@@ -85,6 +85,13 @@ const Glyph = ({ template }: { template: NodeTemplate }) => (
   />
 );
 
+// Closing the menu when the player did not ask (new turn, node gone, pane resized, wheel): if focus
+// was inside it, put focus back on the node, or on the map when the node is gone.
+const releaseFocus = (root: HTMLElement | null, nodeId: string) => {
+  if (!root?.querySelector('.node-menu')?.contains(document.activeElement)) return;
+  (root.querySelector<SVGGElement>(`[data-node-id="${nodeId}"]`) ?? root).focus();
+};
+
 interface MapNodeProps {
   item: PlacedNode;
   current: boolean;
@@ -115,6 +122,16 @@ const MapNode = ({ item, current, menuOpen, onOpen }: MapNodeProps) => {
       }}
       onKeyDown={e => {
         if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault(); // no page scroll on Space
+          e.stopPropagation();
+          // A held Enter must not reopen the menu, and Space opens on release (see onKeyUp).
+          if (e.key === 'Enter' && !e.repeat) onOpen(n.id);
+        }
+      }}
+      onKeyUp={e => {
+        // Like a native button, Space opens on release, so the release cannot land on the first
+        // menu entry.
+        if (e.key === ' ') {
           e.preventDefault();
           e.stopPropagation();
           onOpen(n.id);
@@ -251,13 +268,33 @@ export const NetworkMap = ({ gameState, onRunCommand, disabled }: Props) => {
     if (!menu) return;
     // A collapsed group keeps its members in `positions`, so look for the node itself.
     const shown = layout.items.some(i => i.kind === 'node' && i.id === menu.nodeId);
-    if (!shown || gameState.turnCount !== menu.turn) setMenu(null);
+    if (!shown || gameState.turnCount !== menu.turn) {
+      releaseFocus(ref.current, menu.nodeId);
+      setMenu(null);
+    }
   }, [menu, layout, gameState.turnCount]);
+
+  // The menu was placed for the pane size at click time; if the pane changes (resize, zoom pane),
+  // close it rather than re-measure.
+  useEffect(() => {
+    if (!menu || typeof ResizeObserver === 'undefined') return;
+    const el = ref.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => {
+      if (el.clientWidth === menu.box.w && el.clientHeight === menu.box.h) return; // first callback
+      releaseFocus(el, menu.nodeId);
+      setMenu(null);
+    });
+    ro.observe(el);
+    return () => {
+      ro.disconnect();
+    };
+  }, [menu]);
 
   useEffect(() => {
     if (!menu) return;
     const onDown = (e: Event) => {
-      if ((e.target as Element).closest('.node-menu, .map-node')) return;
+      if (e.target instanceof Element && e.target.closest('.node-menu, .map-node')) return;
       setMenu(null);
     };
     document.addEventListener('pointerdown', onDown);
@@ -301,6 +338,7 @@ export const NetworkMap = ({ gameState, onRunCommand, disabled }: Props) => {
     drag.current = null;
   };
   const onWheel = (e: WheelEvent<SVGSVGElement>) => {
+    if (menu) releaseFocus(ref.current, menu.nodeId);
     setMenu(null);
     const rect = ref.current?.getBoundingClientRect();
     const cx = e.clientX - (rect?.left ?? 0);

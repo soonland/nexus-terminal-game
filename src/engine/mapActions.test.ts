@@ -346,6 +346,13 @@ describe('menuLockReason', () => {
   it('warns while an unlock sequence is pending', () => {
     expect(menuLockReason(pending(), false)).toMatch(/unlock sequence is waiting/i);
   });
+  it('warns while a favor offer is pending, and busy still wins', () => {
+    const offer = withEdit(s => {
+      s.aria.pendingFavor = { description: 'x', cost: 3 };
+    });
+    expect(menuLockReason(offer, false)).toMatch(/waiting for a yes or no/i);
+    expect(menuLockReason(offer, true)).toBe('Not available right now');
+  });
   it('busy wins over a pending unlock', () => {
     expect(menuLockReason(pending(), true)).toBe('Not available right now');
   });
