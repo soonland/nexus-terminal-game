@@ -349,7 +349,11 @@ export const Workspace = forwardRef<WorkspaceHandle, Props>(
             onOpenSource={openSource}
           />
         ) : docTab === 'map' ? (
-          <NetworkMap gameState={gameState} />
+          <NetworkMap
+            gameState={gameState}
+            onRunCommand={onRunCommand}
+            disabled={explorerDisabled}
+          />
         ) : (
           <DocPane
             gameState={gameState}
