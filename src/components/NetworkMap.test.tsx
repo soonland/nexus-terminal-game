@@ -537,6 +537,21 @@ describe('NetworkMap node menu', () => {
     });
   });
 
+  it('does not pan or close the menu when a press starts on a node, and the click still opens it', () => {
+    const { state, a, b } = menuState();
+    const { container } = render(mapOf(state));
+    fireEvent.click(nodeEl(container, b.id));
+    const start = worldOf(container);
+    const elA = nodeEl(container, a.id);
+    pointer(elA, 'pointerdown', 100, 100);
+    pointer(elA, 'pointermove', 130, 90);
+    pointer(elA, 'pointerup', 130, 90);
+    expect(worldOf(container)).toEqual(start);
+    expect(screen.getByRole('menu')).toBeTruthy();
+    fireEvent.click(elA);
+    expect(elA.getAttribute('data-menu-open')).toBe('true');
+  });
+
   it('keeps arrow keys inside the menu from panning the map', () => {
     const { state, a } = menuState();
     const { container } = render(mapOf(state));
