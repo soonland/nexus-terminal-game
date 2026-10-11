@@ -54,3 +54,28 @@ export const centreOn = (v: View, p: { x: number; y: number }, box: Size): View 
   x: box.w / 2 - p.x * v.k,
   y: box.h / 2 - p.y * v.k,
 });
+
+export const MENU_W = 240;
+const MENU_ROW_H = 34;
+const MENU_PAD = 8;
+const MENU_NOTE_H = 40;
+
+// The menu is laid out by CSS; this is the room reserved for it when deciding where it goes.
+export const estimateMenuSize = (rows: number, hasNote: boolean): Size => ({
+  w: MENU_W,
+  h: MENU_PAD + Math.max(1, rows) * MENU_ROW_H + (hasNote ? MENU_NOTE_H : 0),
+});
+
+// Beside the node (right by preference, left when it does not fit), kept inside the pane.
+export const placeMenu = (
+  anchor: { x: number; y: number },
+  menu: Size,
+  box: Size,
+  gap = 34,
+): { left: number; top: number } => {
+  const rawLeft = anchor.x + gap + menu.w <= box.w ? anchor.x + gap : anchor.x - gap - menu.w;
+  return {
+    left: Math.max(0, Math.min(rawLeft, box.w - menu.w)),
+    top: Math.max(0, Math.min(anchor.y - 16, box.h - menu.h)),
+  };
+};

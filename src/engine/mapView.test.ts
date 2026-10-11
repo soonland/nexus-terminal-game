@@ -1,5 +1,16 @@
 import { describe, it, expect } from 'vitest';
-import { MAX_K, MIN_K, centreOn, fitView, isVisible, panBy, zoomAt } from './mapView';
+import {
+  MAX_K,
+  MENU_W,
+  MIN_K,
+  centreOn,
+  estimateMenuSize,
+  fitView,
+  isVisible,
+  panBy,
+  placeMenu,
+  zoomAt,
+} from './mapView';
 
 describe('mapView', () => {
   it('zoomAt keeps the point under the cursor fixed', () => {
@@ -65,5 +76,35 @@ describe('mapView', () => {
     expect(v.k).toBe(2);
     expect(100 * v.k + v.x).toBeCloseTo(200);
     expect(50 * v.k + v.y).toBeCloseTo(100);
+  });
+});
+
+describe('menu placement', () => {
+  const box = { w: 800, h: 480 };
+  const menu = { w: MENU_W, h: 200 };
+
+  it('estimates the height from the row count and the note', () => {
+    expect(estimateMenuSize(3, false)).toEqual({ w: MENU_W, h: 8 + 3 * 34 });
+    expect(estimateMenuSize(3, true)).toEqual({ w: MENU_W, h: 8 + 3 * 34 + 40 });
+    expect(estimateMenuSize(0, false).h).toBe(8 + 34);
+  });
+
+  it('opens to the right of the node and a little above it', () => {
+    expect(placeMenu({ x: 100, y: 100 }, menu, box)).toEqual({ left: 134, top: 84 });
+  });
+
+  it('flips to the left when the right side does not fit', () => {
+    const p = placeMenu({ x: 700, y: 100 }, menu, box);
+    expect(p.left).toBe(700 - 34 - MENU_W);
+  });
+
+  it('clamps the bottom edge into the pane', () => {
+    expect(placeMenu({ x: 100, y: 470 }, menu, box).top).toBe(480 - 200);
+  });
+
+  it('never goes negative, even in a pane smaller than the menu', () => {
+    const p = placeMenu({ x: 5, y: 5 }, menu, { w: 100, h: 100 });
+    expect(p.left).toBe(0);
+    expect(p.top).toBe(0);
   });
 });

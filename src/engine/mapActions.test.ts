@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { nodeActions } from './mapActions';
+import { menuLockReason, nodeActions } from './mapActions';
 import { createInitialState } from './state';
 import produce from './produce';
 import type { Credential, GameState, LiveNode, Tool } from '../types/game';
@@ -324,5 +324,29 @@ describe('nodeActions — the current node', () => {
     });
     const ids = nodeActions(s, 'contractor_portal').map(a => a.id);
     expect(new Set(ids).size).toBe(ids.length);
+  });
+});
+
+describe('menuLockReason', () => {
+  const pending = (): GameState =>
+    withEdit(s => {
+      s.unlockSession = {
+        filePath: '/x',
+        codes: ['AAAA-BBBB', 'CCCC-DDDD', 'EEEE-FFFF'],
+        step: 0,
+      };
+    });
+
+  it('is null when nothing blocks the menu', () => {
+    expect(menuLockReason(createInitialState(), false)).toBeNull();
+  });
+  it('says so when busy', () => {
+    expect(menuLockReason(createInitialState(), true)).toBe('Not available right now');
+  });
+  it('warns while an unlock sequence is pending', () => {
+    expect(menuLockReason(pending(), false)).toMatch(/unlock sequence is waiting/i);
+  });
+  it('busy wins over a pending unlock', () => {
+    expect(menuLockReason(pending(), true)).toBe('Not available right now');
   });
 });

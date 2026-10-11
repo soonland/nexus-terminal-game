@@ -150,3 +150,13 @@ export const nodeActions = (state: GameState, nodeId: string): NodeAction[] => {
   if (!node?.discovered) return [];
   return node.id === here.id ? currentNodeActions(state, node) : otherNodeActions(state, node);
 };
+
+// Why every entry of the map menu is inert right now, or null. While an unlock sequence is pending
+// any command abandons it (and records a failed attempt), so the menu must not send one.
+export const menuLockReason = (state: GameState, busy: boolean): string | null => {
+  if (busy) return 'Not available right now';
+  if (state.unlockSession) {
+    return 'An unlock sequence is waiting in the terminal. Any other command abandons it and records a failed attempt.';
+  }
+  return null;
+};
