@@ -123,6 +123,20 @@ const cmd = async (command, pause = PAUSE) => {
   if (warning) console.log(`   !! ${warning.slice(0, 110)}`);
 };
 
+// Click a node on the NETWORK MAP, then one of its menu entries (and confirm when asked), the way
+// a mouse player would. Returns to the DOC tab afterwards.
+const viaMap = async (nodePattern, entry, { confirm = false } = {}) => {
+  await page.getByRole('button', { name: 'NETWORK MAP', exact: true }).click();
+  const map = page.locator('[data-testid="network-map"]');
+  await map.getByRole('button', { name: nodePattern }).first().click();
+  const menu = page.locator('.node-menu');
+  await menu.getByRole('menuitem', { name: entry }).click();
+  if (confirm) await menu.getByRole('menuitem', { name: 'Run', exact: true }).click();
+  await page.waitForTimeout(PAUSE);
+  await inputReady();
+  await page.getByRole('button', { name: 'DOC', exact: true }).click();
+};
+
 const phase = title => {
   console.log(`\n── ${title}`);
 };
@@ -267,9 +281,56 @@ try {
   await cmd('login contractor Welcome1!');
   await cmd('cat welcome.txt'); // the VPN gateway address
   await cmd('scan');
-  await cmd('connect 10.0.0.2');
+  const echoes = (text, line) => text.split('\n').filter(l => l.includes(line)).length;
+  const beforeConnect = await paneText('term');
+  await viaMap(/10\.0\.0\.2/, /^Connect/);
+  const afterConnect = await paneText('term');
+  await page.getByRole('button', { name: 'NETWORK MAP', exact: true }).click();
+  const hereLabel =
+    (await page
+      .locator('[data-node-id][data-current="true"]')
+      .first()
+      .getAttribute('aria-label')) ?? '';
+  await page.getByRole('button', { name: 'DOC', exact: true }).click();
+  check('the diagram moved us to the gateway', /10\.0\.0\.2/.test(hereLabel), hereLabel);
+  check(
+    'the terminal echoed connect 10.0.0.2',
+    echoes(afterConnect, 'connect 10.0.0.2') > echoes(beforeConnect, 'connect 10.0.0.2'),
+  );
   await cmd('login contractor Welcome1!');
-  await cmd('scan');
+  // Scan through the diagram: choosing the entry only asks, Run sends it.
+  await page.getByRole('button', { name: 'NETWORK MAP', exact: true }).click();
+  const scanMap = page.locator('[data-testid="network-map"]');
+  await scanMap
+    .getByRole('button', { name: /10\.0\.0\.2/ })
+    .first()
+    .click();
+  const scanMenu = page.locator('.node-menu');
+  const beforeScan = await paneText('term');
+  const menuBox = await scanMenu.boundingBox();
+  const mapBox = await scanMap.boundingBox();
+  check(
+    'the node menu fits inside the map pane',
+    !!menuBox &&
+      !!mapBox &&
+      menuBox.y >= mapBox.y - 1 &&
+      menuBox.y + menuBox.height <= mapBox.y + mapBox.height + 1,
+  );
+  await scanMenu.getByRole('menuitem', { name: /^Scan subnet/ }).click();
+  const runButton = scanMenu.getByRole('menuitem', { name: 'Run', exact: true });
+  check(
+    'the scan waits for Run',
+    (await runButton.isVisible()) && (await paneText('term')) === beforeScan,
+  );
+  await runButton.click();
+  await page.waitForTimeout(PAUSE);
+  await inputReady();
+  await page.getByRole('button', { name: 'DOC', exact: true }).click();
+  const afterScan = await paneText('term');
+  check(
+    'the scan from the diagram reached the terminal',
+    afterScan.length > beforeScan.length && echoes(afterScan, 'scan') > echoes(beforeScan, 'scan'),
+  );
 
   phase('LAYER 1: operations');
   await cmd('connect 10.1.0.1');

@@ -36,7 +36,7 @@ const BODY: HelpLine[] = [
   { text: r('  dossier       -cross-run dossier'), color: 'var(--color-system)' },
   { text: r('  explorer      -file explorer (alias: files)'), color: 'var(--color-system)' },
   { text: r('  status        -session overview'), color: 'var(--color-system)' },
-  { text: r('  map           -open the network map'), color: 'var(--color-system)' },
+  { text: r('  map           -open the network map (click a node)'), color: 'var(--color-system)' },
   { text: r('  clear         -clear terminal'), color: 'var(--color-system)' },
   { text: r('  theme [name]  -list or switch color themes'), color: 'var(--color-system)' },
   { text: r(), color: 'var(--color-system)' },

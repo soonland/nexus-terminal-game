@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, cleanup, fireEvent, render } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import fs from 'node:fs';
 import { NetworkMap } from './NetworkMap';
 import { createInitialState } from '../engine/state';
@@ -9,6 +9,11 @@ import { makeNode, makeState } from '../engine/__tests__/testHelpers';
 import type { GameState, LiveNode } from '../types/game';
 
 const GROUPS_KEY = 'irongate_map_groups';
+
+const mapOf = (
+  state: GameState,
+  over: Partial<{ onRunCommand: (c: string) => void; disabled: boolean }> = {},
+) => <NetworkMap gameState={state} onRunCommand={vi.fn()} disabled={false} {...over} />;
 
 const discoverAll = (state: GameState): GameState =>
   produce(state, s => {
@@ -69,7 +74,7 @@ afterEach(() => {
 describe('NetworkMap', () => {
   it('shows the current node, one column header and the controls on a new game', () => {
     const state = createInitialState();
-    const { container, getByRole } = render(<NetworkMap gameState={state} />);
+    const { container, getByRole } = render(mapOf(state));
     expect(
       container.querySelector(`[data-node-id="${state.network.currentNodeId}"]`),
     ).not.toBeNull();
@@ -84,13 +89,13 @@ describe('NetworkMap', () => {
     const cur = state.network.nodes[state.network.currentNodeId];
     const hiddenId = cur?.connections.find(id => !state.network.nodes[id]?.discovered);
     expect(hiddenId).toBeDefined();
-    const { container } = render(<NetworkMap gameState={state} />);
+    const { container } = render(mapOf(state));
     expect(container.querySelector(`[data-node-id="${hiddenId ?? ''}"]`)).toBeNull();
     expect(container.innerHTML).not.toContain(hiddenId ?? '');
   });
 
   it('labels the level headers, layer 5 as CASSANDRA', () => {
-    const { container } = render(<NetworkMap gameState={discoverAll(createInitialState())} />);
+    const { container } = render(mapOf(discoverAll(createInitialState())));
     const heads = [...container.querySelectorAll('.map-col')].map(e => e.textContent);
     expect(heads).toContain('L1 OPS');
     expect(heads).toContain('L5 CASSANDRA');
@@ -104,7 +109,7 @@ describe('NetworkMap', () => {
       n.compromised = true;
       n.sentinelPatched = true;
     });
-    const { container } = render(<NetworkMap gameState={state} />);
+    const { container } = render(mapOf(state));
     const el = container.querySelector(`[data-node-id="${state.network.currentNodeId}"]`);
     const name = el?.getAttribute('aria-label') ?? '';
     expect(name).toMatch(/current/);
@@ -118,7 +123,7 @@ describe('NetworkMap', () => {
   });
 
   it('collapses same-template fillers into a group that toggles on click', () => {
-    const { container } = render(<NetworkMap gameState={groupState()} />);
+    const { container } = render(mapOf(groupState()));
     const group = container.querySelector('[data-group-id]');
     expect(group?.getAttribute('aria-expanded')).toBe('false');
     expect(group?.textContent).toContain('+4 workstation');
@@ -133,7 +138,7 @@ describe('NetworkMap', () => {
   });
 
   it('toggles a group with Enter and Space', () => {
-    const { container } = render(<NetworkMap gameState={groupState()} />);
+    const { container } = render(mapOf(groupState()));
     fireEvent.keyDown(container.querySelector('[data-group-id]') as Element, { key: 'Enter' });
     expect(container.querySelector('[data-group-id]')?.getAttribute('aria-expanded')).toBe('true');
     fireEvent.keyDown(container.querySelector('[data-group-id]') as Element, { key: ' ' });
@@ -142,12 +147,12 @@ describe('NetworkMap', () => {
 
   it('remembers expanded groups in sessionStorage across a remount', () => {
     const state = groupState();
-    const first = render(<NetworkMap gameState={state} />);
+    const first = render(mapOf(state));
     fireEvent.click(first.container.querySelector('[data-group-id]') as Element);
     const saved: unknown = JSON.parse(sessionStorage.getItem(GROUPS_KEY) ?? 'null');
     expect(saved).toEqual(['group:1:workstation']);
     first.unmount();
-    const second = render(<NetworkMap gameState={state} />);
+    const second = render(mapOf(state));
     expect(second.container.querySelector('[data-group-id]')?.getAttribute('aria-expanded')).toBe(
       'true',
     );
@@ -157,7 +162,7 @@ describe('NetworkMap', () => {
     'ignores garbage in sessionStorage: %s',
     garbage => {
       sessionStorage.setItem(GROUPS_KEY, garbage);
-      const { container } = render(<NetworkMap gameState={groupState()} />);
+      const { container } = render(mapOf(groupState()));
       expect(container.querySelector('[data-group-id]')?.getAttribute('aria-expanded')).toBe(
         'false',
       );
@@ -171,13 +176,13 @@ describe('NetworkMap', () => {
     vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
       throw new Error('x');
     });
-    const { container } = render(<NetworkMap gameState={groupState()} />);
+    const { container } = render(mapOf(groupState()));
     fireEvent.click(container.querySelector('[data-group-id]') as Element);
     expect(container.querySelector('[data-group-id]')?.getAttribute('aria-expanded')).toBe('true');
   });
 
   it('zooms with the buttons and refits', () => {
-    const { container, getByRole } = render(<NetworkMap gameState={createInitialState()} />);
+    const { container, getByRole } = render(mapOf(createInitialState()));
     const start = worldOf(container);
     fireEvent.click(getByRole('button', { name: 'Zoom in' }));
     expect(worldOf(container).k).toBeGreaterThan(start.k);
@@ -188,14 +193,14 @@ describe('NetworkMap', () => {
   });
 
   it('pans with the arrow keys', () => {
-    const { container, getByTestId } = render(<NetworkMap gameState={createInitialState()} />);
+    const { container, getByTestId } = render(mapOf(createInitialState()));
     const start = worldOf(container);
     fireEvent.keyDown(getByTestId('network-map'), { key: 'ArrowRight' });
     expect(worldOf(container).x).toBeCloseTo(start.x + 40);
   });
 
   it('zooms and fits with the keyboard', () => {
-    const { container, getByTestId } = render(<NetworkMap gameState={createInitialState()} />);
+    const { container, getByTestId } = render(mapOf(createInitialState()));
     const root = getByTestId('network-map');
     const start = worldOf(container);
     fireEvent.keyDown(root, { key: '+' });
@@ -208,7 +213,7 @@ describe('NetworkMap', () => {
   });
 
   it('ignores keys pressed with a modifier', () => {
-    const { container, getByTestId } = render(<NetworkMap gameState={createInitialState()} />);
+    const { container, getByTestId } = render(mapOf(createInitialState()));
     const start = worldOf(container);
     const root = getByTestId('network-map');
     fireEvent.keyDown(root, { key: '+', ctrlKey: true });
@@ -222,7 +227,7 @@ describe('NetworkMap', () => {
   });
 
   it('can take keyboard focus', () => {
-    const { getByTestId } = render(<NetworkMap gameState={createInitialState()} />);
+    const { getByTestId } = render(mapOf(createInitialState()));
     expect(getByTestId('network-map').tabIndex).toBe(0);
   });
 
@@ -244,7 +249,7 @@ describe('NetworkMap', () => {
       const base = produce(all, s => {
         s.network.currentNodeId = far.id;
       });
-      const { container } = render(<NetworkMap gameState={base} />);
+      const { container } = render(mapOf(base));
       const v = worldOf(container);
       expect(v.k).toBeGreaterThanOrEqual(0.8);
       const node = container.querySelector(`[data-node-id="${base.network.currentNodeId}"]`);
@@ -264,7 +269,7 @@ describe('NetworkMap', () => {
   });
 
   it('pans by dragging the background', () => {
-    const { container } = render(<NetworkMap gameState={createInitialState()} />);
+    const { container } = render(mapOf(createInitialState()));
     const svg = container.querySelector('svg') as SVGSVGElement;
     const start = worldOf(container);
     pointer(svg, 'pointerdown', 100, 100);
@@ -278,7 +283,7 @@ describe('NetworkMap', () => {
   });
 
   it('zooms with the wheel', () => {
-    const { container } = render(<NetworkMap gameState={createInitialState()} />);
+    const { container } = render(mapOf(createInitialState()));
     const svg = container.querySelector('svg') as SVGSVGElement;
     const start = worldOf(container);
     fireEvent.wheel(svg, { deltaY: -100, clientX: 10, clientY: 10 });
@@ -292,18 +297,18 @@ describe('NetworkMap', () => {
     const base = discoverAll(createInitialState());
     const far = Object.values(base.network.nodes).find(n => n?.layer === 5);
     if (!far) throw new Error('no layer 5 node');
-    const { container, getByTestId, rerender } = render(<NetworkMap gameState={base} />);
+    const { container, getByTestId, rerender } = render(mapOf(base));
     const root = getByTestId('network-map');
     for (let i = 0; i < 40; i++) fireEvent.keyDown(root, { key: 'ArrowLeft' });
     const panned = worldOf(container);
 
-    rerender(<NetworkMap gameState={{ ...base, turnCount: base.turnCount + 1 }} />);
+    rerender(mapOf({ ...base, turnCount: base.turnCount + 1 }));
     expect(worldOf(container)).toEqual(panned);
 
     const moved = produce(base, s => {
       s.network.currentNodeId = far.id;
     });
-    rerender(<NetworkMap gameState={moved} />);
+    rerender(mapOf(moved));
     const after = worldOf(container);
     expect(after).not.toEqual(panned);
     // the new current node sits inside the default 800x480 box
@@ -321,7 +326,7 @@ describe('NetworkMap', () => {
   it('never shows the secret name before it is known', () => {
     const state = discoverAll(createInitialState());
     expect(state.flags.ARIA_NAME_KNOWN).toBeFalsy();
-    const { container } = render(<NetworkMap gameState={state} />);
+    const { container } = render(mapOf(state));
     const labels = [...container.querySelectorAll('[aria-label]')].map(e =>
       e.getAttribute('aria-label'),
     );
@@ -340,5 +345,459 @@ describe('NetworkMap', () => {
       /@media \(prefers-reduced-motion: no-preference\)\s*\{\s*\.map-ring\s*\{[^}]*animation:\s*map-pulse/,
     );
     expect(outside).not.toMatch(/\.map-ring[^}]*animation/);
+  });
+});
+
+// ── Node menu ────────────────────────────────────────────────────────────────
+const nodeEl = (c: HTMLElement, id: string): Element => {
+  const el = c.querySelector(`[data-node-id="${id}"]`);
+  if (!el) throw new Error(`no node ${id}`);
+  return el;
+};
+
+// The start state with the current node's first two neighbours discovered.
+const menuState = (): { state: GameState; here: LiveNode; a: LiveNode; b: LiveNode } => {
+  const base = createInitialState();
+  const hereId = base.network.currentNodeId;
+  const ids = (base.network.nodes[hereId]?.connections ?? []).slice(0, 2);
+  const state = produce(base, s => {
+    for (const id of ids) {
+      const n = s.network.nodes[id];
+      if (n) n.discovered = true;
+    }
+  });
+  const get = (id: string): LiveNode => {
+    const n = state.network.nodes[id];
+    if (!n) throw new Error(`no node ${id}`);
+    return n;
+  };
+  return { state, here: get(hereId), a: get(ids[0]), b: get(ids[1]) };
+};
+
+const withStubbedBox = (w: number, h: number, body: () => void) => {
+  const dw = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientWidth');
+  const dh = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientHeight');
+  Object.defineProperty(HTMLElement.prototype, 'clientWidth', { configurable: true, value: w });
+  Object.defineProperty(HTMLElement.prototype, 'clientHeight', { configurable: true, value: h });
+  try {
+    body();
+  } finally {
+    if (dw) Object.defineProperty(HTMLElement.prototype, 'clientWidth', dw);
+    else Reflect.deleteProperty(HTMLElement.prototype, 'clientWidth');
+    if (dh) Object.defineProperty(HTMLElement.prototype, 'clientHeight', dh);
+    else Reflect.deleteProperty(HTMLElement.prototype, 'clientHeight');
+  }
+};
+
+describe('NetworkMap node menu', () => {
+  it('opens on click, toggles, switches and reports the state on the node', () => {
+    const { state, a, b } = menuState();
+    const { container } = render(mapOf(state));
+    const elA = nodeEl(container, a.id);
+    expect(elA.getAttribute('aria-haspopup')).toBe('menu');
+    expect(elA.getAttribute('aria-expanded')).toBe('false');
+    expect(elA.getAttribute('data-menu-open')).toBe('false');
+    fireEvent.click(elA);
+    screen.getByRole('menuitem', { name: /Connect/ });
+    screen.getByRole('menuitem', { name: /Scan/ });
+    expect(elA.getAttribute('aria-expanded')).toBe('true');
+    expect(elA.getAttribute('data-menu-open')).toBe('true');
+    fireEvent.click(elA);
+    expect(screen.queryByRole('menu')).toBeNull();
+    expect(elA.getAttribute('data-menu-open')).toBe('false');
+    fireEvent.click(elA);
+    fireEvent.click(nodeEl(container, b.id));
+    expect(screen.getAllByRole('menu')).toHaveLength(1);
+    expect(elA.getAttribute('aria-expanded')).toBe('false');
+    expect(nodeEl(container, b.id).getAttribute('aria-expanded')).toBe('true');
+  });
+
+  it('opens with a fresh Enter, and with Space only on release', () => {
+    const { state, a } = menuState();
+    const { container } = render(mapOf(state));
+    fireEvent.keyDown(nodeEl(container, a.id), { key: 'Enter' });
+    screen.getByRole('menu');
+    fireEvent.click(nodeEl(container, a.id)); // close
+    expect(screen.queryByRole('menu')).toBeNull();
+    fireEvent.keyDown(nodeEl(container, a.id), { key: 'Enter', repeat: true });
+    expect(screen.queryByRole('menu')).toBeNull();
+    fireEvent.keyDown(nodeEl(container, a.id), { key: ' ' });
+    expect(screen.queryByRole('menu')).toBeNull();
+    fireEvent.keyUp(nodeEl(container, a.id), { key: ' ' });
+    screen.getByRole('menu');
+  });
+
+  it('runs Connect on the first click and closes', () => {
+    const { state, a } = menuState();
+    const run = vi.fn();
+    const { container } = render(mapOf(state, { onRunCommand: run }));
+    fireEvent.click(nodeEl(container, a.id));
+    fireEvent.click(screen.getByRole('menuitem', { name: /Connect/ }));
+    expect(run).toHaveBeenCalledTimes(1);
+    expect(run).toHaveBeenCalledWith(`connect ${a.ip}`);
+    expect(screen.queryByRole('menu')).toBeNull();
+  });
+
+  it('asks before Scan; Run sends it, Cancel sends nothing', () => {
+    const { state, a } = menuState();
+    const run = vi.fn();
+    const { container } = render(mapOf(state, { onRunCommand: run }));
+    fireEvent.click(nodeEl(container, a.id));
+    fireEvent.click(screen.getByRole('menuitem', { name: /Scan/ }));
+    expect(run).not.toHaveBeenCalled();
+    screen.getByRole('menuitem', { name: 'Run' });
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Run' }));
+    expect(run).toHaveBeenCalledTimes(1);
+    expect(run).toHaveBeenCalledWith(`scan ${a.ip}`);
+    expect(screen.queryByRole('menu')).toBeNull();
+
+    fireEvent.click(nodeEl(container, a.id));
+    fireEvent.click(screen.getByRole('menuitem', { name: /Scan/ }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Cancel' }));
+    expect(run).toHaveBeenCalledTimes(1);
+  });
+
+  it('offers Scan host and Scan subnet on the current node; subnet sends exactly scan', () => {
+    const { state, here } = menuState();
+    const run = vi.fn();
+    const { container } = render(mapOf(state, { onRunCommand: run }));
+    fireEvent.click(nodeEl(container, here.id));
+    screen.getByRole('menuitem', { name: /Scan host/ });
+    fireEvent.click(screen.getByRole('menuitem', { name: /Scan subnet/ }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Run' }));
+    expect(run).toHaveBeenCalledWith('scan');
+  });
+
+  it('closes on Esc and returns focus to the node; Esc while confirming only leaves the confirm', () => {
+    const { state, a } = menuState();
+    const { container } = render(mapOf(state));
+    fireEvent.click(nodeEl(container, a.id));
+    fireEvent.click(screen.getByRole('menuitem', { name: /Scan/ }));
+    fireEvent.keyDown(document.activeElement as Element, { key: 'Escape' });
+    screen.getByRole('menu');
+    screen.getByRole('menuitem', { name: /Connect/ });
+    fireEvent.keyDown(document.activeElement as Element, { key: 'Escape' });
+    expect(screen.queryByRole('menu')).toBeNull();
+    expect(document.activeElement).toBe(nodeEl(container, a.id));
+  });
+
+  it('returns focus to the node after running', () => {
+    const { state, a } = menuState();
+    const { container } = render(mapOf(state));
+    fireEvent.click(nodeEl(container, a.id));
+    fireEvent.click(screen.getByRole('menuitem', { name: /Connect/ }));
+    expect(document.activeElement).toBe(nodeEl(container, a.id));
+  });
+
+  it('closes on an outside pointerdown, not on one inside the menu', () => {
+    const { state, a } = menuState();
+    const { container } = render(mapOf(state));
+    fireEvent.click(nodeEl(container, a.id));
+    pointer(screen.getByRole('menu'), 'pointerdown', 5, 5);
+    screen.getByRole('menu');
+    pointer(document.body, 'pointerdown', 5, 5);
+    expect(screen.queryByRole('menu')).toBeNull();
+  });
+
+  describe('closes when the view changes', () => {
+    const open = () => {
+      const { state, a } = menuState();
+      const utils = render(mapOf(state));
+      fireEvent.click(nodeEl(utils.container, a.id));
+      screen.getByRole('menu');
+      return utils;
+    };
+
+    it('on the zoom button', () => {
+      open();
+      fireEvent.click(screen.getByRole('button', { name: 'Zoom in' }));
+      expect(screen.queryByRole('menu')).toBeNull();
+    });
+    it('on fit', () => {
+      open();
+      fireEvent.click(screen.getByRole('button', { name: 'Fit to window' }));
+      expect(screen.queryByRole('menu')).toBeNull();
+    });
+    it('on the wheel', () => {
+      const { container } = open();
+      fireEvent.wheel(container.querySelector('svg') as SVGSVGElement, { deltaY: -100 });
+      expect(screen.queryByRole('menu')).toBeNull();
+    });
+    it('on an arrow-key pan', () => {
+      const { getByTestId } = open();
+      fireEvent.keyDown(getByTestId('network-map'), { key: 'ArrowRight' });
+      expect(screen.queryByRole('menu')).toBeNull();
+    });
+    it('on a drag that moves', () => {
+      const { container } = open();
+      const svg = container.querySelector('svg') as SVGSVGElement;
+      pointer(svg, 'pointerdown', 100, 100);
+      pointer(svg, 'pointermove', 130, 90);
+      expect(screen.queryByRole('menu')).toBeNull();
+    });
+  });
+
+  it('does not pan or close the menu when a press starts on a node, and the click still opens it', () => {
+    const { state, a, b } = menuState();
+    const { container } = render(mapOf(state));
+    fireEvent.click(nodeEl(container, b.id));
+    const start = worldOf(container);
+    const elA = nodeEl(container, a.id);
+    pointer(elA, 'pointerdown', 100, 100);
+    pointer(elA, 'pointermove', 130, 90);
+    pointer(elA, 'pointerup', 130, 90);
+    expect(worldOf(container)).toEqual(start);
+    expect(screen.getByRole('menu')).toBeTruthy();
+    fireEvent.click(elA);
+    expect(elA.getAttribute('data-menu-open')).toBe('true');
+  });
+
+  it('keeps arrow keys inside the menu from panning the map', () => {
+    const { state, a } = menuState();
+    const { container } = render(mapOf(state));
+    fireEvent.click(nodeEl(container, a.id));
+    const before = worldOf(container);
+    const first = document.activeElement as Element;
+    fireEvent.keyDown(first, { key: 'ArrowDown' });
+    expect(document.activeElement).not.toBe(first);
+    fireEvent.keyDown(document.activeElement as Element, { key: 'ArrowRight' });
+    expect(worldOf(container)).toEqual(before);
+    screen.getByRole('menu');
+  });
+
+  it('is inert when disabled', () => {
+    const { state, a } = menuState();
+    const run = vi.fn();
+    const { container } = render(mapOf(state, { onRunCommand: run, disabled: true }));
+    fireEvent.click(nodeEl(container, a.id));
+    for (const item of screen.getAllByRole('menuitem')) {
+      expect(item.getAttribute('aria-disabled')).toBe('true');
+    }
+    screen.getByText('Not available right now');
+    fireEvent.click(screen.getByRole('menuitem', { name: /Connect/ }));
+    expect(run).not.toHaveBeenCalled();
+  });
+
+  it('is inert while an unlock sequence is pending', () => {
+    const { state, a } = menuState();
+    const locked = produce(state, s => {
+      s.unlockSession = { filePath: '/x', codes: ['a', 'b', 'c'], step: 0 };
+    });
+    const run = vi.fn();
+    const { container } = render(mapOf(locked, { onRunCommand: run }));
+    fireEvent.click(nodeEl(container, a.id));
+    screen.getByText(/unlock sequence is waiting/i);
+    fireEvent.click(screen.getByRole('menuitem', { name: /Connect/ }));
+    expect(run).not.toHaveBeenCalled();
+  });
+
+  it('closes when the turn changes', () => {
+    const { state, a } = menuState();
+    const { container, rerender } = render(mapOf(state));
+    fireEvent.click(nodeEl(container, a.id));
+    screen.getByRole('menu');
+    rerender(mapOf({ ...state, turnCount: state.turnCount + 1 }));
+    expect(screen.queryByRole('menu')).toBeNull();
+  });
+
+  it('closes when its node leaves the layout', () => {
+    const { container } = render(mapOf(groupState()));
+    fireEvent.click(container.querySelector('[data-group-id]') as Element);
+    fireEvent.click(nodeEl(container, 'f1'));
+    screen.getByRole('menu');
+    fireEvent.click(container.querySelector('[data-group-id]') as Element);
+    expect(container.querySelector('[data-node-id="f1"]')).toBeNull();
+    expect(screen.queryByRole('menu')).toBeNull();
+  });
+
+  it('still toggles a group and opens no menu', () => {
+    const { container } = render(mapOf(groupState()));
+    fireEvent.click(container.querySelector('[data-group-id]') as Element);
+    expect(container.querySelector('[data-group-id]')?.getAttribute('aria-expanded')).toBe('true');
+    expect(screen.queryByRole('menu')).toBeNull();
+  });
+
+  it('says there is nothing to do on a burned run', () => {
+    const { state, a } = menuState();
+    const burned = produce(state, s => {
+      s.phase = 'burned';
+    });
+    const { container } = render(mapOf(burned));
+    fireEvent.click(nodeEl(container, a.id));
+    screen.getByRole('menuitem', { name: 'No actions available' });
+  });
+
+  it('never renders the password of a login entry', () => {
+    const { state, here } = menuState();
+    const withCred = produce(state, s => {
+      s.player.credentials.push({
+        id: 'cred_menu_test',
+        username: 'm.tester',
+        password: 'Zq9-unique-secret',
+        accessLevel: 'root',
+        validOnNodes: [here.id],
+        obtained: true,
+      });
+    });
+    const { container } = render(mapOf(withCred));
+    fireEvent.click(nodeEl(container, here.id));
+    fireEvent.click(screen.getByRole('menuitem', { name: /Login as m\.tester/ }));
+    screen.getByRole('menuitem', { name: 'Run' });
+    expect(container.innerHTML).not.toContain('Zq9-unique-secret');
+  });
+
+  it('never names the secret in any menu before it is known', () => {
+    const state = discoverAll(createInitialState());
+    expect(state.flags.ARIA_NAME_KNOWN).toBeFalsy();
+    const { container } = render(mapOf(state));
+    const seen: string[] = [];
+    for (const el of [...container.querySelectorAll('[data-node-id]')]) {
+      fireEvent.click(el);
+      const menu = screen.queryByRole('menu');
+      if (menu) {
+        seen.push(menu.textContent);
+        for (const l of menu.querySelectorAll('[aria-label]')) {
+          seen.push(l.getAttribute('aria-label') ?? '');
+        }
+        seen.push(menu.getAttribute('aria-label') ?? '');
+      }
+      fireEvent.click(el);
+    }
+    expect(seen.length).toBeGreaterThan(10);
+    expect(seen.join(' ')).not.toMatch(/\baria\b/i);
+  });
+
+  it('keeps the menu inside a small pane once its real height is known', () => {
+    const dh = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetHeight');
+    Object.defineProperty(HTMLElement.prototype, 'offsetHeight', {
+      configurable: true,
+      value: 180,
+    });
+    try {
+      withStubbedBox(1190, 205, () => {
+        const { state, here } = menuState();
+        const { container } = render(mapOf(state));
+        fireEvent.click(nodeEl(container, here.id));
+        const menu = screen.getByRole('menu');
+        const left = parseFloat(menu.style.left);
+        const top = parseFloat(menu.style.top);
+        expect(left).toBeGreaterThanOrEqual(0);
+        expect(left + 240).toBeLessThanOrEqual(1190);
+        expect(top).toBeGreaterThanOrEqual(0);
+        expect(top + 180).toBeLessThanOrEqual(205);
+      });
+    } finally {
+      if (dh) Object.defineProperty(HTMLElement.prototype, 'offsetHeight', dh);
+      else Reflect.deleteProperty(HTMLElement.prototype, 'offsetHeight');
+    }
+  });
+
+  describe('when the pane is resized', () => {
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it('stays for an unchanged size and closes for a changed one', () => {
+      let captured: (() => void) | undefined;
+      vi.stubGlobal(
+        'ResizeObserver',
+        class {
+          constructor(cb: () => void) {
+            captured = cb;
+          }
+          observe() {}
+          disconnect() {}
+        },
+      );
+      let h = 205;
+      const dh = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientHeight');
+      const dw = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientWidth');
+      Object.defineProperty(HTMLElement.prototype, 'clientWidth', {
+        configurable: true,
+        value: 1190,
+      });
+      Object.defineProperty(HTMLElement.prototype, 'clientHeight', {
+        configurable: true,
+        get: () => h,
+      });
+      try {
+        const { state, a } = menuState();
+        const { container } = render(mapOf(state));
+        fireEvent.click(nodeEl(container, a.id));
+        screen.getByRole('menu');
+        act(() => {
+          captured?.();
+        });
+        screen.getByRole('menu');
+        h = 300;
+        act(() => {
+          captured?.();
+        });
+        expect(screen.queryByRole('menu')).toBeNull();
+        expect(document.activeElement).not.toBe(document.body);
+      } finally {
+        if (dh) Object.defineProperty(HTMLElement.prototype, 'clientHeight', dh);
+        else Reflect.deleteProperty(HTMLElement.prototype, 'clientHeight');
+        if (dw) Object.defineProperty(HTMLElement.prototype, 'clientWidth', dw);
+        else Reflect.deleteProperty(HTMLElement.prototype, 'clientWidth');
+      }
+    });
+  });
+
+  it('is inert while a favor offer is pending', () => {
+    const { state, a } = menuState();
+    const locked = produce(state, s => {
+      s.aria.pendingFavor = { description: 'x', cost: 3 };
+    });
+    const run = vi.fn();
+    const { container } = render(mapOf(locked, { onRunCommand: run }));
+    fireEvent.click(nodeEl(container, a.id));
+    screen.getByText(/waiting for a yes or no/i);
+    fireEvent.click(screen.getByRole('menuitem', { name: /Connect/ }));
+    expect(run).not.toHaveBeenCalled();
+  });
+
+  it('puts focus back on the node when a new turn closes the menu', () => {
+    const { state, a } = menuState();
+    const { container, rerender } = render(mapOf(state));
+    fireEvent.click(nodeEl(container, a.id));
+    expect(screen.getByRole('menu').contains(document.activeElement)).toBe(true);
+    rerender(mapOf({ ...state, turnCount: state.turnCount + 1 }));
+    expect(document.activeElement).toBe(nodeEl(container, a.id));
+  });
+
+  it('puts focus on the map when the node of the menu is gone', () => {
+    const { container } = render(mapOf(groupState()));
+    fireEvent.click(container.querySelector('[data-group-id]') as Element);
+    fireEvent.click(nodeEl(container, 'f1'));
+    expect(screen.getByRole('menu').contains(document.activeElement)).toBe(true);
+    fireEvent.click(container.querySelector('[data-group-id]') as Element);
+    expect(document.activeElement).toBe(screen.getByTestId('network-map'));
+  });
+
+  it('closes on a pointerdown whose target is not an element', () => {
+    const { state, a } = menuState();
+    const { container } = render(mapOf(state));
+    fireEvent.click(nodeEl(container, a.id));
+    expect(() => {
+      act(() => {
+        document.dispatchEvent(new Event('pointerdown'));
+      });
+    }).not.toThrow();
+    expect(screen.queryByRole('menu')).toBeNull();
+  });
+
+  it('discards a pending confirm without sending anything when the view changes', () => {
+    const { state, a } = menuState();
+    const run = vi.fn();
+    const { container } = render(mapOf(state, { onRunCommand: run }));
+    fireEvent.click(nodeEl(container, a.id));
+    fireEvent.click(screen.getByRole('menuitem', { name: /^Scan/ }));
+    screen.getByRole('menuitem', { name: 'Run' });
+    fireEvent.click(screen.getByRole('button', { name: /zoom in/i }));
+    expect(run).not.toHaveBeenCalled();
+    fireEvent.click(nodeEl(container, a.id));
+    expect(screen.queryByRole('menuitem', { name: 'Run' })).toBeNull();
+    screen.getByRole('menuitem', { name: /^Scan/ });
   });
 });

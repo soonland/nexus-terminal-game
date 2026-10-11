@@ -3,8 +3,18 @@ import type { KeyboardEvent, PointerEvent, WheelEvent } from 'react';
 import type { GameState, LiveNode, NodeTemplate } from '../types/game';
 import { layoutMap } from '../engine/mapLayout';
 import type { PlacedGroup, PlacedNode } from '../engine/mapLayout';
-import { centreOn, fitView, isVisible, panBy, zoomAt } from '../engine/mapView';
+import { menuLockReason, nodeActions } from '../engine/mapActions';
+import {
+  centreOn,
+  estimateMenuSize,
+  fitView,
+  isVisible,
+  panBy,
+  placeMenu,
+  zoomAt,
+} from '../engine/mapView';
 import type { Size, View } from '../engine/mapView';
+import { NodeMenu } from './NodeMenu';
 
 const GROUPS_KEY = 'irongate_map_groups';
 const GROUP_ID = /^group:[0-5]:[a-z_]+$/;
@@ -75,13 +85,29 @@ const Glyph = ({ template }: { template: NodeTemplate }) => (
   />
 );
 
-const MapNode = ({ item, current }: { item: PlacedNode; current: boolean }) => {
+// Closing the menu when the player did not ask (new turn, node gone, pane resized, wheel): if focus
+// was inside it, put focus back on the node, or on the map when the node is gone.
+const releaseFocus = (root: HTMLElement | null, nodeId: string) => {
+  if (!root?.querySelector('.node-menu')?.contains(document.activeElement)) return;
+  (root.querySelector<SVGGElement>(`[data-node-id="${nodeId}"]`) ?? root).focus();
+};
+
+interface MapNodeProps {
+  item: PlacedNode;
+  current: boolean;
+  menuOpen: boolean;
+  onOpen: (id: string) => void;
+}
+
+const MapNode = ({ item, current, menuOpen, onOpen }: MapNodeProps) => {
   const n = item.node;
   return (
     <g
       className="map-node"
       tabIndex={0}
-      role="img"
+      role="button"
+      aria-haspopup="menu"
+      aria-expanded={menuOpen}
       aria-label={nodeName(n, current)}
       transform={`translate(${String(item.x)} ${String(item.y)})`}
       data-node-id={n.id}
@@ -89,7 +115,28 @@ const MapNode = ({ item, current }: { item: PlacedNode; current: boolean }) => {
       data-access={n.accessLevel}
       data-compromised={String(n.compromised)}
       data-patched={String(!!n.sentinelPatched)}
-      data-locked={String(!!n.locked)}>
+      data-locked={String(!!n.locked)}
+      data-menu-open={String(menuOpen)}
+      onClick={() => {
+        onOpen(n.id);
+      }}
+      onKeyDown={e => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault(); // no page scroll on Space
+          e.stopPropagation();
+          // A held Enter must not reopen the menu, and Space opens on release (see onKeyUp).
+          if (e.key === 'Enter' && !e.repeat) onOpen(n.id);
+        }
+      }}
+      onKeyUp={e => {
+        // Like a native button, Space opens on release, so the release cannot land on the first
+        // menu entry.
+        if (e.key === ' ') {
+          e.preventDefault();
+          e.stopPropagation();
+          onOpen(n.id);
+        }
+      }}>
       {current && <circle className="map-ring" r={28} />}
       <circle className="map-disc" r={22} />
       <Glyph template={n.template} />
@@ -150,7 +197,13 @@ const MapGroup = ({ item, onToggle }: { item: PlacedGroup; onToggle: (id: string
   );
 };
 
-export const NetworkMap = ({ gameState }: { gameState: GameState }) => {
+interface Props {
+  gameState: GameState;
+  onRunCommand: (command: string) => void;
+  disabled: boolean;
+}
+
+export const NetworkMap = ({ gameState, onRunCommand, disabled }: Props) => {
   const [expanded, setExpanded] = useState(readExpanded);
   useEffect(() => {
     writeExpanded(expanded);
@@ -195,11 +248,68 @@ export const NetworkMap = ({ gameState }: { gameState: GameState }) => {
     }
   }, [currentId]);
 
+  // The open node menu, the turn it opened on (a new turn makes its entries stale) and the pane
+  // size it was placed in (measured on click, since a ref cannot be read while rendering).
+  const [menu, setMenu] = useState<{ nodeId: string; turn: number; box: Size } | null>(null);
+  const closeMenu = (returnFocus = false) => {
+    const id = menu?.nodeId;
+    setMenu(null);
+    if (returnFocus && id) {
+      ref.current?.querySelector<SVGGElement>(`[data-node-id="${id}"]`)?.focus();
+    }
+  };
+  const openMenu = (id: string) => {
+    setMenu(prev =>
+      prev?.nodeId === id ? null : { nodeId: id, turn: gameState.turnCount, box: boxSize() },
+    );
+  };
+
+  useEffect(() => {
+    if (!menu) return;
+    // A collapsed group keeps its members in `positions`, so look for the node itself.
+    const shown = layout.items.some(i => i.kind === 'node' && i.id === menu.nodeId);
+    if (!shown || gameState.turnCount !== menu.turn) {
+      releaseFocus(ref.current, menu.nodeId);
+      setMenu(null);
+    }
+  }, [menu, layout, gameState.turnCount]);
+
+  // The menu was placed for the pane size at click time; if the pane changes (resize, zoom pane),
+  // close it rather than re-measure.
+  useEffect(() => {
+    if (!menu || typeof ResizeObserver === 'undefined') return;
+    const el = ref.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => {
+      if (el.clientWidth === menu.box.w && el.clientHeight === menu.box.h) return; // first callback
+      releaseFocus(el, menu.nodeId);
+      setMenu(null);
+    });
+    ro.observe(el);
+    return () => {
+      ro.disconnect();
+    };
+  }, [menu]);
+
+  useEffect(() => {
+    if (!menu) return;
+    const onDown = (e: Event) => {
+      if (e.target instanceof Element && e.target.closest('.node-menu, .map-node')) return;
+      setMenu(null);
+    };
+    document.addEventListener('pointerdown', onDown);
+    return () => {
+      document.removeEventListener('pointerdown', onDown);
+    };
+  }, [menu]);
+
   const zoom = (factor: number) => {
+    setMenu(null);
     const box = boxSize();
     setView(v => zoomAt(v, factor, box.w / 2, box.h / 2));
   };
   const fit = () => {
+    setMenu(null);
     setView(fitTo(boxSize()));
   };
   const toggle = (id: string) => {
@@ -221,12 +331,15 @@ export const NetworkMap = ({ gameState }: { gameState: GameState }) => {
     const dx = e.clientX - from.x;
     const dy = e.clientY - from.y;
     drag.current = { x: e.clientX, y: e.clientY };
+    if (dx !== 0 || dy !== 0) setMenu(null);
     setView(v => panBy(v, dx, dy));
   };
   const endDrag = () => {
     drag.current = null;
   };
   const onWheel = (e: WheelEvent<SVGSVGElement>) => {
+    if (menu) releaseFocus(ref.current, menu.nodeId);
+    setMenu(null);
     const rect = ref.current?.getBoundingClientRect();
     const cx = e.clientX - (rect?.left ?? 0);
     const cy = e.clientY - (rect?.top ?? 0);
@@ -246,10 +359,40 @@ export const NetworkMap = ({ gameState }: { gameState: GameState }) => {
     const pan = pans[e.key];
     if (pan) {
       e.preventDefault();
+      setMenu(null);
       setView(v => panBy(v, pan[0], pan[1]));
     } else if (e.key === '+' || e.key === '=') zoom(ZOOM_STEP);
     else if (e.key === '-') zoom(1 / ZOOM_STEP);
     else if (e.key === '0') fit();
+  };
+
+  const renderMenu = () => {
+    if (!menu) return null;
+    const p = (layout.positions as Partial<Record<string, { x: number; y: number }>>)[menu.nodeId];
+    if (!p) return null;
+    const actions = nodeActions(gameState, menu.nodeId);
+    const lockReason = menuLockReason(gameState, disabled);
+    const at = placeMenu(
+      { x: p.x * view.k + view.x, y: p.y * view.k + view.y },
+      estimateMenuSize(actions.length, lockReason !== null),
+      menu.box,
+    );
+    return (
+      <NodeMenu
+        key={menu.nodeId}
+        actions={actions}
+        lockReason={lockReason}
+        left={at.left}
+        top={at.top}
+        onRun={command => {
+          onRunCommand(command);
+          closeMenu(true);
+        }}
+        onClose={() => {
+          closeMenu(true);
+        }}
+      />
+    );
   };
 
   return (
@@ -304,11 +447,18 @@ export const NetworkMap = ({ gameState }: { gameState: GameState }) => {
             item.kind === 'group' ? (
               <MapGroup key={item.id} item={item} onToggle={toggle} />
             ) : (
-              <MapNode key={item.id} item={item} current={item.id === currentId} />
+              <MapNode
+                key={item.id}
+                item={item}
+                current={item.id === currentId}
+                menuOpen={menu?.nodeId === item.id}
+                onOpen={openMenu}
+              />
             ),
           )}
         </g>
       </svg>
+      {renderMenu()}
       <div className="network-map-controls">
         <button
           type="button"

@@ -715,6 +715,41 @@ describe('Workspace — the NETWORK MAP doc tab', () => {
     expect(section('doc').querySelector('[data-testid="network-map"]')).not.toBeNull();
   });
 
+  describe('node menu', () => {
+    // The start state with the current node's first neighbour discovered.
+    const neighbourState = () => {
+      const base = createInitialState();
+      const here = base.network.nodes[base.network.currentNodeId]!;
+      const id = here.connections[0];
+      const ip = base.network.nodes[id]!.ip;
+      const state = produce(base, s => {
+        s.network.nodes[id]!.discovered = true;
+      });
+      return { state, id, ip };
+    };
+
+    it('a Connect click on the diagram reaches onRunCommand', () => {
+      const { state, id, ip } = neighbourState();
+      const { onRunCommand } = setup({ gameState: state });
+      fireEvent.click(screen.getByRole('button', { name: 'NETWORK MAP' }));
+      fireEvent.click(section('doc').querySelector(`[data-node-id="${id}"]`)!);
+      fireEvent.click(screen.getByRole('menuitem', { name: /^Connect/ }));
+      expect(onRunCommand).toHaveBeenCalledTimes(1);
+      expect(onRunCommand).toHaveBeenCalledWith(`connect ${ip}`);
+    });
+
+    it('is inert while explorerDisabled and sends nothing', () => {
+      const { state, id } = neighbourState();
+      const { onRunCommand } = setup({ gameState: state, explorerDisabled: true });
+      fireEvent.click(screen.getByRole('button', { name: 'NETWORK MAP' }));
+      fireEvent.click(section('doc').querySelector(`[data-node-id="${id}"]`)!);
+      const item = screen.getByRole('menuitem', { name: /^Connect/ });
+      expect(item.getAttribute('aria-disabled')).toBe('true');
+      fireEvent.click(item);
+      expect(onRunCommand).not.toHaveBeenCalled();
+    });
+  });
+
   it('showMail() still switches from NETWORK MAP to MAIL', () => {
     const { ref } = setup();
     fireEvent.click(screen.getByRole('button', { name: 'NETWORK MAP' }));
