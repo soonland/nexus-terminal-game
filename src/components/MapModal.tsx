@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { GameState } from '../types/game';
+import { LAYER_LABELS } from '../engine/mapLayout';
 
 interface Props {
   gameState: GameState;
@@ -9,8 +10,6 @@ interface Props {
 // kept as the single call site for line text so it's easy to reintroduce
 // per-line formatting later without touching every line below.
 const r = (s = '') => s;
-
-const LAYER_LABELS = ['ENTRY', 'OPS', 'SECURITY', 'FINANCE', 'EXECUTIVE', 'CASSANDRA'];
 
 const mono = {
   fontFamily: 'var(--font-mono)',

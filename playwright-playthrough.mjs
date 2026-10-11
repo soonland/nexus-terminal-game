@@ -227,7 +227,7 @@ const visitEveryCamera = async (stage, expectedLive, shots = false) => {
     live === expectedLive && total >= expectedLive,
     `expected ${String(expectedLive)} live`,
   );
-  await page.getByRole('button', { name: 'MAP', exact: true }).click();
+  await page.getByRole('button', { name: 'NETWORK LIST', exact: true }).click();
 };
 
 // ── Run ──────────────────────────────────────────────────────────────────────
@@ -283,14 +283,14 @@ try {
     (await page.locator('[data-testid="cam-canvas"]').count()) === 1 &&
       (await page.locator('[data-testid="cam-nosignal"]').count()) === 0,
   );
-  await page.getByRole('button', { name: 'MAP', exact: true }).click();
+  await page.getByRole('button', { name: 'NETWORK LIST', exact: true }).click();
   const lockedFinance = await camsOnFloor('FINANCE');
   check(
     'a camera that is not unlocked yet is listed as locked',
     lockedFinance.length > 0 && lockedFinance.every(c => /locked/.test(c)),
     lockedFinance.join(', '),
   );
-  await page.getByRole('button', { name: 'MAP', exact: true }).click();
+  await page.getByRole('button', { name: 'NETWORK LIST', exact: true }).click();
   await visitEveryCamera('layer 1', 4);
   await cmd('connect 10.1.0.2');
   await cmd('login ops.admin IronG8te#Ops');
@@ -336,7 +336,7 @@ try {
     'the executive floor is still disabled at layer 3',
     (await page.locator('[data-testid="cam-offline"]').count()) === 1,
   );
-  await page.getByRole('button', { name: 'MAP', exact: true }).click();
+  await page.getByRole('button', { name: 'NETWORK LIST', exact: true }).click();
   await visitEveryCamera('layer 3', 6);
   await cmd('status');
 
@@ -372,6 +372,14 @@ try {
   // Back to the explorer's file detail, so the later steps start from the usual doc pane.
   await page.getByRole('button', { name: 'DOC', exact: true }).click();
 
+  // The `map` command shows the network diagram in the doc pane; return to the file viewer after.
+  await cmd('map');
+  check(
+    'the map command shows the diagram',
+    (await page.locator('[data-testid="network-map"]').count()) === 1,
+  );
+  await page.getByRole('button', { name: 'DOC', exact: true }).click();
+
   await cmd('cat PROJ_SENTINEL_BOARD_VOTE.pdf');
   await cmd('scan');
   await cmd('connect 10.4.0.2');
@@ -387,7 +395,7 @@ try {
     (await page.locator('[data-testid="cam-offline"]').count()) === 0 &&
       (await page.locator('[data-testid="cam-canvas"]').count()) === 1,
   );
-  await page.getByRole('button', { name: 'MAP', exact: true }).click();
+  await page.getByRole('button', { name: 'NETWORK LIST', exact: true }).click();
   await visitEveryCamera('layer 4', 8);
   await cmd('status');
 
@@ -405,7 +413,7 @@ try {
   const hasCredential = /ops\.admin \/ IronG8te#Ops/.test(casebook);
   check('the casebook shows a credential found in a document', hasCredential);
   if (!hasCredential) console.log(`--- CASE pane at the failure ---\n${casebook}\n---`);
-  await page.getByRole('button', { name: 'MAP' }).click();
+  await page.getByRole('button', { name: 'NETWORK LIST' }).click();
 
   phase('THE SUBNET: scan hop by hop');
   await cmd('scan'); // the exfil message says to scan from here
@@ -422,7 +430,7 @@ try {
     sub.length === 2 && sub.every(c => !/locked|offline/.test(c)),
     sub.join(', '),
   );
-  await page.getByRole('button', { name: 'MAP', exact: true }).click();
+  await page.getByRole('button', { name: 'NETWORK LIST', exact: true }).click();
   await visitEveryCamera('layer 5', 10, true);
   check('reading the self-model shows the note as draft 7', /draft 7/.test(await paneText('term')));
   await page.waitForTimeout(HEADLESS ? 500 : 4000);

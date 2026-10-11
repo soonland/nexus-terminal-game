@@ -14,11 +14,12 @@ import { FilesPane } from './FilesPane';
 import { DocPane } from './DocPane';
 import { CasePane } from './CasePane';
 import { MailPane } from './MailPane';
+import { NetworkMap } from './NetworkMap';
 import type { MailView } from './MailPane';
 import { mailActivity } from '../engine/mail';
 import { CamPane } from './CamPane';
 import { cameraFeeds } from '../engine/cameras';
-import { availableAuxTabs, resolveAuxTab } from '../layout/auxTabs';
+import { AUX_TAB_LABELS, availableAuxTabs, resolveAuxTab } from '../layout/auxTabs';
 import type { AuxTab } from '../layout/auxTabs';
 import { casebookActivity } from '../engine/casebook';
 import { catCommand, sourceSelection } from './explorerShared';
@@ -27,7 +28,9 @@ import type { Root, Selection } from './explorerShared';
 export type OverlayKind = 'help' | 'briefing' | 'dossier';
 export type { AuxTab };
 
-type DocTab = 'doc' | 'mail';
+type DocTab = 'doc' | 'mail' | 'map';
+
+const DOC_TAB_LABELS: Record<DocTab, string> = { doc: 'DOC', mail: 'MAIL', map: 'NETWORK MAP' };
 
 export interface WorkspaceHandle {
   showOverlay: (kind: OverlayKind) => void;
@@ -35,6 +38,8 @@ export interface WorkspaceHandle {
   // Selects the doc pane's MAIL tab and the mailbox/message it shows; focuses the doc pane only if
   // it is off screen.
   showMail: (ownerId?: string, messageId?: string) => void;
+  // Selects the doc pane's NETWORK MAP tab; focuses the doc pane only if it is off screen.
+  showNetworkMap: () => void;
   focusPane: (pane: PaneId) => void;
 }
 
@@ -95,7 +100,7 @@ export const Workspace = forwardRef<WorkspaceHandle, Props>(
   ) => {
     const [layout, setLayout] = useState<LayoutState>(() => loadLayout());
     const [overlay, setOverlay] = useState<OverlayKind | null>(null);
-    const [auxTab, setAuxTab] = useState<AuxTab>('map');
+    const [auxTab, setAuxTab] = useState<AuxTab>('list');
     const feeds = gameState ? cameraFeeds(gameState) : [];
     const hasCam = feeds.length > 0;
     const shownAuxTab = resolveAuxTab(auxTab, hasCam);
@@ -192,6 +197,10 @@ export const Workspace = forwardRef<WorkspaceHandle, Props>(
           setDocTab('mail');
           // No mailbox given (a bare `mail`): leave the one that is open as it is.
           if (ownerId !== undefined) setMailView({ ownerId, messageId: messageId ?? null });
+          if (!docOnScreenRef.current) focus('doc');
+        },
+        showNetworkMap: () => {
+          setDocTab('map');
           if (!docOnScreenRef.current) focus('doc');
         },
         focusPane: focus,
@@ -295,7 +304,7 @@ export const Workspace = forwardRef<WorkspaceHandle, Props>(
             onClick={() => {
               setAuxTab(tab);
             }}>
-            {tab.toUpperCase()}
+            {AUX_TAB_LABELS[tab]}
           </button>
         ))}
       </span>
@@ -303,7 +312,7 @@ export const Workspace = forwardRef<WorkspaceHandle, Props>(
 
     const docTabs = (
       <span className="aux-tabs">
-        {(['doc', 'mail'] as const).map(tab => (
+        {(['doc', 'mail', 'map'] as const).map(tab => (
           <button
             key={tab}
             type="button"
@@ -311,7 +320,7 @@ export const Workspace = forwardRef<WorkspaceHandle, Props>(
             onClick={() => {
               setDocTab(tab);
             }}>
-            {tab.toUpperCase()}
+            {DOC_TAB_LABELS[tab]}
           </button>
         ))}
       </span>
@@ -339,6 +348,8 @@ export const Workspace = forwardRef<WorkspaceHandle, Props>(
             onRead={onReadMail}
             onOpenSource={openSource}
           />
+        ) : docTab === 'map' ? (
+          <NetworkMap gameState={gameState} />
         ) : (
           <DocPane
             gameState={gameState}
@@ -348,7 +359,7 @@ export const Workspace = forwardRef<WorkspaceHandle, Props>(
           />
         )),
       aux:
-        shownAuxTab === 'map' ? (
+        shownAuxTab === 'list' ? (
           map
         ) : shownAuxTab === 'cam' ? (
           <CamPane
