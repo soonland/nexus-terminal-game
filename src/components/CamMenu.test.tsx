@@ -111,10 +111,9 @@ describe('CamMenu', () => {
     operations.focus();
     fireEvent.keyDown(operations, { key: 'ArrowRight' });
     const cameras = dataItems('cameras');
-    expect(cameras.map(c => c.textContent)).toEqual([
-      'Server room (aisle)',
-      'Server room (airlock)',
-    ]);
+    expect(cameras.map(c => c.textContent)).toEqual(
+      CAMERA_FEEDS.filter(f => f.floor === 'operations').map(f => f.name),
+    );
     expect(document.activeElement).toBe(cameras[0]);
     fireEvent.keyDown(cameras[0], { key: 'ArrowDown' });
     expect(document.activeElement).toBe(cameras[1]);

@@ -36,3 +36,6 @@ playthrough-cameras/
 
 # Superpowers brainstorming companion
 .superpowers/
+
+# Raw Kenney asset packs: the models in use are copied to public/models
+/assets/

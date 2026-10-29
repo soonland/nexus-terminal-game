@@ -1,6 +1,7 @@
 import { PerspectiveCamera } from 'three';
 import type { MeshBasicMaterial, Scene } from 'three';
 import { aimCamera, pickMount } from './pan';
+import { loadServerRoomModels } from './serverRoomModels';
 import type { Mount } from './pan';
 import { floorAccent } from '../../data/cameras';
 import {
@@ -170,6 +171,15 @@ const MOUNTS: readonly [Mount, ...Mount[]] = [
   { position: [0, 2.2, 2], heading: 0, range: 0.45, sweep: 9, hold: 3, offset: 3 },
   // Airlock: from the vault door, looking back down the aisle.
   { position: [0, 2.2, -10.8], heading: Math.PI, range: 0.4, sweep: 9, hold: 3, offset: 0 },
+  // The two hot aisles between the inner and outer rows, from the front, looking down their length.
+  { position: [-3.5, 2.0, 2.5], heading: 0, range: 0.18, sweep: 7, hold: 3, offset: 1 },
+  { position: [3.5, 2.0, 2.5], heading: 0, range: 0.18, sweep: 7, hold: 3, offset: 5 },
+  // The four corners, high on the walls above the racks and under the cable trays, looking across the
+  // room to the opposite corner.
+  { position: [-6.6, 3.6, 3.5], heading: 0.74, range: 0.35, sweep: 10, hold: 3, offset: 2 },
+  { position: [6.6, 3.6, 3.5], heading: -0.74, range: 0.35, sweep: 10, hold: 3, offset: 6 },
+  { position: [-6.6, 3.6, -11], heading: 2.42, range: 0.35, sweep: 10, hold: 3, offset: 4 },
+  { position: [6.6, 3.6, -11], heading: -2.42, range: 0.35, sweep: 10, hold: 3, offset: 8 },
 ];
 
 export const buildServerRoom = (mountIndex: number): FeedScene => {
@@ -195,5 +205,5 @@ export const buildServerRoom = (mountIndex: number): FeedScene => {
     }
   };
   update(0);
-  return { scene, camera, update };
+  return { scene, camera, update, load: cancelled => loadServerRoomModels(scene, cancelled) };
 };

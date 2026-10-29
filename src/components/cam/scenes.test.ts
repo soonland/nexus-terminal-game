@@ -88,7 +88,7 @@ describe('camera scenes', () => {
 });
 
 describe('second mounts', () => {
-  it.each(['lobby', 'serverRoom'] as const)(
+  it.each(['lobby', 'serverRoom', 'exterior'] as const)(
     '%s: mount 1 is another position that also pans in place',
     scene => {
       const first = buildScene({ scene, mount: 0 });
@@ -143,9 +143,12 @@ describe('every camera has a scene', () => {
   });
 });
 
+// The street and the loading dock yard are outdoors, not rooms.
+const OUTDOORS: ReadonlySet<string> = new Set(['exterior', 'loadingDock']);
+
 describe('every room is closed', () => {
   // Walls are tagged by the builders; a ray looking in any direction from a camera must hit one.
-  it.each(CAMERA_FEEDS.map(f => [f.id, f] as const))(
+  it.each(CAMERA_FEEDS.filter(f => !OUTDOORS.has(f.scene)).map(f => [f.id, f] as const))(
     '%s: no direction from the camera looks out of the room',
     (_id, feed) => {
       const built = buildScene(feed);
@@ -222,6 +225,109 @@ describe('the building look', () => {
       expect(grout).toBeGreaterThan(20);
     },
   );
+});
+
+describe('the exterior', () => {
+  const feed = CAMERA_FEEDS.find(f => f.id === 'exterior-entrance')!;
+
+  it('goes live with the lobby, on the ground floor, at no trace cost', () => {
+    const lobby = CAMERA_FEEDS.find(f => f.id === 'lobby-reception')!;
+    expect(feed.unlockLayer).toBe(lobby.unlockLayer);
+    expect(feed.floor).toBe('ground');
+    expect(feed.offlineReason).toBeNull();
+    expect(feed.traceCost).toBe(0);
+  });
+
+  it('is dressed, lit without point lights, and pans in place', () => {
+    const built = buildScene(feed);
+    expect(meshCount(built.scene)).toBeGreaterThan(40);
+    let points = 0;
+    built.scene.traverse(o => {
+      if (o instanceof PointLight) points += 1;
+    });
+    expect(points).toBe(0);
+    built.update(0);
+    const from = built.camera.getWorldDirection(new Vector3()).x;
+    const position = built.camera.position.clone();
+    built.update(10);
+    expect(built.camera.getWorldDirection(new Vector3()).x).not.toBeCloseTo(from);
+    expect(built.camera.position.equals(position)).toBe(true);
+  });
+
+  it("hangs on IronGate's side of the street, and the sign wears the ground-floor blue", () => {
+    for (const f of CAMERA_FEEDS.filter(f => f.scene === 'exterior')) {
+      expect(buildScene(f).camera.position.z, f.id).toBeLessThan(0);
+    }
+    let blue = 0;
+    buildScene(feed).scene.traverse(o => {
+      if (o instanceof Mesh && o.name === 'trim' && colourOf(o) === 0x2b6cb0) blue += 1;
+    });
+    expect(blue).toBeGreaterThan(2);
+  });
+
+  it('turns the entrance camera on the doors and the high one out over the street', () => {
+    const doors = new Vector3(0, 1.5, -5.9);
+    const entrance = buildScene(feed);
+    entrance.update(2.5); // the middle of the sweep, allowing for the mount's time offset
+    const toDoors = doors.clone().sub(entrance.camera.position).normalize();
+    expect(entrance.camera.getWorldDirection(new Vector3()).dot(toDoors)).toBeGreaterThan(0.95);
+    const high = buildScene(CAMERA_FEEDS.find(f => f.id === 'exterior-overhead')!);
+    high.update(0);
+    expect(high.camera.getWorldDirection(new Vector3()).z).toBeGreaterThan(0.5);
+  });
+
+  it('has a wide high-angle mount that is above the street-level one and looks down on the street', () => {
+    const high = CAMERA_FEEDS.find(f => f.id === 'exterior-overhead')!;
+    expect(high.scene).toBe('exterior');
+    expect(high.unlockLayer).toBe(feed.unlockLayer);
+    const low = buildScene(feed);
+    const above = buildScene(high);
+    expect(above.camera.position.y).toBeGreaterThan(low.camera.position.y + 2);
+    above.update(0);
+    expect(above.camera.getWorldDirection(new Vector3()).y).toBeLessThan(-0.3);
+    expect(above.camera.fov).toBeGreaterThan(low.camera.fov);
+  });
+
+  it('offers its models after the first draw, not as part of building the scene', () => {
+    expect(buildScene(feed).load).toBeTypeOf('function');
+    expect(buildScene({ scene: 'securityOffice', mount: 0 }).load).toBeUndefined();
+  });
+});
+
+describe('the server room cameras', () => {
+  const feeds = CAMERA_FEEDS.filter(f => f.scene === 'serverRoom');
+
+  it('has eight cameras on the operations floor, live at layer 1, each on its own mount', () => {
+    expect(feeds).toHaveLength(8);
+    expect(new Set(feeds.map(f => f.mount)).size).toBe(8);
+    for (const f of feeds) {
+      expect(f.floor, f.id).toBe('operations');
+      expect(f.unlockLayer, f.id).toBe(1);
+      expect(f.traceCost, f.id).toBe(0);
+    }
+  });
+
+  it.each(feeds.map(f => [f.id, f] as const))(
+    '%s: hangs inside the room, below the ceiling, and pans in place',
+    (_id, feed) => {
+      const built = buildScene(feed);
+      const p = built.camera.position;
+      expect(Math.abs(p.x)).toBeLessThan(6.9);
+      expect(p.z).toBeGreaterThan(-11.5);
+      expect(p.z).toBeLessThan(4);
+      expect(p.y).toBeLessThan(3.9);
+      built.update(0);
+      const from = built.camera.getWorldDirection(new Vector3()).x;
+      built.update(10);
+      expect(built.camera.getWorldDirection(new Vector3()).x).not.toBeCloseTo(from);
+      expect(built.camera.position.equals(p)).toBe(true);
+    },
+  );
+
+  it('puts every camera somewhere different', () => {
+    const spots = feeds.map(f => buildScene(f).camera.position.toArray().join(','));
+    expect(new Set(spots).size).toBe(feeds.length);
+  });
 });
 
 describe('the vault approach', () => {

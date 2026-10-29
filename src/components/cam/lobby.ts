@@ -1,6 +1,7 @@
-import { PerspectiveCamera } from 'three';
+import { Group, PerspectiveCamera } from 'three';
 import type { Scene } from 'three';
 import { floorAccent } from '../../data/cameras';
+import { loadLobbyModels } from './lobbyModels';
 import { aimCamera, pickMount } from './pan';
 import type { Mount } from './pan';
 import {
@@ -70,17 +71,28 @@ const addWalls = (scene: Scene): void => {
   scene.add(box(1.6, 1.0, 0.04, 0x9aa5ad, 0, 2.2, -7.78)); // notice board
 };
 
-// A reception desk with a counter, screens, an accent strip and a chair behind it.
+// A named group of primitives that the Kenney models replace once they have loaded (see
+// lobbyModels.ts). Without the models the primitives are the furniture.
+const furnishing = (scene: Scene, name: string): Group => {
+  const group = new Group();
+  group.name = name;
+  scene.add(group);
+  return group;
+};
+
+// A reception desk with a counter and an accent strip; the screens, keyboard and chair behind it are
+// the `reception-kit`.
 const addReception = (scene: Scene): void => {
   scene.add(box(5.2, 1.1, 1.1, 0xd4dade, 0, 0.55, -5.4));
   scene.add(box(5.5, 0.08, 1.35, 0xf2f4f5, 0, 1.14, -5.4));
   scene.add(trim(5.0, 0.12, 0.04, ACCENT, 0, 0.5, -4.83)); // front accent strip
-  scene.add(glow(0.55, 0.36, 0.04, 0x4fa7c8, -1.2, 1.5, -5.55)); // monitors
-  scene.add(glow(0.55, 0.36, 0.04, 0x4fa7c8, -0.5, 1.5, -5.55));
-  scene.add(box(0.4, 0.05, 0.2, 0x3a444c, -0.5, 1.22, -5.45)); // keyboard
-  scene.add(cylinder(0.28, 0.08, 0x2b333a, 1.2, 0.5, -6.3)); // chair seat
-  scene.add(cylinder(0.04, 0.45, 0x2b333a, 1.2, 0.25, -6.3));
-  scene.add(box(0.5, 0.55, 0.08, 0x2b333a, 1.2, 0.85, -6.55));
+  const kit = furnishing(scene, 'reception-kit');
+  kit.add(glow(0.55, 0.36, 0.04, 0x4fa7c8, -1.2, 1.5, -5.55)); // monitors
+  kit.add(glow(0.55, 0.36, 0.04, 0x4fa7c8, -0.5, 1.5, -5.55));
+  kit.add(box(0.4, 0.05, 0.2, 0x3a444c, -0.5, 1.22, -5.45)); // keyboard
+  kit.add(cylinder(0.28, 0.08, 0x2b333a, 1.2, 0.5, -6.3)); // chair seat
+  kit.add(cylinder(0.04, 0.45, 0x2b333a, 1.2, 0.25, -6.3));
+  kit.add(box(0.5, 0.55, 0.08, 0x2b333a, 1.2, 0.85, -6.55));
 };
 
 // Four pillars, each with a base, an accent ring and a capital.
@@ -118,39 +130,43 @@ const addEntrance = (scene: Scene): void => {
   scene.add(glow(0.02, 2.9, 3.3, 0x9ec5e8, -7.86, 1.45, 2.0)); // the street, lit, behind the glass
 };
 
-// A waiting area: two accent sofas around a low table, a magazine rack and a bench.
+// A waiting area: two accent sofas around a low table (the `seating` group), and a magazine rack.
 const addSeating = (scene: Scene): void => {
+  const seating = furnishing(scene, 'seating');
   for (const [x, z, face] of [
     [-5.2, -0.6, 1],
     [-5.2, 1.4, -1],
   ] as const) {
-    scene.add(box(2, 0.45, 0.8, ACCENT, x, 0.225, z)); // seat
-    scene.add(box(2, 0.55, 0.18, ACCENT, x, 0.72, z + face * 0.4)); // back
-    scene.add(box(0.18, 0.5, 0.8, ACCENT, x - 1.0, 0.45, z)); // arms
-    scene.add(box(0.18, 0.5, 0.8, ACCENT, x + 1.0, 0.45, z));
+    seating.add(box(2, 0.45, 0.8, ACCENT, x, 0.225, z)); // seat
+    seating.add(box(2, 0.55, 0.18, ACCENT, x, 0.72, z + face * 0.4)); // back
+    seating.add(box(0.18, 0.5, 0.8, ACCENT, x - 1.0, 0.45, z)); // arms
+    seating.add(box(0.18, 0.5, 0.8, ACCENT, x + 1.0, 0.45, z));
   }
-  scene.add(box(1.4, 0.06, 0.7, 0xf2f4f5, -5.2, 0.38, 0.4)); // coffee table top
-  scene.add(box(0.08, 0.35, 0.08, 0x8a949b, -5.8, 0.18, 0.2));
-  scene.add(box(0.08, 0.35, 0.08, 0x8a949b, -4.6, 0.18, 0.6));
-  scene.add(box(0.5, 0.04, 0.35, 0xc7ced3, -5.4, 0.43, 0.4)); // a magazine
+  seating.add(box(1.4, 0.06, 0.7, 0xf2f4f5, -5.2, 0.38, 0.4)); // coffee table top
+  seating.add(box(0.08, 0.35, 0.08, 0x8a949b, -5.8, 0.18, 0.2));
+  seating.add(box(0.08, 0.35, 0.08, 0x8a949b, -4.6, 0.18, 0.6));
+  seating.add(box(0.5, 0.04, 0.35, 0xc7ced3, -5.4, 0.43, 0.4)); // a magazine
   scene.add(box(0.9, 1.4, 0.3, 0xc9d0d5, -7.4, 0.7, -5)); // magazine rack
-  scene.add(box(1.8, 0.4, 0.5, 0xc9d0d5, 3.2, 0.2, 3.2)); // bench
 };
 
-// Potted plants, a bin and an umbrella stand add clutter along the walls.
+// Potted plants (the `plants` group), a bench, and along the walls a bin and an umbrella stand
+// (`extras`).
 const addDecor = (scene: Scene): void => {
+  const plants = furnishing(scene, 'plants');
   for (const [x, z] of [
     [-7.1, -7.1],
     [7.1, -7.1],
     [-7.1, 5.5],
     [4.6, -6.6],
   ] as const) {
-    scene.add(cylinder(0.32, 0.55, 0xdfe5e9, x, 0.275, z));
-    scene.add(sphere(0.55, 0x3f8f52, x, 1.0, z));
-    scene.add(sphere(0.35, 0x4aa561, x + 0.2, 1.45, z - 0.1));
+    plants.add(cylinder(0.32, 0.55, 0xdfe5e9, x, 0.275, z));
+    plants.add(sphere(0.55, 0x3f8f52, x, 1.0, z));
+    plants.add(sphere(0.35, 0x4aa561, x + 0.2, 1.45, z - 0.1));
   }
-  scene.add(cylinder(0.22, 0.7, 0x9aa5ad, 7.2, 0.35, 4.6)); // bin
-  scene.add(cylinder(0.2, 0.6, 0x7d8a93, -7.3, 0.3, 4.2)); // umbrella stand
+  scene.add(box(1.8, 0.4, 0.5, 0xc9d0d5, 3.2, 0.2, 3.2)); // bench
+  const extras = furnishing(scene, 'extras');
+  extras.add(cylinder(0.22, 0.7, 0x9aa5ad, 7.2, 0.35, 4.6)); // bin
+  extras.add(cylinder(0.2, 0.6, 0x7d8a93, -7.3, 0.3, 4.2)); // umbrella stand
 };
 
 // The ceiling with recessed light panels.
@@ -197,5 +213,5 @@ export const buildLobby = (mountIndex: number): FeedScene => {
     aimCamera(camera, t, mount);
   };
   update(0);
-  return { scene, camera, update };
+  return { scene, camera, update, load: cancelled => loadLobbyModels(scene, cancelled) };
 };

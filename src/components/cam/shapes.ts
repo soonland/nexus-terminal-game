@@ -15,7 +15,7 @@ import {
 
 export const ASPECT = 16 / 9;
 
-const base = (background: number, fogNear: number, fogFar: number): Scene => {
+export const base = (background: number, fogNear: number, fogFar: number): Scene => {
   const scene = new Scene();
   scene.background = new Color(background);
   scene.fog = new Fog(background, fogNear, fogFar);
