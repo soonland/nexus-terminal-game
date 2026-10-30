@@ -175,6 +175,9 @@ importers:
       '@fontsource/vt323':
         specifier: ^5.3.0
         version: 5.3.0
+      '@hono/vercel':
+        specifier: ^1.0.1
+        version: 1.0.1(hono@4.13.14)
       hono:
         specifier: ^4.13.14
         version: 4.13.14
@@ -560,6 +563,12 @@ packages:
 
   '@fontsource/vt323@5.3.0':
     resolution: {integrity: sha512-3w33Rg/0+R1587HQfz4t7Q7e0GGeCqr3wmzIwqdGInUnrGEwMA5eX39GP4Z9wpTQnwfhVOhYuxuRwRUeIcicbw==}
+
+  '@hono/vercel@1.0.1':
+    resolution: {integrity: sha512-2g9P7VOHB7k99t20vZd6Mv8Pvq/PwgTYI29NBgDPohUy4KNceylHW7hCSrD7Q8XrbFo0p+Na2ScymTFDCRX3Uw==}
+    engines: {node: '>=16.9.0'}
+    peerDependencies:
+      hono: '>=4.13.9 || ^5.0.0-0'
 
   '@humanfs/core@0.19.2':
     resolution: {integrity: sha512-UhXNm+CFMWcbChXywFwkmhqjs3PRCmcSa/hfBgLIb7oQ5HNb1wS0icWsGtSAUNgefHeI+eBrA8I1fxmbHsGdvA==}
@@ -2690,6 +2699,10 @@ snapshots:
   '@fontsource/ibm-plex-mono@5.3.0': {}
 
   '@fontsource/vt323@5.3.0': {}
+
+  '@hono/vercel@1.0.1(hono@4.13.14)':
+    dependencies:
+      hono: 4.13.14
 
   '@humanfs/core@0.19.2':
     dependencies:
