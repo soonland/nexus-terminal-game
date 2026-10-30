@@ -24,7 +24,7 @@
  */
 
 import { Hono } from 'hono';
-import { handle } from 'hono/vercel';
+import { handle } from '@hono/vercel';
 import { makeLogger } from './_lib/logger.js';
 import { ValidationError, requireBoolean, requireObject, requireString } from './_lib/validate.js';
 import { scrubAriaName, withNameRule } from './_lib/ariaName.js';
