@@ -60,6 +60,14 @@ export const startFeed = (
   const onVisibility = () => {
     resume();
   };
+  // Models that arrive late show up on the next frame; a still or paused feed has no loop, so
+  // repaint it once they are in. A failed load leaves the street as the primitives drew it.
+  void built
+    .load?.(() => stopped)
+    .then(() => {
+      if (!stopped && (reducedMotion || paused)) draw();
+    })
+    .catch(() => undefined);
   document.addEventListener('visibilitychange', onVisibility);
   resume();
 

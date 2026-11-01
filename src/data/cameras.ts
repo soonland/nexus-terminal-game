@@ -19,6 +19,8 @@ export const floorAccent = (id: FloorId): number =>
 
 type SceneId =
   | 'lobby'
+  | 'exterior'
+  | 'loadingDock'
   | 'serverRoom'
   | 'securityOffice'
   | 'financeFloor'
@@ -76,6 +78,45 @@ export const CAMERA_FEEDS: readonly CameraFeed[] = [
     traceCost: 0,
   },
   {
+    id: 'exterior-entrance',
+    aliases: [],
+    floor: 'ground',
+    name: 'Exterior (entrance)',
+    scene: 'exterior',
+    mount: 0,
+    unlockLayer: 1,
+    offlineReason: null,
+    description:
+      'The street outside IronGate, at night, from a pole on the pavement. The camera is trained on the entrance: the lobby glowing behind locked glass doors, the company sign in blue above them, a few upstairs windows still on. A sedan and an SUV are parked at the kerb and the occasional car drives by under the streetlights.',
+    traceCost: 0,
+  },
+  {
+    id: 'exterior-overhead',
+    aliases: [],
+    floor: 'ground',
+    name: 'Exterior (high angle)',
+    scene: 'exterior',
+    mount: 1,
+    unlockLayer: 1,
+    offlineReason: null,
+    description:
+      'The street outside IronGate, from the roofline over the entrance, on a wide lens. The camera looks down and out across the street: the pavement and the parked cars below, traffic passing in both directions, the pavement and the buildings on the far side, the road running away on either hand.',
+    traceCost: 0,
+  },
+  {
+    id: 'loading-dock',
+    aliases: [],
+    floor: 'ground',
+    name: 'Loading dock',
+    scene: 'loadingDock',
+    mount: 0,
+    unlockLayer: 1,
+    offlineReason: null,
+    description:
+      'The loading dock behind IronGate, at night. A delivery truck is backed up to the roller door in the warehouse wall, its rear to the dock; boxes wait on the platform, shipping containers are stacked at the side of the yard, and floodlights light the apron. The door is shut and nothing moves.',
+    traceCost: 0,
+  },
+  {
     id: 'server-aisle',
     aliases: ['cam_02'],
     floor: 'operations',
@@ -99,6 +140,84 @@ export const CAMERA_FEEDS: readonly CameraFeed[] = [
     offlineReason: null,
     description:
       'Server room, from the airlock door. The aisle runs away between the racks, an orange band along the walls. Nothing moves.',
+    traceCost: 0,
+  },
+  {
+    id: 'server-aisle-left',
+    aliases: [],
+    floor: 'operations',
+    name: 'Server room (left aisle)',
+    scene: 'serverRoom',
+    mount: 2,
+    unlockLayer: 1,
+    offlineReason: null,
+    description:
+      'Server room, the left-hand service aisle: a narrow gap between two rows of racks, seen from the front. Status lights blink red and green on both sides, a maintenance cart is parked part way along, and cable runs hang from the tray overhead. Nothing moves.',
+    traceCost: 0,
+  },
+  {
+    id: 'server-aisle-right',
+    aliases: [],
+    floor: 'operations',
+    name: 'Server room (right aisle)',
+    scene: 'serverRoom',
+    mount: 3,
+    unlockLayer: 1,
+    offlineReason: null,
+    description:
+      'Server room, the right-hand service aisle: a narrow gap between two rows of racks, seen from the front. Status lights blink red and green on both sides and the aisle is clear to the back wall. Nothing moves.',
+    traceCost: 0,
+  },
+  {
+    id: 'server-corner-front-left',
+    aliases: [],
+    floor: 'operations',
+    name: 'Server room (front-left corner)',
+    scene: 'serverRoom',
+    mount: 4,
+    unlockLayer: 1,
+    offlineReason: null,
+    description:
+      'Server room, from high in the front-left corner. The racks stand in four rows under the cable trays, their lights blinking, and the camera looks across them to the cooling units and the airlock door in the back-right corner. Nothing moves.',
+    traceCost: 0,
+  },
+  {
+    id: 'server-corner-front-right',
+    aliases: [],
+    floor: 'operations',
+    name: 'Server room (front-right corner)',
+    scene: 'serverRoom',
+    mount: 5,
+    unlockLayer: 1,
+    offlineReason: null,
+    description:
+      'Server room, from high in the front-right corner. The racks stand in four rows under the cable trays, their lights blinking, and the camera looks across them to the cooling units and the airlock door in the back-left corner. Nothing moves.',
+    traceCost: 0,
+  },
+  {
+    id: 'server-corner-back-left',
+    aliases: [],
+    floor: 'operations',
+    name: 'Server room (back-left corner)',
+    scene: 'serverRoom',
+    mount: 6,
+    unlockLayer: 1,
+    offlineReason: null,
+    description:
+      'Server room, from high in the back-left corner above a cooling unit. The camera looks back across the rows of racks to the front wall: the door in its orange frame, a desk with two screens and an empty chair, and a cabinet and some boxes. Nothing moves.',
+    traceCost: 0,
+  },
+  {
+    id: 'server-corner-back-right',
+    aliases: [],
+    floor: 'operations',
+    name: 'Server room (back-right corner)',
+    scene: 'serverRoom',
+    mount: 7,
+    unlockLayer: 1,
+    offlineReason: null,
+    description:
+      'Server room, from high in the back-right corner above a cooling unit. The camera looks back across the rows of racks to the front wall: the door in its orange frame, a cabinet, some boxes and a bin, and a desk with two screens and an empty chair. Nothing moves.',
     traceCost: 0,
   },
   {

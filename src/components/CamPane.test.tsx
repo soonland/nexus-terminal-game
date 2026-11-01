@@ -195,4 +195,57 @@ describe('CamPane', () => {
     expect(startFeed).toHaveBeenCalledTimes(1);
     expect(stop).not.toHaveBeenCalled();
   });
+
+  describe('keyboard', () => {
+    const stage = () => screen.getByTestId('cam-stage');
+    const overlay = () => screen.getByText(/—/, { selector: '.cam-id' }).textContent;
+
+    it('makes the camera view focusable', () => {
+      setup();
+      expect(stage().getAttribute('tabindex')).toBe('0');
+      expect(stage().getAttribute('role')).toBe('group');
+    });
+
+    it('steps to the next live camera with ArrowRight, skipping the offline one, and wraps', () => {
+      setup();
+      expect(overlay()).toBe('GROUND FLOOR — LOBBY (RECEPTION)');
+      fireEvent.keyDown(stage(), { key: 'ArrowRight' });
+      expect(overlay()).toBe('OPERATIONS — SERVER ROOM (AISLE)');
+      fireEvent.keyDown(stage(), { key: 'ArrowRight' });
+      expect(overlay()).toBe('GROUND FLOOR — LOBBY (RECEPTION)');
+      expect(screen.queryByTestId('cam-offline')).toBeNull();
+    });
+
+    it('steps back with ArrowLeft, and jumps with Home and End', () => {
+      setup();
+      fireEvent.keyDown(stage(), { key: 'ArrowLeft' });
+      expect(overlay()).toBe('OPERATIONS — SERVER ROOM (AISLE)');
+      fireEvent.keyDown(stage(), { key: 'Home' });
+      expect(overlay()).toBe('GROUND FLOOR — LOBBY (RECEPTION)');
+      fireEvent.keyDown(stage(), { key: 'End' });
+      expect(overlay()).toBe('OPERATIONS — SERVER ROOM (AISLE)');
+    });
+
+    it('starts the new camera and stops the old one', async () => {
+      setup();
+      await vi.waitFor(() => {
+        expect(startFeed).toHaveBeenCalledTimes(1);
+      });
+      fireEvent.keyDown(stage(), { key: 'ArrowRight' });
+      await vi.waitFor(() => {
+        expect(startFeed).toHaveBeenCalledTimes(2);
+      });
+      expect(startFeed.mock.calls[1]?.[1]).toEqual({ scene: 'serverRoom', mount: 0 });
+      expect(stop).toHaveBeenCalledTimes(1);
+    });
+
+    it('ignores other keys and modified arrows, leaving them to the layout shortcuts', () => {
+      setup();
+      fireEvent.keyDown(stage(), { key: 'ArrowDown' });
+      fireEvent.keyDown(stage(), { key: 'a' });
+      fireEvent.keyDown(stage(), { key: 'ArrowRight', altKey: true });
+      fireEvent.keyDown(stage(), { key: 'ArrowRight', ctrlKey: true });
+      expect(overlay()).toBe('GROUND FLOOR — LOBBY (RECEPTION)');
+    });
+  });
 });

@@ -579,10 +579,16 @@ body {
   opacity: 0.5;
 }
 
+.cam-stage:focus-visible,
 .cam-menu-floor:focus-visible,
 .cam-menu-item:focus-visible,
 .cam-menu-button:focus-visible {
   outline: 1px solid var(--win-title-color);
+}
+
+.cam-stage:focus-visible {
+  /* The stage clips its children, so the ring sits inside it. */
+  outline-offset: -2px;
 }
 
 .cam-stage {

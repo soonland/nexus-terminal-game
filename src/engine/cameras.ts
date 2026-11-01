@@ -33,3 +33,28 @@ export const cameraFeeds = (state: GameState): readonly ListedFeed[] => {
     return { ...feed, live, locked: !live && feed.offlineReason === null };
   });
 };
+
+export type FeedStep = 'previous' | 'next' | 'first' | 'last';
+
+// The id of the live camera a keypress moves to from `currentId`. Stepping skips cameras that are
+// not live and wraps round the ends; `first` and `last` pick the ends of the live ones. With no live
+// camera the current one stays.
+export const stepFeed = (
+  feeds: readonly Pick<ListedFeed, 'id' | 'live'>[],
+  currentId: string,
+  step: FeedStep,
+): string => {
+  const live = feeds.filter(f => f.live);
+  const ends = { first: live.at(0), last: live.at(-1) };
+  if (step === 'first' || step === 'last') return ends[step]?.id ?? currentId;
+  if (live.length === 0) return currentId;
+  const direction = step === 'next' ? 1 : -1;
+  const from = feeds.findIndex(f => f.id === currentId);
+  for (let i = 1; i <= feeds.length; i += 1) {
+    const candidate = feeds.at(
+      (((from + direction * i) % feeds.length) + feeds.length) % feeds.length,
+    );
+    if (candidate?.live === true) return candidate.id;
+  }
+  return currentId;
+};

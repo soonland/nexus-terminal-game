@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { cameraFeeds, deepestLayer } from '../cameras';
+import { cameraFeeds, deepestLayer, stepFeed } from '../cameras';
 import { CAMERA_FEEDS, FLOORS, floorAccent, floorName } from '../../data/cameras';
 import { createInitialState } from '../state';
 import produce from '../produce';
@@ -136,5 +136,56 @@ describe('floorName', () => {
   it('names a floor, and falls back to the id for one it does not know', () => {
     expect(floorName('ground')).toBe('Ground floor');
     expect(floorName('basement' as never)).toBe('basement');
+  });
+});
+
+describe('stepFeed', () => {
+  // a and c are live, b is locked, d is live.
+  const feeds = [
+    { id: 'a', live: true },
+    { id: 'b', live: false },
+    { id: 'c', live: true },
+    { id: 'd', live: true },
+  ];
+
+  it('steps to the next live camera, skipping any that are not live', () => {
+    expect(stepFeed(feeds, 'a', 'next')).toBe('c');
+    expect(stepFeed(feeds, 'c', 'next')).toBe('d');
+  });
+
+  it('steps back the same way', () => {
+    expect(stepFeed(feeds, 'c', 'previous')).toBe('a');
+    expect(stepFeed(feeds, 'd', 'previous')).toBe('c');
+  });
+
+  it('wraps round the ends in both directions', () => {
+    expect(stepFeed(feeds, 'd', 'next')).toBe('a');
+    expect(stepFeed(feeds, 'a', 'previous')).toBe('d');
+  });
+
+  it('jumps to the first and last live camera', () => {
+    expect(stepFeed(feeds, 'c', 'first')).toBe('a');
+    expect(stepFeed(feeds, 'c', 'last')).toBe('d');
+    const lockedEnds = [{ id: 'x', live: false }, ...feeds, { id: 'y', live: false }];
+    expect(stepFeed(lockedEnds, 'c', 'first')).toBe('a');
+    expect(stepFeed(lockedEnds, 'c', 'last')).toBe('d');
+  });
+
+  it('moves on from a camera that is not live', () => {
+    expect(stepFeed(feeds, 'b', 'next')).toBe('c');
+    expect(stepFeed(feeds, 'b', 'previous')).toBe('a');
+  });
+
+  it('stays put with one live camera or none', () => {
+    expect(stepFeed([{ id: 'a', live: true }], 'a', 'next')).toBe('a');
+    expect(stepFeed([{ id: 'a', live: false }], 'a', 'next')).toBe('a');
+    expect(stepFeed([{ id: 'a', live: false }], 'a', 'first')).toBe('a');
+  });
+
+  it('works on the real list: the lobby feeds come first, and locked floors are skipped', () => {
+    const real = cameraFeeds(held([L1], L1));
+    expect(stepFeed(real, 'lobby-reception', 'next')).toBe('lobby-entrance');
+    const live = real.filter(f => f.live);
+    expect(stepFeed(real, live.at(-1)!.id, 'next')).toBe(live[0].id);
   });
 });

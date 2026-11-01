@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
+import type { KeyboardEvent } from 'react';
 import { floorName } from '../data/cameras';
 import { CamMenu } from './CamMenu';
-import type { ListedFeed } from '../engine/cameras';
+import { stepFeed } from '../engine/cameras';
+import type { FeedStep, ListedFeed } from '../engine/cameras';
 
 interface Props {
   feeds: readonly ListedFeed[];
@@ -10,6 +12,14 @@ interface Props {
   fullscreen: boolean;
   onToggleFullscreen: () => void;
 }
+
+// ←/→ step to the previous and next live camera, Home/End jump to the first and last.
+const STEP_KEYS: Readonly<Partial<Record<string, FeedStep>>> = {
+  ArrowLeft: 'previous',
+  ArrowRight: 'next',
+  Home: 'first',
+  End: 'last',
+};
 
 const STORY_DATE = '2024-11-27';
 const NIGHT_VISION_KEY = 'irongate_cam_night_vision';
@@ -104,6 +114,14 @@ export const CamPane = ({ feeds, visible, fullscreen, onToggleFullscreen }: Prop
   const feed = feeds.find(f => f.id === selected) ?? first;
   if (feed === undefined) return null;
 
+  const onStageKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+    const step = STEP_KEYS[event.key];
+    if (step === undefined) return;
+    event.preventDefault();
+    setSelected(stepFeed(feeds, feed.id, step));
+  };
+
   return (
     <div className="cam-pane">
       <div className="cam-bar">
@@ -122,7 +140,13 @@ export const CamPane = ({ feeds, visible, fullscreen, onToggleFullscreen }: Prop
           {fullscreen ? 'EXIT FULL SCREEN' : 'FULL SCREEN'}
         </button>
       </div>
-      <div className={nightVision ? 'cam-stage cam-nv' : 'cam-stage'} data-testid="cam-stage">
+      <div
+        className={nightVision ? 'cam-stage cam-nv' : 'cam-stage'}
+        data-testid="cam-stage"
+        role="group"
+        aria-label="Camera feed: left and right arrows change camera"
+        tabIndex={0}
+        onKeyDown={onStageKeyDown}>
         {feed.live ? (
           <Canvas key={feed.id} feed={feed} visible={visible} />
         ) : (
