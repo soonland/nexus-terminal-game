@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.0](https://github.com/soonland/nexus-terminal-game/compare/v1.2.0...v1.3.0) (2026-11-01)
+
+
+### Features
+
+* **cam:** add exterior and loading dock feeds, models and keyboard stepping ([#273](https://github.com/soonland/nexus-terminal-game/issues/273)) ([2d7c842](https://github.com/soonland/nexus-terminal-game/commit/2d7c842f5e2b1ee3b9047a931a5771a94764fa5c))
+
 ## [1.2.0](https://github.com/soonland/nexus-terminal-game/compare/v1.1.0...v1.2.0) (2026-10-14)
 
 
