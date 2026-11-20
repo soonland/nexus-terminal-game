@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.1](https://github.com/soonland/nexus-terminal-game/compare/v1.3.0...v1.3.1) (2026-11-20)
+
+
+### Performance Improvements
+
+* **cam:** load each 3D model once per session ([#281](https://github.com/soonland/nexus-terminal-game/issues/281)) ([9059d1a](https://github.com/soonland/nexus-terminal-game/commit/9059d1a681e7bc6789938d834e1676fe72476a4d))
+
 ## [1.3.0](https://github.com/soonland/nexus-terminal-game/compare/v1.2.0...v1.3.0) (2026-11-01)
 
 
