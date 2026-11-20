@@ -1,5 +1,5 @@
 import type { Object3D, Scene } from 'three';
-import { createModelFetcher } from './modelLoader';
+import { modelFetcher } from './modelLoader';
 
 // Kenney city models (CC0) for the street outside IronGate, served from public/models/exterior/<pack>/.
 // Each .glb finds its colormap at Textures/colormap.png beside it.
@@ -131,7 +131,7 @@ export const loadExteriorModels = async (
   cancelled: () => boolean,
   onVehicle: (model: Object3D, vehicle: Vehicle) => void,
 ): Promise<void> => {
-  const fetchUrl = await createModelFetcher();
+  const fetchUrl = await modelFetcher();
   const fetchModel = (m: Pick<ExteriorModel, 'pack' | 'file'>): Promise<Object3D> =>
     fetchUrl(exteriorModelUrl(m));
   await Promise.allSettled(
