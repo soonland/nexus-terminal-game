@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
-import { Scene } from 'three';
+import { describe, expect, it, vi } from 'vitest';
+import { Group, Scene } from 'three';
 import {
   EXTERIOR_MODELS,
   TRAFFIC,
@@ -10,6 +10,13 @@ import {
   loadExteriorModels,
   trafficX,
 } from './exteriorModels';
+
+// Node cannot fetch the models' relative urls, so the loader is stubbed: every model arrives.
+vi.mock('three/addons/loaders/GLTFLoader.js', () => ({
+  GLTFLoader: class {
+    loadAsync = () => Promise.resolve({ scene: new Group() });
+  },
+}));
 
 const PUBLIC = join(process.cwd(), 'public');
 

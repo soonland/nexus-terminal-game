@@ -5,20 +5,39 @@ const isMesh = (object: Object3D): object is Mesh => 'isMesh' in object && objec
 
 export type ModelFetcher = (url: string) => Promise<Object3D>;
 
-// A glTF loader that fetches each url once; later asks for the same url share the result (callers
-// clone it). three's loader is loaded lazily, so it stays out of the main bundle.
-export const createModelFetcher = async (): Promise<ModelFetcher> => {
+const createModelFetcher = async (): Promise<ModelFetcher> => {
   const { GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js');
   const loader = new GLTFLoader();
   const loaded = new Map<string, Promise<Object3D>>();
   return url => {
     let pending = loaded.get(url);
     if (pending === undefined) {
-      pending = loader.loadAsync(url).then(gltf => gltf.scene);
+      pending = loader.loadAsync(url).then(
+        gltf => gltf.scene,
+        (error: unknown) => {
+          // Forget a failed load so the next feed that needs the model tries again.
+          loaded.delete(url);
+          throw error;
+        },
+      );
       loaded.set(url, pending);
     }
     return pending;
   };
+};
+
+let shared: Promise<ModelFetcher> | undefined;
+
+// The one glTF loader of the page: each url is fetched and parsed once per session, and every feed
+// that shows the model afterwards shares that result (callers clone it). It lives in memory only,
+// holds just the models of the feeds already watched, and is gone on reload. three's loader is
+// loaded lazily, so it stays out of the main bundle.
+export const modelFetcher = (): Promise<ModelFetcher> => {
+  shared ??= createModelFetcher().catch((error: unknown) => {
+    shared = undefined;
+    throw error;
+  });
+  return shared;
 };
 
 export interface ModelSize {
@@ -99,7 +118,7 @@ export const placeFurnishings = async (
   cancelled: () => boolean,
   fetcher?: ModelFetcher,
 ): Promise<void> => {
-  const fetchModel = fetcher ?? (await createModelFetcher());
+  const fetchModel = fetcher ?? (await modelFetcher());
   const groups = [...new Set(models.map(m => m.group))];
   await Promise.allSettled(
     groups.map(async name => {
